@@ -11,26 +11,31 @@ import os
 
 from TaxsimInputReader import InputReader
 
+from TextDescriptionWriter import TextDescriptionWriter
+
 import importlib.metadata
 
-
+# instantiate an InputReader class with the input file
 def read_input_file(input_file):
     reader = InputReader(input_file)
     return (reader)
 
+# get the list of situations from the InputReader
 def get_situations(reader):
     return(reader.situations)
 
+# get the level of output from the InputReader
 def get_output_level(reader):
     return(reader.output_level)
 
+# return the chosen output level's corresponding list of variables 
 def get_variables(output_level):
     if output_level == "standard":
         return standard_variables
     elif output_level == "full":
         return full_variables
     elif output_level == "text_descriptions":
-        raise ValueError("Emulator does not support the text description option yet. Please use standard or full output levels")
+        return full_variables
     
 # input a list of situations and convert each situation into a simulation object
 def make_simulation(list_of_households):
@@ -39,12 +44,10 @@ def make_simulation(list_of_households):
         list_of_simulations.append(Simulation(situation = situation,))
     return(list_of_simulations)
 
+# format as an f string with two decimal places
 def convert_to_number(arr):
-    # Access the element (assuming it's a single-element array)
     value = arr[0]
-    # Round to two decimal places
     rounded_value = round(value, 2)
-    # Format as string with two decimal places and trailing zeros
     formatted_value = f"{rounded_value:.2f}"
     return(formatted_value)
 
@@ -129,9 +132,20 @@ def state_exemptions(situation):
     #try to calculate state_exemption, if error, return 0 --> NEED TO ADD Feature
     return(state + "_exemptions")
 
+# Returns the function that computes state adjusted gross income
 def state_agi(situation):
     state = get_state(situation).lower()
     return(state + "_agi")
+
+# Returns the function that computes state property tax credit
+def state_property_tax_credit(situation):
+    state = get_state(situation).lower()
+    return(state + "_property_tax_credit")
+
+# Returns the function that computes state earned income tax credit 
+def state_eitc(situation):
+    state = get_state(situation).lower()
+    return(state + "_eitc")
 
 def placeholder(situation):
     return("placeholder")
@@ -153,11 +167,7 @@ variables = ["get_year","get_state","income_tax","state_income_tax","fica", "fra
              "state_bracket_rate","self_employment_income","net_investment_income_tax","employee_medicare_tax","rrc_cares"]
 
 
-# list of dictiionaries where each Policy Engine variable is mapped to the Taxsim name.
-# Booleans indicate whether the variable is a placeholder, a local variable, or a local variable that doesn't return a function (only get_year and state)
-# list of variables mapped to taxsim "2" input (full variables)
-
-
+# list of dictiionaries where each taxim output variable is mapped to the PolicyEngine calculation 
 
 full_variables = [
     {'taxsim_name': 'year', 'calculation': 'get_year'},
@@ -198,7 +208,7 @@ full_variables = [
     {'taxsim_name': 'v36', 'calculation': lambda household: globals()['state_taxable_income'](household)},
     {'taxsim_name': 'v37', 'calculation': 'placeholder'},
     {'taxsim_name': 'v38', 'calculation': 'placeholder'},
-    {'taxsim_name': 'v39', 'calculation': 'placeholder'},
+    {'taxsim_name': 'v39', 'calculation': lambda household: globals()['state_eitc'](household)},
     {'taxsim_name': 'v40', 'calculation': 'placeholder'},
     {'taxsim_name': 'v41', 'calculation': 'placeholder'},
     {'taxsim_name': 'v42', 'calculation': 'self_employment_income'},
@@ -219,12 +229,6 @@ standard_variables = [
     {'taxsim_name': 'ficar', 'calculation': 'placeholder'},
     {'taxsim_name': 'tfica', 'calculation': 'placeholder'}
 ]
-
-# Calculate the variables based on the user's information and save them to a dataframe
-
-# input a list of simulations, a list of households, and a variable_dict. 
-# variable dict will be switched to either 0, 2, 5 to correspond with taxsim inputs --> to be implemented
-
 
 # seperate iteration into one single household output
 def single_household(household, variable_dict):
@@ -264,19 +268,26 @@ def multiple_households(list_of_households, variable_dict):
         row = single_household(household, variable_dict)
         output.append(row)
     
-    # Create DataFrame from the output with taxsim_names as columns
     return output
 
-def make_dataframe(input_file, variable_dict, is_multiple_households: bool):
+# Creates DataFrame from the output with taxsim_names as columns
+def make_dataframe(list_of_households, variable_dict, is_multiple_households: bool):
     if not is_multiple_households:
-        household = input_file[0]
+        household = list_of_households[0]
         output  = [single_household(household, variable_dict)]
         df = pd.DataFrame(output, columns=[var['taxsim_name'] for var in variable_dict], index=pd.RangeIndex(start=1, stop=len(output)+1, name='taxsimid'))
         return df
     else:
-        output = multiple_households(input_file, variable_dict)
+        output = multiple_households(list_of_households, variable_dict)
         df = pd.DataFrame(output, columns=[var['taxsim_name'] for var in variable_dict], index=pd.RangeIndex(start=1, stop=len(output)+1, name='taxsimid'))
         return df
+
+# Instantiates a new TextDescriptionWriter class using the first household's information if output level 5 is chosen
+def make_text_description_file(list_of_households, variable_dict, reader):
+    household = [list_of_households[0]]
+    output = make_dataframe(household, variable_dict, is_multiple_households(household))
+    return(TextDescriptionWriter(output, reader))
+
 
 # return true if the input file contains more than one household
 def is_multiple_households(list):
@@ -294,13 +305,13 @@ def main(input_file):
     variable_dict = get_variables(output_level)
 
     print("Chosen Output Level: " + output_level)
-
-
-
-
-    output = make_dataframe(list_of_households, variable_dict, is_multiple_households(list_of_households))
-
-    output.to_csv('output.csv', index=True)
+    
+    
+    if output_level == "text_descriptions":
+        output = make_text_description_file(list_of_households, variable_dict, reader)
+    else:
+        output = make_dataframe(list_of_households, variable_dict, is_multiple_households(list_of_households))
+        output.to_csv('output.csv', index=True)
 
     print("script finished")
 

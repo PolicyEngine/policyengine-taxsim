@@ -86,13 +86,20 @@ class InputReader:
             "intrec": "taxable_interest_income",
             "stcg": "short_term_capital_gains",
             "ltcg": "long_term_capital_gains",
+            "nonprop": "alimony_income",
+            "otherprop": "partnership_s_corp_income",
+            "pensions": "pension_income",
             "pui": "unemployment_compensation",
             "sui": "unemployment_compensation",
-            "proptax": "real_estate_taxes"
+            "proptax": "real_estate_taxes",
+            "scorp": "s_corp_self_employment_income",
+            "pbusinc": "qualified_business_income",
+            "sbusinc": "qualified_business_income"
         }
 
-        primary_variables = ["pwages","psemp","dividends","intrec","stcg","ltcg","pui","proptax"]
-        spouse_variables = ["swages","ssemp","sui"]
+        primary_variables = ["pwages","psemp","dividends","intrec","stcg","ltcg","pui","proptax","pbusinc","nonprop","otherprop",
+                             "scorp","pensions"]
+        spouse_variables = ["swages","ssemp","sui","sbusinc"]
 
         primary_taxpayer = "you"
         spouse_taxpayer = "your partner"

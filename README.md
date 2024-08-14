@@ -28,6 +28,7 @@ python3 taxsim_emulator.py taxsim_input.raw
 8. age1 (age of first dependent)
 9. age2 (age of second dependent)
 10. age3 (age of third dependent)
+11. idtl (determines the level of output. 0 = standard, 2 = full, 5 = full with text descriptions)
 
 ### Income: ###
 1. pwages (wage of primary taxpayer)
@@ -38,6 +39,9 @@ python3 taxsim_emulator.py taxsim_input.raw
 6. intrec (taxable interest received)
 7. stcg (short-term capital gains)
 8. ltcg (long-term capital gains)
-9. pui (primary taxpayer unemployment compensation received)
-10. sui (spouse unemployment compensation received)
-11. proptax (real estate taxes paid)
+9. otherprop (other property incomes)
+10. nonprop (other non-property incomes)
+11. pensions (taxable pensions and IRA distributions)
+12. pui (primary taxpayer unemployment compensation received)
+13. sui (spouse unemployment compensation received)
+14. proptax (real estate taxes paid)
