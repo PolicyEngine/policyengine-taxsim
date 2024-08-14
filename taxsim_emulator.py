@@ -220,7 +220,7 @@ full_variables = [
 # variables mapped to taxsim "0" input (standard)
 standard_variables = [
     {'taxsim_name': 'year', 'calculation': 'get_year'},
-    {'taxsim_name': 'state', 'calculation': 'get_state'},
+    {'taxsim_name': 'state', 'calculation': 'get_state_code'},
     {'taxsim_name': 'fiitax', 'calculation': 'income_tax'},
     {'taxsim_name': 'siitax', 'calculation': lambda household: globals()['state_income_tax'](household)},
     {'taxsim_name': 'fica', 'calculation': 'placeholder'},
