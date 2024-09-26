@@ -1,5 +1,8 @@
 # policyengine-taxsim
 TAXSIM emulator using the PolicyEngine US federal and state tax calculator
+## How to install the emulator ##
+    git clone https://github.com/PolicyEngine/policyengine-taxsim
+    pip install -U policyengine-us
 
 ## How to use the emulator ##
 The emulator takes a .raw file in the form of a csv. This is the same form of input that Taxsim-35 takes.
