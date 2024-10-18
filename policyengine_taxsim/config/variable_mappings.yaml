@@ -1,0 +1,51 @@
+taxsim_to_policyengine:
+  year: get_year
+  state: get_state_code
+  fiitax: income_tax
+  siitax: state_income_tax
+  fica: get_fica
+  frate: federal_mtr
+  srate: state_mtr
+  ficar: placeholder
+  tfica: taxsim_tfica
+  v10: adjusted_gross_income
+  v11: tax_unit_taxable_unemployment_compensation
+  v12: tax_unit_taxable_social_security
+  v13: basic_standard_deduction
+  v14: exemptions
+  v15: placeholder
+  v16: placeholder
+  v17: taxable_income_deductions
+  v18: taxable_income
+  v19: income_tax
+  v20: placeholder
+  v21: placeholder
+  v22: ctc
+  v23: refundable_ctc
+  v24: cdcc
+  v25: eitc
+  v26: amt_income
+  v27: alternative_minimum_tax
+  v28: income_tax_before_refundable_credits
+  v29: placeholder
+  v30: household_net_income
+  v31: placeholder
+  v32: state_agi
+  v33: placeholder
+  v34: state_standard_deduction
+  v35: state_itemized_deductions
+  v36: state_taxable_income
+  v37: property_tax_credit
+  v38: child_care_credit
+  v39: placeholder
+  v40: placeholder
+  v41: placeholder
+  v42: self_employment_income
+  v43: net_investment_income_tax
+  v44: employee_medicare_tax
+  v45: rrc_cares
+
+policyengine_to_taxsim:
+  # This section would be the inverse of the above mapping
+  # It's left empty for brevity, but you should populate it
+  # with the inverse relationships for bidirectional conversion
