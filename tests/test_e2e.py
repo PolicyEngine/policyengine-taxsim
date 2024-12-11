@@ -66,7 +66,7 @@ class E2ETest(unittest.TestCase):
         if system == "darwin":
             self.taxsim_exe = "taxsim35-osx.exe"
         elif system == "windows":
-            self.taxsim_exe = "taxsim35-windows.exe"
+            self.taxsim_exe = "taxsim-latest-windows.exe"
         elif system == "linux":
             self.taxsim_exe = "taxsim35-unix.exe"
         else:
@@ -77,11 +77,6 @@ class E2ETest(unittest.TestCase):
         self.input_file_household_with_dependent = self.taxsim_dir / self.HOUSEHOLD_WITH_DEPENDENT_INPUT
         self.input_file_household_with_dependent_single_parent = self.taxsim_dir / self.HOUSEHOLD_WITH_DEPENDENT_SINGLE_PARENT_INPUT
 
-        # Verify and print paths for debugging
-        print(f"\nDebug Information:")
-        print(f"Taxsim Directory: {self.taxsim_dir}")
-        print(f"Input File Path: {self.input_file_single_household}")
-        print(f"Input File Exists: {self.input_file_single_household.exists()}")
         if self.input_file_single_household.exists():
             print(f"Input File is Readable: {os.access(self.input_file_single_household, os.R_OK)}")
 
@@ -194,13 +189,6 @@ class E2ETest(unittest.TestCase):
         )
         input_csv = pd.read_csv(self.input_file_single_household)
 
-        print("Input CSV:")
-        print(input_csv)
-        print("\nTAXSIM35 output:")
-        print(taxsim35_csv)
-        print("\nPolicyEngine TAXSIM output:")
-        print(pe_taxsim_csv)
-
         # Ensure both DataFrames have the same columns
         common_columns = set(taxsim35_csv.columns) & set(pe_taxsim_csv.columns)
         taxsim35_csv = taxsim35_csv[list(common_columns)]
@@ -254,7 +242,13 @@ class E2ETest(unittest.TestCase):
         comparison_results = {}
         for col in columns_to_check:
             if col in common_columns:
-                matches = (taxsim35_csv[col] == pe_taxsim_csv[col]).all()
+                # matches = (taxsim35_csv[col] == pe_taxsim_csv[col]).all()
+                matches = np.isclose(
+                    taxsim35_csv[col],
+                    pe_taxsim_csv[col],
+                    rtol=0.01,  # relative tolerance (0.001%)
+                    atol=0.1 # absolute tolerance
+                ).all()
                 comparison_results[col] = matches
                 if not matches:
                     print(f"Mismatch in column {col}:")

@@ -27,8 +27,12 @@ dependencies = [
     "PyYAML",
     "click",
     "matplotlib",
-    "numpy"
+    "numpy",
+    "policyengine_tests_generator @ git+https://github.com/noman404/policyengine-tests-generator.git"
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project.urls]
 Homepage = "https://github.com/PolicyEngine/policyengine-taxsim"

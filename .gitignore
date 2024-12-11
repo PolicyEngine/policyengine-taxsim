@@ -168,3 +168,4 @@ cython_debug/
 .idea/
 input/*
 output.csv
+/tests-yaml/*.yaml
