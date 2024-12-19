@@ -7,10 +7,11 @@ A TAXSIM emulator using the PolicyEngine US federal and state tax calculator.
 - [Installation](#installation)
   - [From Source](#from-source)
   - [From PyPI](#from-pypi)
+- [Uninstall](#uninstall)
 - [Usage](#usage)
+  - [How to Run](#how-to-run)
 - [Input Variables](#input-variables)
-  - [Demographics](#demographics)
-  - [Income](#income)
+  - [Supported Inputs](#supported-inputs)
   - [Output Types](#output-types)
   - [Household Types](#household-types)
 - [Contributing](#contributing)
@@ -54,6 +55,13 @@ This project provides an emulator for TAXSIM-35, utilizing PolicyEngine's US fed
    ```bash
    pip install -e . --upgrade
    ```
+## Uninstall
+
+If you encounter any unexpected system errors, you can uninstall the package and reinstall it
+
+   ```bash
+   pip uninstall policyengine_taxsim
+   ```
 
 ### From PyPI
 
@@ -63,53 +71,61 @@ pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
 
 ## Usage
 
+### How to Run
+
 Run the simulation by providing your input CSV file:
 
 ```bash
 python policyengine_taxsim/cli.py your_input_file.csv
 ```
 
-The output will be generated as `output.csv` in the same directory.
+The output will be generated as `output.txt` in the same directory. (Note that the file can be used as CSV when the output type is only `idtl = 0, 2`)
 
 ## Input Variables
 
 The emulator accepts CSV files with the following variables:
 
-### Demographics
+### Supported Inputs
 
-| Variable  | Description                     | Notes                                       |
-|-----------|--------------------------------|---------------------------------------------|
-| taxsimid  | Unique identifier              |                                             |
-| year      | Tax year                       |                                             |
-| state     | State code                     |                                             |
-| mstat     | Marital status                 | Only supports: 1 (single), 2 (joint)        |
-| page      | Primary taxpayer age           |                                             |
-| sage      | Spouse age                     |                                             |
-| depx      | Number of dependents           |                                             |
-| age1      | First dependent's age          |                                             |
-| age2      | Second dependent's age         |                                             |
-| ageN      | Nth dependent's age            | Taxsim only allow upto 8 children dependent |
+| Variable  | Description                                                | Notes                                                                             |
+|-----------|------------------------------------------------------------|-----------------------------------------------------------------------------------|
+| taxsimid  | Unique identifier                                          |                                                                                   |
+| year      | Tax year                                                   |                                                                                   |
+| state     | [State code (FIPS)](https://taxsim.nber.org/statesoi.html) | Two-digit code, e.g. 44 for Texas (Default is Texas if no state code is provided) |
+| mstat     | Marital status                                             | Only supports: 1 (single), 2 (joint)                                              |
+| page      | Primary taxpayer age                                       |                                                                                   |
+| sage      | Spouse age                                                 |                                                                                   |
+| depx      | Number of dependents                                       |                                                                                   |
+| age1      | First dependent's age                                      |                                                                                   |
+| age2      | Second dependent's age                                     |                                                                                   |
+| ageN      | Nth dependent's age                                        | Taxsim only allows upto 8 child dependents                                        |
+| pwages    | Primary taxpayer wages                                     |                                                                                   |
+| swages    | Spouse wages                                               |                                                                                   |
+| psemp     | Self-employment income of primary taxpayer                 |                                                                                   |
+| ssemp     | Self-employment income of secondary taxpayer               |                                                                                   |
+| dividends | Dividend Income                                            |                                                                                   |
+| intrec    | Taxable Interest Received                                  |                                                                                   |
+| stcg      | Short Term Capital Gains or losses                         |                                                                                   |
+| ltcg      | Long Term Capital Gains or losses                          |                                                                                   |
+| gssi      | Gross Social Security Benefits                             |                                                                                   |
+| pensions  | Taxable Pensions and IRA distributions                     |                                                                                   |
+| rentpaid  | Rent Paid                                                  |                                                                                   |
 
-### Income
-
-| Variable  | Description                     |
-|-----------|--------------------------------|
-| pwages    | Primary taxpayer wages         |
-| swages    | Spouse wages                   |
 
 ### Output Types
 
 Depending on the idtl input value it can generate output types as following:
 
-| idtl | Description     |
-|------|-----------------|
-| 0    | Standard output |
-| 2    | Full output     |
+| idtl | Description                                    |
+|------|------------------------------------------------|
+| 0    | Standard output (Outputs 10 result columns)    |
+| 2    | Full output  (Outputs 45 result columns)       |
+| 5    | Full text output (human-readable explanations) |
 
 ### Household Types
 
-| Supported household types                |
-|----------------------------------------|
+| Supported household types               |
+|-----------------------------------------|
 | Single                                  |
 | Joint                                   |
 | Household with Dependent                |
