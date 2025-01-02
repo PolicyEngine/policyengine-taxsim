@@ -5,6 +5,7 @@ from .utils import (
 from policyengine_us import Simulation
 from policyengine_tests_generator.core.generator import PETestsYAMLGenerator
 
+disable_salt_variable = False
 
 def generate_non_description_output(taxsim_output, mappings, year, state_name, simulation, output_type, logs):
     outputs = []
@@ -274,7 +275,7 @@ def add_a_dollar(data):
     return data
 
 
-def export_household(taxsim_input, policyengine_situation, logs):
+def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
     """
     Convert a PolicyEngine situation to TAXSIM output variables.
 
@@ -284,6 +285,9 @@ def export_household(taxsim_input, policyengine_situation, logs):
     Returns:
         dict: Dictionary of TAXSIM output variables
     """
+    global disable_salt_variable
+    disable_salt_variable = disable_salt
+
     mappings = load_variable_mappings()["policyengine_to_taxsim"]
 
     simulation = Simulation(situation=policyengine_situation)
@@ -316,6 +320,8 @@ def export_household(taxsim_input, policyengine_situation, logs):
 
 def simulate(simulation, variable, year):
     try:
+        if disable_salt_variable:
+            simulation.set_input(variable_name='salt_deduction', value=0.0)
         return to_roundedup_number(simulation.calculate(variable, period=year))
     except Exception as error:
         return 0.00
@@ -323,6 +329,8 @@ def simulate(simulation, variable, year):
 
 def simulate_multiple(simulation, variables, year):
     try:
+        if disable_salt_variable:
+            simulation.set_input(variable_name='salt_deduction', value=0.0)
         total = sum(to_roundedup_number(simulation.calculate(variable, period=year)) for variable in variables)
     except Exception as error:
         total = 0.00

@@ -21,7 +21,8 @@ except ImportError:
     help="Output file path",
 )
 @click.option('--logs', is_flag=True, help='Generate PE YAML Tests Logs')
-def main(input_file, output, logs):
+@click.option('--disable-salt', is_flag=True, default=False, help='Set Salt Deduction to 0.0')
+def main(input_file, output, logs, disable_salt):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
     """
@@ -39,13 +40,13 @@ def main(input_file, output, logs):
             pe_situation = generate_household(taxsim_input)
             idtl = taxsim_input['idtl']
             if idtl == 0:
-                taxsim_output = export_household(taxsim_input, pe_situation, logs)
+                taxsim_output = export_household(taxsim_input, pe_situation, logs, disable_salt)
                 idtl_0_results.append(taxsim_output)
             elif idtl == 2:
-                taxsim_output = export_household(taxsim_input, pe_situation, logs)
+                taxsim_output = export_household(taxsim_input, pe_situation, logs, disable_salt)
                 idtl_2_results.append(taxsim_output)
             else:
-                taxsim_output = export_household(taxsim_input, pe_situation, logs)
+                taxsim_output = export_household(taxsim_input, pe_situation, logs, disable_salt)
                 idtl_5_results += taxsim_output
 
         # Create output dataframe and save to csv

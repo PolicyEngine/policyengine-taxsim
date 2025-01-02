@@ -304,7 +304,7 @@ def test_export_single_household(sample_taxsim_input):
         }
     }
 
-    result = export_household(sample_taxsim_input, policyengine_single_household_situation, False)
+    result = export_household(sample_taxsim_input, policyengine_single_household_situation, False, False)
     assert result["year"] == 2021
     assert result["state"] == 3
     assert "fiitax" in result
@@ -392,7 +392,7 @@ def test_roundtrip(sample_taxsim_input):
     pe_situation = generate_household(sample_taxsim_input)
 
     # Export PolicyEngine situation back to TAXSIM output
-    taxsim_output = export_household(sample_taxsim_input, pe_situation, False)
+    taxsim_output = export_household(sample_taxsim_input, pe_situation, False, False)
 
     # Check that key information is preserved
     assert taxsim_output["year"] == sample_taxsim_input["year"]
