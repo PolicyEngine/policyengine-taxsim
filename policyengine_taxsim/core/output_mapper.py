@@ -9,6 +9,8 @@ from policyengine_tests_generator.core.generator import PETestsYAMLGenerator
 def generate_non_description_output(taxsim_output, mappings, year, state_name, simulation, output_type, logs):
     outputs = []
     for key, each_item in mappings.items():
+        state_initial = state_name.lower()
+
         if each_item['implemented']:
             if key == "taxsimid":
                 taxsim_output[key] = taxsim_output["taxsimid"]
@@ -18,23 +20,77 @@ def generate_non_description_output(taxsim_output, mappings, year, state_name, s
                 taxsim_output[key] = get_state_number(state_name)
             elif 'variables' in each_item and len(each_item['variables']) > 0:
                 pe_variables = each_item['variables']
-                taxsim_output[key] = simulate_multiple(simulation, pe_variables, year)
+
+                if 'special_cases' in each_item:
+                    found_state = next((each for each in each_item['special_cases'] if state_initial in each),
+                                       None)
+                    if found_state and found_state[state_initial]['implemented']:
+                        pe_variable = found_state[state_initial]['variable'].replace("state",
+                                                                                     state_initial) if "state" in \
+                                                                                                       found_state[
+                                                                                                           state_initial][
+                                                                                                           'variable'] else \
+                            found_state[state_initial]['variable']
+                        taxsim_output[key] = simulate(simulation, pe_variable, year)
+                        outputs.append({'variable': pe_variable, 'value': taxsim_output[key]})
+                    else:
+                        taxsim_output[key] = 0.0
+                        outputs.append({'variable': 'n/a', 'value': taxsim_output[key]})
+
+                else:
+                    taxsim_output[key] = simulate_multiple(simulation, pe_variables, year, state_initial)
+
+                    for pe_variable in pe_variables:
+                        outputs.append({'variable': pe_variable, 'value': taxsim_output[key]})
+
             else:
                 pe_variable = each_item['variable']
-                state_initial = state_name.lower()
 
                 if "state" in pe_variable:
                     pe_variable = pe_variable.replace("state", state_initial)
 
                 for entry in each_item['idtl']:
                     if output_type in entry.values():
+                        state_found = False
 
                         if 'special_cases' in each_item:
-                            found_state = next((each for each in each_item['special_cases'] if state_initial in each), None)
+                            found_state = next((each for each in each_item['special_cases'] if state_initial in each),
+                                               None)
                             if found_state and found_state[state_initial]['implemented']:
-                                pe_variable = found_state[state_initial]['variable'].replace("state", state_initial) if "state" in found_state[state_initial]['variable'] else found_state[state_initial]['variable']
-                        taxsim_output[key] = simulate(simulation, pe_variable, year)
-                        outputs.append({'variable': pe_variable, 'value': taxsim_output[key]})
+                                state_found = True
+                                pe_variable = found_state[state_initial]['variable'].replace("state",
+                                                                                             state_initial) if "state" in \
+                                                                                                               found_state[
+                                                                                                                   state_initial][
+                                                                                                                   'variable'] else \
+                                    found_state[state_initial]['variable']
+                                taxsim_output[key] = simulate(simulation, pe_variable, year)
+                                outputs.append({'variable': pe_variable, 'value': taxsim_output[key]})
+                            elif found_state and not found_state[state_initial]['implemented']:
+                                state_found = True
+                                taxsim_output[key] = 0.0
+                                outputs.append({'variable': 'n/a', 'value': taxsim_output[key]})
+
+                        if 'pre_simulation' in each_item:
+                            found_state = next((each for each in each_item['pre_simulation'] if state_initial in each),
+                                               None)
+                            if found_state and found_state[state_initial]['implemented']:
+                                state_found = True
+                                pre_simulation_variable = found_state[state_initial]['pre_variable']
+                                use_indiv = simulate_to_decide(simulation, pre_simulation_variable, year)
+                                variables = found_state[state_initial]['variables']
+
+                                if use_indiv:
+                                    pe_variable = variables[0]
+                                else:
+                                    pe_variable = variables[1]
+
+                                taxsim_output[key] = simulate(simulation, pe_variable, year)
+                                outputs.append({'variable': pe_variable, 'value': taxsim_output[key]})
+
+                        if not state_found:
+                            taxsim_output[key] = simulate(simulation, pe_variable, year)
+                            outputs.append({'variable': pe_variable, 'value': taxsim_output[key]})
 
     file_name = f"{taxsim_output['taxsimid']}-{state_name}.yaml"
     generate_pe_tests_yaml(simulation.situation_input, outputs, file_name, logs)
@@ -120,14 +176,39 @@ def generate_text_description_output(taxsim_input, mappings, year, state_name, s
                 elif var_name == "state":
                     value = f"{get_state_number(state_name)}{' ' * LEFT_MARGIN}{state_name}"
                 elif 'variables' in each_item and len(each_item['variables']) > 0:
-                    value = simulate_multiple(simulation, each_item['variables'], year)
+                    value = simulate_multiple(simulation, each_item['variables'], year, state_initial)
                 else:
                     if 'special_cases' in each_item:
                         found_state = next((each for each in each_item['special_cases'] if state_initial in each), None)
                         if found_state and found_state[state_initial]['implemented']:
-                            variable = found_state[state_initial]['variable'].replace("state", state_initial) if "state" in found_state[state_initial]['variable'] else found_state[state_initial]['variable']
-                    value = simulate(simulation, variable, year)
-                    outputs.append({'variable': variable, 'value': value})
+                            variable = found_state[state_initial]['variable'].replace("state",
+                                                                                      state_initial) if "state" in \
+                                                                                                        found_state[
+                                                                                                            state_initial][
+                                                                                                            'variable'] else \
+                            found_state[state_initial]['variable']
+                            value = simulate(simulation, variable, year)
+
+                            outputs.append({'variable': variable, 'value': value})
+                        continue
+
+                    if 'pre_simulation' in each_item:
+                        found_state = next((each for each in each_item['pre_simulation'] if state_initial in each),
+                                           None)
+                        if found_state and found_state[state_initial]['implemented']:
+                            pre_simulation_variable = found_state[state_initial]['pre_variable']
+                            use_indiv = simulate_to_decide(simulation, pre_simulation_variable, year)
+                            variables = found_state[state_initial]['variables']
+                            if use_indiv:
+                                value = simulate(simulation, variables[0], year)
+                            else:
+                                value = simulate(simulation, variables[1], year)
+
+                            outputs.append({'variable': variable, 'value': value})
+
+                    else:
+                        value = simulate(simulation, variable, year)
+                        outputs.append({'variable': variable, 'value': value})
 
                 # Format the base value
                 if isinstance(value, (int, float)):
@@ -138,14 +219,20 @@ def generate_text_description_output(taxsim_input, mappings, year, state_name, s
                 # Format second column value if needed
                 if has_second_column:
                     if 'variables' in each_item and len(each_item['variables']) > 0:
-                        second_value = simulate_multiple(simulation_1dollar_more, each_item['variables'], year)
+                        second_value = simulate_multiple(simulation_1dollar_more, each_item['variables'], year, state_initial)
                     else:
                         if 'special_cases' in each_item:
                             found_state = next((each for each in each_item['special_cases'] if state_initial in each),
                                                None)
                             if found_state and found_state[state_initial]['implemented']:
-                                variable = found_state[state_initial]['variable'].replace("state", state_initial) if "state" in found_state[state_initial]['variable'] else found_state[state_initial]['variable']
-                        second_value = simulate(simulation_1dollar_more, variable, year)
+                                variable = found_state[state_initial]['variable'].replace("state",
+                                                                                          state_initial) if "state" in \
+                                                                                                            found_state[
+                                                                                                                state_initial][
+                                                                                                                'variable'] else \
+                                found_state[state_initial]['variable']
+                                second_value = simulate(simulation_1dollar_more, variable, year)
+                            continue
 
                     if isinstance(second_value, (int, float)):
                         formatted_second_value = f"{second_value:>8.1f}"
@@ -316,14 +403,28 @@ def export_household(taxsim_input, policyengine_situation, logs):
 
 def simulate(simulation, variable, year):
     try:
-        return to_roundedup_number(simulation.calculate(variable, period=year))
+        return to_roundedup_number(sum(simulation.calculate(variable, period=year)))
     except Exception as error:
+        print(error)
         return 0.00
 
 
-def simulate_multiple(simulation, variables, year):
+def simulate_to_decide(simulation, variable, year) -> bool:
     try:
-        total = sum(to_roundedup_number(simulation.calculate(variable, period=year)) for variable in variables)
+        return simulation.calculate(variable, period=year)[0]
     except Exception as error:
-        total = 0.00
-    return to_roundedup_number(total)
+        print(error)
+        return False
+
+
+def simulate_multiple(simulation, variables, year, state):
+    try:
+        return to_roundedup_number(
+            sum(
+                sum(simulation.calculate(variable.replace("state", state), period=year))
+                for variable in variables
+            )
+        )
+    except Exception as error:
+        print(error)
+        return 0.00
