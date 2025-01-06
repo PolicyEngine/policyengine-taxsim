@@ -54,6 +54,31 @@ policyengine_to_taxsim:
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
+    special_cases:
+      - ak:
+          implemented: false
+          variable: na_pe
+      - nv:
+          implemented: false
+          variable: na_pe
+      - sd:
+          implemented: false
+          variable: na_pe
+      - tn:
+          implemented: false
+          variable: na_pe
+      - tx:
+          implemented: false
+          variable: na_pe
+      - fl:
+          implemented: false
+          variable: na_pe
+      - wy:
+          implemented: false
+          variable: na_pe
+      - wa:
+          implemented: false
+          variable: na_pe
   fica:
     variable: multiple_variable
     implemented: true
@@ -357,8 +382,8 @@ policyengine_to_taxsim:
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v30:
-    variable: na_pe
-    implemented: false
+    variable: household_net_income
+    implemented: true
     idtl:
       - full: 2
       - full_text: 5
@@ -387,12 +412,12 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
     special_cases:
-      - mn:
-          implemented: false
-          variable: na_pe
       - il:
           implemented: true
-          variable: state_base_income
+          variable: il_base_income
+      - ia:
+          implemented: true
+          variable: ia_gross_income
   v33:
     variable: state_exemptions
     implemented: false
@@ -413,25 +438,43 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
+    pre_simulation:
       - ms:
-          implemented: false
-          variable: na_pe
+          implemented: true
+          pre_variable: ms_files_separately
+          variables:
+            - ms_standard_deduction_indiv
+            - ms_standard_deduction_joint
       - ar:
-          implemented: false
-          variable: na_pe
+          implemented: true
+          pre_variable: ar_files_separately
+          variables:
+            - ar_standard_deduction_indiv
+            - ar_standard_deduction_joint
       - mt:
-          implemented: false
-          variable: na_pe
+          implemented: true
+          pre_variable: mt_files_separately
+          variables:
+            - mt_standard_deduction_indiv
+            - mt_standard_deduction_joint
       - de:
-          implemented: false
-          variable: na_pe
+          implemented: true
+          pre_variable: de_files_separately
+          variables:
+            - de_standard_deduction_indv
+            - de_standard_deduction_joint
       - ia:
-          implemented: false
-          variable: na_pe
+          implemented: true
+          pre_variable: ia_files_separately
+          variables:
+            - ia_standard_deduction_indiv
+            - ia_standard_deduction_joint
       - ky:
-          implemented: false
-          variable: na_pe
+          implemented: true
+          pre_variable: ky_files_separately
+          variables:
+            - ky_standard_deduction_indiv
+            - ky_standard_deduction_joint
   v35:
     variable: state_itemized_deductions
     implemented: true
@@ -442,10 +485,43 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - il:
-          implemented: false
-          variable: na_pe
+    pre_simulation:
+      - ms:
+          implemented: true
+          pre_variable: ms_files_separately
+          variables:
+            - ms_itemized_deductions_indiv
+            - ms_itemized_deductions_joint
+      - ar:
+          implemented: true
+          pre_variable: ar_files_separately
+          variables:
+            - ar_itemized_deductions_indiv
+            - ar_itemized_deductions_joint
+      - mt:
+          implemented: true
+          pre_variable: mt_files_separately
+          variables:
+            - mt_itemized_deductions_indiv
+            - mt_itemized_deductions_joint
+      - ia:
+          implemented: true
+          pre_variable: ia_files_separately
+          variables:
+            - ia_itemized_deductions_indiv
+            - ia_itemized_deductions_joint
+      - ky:
+          implemented: true
+          pre_variable: ky_files_separately
+          variables:
+            - ky_itemized_deductions_indiv
+            - ky_itemized_deductions_joint
+      - de:
+          implemented: true
+          pre_variable: de_files_separately
+          variables:
+            - de_itemized_deductions_indv
+            - de_itemized_deductions_joint
   v36:
     variable: state_taxable_income
     implemented: true
@@ -456,6 +532,43 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+    pre_simulation:
+      - ms:
+          implemented: true
+          pre_variable: ms_files_separately
+          variables:
+            - ms_taxable_income_indiv
+            - ms_taxable_income_joint
+      - ar:
+          implemented: true
+          pre_variable: ar_files_separately
+          variables:
+            - ar_taxable_income_indiv
+            - ar_taxable_income_joint
+      - mt:
+          implemented: true
+          pre_variable: mt_files_separately
+          variables:
+            - mt_taxable_income_indiv
+            - mt_taxable_income_joint
+      - ia:
+          implemented: true
+          pre_variable: ia_files_separately
+          variables:
+            - ia_taxable_income_indiv
+            - ia_taxable_income_joint
+      - ky:
+          implemented: true
+          pre_variable: ky_files_separately
+          variables:
+            - ky_taxable_income_indiv
+            - ky_taxable_income_joint
+      - de:
+          implemented: true
+          pre_variable: de_files_separately
+          variables:
+            - de_taxable_income_indv
+            - de_taxable_income_joint
   tax_before_credits:
     variable: state_income_tax_before_non_refundable_credits
     implemented: true
@@ -465,6 +578,31 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+    pre_simulation:
+      - ar:
+          implemented: true
+          pre_variable: ar_files_separately
+          variables:
+            - ar_income_tax_before_non_refundable_credits_indiv
+            - ar_income_tax_before_non_refundable_credits_joint
+      - mt:
+          implemented: true
+          pre_variable: mt_files_separately
+          variables:
+            - mt_income_tax_before_non_refundable_credits_indiv
+            - mt_income_tax_before_non_refundable_credits_joint
+      - ky:
+          implemented: true
+          pre_variable: ky_files_separately
+          variables:
+            - ky_income_tax_before_non_refundable_credits_indiv
+            - ky_income_tax_before_non_refundable_credits_joint
+      - de:
+          implemented: true
+          pre_variable: de_files_separately
+          variables:
+            - de_income_tax_before_non_refundable_credits_indv
+            - de_income_tax_before_non_refundable_credits_joint
   v41:
     variable: na_pe
     implemented: false
@@ -484,10 +622,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - mn:
-          implemented: false
-          variable: na_pe
   rent_credit:
     variable: na_pe
     implemented: false
@@ -508,10 +642,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - il:
-          implemented: false
-          variable: na_pe
   v39:
     variable: state_eitc
     implemented: true
@@ -540,10 +670,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - mn:
-          implemented: false
-          variable: na_pe
   v40:
     variable: multiple_variables
     implemented: true
@@ -555,7 +681,7 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
     variables:
-      - state_non_refundable_credit
+      - state_non_refundable_credits
       - state_refundable_credits
   energy_fuel_credit2:
     variable: na_pe
@@ -925,4 +1051,3 @@ taxsim_input_definition:
       name: "27. Txpy/Spouse QBI w/o PO"
   - pprofinc:
       name: "28. Txpy/Spouse SSTB w PO"
-
