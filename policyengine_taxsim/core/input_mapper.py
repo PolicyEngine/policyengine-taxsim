@@ -28,6 +28,10 @@ def add_additional_units(state, year, situation, taxsim_vars):
                     tax_unit[f"{state}_use_tax"] = {str(year): 0}
                 continue
 
+            if field == "de_relief_rebate":
+                tax_unit["de_relief_rebate"] = {str(year): 0}
+                continue
+
             if field == "state_sales_tax":
                 tax_unit["state_sales_tax"] = {str(year): 0}
                 continue
