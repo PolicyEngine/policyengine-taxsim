@@ -356,18 +356,22 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
     disable_salt_variable = disable_salt
 
     mappings = load_variable_mappings()["policyengine_to_taxsim"]
-    
+
     # Extract the year and state name from the situation
     year = list(
         policyengine_situation["households"]["your household"]["state_name"].keys()
     )[0]
-    state_name = policyengine_situation["households"]["your household"]["state_name"][year]
+    state_name = policyengine_situation["households"]["your household"]["state_name"][
+        year
+    ]
 
     simulation = Simulation(situation=policyengine_situation)
 
     # If state and local taxes should be set to zero, set it once on the simulation instance with the required period
     if disable_salt:
-        simulation.set_input(variable_name="state_and_local_sales_or_income_tax", value=0.0, period=year)
+        simulation.set_input(
+            variable_name="state_and_local_sales_or_income_tax", value=0.0, period=year
+        )
 
     taxsim_output = {}
     taxsim_output["taxsimid"] = policyengine_situation.get(
@@ -380,11 +384,17 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
             taxsim_output, mappings, year, state_name, simulation, output_type, logs
         )
     else:
-        input_definitions_lines = taxsim_input_definition(taxsim_input, year, state_name)
+        input_definitions_lines = taxsim_input_definition(
+            taxsim_input, year, state_name
+        )
         a_dollar_more_situation = add_a_dollar(policyengine_situation)
         simulation_a_dollar_more = Simulation(situation=a_dollar_more_situation)
         if disable_salt:
-            simulation_a_dollar_more.set_input(variable_name="state_and_local_sales_or_income_tax", value=0.0, period=year)
+            simulation_a_dollar_more.set_input(
+                variable_name="state_and_local_sales_or_income_tax",
+                value=0.0,
+                period=year,
+            )
         output = generate_text_description_output(
             taxsim_input,
             mappings,

@@ -863,6 +863,8 @@ taxsim_to_policyengine:
           - gssi
       - deductible_mortgage_interest:
           - mortgage
+      - real_estate_taxes:
+          - proptax
 
 taxsim_input_definition:
   - taxsimid:
