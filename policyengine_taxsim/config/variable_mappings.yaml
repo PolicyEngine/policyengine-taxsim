@@ -850,6 +850,10 @@ taxsim_to_policyengine:
       - self_employment_income:
           - psemp
           - ssemp
+      - partnership_s_corp_income:
+          - scorp
+      - qualified_business_income:
+          - pbusinc
       - rental_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:

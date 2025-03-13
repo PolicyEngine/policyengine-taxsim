@@ -35,7 +35,10 @@ def get_yaml_path():
 )
 @click.option("--logs", is_flag=True, help="Generate PE YAML Tests Logs")
 @click.option(
-    "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
+    "--disable-salt",
+    is_flag=True,
+    default=False,
+    help="Set State and Local Sales or Income Taxes used for the SALT deduction to 0",
 )
 def main(input_file, output, logs, disable_salt):
     """
