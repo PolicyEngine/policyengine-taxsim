@@ -77,7 +77,7 @@ The output will be generated as `output.csv` in the same directory.
 |--------|-------------|
 | `--output`, `-o` | Specify the output file path (default: output.txt) |
 | `--logs` | Generate PolicyEngine YAML Tests Logs |
-| `--disable-salt` | Set SALT (State and Local Tax) Deduction to 0 |
+| `--disable-salt` | Set State and Local Sales or Income Taxes used for the SALT deduction to 0 |
 
 Example with optional arguments:
 ```bash
@@ -90,7 +90,7 @@ The emulator accepts CSV files with the following variables:
 
 ### Demographics
 
-| Variable  | Description                     | Notes                                      |
+| Variable  | Description                    | Notes                                       |
 |-----------|--------------------------------|---------------------------------------------|
 | taxsimid  | Unique identifier              |                                             |
 | year      | Tax year                       |                                             |
@@ -105,17 +105,21 @@ The emulator accepts CSV files with the following variables:
 
 ### Income
 
-| Variable  | Description                             |
-|-----------|-----------------------------------------|
-| pwages    | Primary taxpayer wages                  |
-| swages    | Spouse wages                            |
-| intrec    | Taxable interest income                 |
-| dividends | Qualified dividend income               |
-| ltcg      | Long-term capital gains                 |
-| stcg      | Short-term capital gains                |
-| psemp     | Primary taxpayer self-employment income |
-| psemp     | Spouse self-employment income           |
-| pensions  | Taxable private pension income          |
+| Variable  | Description                                                  |
+|-----------|--------------------------------------------------------------|
+| pwages    | Primary taxpayer wages                                       |
+| swages    | Spouse wages                                                 |
+| intrec    | Taxable interest income                                      |
+| dividends | Qualified dividend income                                    |
+| ltcg      | Long-term capital gains                                      |
+| stcg      | Short-term capital gains                                     |
+| psemp     | Primary taxpayer self-employment income                      |
+| psemp     | Spouse self-employment income                                |
+| pensions  | Taxable private pension income                               |
+| psemp     | Spouse self-employment income                                |
+| scorp     | Partnership/S-corp income                                    |
+| pbusinc   | Primary taxpayer Business income that qualifies for the QBID |
+
 
 ### Expenses
 
