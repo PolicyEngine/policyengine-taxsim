@@ -71,13 +71,26 @@ python policyengine_taxsim/cli.py your_input_file.csv
 
 The output will be generated as `output.csv` in the same directory.
 
+### Optional Arguments
+
+| Option | Description |
+|--------|-------------|
+| `--output`, `-o` | Specify the output file path (default: output.txt) |
+| `--logs` | Generate PolicyEngine YAML Tests Logs |
+| `--disable-salt` | Set SALT (State and Local Tax) Deduction to 0 |
+
+Example with optional arguments:
+```bash
+python policyengine_taxsim/cli.py your_input_file.csv --logs --disable-salt
+```
+
 ## Input Variables
 
 The emulator accepts CSV files with the following variables:
 
 ### Demographics
 
-| Variable  | Description                     | Notes                                       |
+| Variable  | Description                     | Notes                                      |
 |-----------|--------------------------------|---------------------------------------------|
 | taxsimid  | Unique identifier              |                                             |
 | year      | Tax year                       |                                             |
@@ -88,14 +101,30 @@ The emulator accepts CSV files with the following variables:
 | depx      | Number of dependents           |                                             |
 | age1      | First dependent's age          |                                             |
 | age2      | Second dependent's age         |                                             |
-| ageN      | Nth dependent's age            | Taxsim only allow upto 8 children dependent |
+| ageN      | Nth dependent's age            | Taxsim only allows up to 8 dependents       |
 
 ### Income
 
-| Variable  | Description                     |
+| Variable  | Description                             |
+|-----------|-----------------------------------------|
+| pwages    | Primary taxpayer wages                  |
+| swages    | Spouse wages                            |
+| intrec    | Taxable interest income                 |
+| dividends | Qualified dividend income               |
+| ltcg      | Long-term capital gains                 |
+| stcg      | Short-term capital gains                |
+| psemp     | Primary taxpayer self-employment income |
+| psemp     | Spouse self-employment income           |
+| pensions  | Taxable private pension income          |
+
+### Expenses
+
+| Variable  | Description                    |
 |-----------|--------------------------------|
-| pwages    | Primary taxpayer wages         |
-| swages    | Spouse wages                   |
+| rentpaid  | Amount of rent paid            |
+| mortgage  | Deductible mortgage interest   |
+| proptax   | Real Estate Taxes              |
+| childcare | Childcare expenses             |
 
 ### Output Types
 
@@ -106,14 +135,6 @@ Depending on the idtl input value it can generate output types as following:
 | 0    | Standard output |
 | 2    | Full output     |
 
-### Household Types
-
-| Supported household types                |
-|----------------------------------------|
-| Single                                  |
-| Joint                                   |
-| Household with Dependent                |
-| Household with Dependent single parent  |
 
 ## Contributing
 
