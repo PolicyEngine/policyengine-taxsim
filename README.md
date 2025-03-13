@@ -118,7 +118,7 @@ The emulator accepts CSV files with the following variables:
 | pensions  | Taxable private pension income                               |
 | psemp     | Spouse self-employment income                                |
 | scorp     | Partnership/S-corp income                                    |
-| pbusinc   | Primary taxpayer Business income that qualifies for the QBID |
+| pbusinc   | Primary taxpayer business income that qualifies for the QBID |
 
 
 ### Expenses
