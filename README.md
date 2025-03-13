@@ -79,7 +79,7 @@ The output will be generated as `output.csv` in the same directory.
 | `--logs` | Generate PolicyEngine YAML Tests Logs |
 | `--disable-salt` | Set SALT (State and Local Tax) Deduction to 0 |
 
-Example with options:
+Example with optional arguments:
 ```bash
 python policyengine_taxsim/cli.py your_input_file.csv --logs --disable-salt
 ```
