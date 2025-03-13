@@ -81,7 +81,7 @@ The output will be generated as `output.csv` in the same directory.
 
 Example with options:
 ```bash
-python policyengine_taxsim/cli.py your_input_file.csv --output=results.csv --logs --disable-salt
+python policyengine_taxsim/cli.py your_input_file.csv --logs --disable-salt
 ```
 
 ## Input Variables
