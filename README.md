@@ -114,9 +114,9 @@ The emulator accepts CSV files with the following variables:
 | ltcg      | Long-term capital gains                                      |
 | stcg      | Short-term capital gains                                     |
 | psemp     | Primary taxpayer self-employment income                      |
-| psemp     | Spouse self-employment income                                |
+| ssemp     | Spouse self-employment income                                |
+| gssi      | Social security retirement benefits                          |
 | pensions  | Taxable private pension income                               |
-| psemp     | Spouse self-employment income                                |
 | scorp     | Partnership/S-corp income                                    |
 | pbusinc   | Primary taxpayer business income that qualifies for the QBID |
 
