@@ -125,6 +125,7 @@ def form_household_situation(year, state, taxsim_vars):
         "age": {str(year): int(taxsim_vars.get("page", 40))},
         "employment_income": {str(year): float(taxsim_vars.get("pwages", 0))},
         "is_tax_unit_head": {str(year): True},
+        "unemployment_compensation": {str(year): float(taxsim_vars.get("pui", 0))},
     }
 
     if mstat == 2:
@@ -132,13 +133,14 @@ def form_household_situation(year, state, taxsim_vars):
             "age": {str(year): int(taxsim_vars.get("sage", 40))},
             "employment_income": {str(year): float(taxsim_vars.get("swages", 0))},
             "is_tax_unit_spouse": {str(year): True},
+            "unemployment_compensation": {str(year): float(taxsim_vars.get("sui", 0))},
         }
 
     for i in range(1, depx + 1):
         dep_name = f"your {get_ordinal(i)} dependent"
         people[dep_name] = {
             "age": {str(year): int(taxsim_vars.get(f"age{i}", 10))},
-            "employment_income": {str(year): 0},
+            "employment_income": {str(year): float(taxsim_vars.get(f"age{i}", 0))},
         }
 
     household_situation = add_additional_units(

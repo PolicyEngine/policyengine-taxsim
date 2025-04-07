@@ -861,8 +861,7 @@ taxsim_to_policyengine:
       - social_security:
       - taxable_private_pension_income:
           - pensions
-      - capital_gains:
-          - ltcg
+      - short_term_capital_gains:
           - stcg
       - social_security_retirement:
           - gssi
@@ -870,6 +869,9 @@ taxsim_to_policyengine:
           - mortgage
       - real_estate_taxes:
           - proptax
+      - unemployment_compensation:
+          - pui
+          - sui
 
 taxsim_input_definition:
   - taxsimid:
