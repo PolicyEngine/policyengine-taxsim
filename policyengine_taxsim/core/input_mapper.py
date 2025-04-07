@@ -140,7 +140,7 @@ def form_household_situation(year, state, taxsim_vars):
         dep_name = f"your {get_ordinal(i)} dependent"
         people[dep_name] = {
             "age": {str(year): int(taxsim_vars.get(f"age{i}", 10))},
-            "employment_income": {str(year): float(taxsim_vars.get(f"age{i}", 0))},
+            "employment_income": {str(year): 0},
         }
 
     household_situation = add_additional_units(
