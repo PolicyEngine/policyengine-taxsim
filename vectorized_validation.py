@@ -867,6 +867,7 @@ if __name__ == "__main__":
     parser.add_argument("--year", type=int, default=2022, help="Tax year (2021, 2022, or 2023)")
     parser.add_argument("--output-dir", help="Directory to save output files")
     parser.add_argument("--sample", type=int, default=0, help="Number of records to sample (0 = use all)")
+    parser.add_argument("--save-csv", action="store_true", help="Save intermediate CSV files")
     
     args = parser.parse_args()
     
