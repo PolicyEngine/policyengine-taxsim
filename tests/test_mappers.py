@@ -225,10 +225,12 @@ def test_joint_household(sample_taxsim_input_for_joint):
             "your first dependent": {
                 "age": {"2023": 10},
                 "employment_income": {"2023": 0},
+                "is_tax_unit_dependent": {"2023": True},
             },
             "your second dependent": {
                 "age": {"2023": 10},
                 "employment_income": {"2023": 0},
+                "is_tax_unit_dependent": {"2023": True},
             },
         },
         "spm_units": {
@@ -307,10 +309,12 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
             "your first dependent": {
                 "age": {"2023": 4},
                 "employment_income": {"2023": 0},
+                "is_tax_unit_dependent": {"2023": True},
             },
             "your second dependent": {
                 "age": {"2023": 10},
                 "employment_income": {"2023": 0},
+                "is_tax_unit_dependent": {"2023": True},
             },
         },
         "spm_units": {
@@ -376,10 +380,12 @@ def test_household_with_dependent_single_parent(
             "your first dependent": {
                 "age": {"2023": 4},
                 "employment_income": {"2023": 0},
+                "is_tax_unit_dependent": {"2023": True},
             },
             "your second dependent": {
                 "age": {"2023": 10},
                 "employment_income": {"2023": 0},
+                "is_tax_unit_dependent": {"2023": True},
             },
         },
         "spm_units": {
