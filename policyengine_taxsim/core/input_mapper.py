@@ -142,6 +142,8 @@ def form_household_situation(year, state, taxsim_vars):
             "age": {str(year): int(taxsim_vars.get(f"age{i}", 10))},
             "employment_income": {str(year): 0},
             "is_tax_unit_dependent": {str(year): True},
+            "is_tax_unit_spouse": {str(year): False},
+            "is_tax_unit_head": {str(year): False},
         }
 
     household_situation = add_additional_units(
