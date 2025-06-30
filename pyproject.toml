@@ -28,7 +28,6 @@ dependencies = [
     "click",
     "matplotlib",
     "numpy",
-    "policyengine_tests_generator @ git+https://github.com/noman404/policyengine-tests-generator.git"
 ]
 
 [tool.hatch.metadata]

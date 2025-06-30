@@ -4,7 +4,7 @@ from .utils import (
     to_roundedup_number,
 )
 from policyengine_us import Simulation
-from policyengine_tests_generator.core.generator import PETestsYAMLGenerator
+from .yaml_generator import generate_pe_tests_yaml
 
 disable_salt_variable = False
 
@@ -65,19 +65,8 @@ def generate_non_description_output(
     return taxsim_output
 
 
-def generate_pe_tests_yaml(household, outputs, file_name, logs):
-    if logs:
-        generator = PETestsYAMLGenerator()
-        yaml_data = generator.generate_yaml(
-            household_data=household, name=file_name, pe_outputs=outputs
-        )
-        output = generator._get_yaml(yaml_data)
-        with open(file_name, "w") as f:
-            f.write(output)
-
-
 def generate_text_description_output(
-    taxsim_input, mappings, year, state_name, simulation, simulation_1dollar_more, logs
+    taxsim_input, mappings, year, state_name, simulation, logs
 ):
     groups = {}
     group_orders = {}
@@ -104,7 +93,6 @@ def generate_text_description_output(
     LABEL_INDENT = 4
     LABEL_WIDTH = 45
     VALUE_WIDTH = 15
-    SECOND_VALUE_WIDTH = 12
     GROUP_MARGIN = LEFT_MARGIN  # Groups are 2 tabs left of text_description
 
     lines = [""]
@@ -113,31 +101,13 @@ def generate_text_description_output(
     for group_name in sorted_groups:
         variables = groups[group_name]
         if variables:
-            # Check if this group has any variables with group_column = 2
-            has_second_column = any(
-                var_info.get("group_column", 1) == 2 for _, _, var_info in variables
-            )
-
-            if has_second_column:
-                # Group headers are 2 tabs left of text_description
-                line = f"{' ' * GROUP_MARGIN}{group_name}:"
-                padding = " " * (
-                    LABEL_WIDTH + LABEL_INDENT - len(group_name) - 1
-                )  # -1 for the colon
-                base_text = f"{'Base':>8}"
-                plus_one_text = f"{'':>8}"
-                lines.append(
-                    f"{line}{padding}{base_text:>{VALUE_WIDTH}}{plus_one_text:>{SECOND_VALUE_WIDTH}}"
-                )
-            else:
-                # Group headers are 2 tabs left of text_description
-                lines.append(f"{' ' * GROUP_MARGIN}{group_name}:")
+            # Group headers are 2 tabs left of text_description
+            lines.append(f"{' ' * GROUP_MARGIN}{group_name}:")
 
             state_initial = state_name.lower()
 
             for desc, var_name, each_item in sorted(variables, key=lambda x: x[0]):
                 variable = each_item["variable"]
-                has_second_column = each_item.get("group_column", 1) == 2
 
                 if "state" in variable:
                     variable = variable.replace("state", state_name).lower()
@@ -178,50 +148,11 @@ def generate_text_description_output(
                 else:
                     formatted_value = str(value)
 
-                # Format second column value if needed
-                if has_second_column:
-                    if "variables" in each_item and len(each_item["variables"]) > 0:
-                        second_value = simulate_multiple(
-                            simulation_1dollar_more, each_item["variables"], year
-                        )
-                    else:
-                        if "special_cases" in each_item:
-                            found_state = next(
-                                (
-                                    each
-                                    for each in each_item["special_cases"]
-                                    if state_initial in each
-                                ),
-                                None,
-                            )
-                            if (
-                                found_state
-                                and found_state[state_initial]["implemented"]
-                            ):
-                                variable = (
-                                    found_state[state_initial]["variable"].replace(
-                                        "state", state_initial
-                                    )
-                                    if "state" in found_state[state_initial]["variable"]
-                                    else found_state[state_initial]["variable"]
-                                )
-                        second_value = simulate(simulation_1dollar_more, variable, year)
-
-                    if isinstance(second_value, (int, float)):
-                        formatted_second_value = f"{second_value:>8.1f}"
-                    else:
-                        formatted_second_value = str(second_value)
-
                 # Handle multi-line descriptions
                 desc_lines = desc.split("\n")
-                for desc_line_index, desc_line in enumerate(desc_lines):
+                for desc_line in desc_lines:
                     indent = LEFT_MARGIN + LABEL_INDENT
-                    if has_second_column:
-                        line = f"{' ' * indent}{desc_line:<{LABEL_WIDTH}}{formatted_value:>{VALUE_WIDTH}}"
-                        if desc_line_index == 0:  # Only add second value on first line
-                            line += f"{formatted_second_value:>{SECOND_VALUE_WIDTH}}"
-                    else:
-                        line = f"{' ' * indent}{desc_line:<{LABEL_WIDTH}}{formatted_value:>{VALUE_WIDTH}}"
+                    line = f"{' ' * indent}{desc_line:<{LABEL_WIDTH}}{formatted_value:>{VALUE_WIDTH}}"
                     lines.append(line)
 
             lines.append("")
@@ -317,31 +248,6 @@ def taxsim_input_definition(data_dict, year, state_name):
     return "\n".join(output_lines)
 
 
-def add_a_dollar(data):
-    """
-    Recursively traverse through JSON data and add $1 to all employment_income values.
-
-    Args:
-        data: Dict or list containing the JSON data
-
-    Returns:
-        Updated data structure with modified employment_income values
-    """
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if key == "employment_income" and isinstance(value, dict):
-                for year in value:
-                    value[year] += 1
-            elif isinstance(value, (dict, list)):
-                add_a_dollar(value)
-    elif isinstance(data, list):
-        for item in data:
-            if isinstance(item, (dict, list)):
-                add_a_dollar(item)
-
-    return data
-
-
 def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
     """
     Convert a PolicyEngine situation to TAXSIM output variables.
@@ -387,21 +293,12 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
         input_definitions_lines = taxsim_input_definition(
             taxsim_input, year, state_name
         )
-        a_dollar_more_situation = add_a_dollar(policyengine_situation)
-        simulation_a_dollar_more = Simulation(situation=a_dollar_more_situation)
-        if disable_salt:
-            simulation_a_dollar_more.set_input(
-                variable_name="state_and_local_sales_or_income_tax",
-                value=0.0,
-                period=year,
-            )
         output = generate_text_description_output(
             taxsim_input,
             mappings,
             year,
             state_name,
             simulation,
-            simulation_a_dollar_more,
             logs,
         )
         return f"{input_definitions_lines}\n{output}\n"
