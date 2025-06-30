@@ -137,25 +137,27 @@ class PETestsYAMLGenerator:
             variable_name = item["variable"]
             # Only include state income tax variables (e.g., ca_income_tax, ny_income_tax, etc.)
             # Exclude federal income_tax and net_investment_income_tax
-            if (variable_name.endswith("_income_tax") and 
-                variable_name != "income_tax" and 
-                variable_name != "net_investment_income_tax"):
+            if (
+                variable_name.endswith("_income_tax")
+                and variable_name != "income_tax"
+                and variable_name != "net_investment_income_tax"
+            ):
                 config["output"][variable_name] = self._format_value(item["value"])
 
         # Add person data
         for old_id, person_data in household_data["people"].items():
             new_id = old_to_new_ids[old_id]
-            
+
             # Start with required fields
             person_output = {
                 "age": person_data["age"].get(year_str, 0),
                 "employment_income": person_data["employment_income"].get(year_str, 0),
             }
-            
+
             # Add optional fields only if they have non-zero values
             optional_fields = [
                 "ssi",
-                "wic", 
+                "wic",
                 "deductible_mortgage_interest",
                 "self_employment_income",
                 "unemployment_compensation",
@@ -173,21 +175,25 @@ class PETestsYAMLGenerator:
                 "rent",
                 "taxable_interest_income",
             ]
-            
+
             for field in optional_fields:
                 if field in person_data:
                     value = person_data[field].get(year_str, 0)
                     if value != 0:  # Only include non-zero values
                         person_output[field] = value
-            
+
             config["input"]["people"][new_id] = person_output
 
         # Add tax unit level fields only if they have non-zero values
         tax_unit = config["input"]["tax_units"]["tax_unit"]
-        
+
         # Map childcare to tax_unit_childcare_expenses
-        if "tax_unit_childcare_expenses" in household_data.get("tax_units", {}).get("your tax unit", {}):
-            childcare_value = household_data["tax_units"]["your tax unit"]["tax_unit_childcare_expenses"].get(year_str, 0)
+        if "tax_unit_childcare_expenses" in household_data.get("tax_units", {}).get(
+            "your tax unit", {}
+        ):
+            childcare_value = household_data["tax_units"]["your tax unit"][
+                "tax_unit_childcare_expenses"
+            ].get(year_str, 0)
             if childcare_value != 0:
                 tax_unit["tax_unit_childcare_expenses"] = childcare_value
             else:
