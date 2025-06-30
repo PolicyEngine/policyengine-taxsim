@@ -116,7 +116,6 @@ class PETestsYAMLGenerator:
                 "tax_units": {
                     "tax_unit": {
                         "members": members,
-                        "tax_unit_childcare_expenses": 0,
                         "premium_tax_credit": 0,
                         "local_income_tax": 0,
                         "state_sales_tax": 0,
@@ -135,20 +134,68 @@ class PETestsYAMLGenerator:
 
         # Add output values
         for item in pe_outputs:
-            config["output"][item["variable"]] = self._format_value(item["value"])
+            variable_name = item["variable"]
+            # Only include state income tax variables (e.g., ca_income_tax, ny_income_tax, etc.)
+            # Exclude federal income_tax and net_investment_income_tax
+            if (variable_name.endswith("_income_tax") and 
+                variable_name != "income_tax" and 
+                variable_name != "net_investment_income_tax"):
+                config["output"][variable_name] = self._format_value(item["value"])
 
         # Add person data
         for old_id, person_data in household_data["people"].items():
             new_id = old_to_new_ids[old_id]
-            config["input"]["people"][new_id] = {
+            
+            # Start with required fields
+            person_output = {
                 "age": person_data["age"].get(year_str, 0),
                 "employment_income": person_data["employment_income"].get(year_str, 0),
-                "ssi": 0,
-                "wic": 0,
-                "deductible_mortgage_interest": person_data.get(
-                    "deductible_mortgage_interest", {}
-                ).get(year_str, 0),
             }
+            
+            # Add optional fields only if they have non-zero values
+            optional_fields = [
+                "ssi",
+                "wic", 
+                "deductible_mortgage_interest",
+                "self_employment_income",
+                "unemployment_compensation",
+                "social_security",
+                "taxable_private_pension_income",
+                "qualified_dividend_income",
+                "long_term_capital_gains",
+                "short_term_capital_gains",
+                "rental_income",
+                "partnership_s_corp_income",
+                "qualified_business_income",
+                "w2_wages_from_qualified_business",
+                "business_is_sstb",
+                "business_is_qualified",
+                "rent",
+                "taxable_interest_income",
+            ]
+            
+            for field in optional_fields:
+                if field in person_data:
+                    value = person_data[field].get(year_str, 0)
+                    if value != 0:  # Only include non-zero values
+                        person_output[field] = value
+            
+            config["input"]["people"][new_id] = person_output
+
+        # Add tax unit level fields only if they have non-zero values
+        tax_unit = config["input"]["tax_units"]["tax_unit"]
+        
+        # Map childcare to tax_unit_childcare_expenses
+        if "tax_unit_childcare_expenses" in household_data.get("tax_units", {}).get("your tax unit", {}):
+            childcare_value = household_data["tax_units"]["your tax unit"]["tax_unit_childcare_expenses"].get(year_str, 0)
+            if childcare_value != 0:
+                tax_unit["tax_unit_childcare_expenses"] = childcare_value
+            else:
+                # Remove the default 0 value if childcare is 0
+                tax_unit.pop("tax_unit_childcare_expenses", None)
+        else:
+            # Remove the default 0 value if childcare field doesn't exist
+            tax_unit.pop("tax_unit_childcare_expenses", None)
 
         # Add use tax if applicable
         state_lower = state_name.lower()
