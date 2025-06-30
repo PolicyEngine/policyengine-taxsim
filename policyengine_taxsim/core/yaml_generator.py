@@ -161,7 +161,7 @@ class PETestsYAMLGenerator:
                 "deductible_mortgage_interest",
                 "self_employment_income",
                 "unemployment_compensation",
-                "social_security",
+                "social_security_retirement",
                 "taxable_private_pension_income",
                 "qualified_dividend_income",
                 "long_term_capital_gains",
@@ -174,6 +174,7 @@ class PETestsYAMLGenerator:
                 "business_is_qualified",
                 "rent",
                 "taxable_interest_income",
+                "real_estate_taxes",
             ]
 
             for field in optional_fields:
