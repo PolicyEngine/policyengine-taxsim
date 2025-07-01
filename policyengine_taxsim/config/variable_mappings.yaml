@@ -854,6 +854,7 @@ taxsim_to_policyengine:
           - scorp
       - qualified_business_income:
           - pbusinc
+          - sbusinc
       - rental_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:

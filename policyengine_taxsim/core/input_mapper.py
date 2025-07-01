@@ -60,7 +60,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
                     people_unit["your partner"][field] = {
                         str(year): taxsim_vars.get("ssemp", 0)
                     }
-
+            if field == "qualified_business_income":
+                if "pbusinc" in taxsim_vars:
+                    people_unit["you"][field] =  {str(year): taxsim_vars.get("pbusinc", 0)}
+                if "your_partner" in people_unit and "sbusinc" in taxsim_vars:
+                    people_unit["your_partner"][field] = {
+                        str(year): taxsim_vars.get("sbusinc", 0)
+                    }
             elif len(values) > 1:
                 matching_values = [
                     taxsim_vars.get(value, 0)
