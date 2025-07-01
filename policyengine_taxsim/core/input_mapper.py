@@ -122,7 +122,7 @@ def form_household_situation(year, state, taxsim_vars):
     people = household_situation["people"]
 
     people["you"] = {
-        "age": {str(year): int(taxsim_vars.get("page", 40))},
+        "age": {str(year): int(taxsim_vars.get("page") or 40)},
         "employment_income": {str(year): float(taxsim_vars.get("pwages", 0))},
         "is_tax_unit_head": {str(year): True},
         "unemployment_compensation": {str(year): float(taxsim_vars.get("pui", 0))},
@@ -130,7 +130,7 @@ def form_household_situation(year, state, taxsim_vars):
 
     if mstat == 2:
         people["your partner"] = {
-            "age": {str(year): int(taxsim_vars.get("sage", 40))},
+            "age": {str(year): int(taxsim_vars.get("sage") or 40)},
             "employment_income": {str(year): float(taxsim_vars.get("swages", 0))},
             "is_tax_unit_spouse": {str(year): True},
             "unemployment_compensation": {str(year): float(taxsim_vars.get("sui", 0))},
