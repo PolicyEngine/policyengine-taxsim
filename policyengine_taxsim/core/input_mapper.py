@@ -60,7 +60,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
                     people_unit["your partner"][field] = {
                         str(year): taxsim_vars.get("ssemp", 0)
                     }
-
+            if field == "qualified_business_income":
+                if "pbusinc" in taxsim_vars:
+                    people_unit["you"][field] =  {str(year): taxsim_vars.get("pbusinc", 0)}
+                if "your_partner" in people_unit and "sbusinc" in taxsim_vars:
+                    people_unit["your_partner"][field] = {
+                        str(year): taxsim_vars.get("sbusinc", 0)
+                    }
             elif len(values) > 1:
                 matching_values = [
                     taxsim_vars.get(value, 0)
@@ -127,6 +133,12 @@ def form_household_situation(year, state, taxsim_vars):
         "is_tax_unit_head": {str(year): True},
         "unemployment_compensation": {str(year): float(taxsim_vars.get("pui", 0))},
     }
+    # Add self_employment_income_would_be_qualified if self_employment_income > 0
+    you_self_emp_income = 0
+    if "psemp" in taxsim_vars:
+        you_self_emp_income = float(taxsim_vars.get("psemp", 0))
+    if you_self_emp_income > 0:
+        people["you"]["self_employment_income_would_be_qualified"] = {str(year): False}
 
     if mstat == 2:
         people["your partner"] = {
@@ -135,6 +147,12 @@ def form_household_situation(year, state, taxsim_vars):
             "is_tax_unit_spouse": {str(year): True},
             "unemployment_compensation": {str(year): float(taxsim_vars.get("sui", 0))},
         }
+        # Add self_employment_income_would_be_qualified if self_employment_income > 0 for partner
+        partner_self_emp_income = 0
+        if "ssemp" in taxsim_vars:
+            partner_self_emp_income = float(taxsim_vars.get("ssemp", 0))
+        if partner_self_emp_income > 0:
+            people["your partner"]["self_employment_income_would_be_qualified"] = {str(year): False}
 
     for i in range(1, depx + 1):
         dep_name = f"your {get_ordinal(i)} dependent"
@@ -149,6 +167,13 @@ def form_household_situation(year, state, taxsim_vars):
     household_situation = add_additional_units(
         state.lower(), year, household_situation, taxsim_vars
     )
+
+    people = household_situation["people"]
+    if (
+        "partnership_s_corp_income" in people["you"]
+        and list(people["you"]["partnership_s_corp_income"].values())[0] > 0
+    ):
+        people["you"]["partnership_s_corp_income_would_be_qualified"] = {str(year): False}
 
     return household_situation
 
