@@ -28,6 +28,7 @@ dependencies = [
     "click",
     "matplotlib",
     "numpy",
+    "taxcalc",
 ]
 
 [tool.hatch.metadata]
