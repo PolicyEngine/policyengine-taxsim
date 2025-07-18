@@ -1,0 +1,29 @@
+name: Versioning
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check-changelog-entry:
+    name: Changelog entry check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check for changelog entry
+        run: |
+          if [ ! -f "changelog_entry.yaml" ]; then
+            echo "Error: changelog_entry.yaml file is missing."
+            echo "Please add a changelog_entry.yaml file at the root of the repository."
+            exit 1
+          fi
+          
+          # Check if the file is empty
+          if [ ! -s "changelog_entry.yaml" ]; then
+            echo "Error: changelog_entry.yaml file is empty."
+            echo "Please add content to the changelog_entry.yaml file."
+            exit 1
+          fi
+          
+          echo "Changelog entry found and is not empty."
