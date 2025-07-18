@@ -1,0 +1,6 @@
+- bump: patch
+  changes:
+    added:
+    - Initialize versioning.
+    fixed:
+    - Add missing taxcalc dependency to fix import errors in CI.
