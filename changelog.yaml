@@ -3,3 +3,10 @@
     - Initialized changelogging
   date: 2025-07-18 17:29:10
   version: 0.1.0
+- bump: patch
+  changes:
+    added:
+    - Initialize versioning.
+    fixed:
+    - Add missing taxcalc dependency to fix import errors in CI.
+  date: 2025-07-18 18:21:31
