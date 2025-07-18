@@ -1,5 +1,4 @@
 - bump: patch
   changes:
     added:
-    - Link yo PyPi.
     - Initialize versioning.
