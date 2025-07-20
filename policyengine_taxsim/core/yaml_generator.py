@@ -175,12 +175,17 @@ class PETestsYAMLGenerator:
                 "rent",
                 "taxable_interest_income",
                 "real_estate_taxes",
+                "self_employment_income_would_be_qualified",
+                "partnership_s_corp_income_would_be_qualified",
             ]
 
             for field in optional_fields:
                 if field in person_data:
                     value = person_data[field].get(year_str, 0)
-                    if value != 0:  # Only include non-zero values
+                    # Always include *_would_be_qualified fields if present
+                    if field.endswith("_would_be_qualified"):
+                        person_output[field] = value
+                    elif value != 0:
                         person_output[field] = value
 
             config["input"]["people"][new_id] = person_output

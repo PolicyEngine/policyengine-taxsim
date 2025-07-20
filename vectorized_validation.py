@@ -80,6 +80,7 @@ def h5_to_dataframe(
             "is_female",
             "rent",
             "partnership_s_corp_income",
+            "qualified_business_income",
         ]
 
     if household_fields is None:
@@ -438,6 +439,12 @@ def h5_to_taxsim_format(h5_file_path, year, output_csv_path=None, sample_size=0)
                 "scorp": (
                     float(group["partnership_s_corp_income"].sum())
                     if "partnership_s_corp_income" in group.columns
+                    else 0
+                ),
+                "pbusinc": float(head.get("qualified_business_income", 0)),
+                "sbusinc": (
+                    float(spouse.get("qualified_business_income", 0))
+                    if spouse is not None
                     else 0
                 ),
                 "idtl": 2,  # Full output format
