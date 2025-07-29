@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.0] - 2025-07-29 14:27:02
+
+### Added
+
+- Add is_tax_unit_dependent to each dependent in the household in the yaml generator.
+
 ## [0.1.1] - 2025-07-18 18:21:31
 
 ### Added
@@ -21,4 +27,5 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[0.2.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.1.0...0.1.1

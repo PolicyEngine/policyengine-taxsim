@@ -10,3 +10,8 @@
     fixed:
     - Add missing taxcalc dependency to fix import errors in CI.
   date: 2025-07-18 18:21:31
+- bump: minor
+  changes:
+    added:
+    - Add is_tax_unit_dependent to each dependent in the household in the yaml generator.
+  date: 2025-07-29 14:27:02
