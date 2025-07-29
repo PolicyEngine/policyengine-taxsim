@@ -1,0 +1,4 @@
+- bump: minor
+  changes:
+    added:
+    - Add is_tax_unit_dependent to each dependent in the household in the yaml generator.
