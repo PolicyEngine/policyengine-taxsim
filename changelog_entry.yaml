@@ -1,0 +1,4 @@
+- bump: patch
+  changes:
+    fixed:
+    - Adjust the default age for adults in the vectorized validation.
