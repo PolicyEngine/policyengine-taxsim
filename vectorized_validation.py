@@ -391,8 +391,8 @@ def h5_to_taxsim_format(h5_file_path, year, output_csv_path=None, sample_size=0)
                 "state": taxsim_state,
                 "mstat": filing_status,
                 # Taxpayer info
-                "page": int(head.get("age", 40)),
-                "sage": int(spouse.get("age", 40)) if spouse is not None else 0,
+                "page": int(head.get("age") or 40),
+                "sage": int(spouse.get("age") or 40) if spouse is not None else 0,
                 # Dependents
                 "depx": num_dependents,
                 # Income - primary taxpayer
@@ -409,7 +409,7 @@ def h5_to_taxsim_format(h5_file_path, year, output_csv_path=None, sample_size=0)
                     if spouse is not None
                     else 0
                 ),
-                # Investment income
+                # Investment income  
                 "dividends": float(group["qualified_dividend_income"].sum()),
                 "intrec": float(group["taxable_interest_income"].sum()),
                 "stcg": float(group["short_term_capital_gains"].sum()),
@@ -499,12 +499,11 @@ def run_taxsim(input_csv_path, output_csv_path):
         "mstat",
         "pwages",
         "depx",
-        "mortgage",
         "taxsimid",
         "idtl",
     ]
 
-    # Additional columns we'll use
+    # Additional columns we'll use  
     additional_columns = [
         "page",
         "sage",
@@ -512,13 +511,14 @@ def run_taxsim(input_csv_path, output_csv_path):
         "psemp",
         "ssemp",
         "dividends",
-        "intrec",
+        "intrec", 
         "stcg",
         "ltcg",
         "otherprop",
-        "nonprop",
         "pensions",
         "gssi",
+        "mortgage",
+        "nonprop",
         "pui",
         "sui",
         "transfers",
@@ -923,6 +923,7 @@ def process_cps_h5(
 
     # Cleanup temporary files
     temp_files = []
+
 
     # Try running TAXSIM
     taxsim_output_path = output_dir / "temp_taxsim_output.csv"
