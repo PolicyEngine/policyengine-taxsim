@@ -8,7 +8,7 @@ from .base_runner import BaseTaxRunner
 
 
 class TaxsimRunner(BaseTaxRunner):
-    """Clean TAXSIM-35 executable runner"""
+    """Clean TAXSIMTEST executable runner"""
     
     # TAXSIM column definitions (extracted from vectorized_validation.py)
     REQUIRED_COLUMNS = [
@@ -35,16 +35,16 @@ class TaxsimRunner(BaseTaxRunner):
         system = platform.system().lower()
         
         if system == "darwin":
-            exe_name = "taxsim35-osx.exe"
+            exe_name = "taxsimtest-osx.exe"
         elif system == "windows":
-            exe_name = "taxsim-latest-windows.exe"
+            exe_name = "taxsimtest-windows.exe"
         elif system == "linux":
-            exe_name = "taxsim35-unix.exe"
+            exe_name = "taxsimtest-linux.exe"
         else:
             raise OSError(f"Unsupported operating system: {system}")
         
         # Look for executable in resources directory
-        taxsim_path = Path("resources") / "taxsim35" / exe_name
+        taxsim_path = Path("resources") / "taxsimtest" / exe_name
         return taxsim_path
     
     def _validate_executable(self):
