@@ -100,7 +100,7 @@ class ComparisonStatistics:
                                      if hasattr(m, 'state') and m.state == state_fips)
                 
                 # Convert FIPS to state code
-                state_code = get_state_code(state_fips) if state_fips != 0 else "N/A"
+                state_code = get_state_code(state_fips)
                 
                 breakdown[state_code] = {
                     'state_fips': state_fips,

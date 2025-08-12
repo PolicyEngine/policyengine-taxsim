@@ -119,7 +119,11 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
             {sortedData.map((item, index) => (
               <tr 
                 key={index}
-                onClick={() => onStateSelect(item.state === selectedState ? null : item.state)}
+                onClick={() => {
+                  const newState = item.state === selectedState ? null : item.state;
+                  console.log('StateTable click - setting state to:', newState);
+                  onStateSelect(newState);
+                }}
                 className={`hover:bg-gray-50 cursor-pointer ${
                   item.state === selectedState ? 'bg-blue-50' : ''
                 }`}

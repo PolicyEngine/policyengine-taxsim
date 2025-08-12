@@ -8,12 +8,13 @@ const parseComparisonReport = (text) => {
   const totalRecordsLine = lines.find(line => line.includes('Total Records Processed:'));
   const totalRecords = totalRecordsLine ? parseInt(totalRecordsLine.split(':')[1].trim()) : 0;
   
-  // Extract federal match data
-  const federalMatchLine = lines.find(line => line.includes('Matches:') && lines.indexOf(line) < 15);
+  // Extract federal match data - look for the first "Matches:" line
+  const federalMatchLine = lines.find(line => line.includes('Matches:') && line.includes('(') && line.includes('%'));
   const federalMatches = federalMatchLine ? parseInt(federalMatchLine.split('(')[1].split('%')[0]) : 0;
   
-  // Extract state match data
-  const stateMatchLine = lines.find(line => line.includes('Matches:') && lines.indexOf(line) > 15);
+  // Extract state match data - look for the second "Matches:" line by filtering out the first one
+  const allMatchLines = lines.filter(line => line.includes('Matches:') && line.includes('(') && line.includes('%'));
+  const stateMatchLine = allMatchLines.length > 1 ? allMatchLines[1] : null;
   const stateMatches = stateMatchLine ? parseInt(stateMatchLine.split('(')[1].split('%')[0]) : 0;
   
   // Parse state breakdown

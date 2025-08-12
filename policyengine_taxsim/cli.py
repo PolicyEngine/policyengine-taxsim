@@ -94,7 +94,7 @@ def taxsim(input_file, output, sample, taxsim_path):
 @click.option("--sample", type=int, help="Sample N records from input")
 @click.option("--output-dir", default="comparison_output", help="Directory to save comparison results")
 @click.option("--save-mismatches", is_flag=True, help="Save detailed mismatch files")
-@click.option("--federal-tolerance", type=float, default=50.0, help="Federal tax comparison tolerance (dollars)")
+@click.option("--federal-tolerance", type=float, default=15.0, help="Federal tax comparison tolerance (dollars)")
 @click.option("--state-tolerance", type=float, default=15.0, help="State tax comparison tolerance (dollars)")
 @click.option("--year", type=int, help="Tax year for output file naming")
 @click.option("--disable-salt", is_flag=True, default=False, help="Disable SALT deduction in PolicyEngine")
