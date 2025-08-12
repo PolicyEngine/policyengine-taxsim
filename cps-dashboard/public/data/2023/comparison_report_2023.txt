@@ -1,0 +1,32 @@
+============================================================
+TAXSIM vs PolicyEngine Comparison Results
+============================================================
+Total Records Processed: 100
+
+Federal Income Tax Comparison:
+-----------------------------------
+  Matches:     65 (65.00%)
+  Mismatches:  35
+  Tolerance:   ±$15
+
+State Income Tax Comparison:
+--------------------------------
+  Matches:     71 (71.00%)
+  Mismatches:  29
+  Tolerance:   ±$15
+
+State-by-State Breakdown:
+---------------------------
+State  Households Fed Matches State Matches Fed %    State % 
+-----------------------------------------------------------------
+CA     10         6           7            60.0   % 70.0   %
+TX     10         3           10           30.0   % 100.0  %
+NY     8          4           2            50.0   % 25.0   %
+FL     7          7           7            100.0  % 100.0  %
+HI     1          0           0            0.0    % 0.0    %
+IL     6          5           6            83.3   % 100.0  %
+PA     5          2           3            40.0   % 60.0   %
+OH     4          4           4            100.0  % 100.0  %
+GA     3          2           3            66.7   % 100.0  %
+NC     3          3           2            100.0  % 66.7   %
+============================================================

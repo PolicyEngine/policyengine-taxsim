@@ -106,6 +106,21 @@ def compare(input_file, sample, output_dir, save_mismatches,
         # Load and optionally sample data
         df = pd.read_csv(input_file)
         
+        # Override year column if specified
+        if year is not None and "year" in df.columns:
+            original_year = df["year"].iloc[0] if len(df) > 0 else "unknown"
+            df["year"] = year
+            click.echo(f"Overriding year from {original_year} to {year} for all records")
+        elif year is None and "year" in df.columns:
+            # Use year from the data
+            year = int(df["year"].iloc[0]) if len(df) > 0 else 2021
+            click.echo(f"Using year {year} from input data")
+        elif year is None:
+            # Default year if no year column exists
+            year = 2021
+            df["year"] = year
+            click.echo(f"No year specified or found in data, defaulting to {year}")
+        
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
             df = df.sample(n=sample, random_state=42)
