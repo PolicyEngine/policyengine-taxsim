@@ -2,7 +2,43 @@ import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const VariableAnalysis = ({ data, selectedState }) => {
-  const [activeTab, setActiveTab] = useState('federal');
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Define the variables we want to analyze
+  const targetVariables = [
+    { code: 'fiitax', name: 'Federal Income Tax', category: 'tax' },
+    { code: 'siitax', name: 'State Income Tax', category: 'tax' },
+    { code: 'fica', name: 'FICA Taxes', category: 'tax' },
+    { code: 'tfica', name: 'Total FICA', category: 'tax' },
+    { code: 'v10', name: 'Adjusted Gross Income', category: 'income' },
+    { code: 'v11', name: 'UI Benefits', category: 'income' },
+    { code: 'v12', name: 'Social Security Benefits', category: 'income' },
+    { code: 'v13', name: 'Standard Deduction', category: 'deduction' },
+    { code: 'v14', name: 'Personal Exemptions', category: 'deduction' },
+    { code: 'v17', name: 'Itemized Deductions', category: 'deduction' },
+    { code: 'v18', name: 'Taxable Income', category: 'income' },
+    { code: 'v19', name: 'Tax Before Credits', category: 'tax' },
+    { code: 'v22', name: 'Child Tax Credit', category: 'credit' },
+    { code: 'v23', name: 'Additional Child Tax Credit', category: 'credit' },
+    { code: 'v24', name: 'Child Care Credit', category: 'credit' },
+    { code: 'v25', name: 'Earned Income Credit', category: 'credit' },
+    { code: 'v26', name: 'Total Income', category: 'income' },
+    { code: 'v27', name: 'Federal Tax Withheld', category: 'tax' },
+    { code: 'v28', name: 'Tax After Credits', category: 'tax' },
+    { code: 'v29', name: 'FICA Withheld', category: 'tax' },
+    { code: 'v32', name: 'Adjusted Gross Income 2', category: 'income' },
+    { code: 'v34', name: 'Standard/Itemized Deduction Used', category: 'deduction' },
+    { code: 'v35', name: 'Personal Exemption Amount', category: 'deduction' },
+    { code: 'v36', name: 'Taxable Income After Exemptions', category: 'income' },
+    { code: 'v37', name: 'Tax Calculation Method', category: 'tax' },
+    { code: 'v38', name: 'Tax Rate Schedule', category: 'tax' },
+    { code: 'v39', name: 'Alternative Minimum Tax', category: 'tax' },
+    { code: 'v40', name: 'Tax Credits Applied', category: 'credit' },
+    { code: 'v42', name: 'State Income Before Credits', category: 'tax' },
+    { code: 'v43', name: 'State Credits', category: 'credit' },
+    { code: 'v44', name: 'State Tax After Credits', category: 'tax' },
+    { code: 'v45', name: 'Additional State Taxes', category: 'credit' },
+  ];
 
   const calculateDistribution = (differences) => {
     const absValues = differences.map(d => Math.abs(d));
@@ -20,57 +56,124 @@ const VariableAnalysis = ({ data, selectedState }) => {
     }));
   };
 
-  const analyzeMismatches = (mismatches, differenceField) => {
-    if (!mismatches || mismatches.length === 0) return [];
+  const compareResults = (taxsimResults, policyengineResults, selectedState) => {
+    console.log('compareResults called with:', {
+      taxsimLength: taxsimResults?.length,
+      peLength: policyengineResults?.length,
+      selectedState
+    });
+    
+    if (!taxsimResults || !policyengineResults || taxsimResults.length === 0 || policyengineResults.length === 0) {
+      console.log('Missing or empty results data');
+      return [];
+    }
 
-    // For now, we'll analyze the main tax difference
-    // In a real implementation, you'd analyze multiple output variables
-    const differences = mismatches
-      .map(item => parseFloat(item[differenceField]) || 0)
-      .filter(diff => Math.abs(diff) > 0);
+    // Debug the actual data structure
+    console.log('Sample TAXSIM record:', taxsimResults[0]);
+    console.log('Sample PE record:', policyengineResults[0]);
+    console.log('TAXSIM columns:', Object.keys(taxsimResults[0] || {}));
+    console.log('PE columns:', Object.keys(policyengineResults[0] || {}));
 
-    if (differences.length === 0) return [];
+    // Filter by state if selected
+    const filteredTaxsim = selectedState 
+      ? taxsimResults.filter(item => item.state === selectedState || item.state == selectedState)
+      : taxsimResults;
+    
+    const filteredPE = selectedState
+      ? policyengineResults.filter(item => item.state === selectedState || item.state == selectedState)
+      : policyengineResults;
 
-    const avgDiff = differences.reduce((sum, diff) => sum + Math.abs(diff), 0) / differences.length;
-    const maxDiff = Math.max(...differences.map(diff => Math.abs(diff)));
-    const minDiff = Math.min(...differences.map(diff => Math.abs(diff)));
+    console.log('Filtered data:', {
+      filteredTaxsimLength: filteredTaxsim.length,
+      filteredPELength: filteredPE.length
+    });
 
-    return [{
-      variable: differenceField === 'federal_difference' ? 'fiitax' : 'siitax',
-      name: differenceField === 'federal_difference' ? 'Federal Income Tax' : 'State Income Tax',
-      count: differences.length,
-      avgDiff: avgDiff,
-      maxDiff: maxDiff,
-      minDiff: minDiff,
-      distribution: calculateDistribution(differences)
-    }];
+    const analysis = [];
+    
+    targetVariables.forEach((variable, index) => {
+      const differences = [];
+      let matchedRecords = 0;
+      
+      // Match records by taxsimid and compare
+      filteredTaxsim.forEach(taxsimRecord => {
+        const peRecord = filteredPE.find(pe => {
+          // Handle both string and numeric taxsimid formats
+          const peId = String(pe.taxsimid).replace('.0', '');
+          const taxsimId = String(taxsimRecord.taxsimid).replace('.0', '');
+          return peId === taxsimId;
+        });
+        
+        if (peRecord) {
+          matchedRecords++;
+          const taxsimValue = parseFloat(taxsimRecord[variable.code]) || 0;
+          const peValue = parseFloat(peRecord[variable.code]) || 0;
+          const diff = taxsimValue - peValue;
+          
+          // Debug first variable only to avoid spam
+          if (index === 0 && differences.length < 3) {
+            console.log(`${variable.code} comparison:`, {
+              taxsimid: taxsimRecord.taxsimid,
+              taxsimValue,
+              peValue,
+              diff
+            });
+          }
+          
+          if (Math.abs(diff) > 0.01) { // Only include meaningful differences
+            differences.push(diff);
+          }
+        }
+      });
+
+      // Debug first variable
+      if (index === 0) {
+        console.log(`${variable.code} summary:`, {
+          matchedRecords,
+          differences: differences.length,
+          sampleDifferences: differences.slice(0, 3)
+        });
+      }
+
+      if (differences.length > 0) {
+        const avgDiff = differences.reduce((sum, diff) => sum + Math.abs(diff), 0) / differences.length;
+        const maxDiff = Math.max(...differences.map(diff => Math.abs(diff)));
+        
+        analysis.push({
+          variable: variable.code,
+          name: variable.name,
+          category: variable.category,
+          count: differences.length,
+          totalRecords: filteredTaxsim.length,
+          mismatchRate: (differences.length / filteredTaxsim.length) * 100,
+          avgDiff: avgDiff,
+          maxDiff: maxDiff,
+          distribution: calculateDistribution(differences)
+        });
+      }
+    });
+
+    // Sort by mismatch count (most problematic first)
+    return analysis.sort((a, b) => b.count - a.count);
   };
 
   const analysisData = useMemo(() => {
-    if (!data) return { federal: [], state: [] };
+    if (!data) return { all: [], tax: [], income: [], deduction: [], credit: [] };
 
-    const federalMismatches = data.federalMismatches || [];
-    const stateMismatches = data.stateMismatches || [];
+    // Use full results for comprehensive analysis if available
+    if (data.taxsimResults && data.policyengineResults) {
+      const allAnalysis = compareResults(data.taxsimResults, data.policyengineResults, selectedState);
+      
+      return {
+        all: allAnalysis,
+        tax: allAnalysis.filter(item => item.category === 'tax'),
+        income: allAnalysis.filter(item => item.category === 'income'),
+        deduction: allAnalysis.filter(item => item.category === 'deduction'),
+        credit: allAnalysis.filter(item => item.category === 'credit')
+      };
+    }
 
-    // Filter by state if selected
-    const filteredFederal = selectedState 
-      ? federalMismatches.filter(item => item.state === selectedState || item.state === selectedState)
-      : federalMismatches;
-    
-    const filteredState = selectedState
-      ? stateMismatches.filter(item => item.state === selectedState || item.state === selectedState)
-      : stateMismatches;
-
-    // Analyze federal mismatches
-    const federalAnalysis = analyzeMismatches(filteredFederal, 'federal_difference');
-    
-    // Analyze state mismatches  
-    const stateAnalysis = analyzeMismatches(filteredState, 'state_difference');
-
-    return {
-      federal: federalAnalysis,
-      state: stateAnalysis
-    };
+    // Fallback to simple mismatch analysis for backward compatibility
+    return { all: [], tax: [], income: [], deduction: [], credit: [] };
   }, [data, selectedState]);
 
   const formatCurrency = (value) => {
@@ -111,24 +214,54 @@ const VariableAnalysis = ({ data, selectedState }) => {
         {/* Tabs */}
         <div className="flex space-x-1">
           <button
-            onClick={() => setActiveTab('federal')}
+            onClick={() => setActiveTab('all')}
             className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'federal'
+              activeTab === 'all'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            Federal Variables
+            All Variables
           </button>
           <button
-            onClick={() => setActiveTab('state')}
+            onClick={() => setActiveTab('tax')}
             className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'state'
+              activeTab === 'tax'
+                ? 'bg-red-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Tax Variables
+          </button>
+          <button
+            onClick={() => setActiveTab('income')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+              activeTab === 'income'
                 ? 'bg-green-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            State Variables
+            Income Variables
+          </button>
+          <button
+            onClick={() => setActiveTab('deduction')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+              activeTab === 'deduction'
+                ? 'bg-purple-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Deductions
+          </button>
+          <button
+            onClick={() => setActiveTab('credit')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+              activeTab === 'credit'
+                ? 'bg-orange-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Credits
           </button>
         </div>
       </div>
@@ -153,6 +286,9 @@ const VariableAnalysis = ({ data, selectedState }) => {
                       Mismatches
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Mismatch Rate
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Avg Difference
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -174,10 +310,27 @@ const VariableAnalysis = ({ data, selectedState }) => {
                           <div className="text-sm text-gray-500">
                             {item.name}
                           </div>
+                          <div className="text-xs text-gray-400 capitalize">
+                            {item.category}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.count}
+                        <div className="text-xs text-gray-500">
+                          of {item.totalRecords}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className={`font-semibold ${
+                          item.mismatchRate > 50 
+                            ? 'text-red-600'
+                            : item.mismatchRate > 20
+                            ? 'text-yellow-600'
+                            : 'text-green-600'
+                        }`}>
+                          {item.mismatchRate.toFixed(1)}%
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(item.avgDiff)}
@@ -187,13 +340,14 @@ const VariableAnalysis = ({ data, selectedState }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.avgDiff > 500 
+                          item.mismatchRate > 50 || item.avgDiff > 1000
                             ? 'bg-red-100 text-red-800'
-                            : item.avgDiff > 100
+                            : item.mismatchRate > 20 || item.avgDiff > 100
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-green-100 text-green-800'
                         }`}>
-                          {item.avgDiff > 500 ? 'High' : item.avgDiff > 100 ? 'Medium' : 'Low'}
+                          {item.mismatchRate > 50 || item.avgDiff > 1000 ? 'High' : 
+                           item.mismatchRate > 20 || item.avgDiff > 100 ? 'Medium' : 'Low'}
                         </span>
                       </td>
                     </tr>

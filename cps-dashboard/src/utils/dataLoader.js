@@ -98,15 +98,35 @@ export const loadYearData = async (year) => {
     const reportText = await loadTextData(`${baseUrl}/comparison_report_${year}.txt`);
     const summary = parseComparisonReport(reportText);
     
-    // Load mismatch data
-    const federalMismatches = await loadCSVData(`${baseUrl}/federal_mismatches_${year}.csv`);
-    const stateMismatches = await loadCSVData(`${baseUrl}/state_mismatches_${year}.csv`);
+    // Load mismatch data (for backward compatibility)
+    let federalMismatches = [];
+    let stateMismatches = [];
+    
+    try {
+      federalMismatches = await loadCSVData(`${baseUrl}/federal_mismatches_${year}.csv`);
+      stateMismatches = await loadCSVData(`${baseUrl}/state_mismatches_${year}.csv`);
+    } catch (error) {
+      console.log('Mismatch files not found, will use results files for detailed analysis');
+    }
+    
+    // Load full results for detailed variable analysis
+    let taxsimResults = [];
+    let policyengineResults = [];
+    
+    try {
+      taxsimResults = await loadCSVData(`${baseUrl}/taxsim_results_${year}.csv`);
+      policyengineResults = await loadCSVData(`${baseUrl}/policyengine_results_${year}.csv`);
+    } catch (error) {
+      console.log('Results files not found, using mismatch data only');
+    }
     
     return {
       year,
       summary,
       federalMismatches,
-      stateMismatches
+      stateMismatches,
+      taxsimResults,
+      policyengineResults
     };
   } catch (error) {
     console.error(`Error loading data for year ${year}:`, error);
