@@ -11,28 +11,67 @@ import './App.css';
 function App() {
   const [selectedYear, setSelectedYear] = useState(2023);
   const [selectedState, setSelectedState] = useState(null);
-  const [data, setData] = useState(null);
+  const [allYearData, setAllYearData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  const availableYears = [2021, 2022, 2023, 2024];
+  
+  // Get current year data from cached data
+  const data = allYearData[selectedYear] || null;
 
-  // Load data when year changes
+  // Load all year data on component mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchAllData = async () => {
       setLoading(true);
       setError(null);
+      
       try {
-        const yearData = await loadYearData(selectedYear);
-        setData(yearData);
+        console.log('Loading data for all years...');
+        
+        // Load all years in parallel
+        const loadPromises = availableYears.map(async (year) => {
+          try {
+            const yearData = await loadYearData(year);
+            return { year, data: yearData };
+          } catch (err) {
+            console.warn(`Failed to load data for year ${year}:`, err);
+            return { year, data: null, error: err.message };
+          }
+        });
+        
+        const results = await Promise.all(loadPromises);
+        
+        // Build the data object
+        const dataByYear = {};
+        let hasAnyData = false;
+        
+        results.forEach(({ year, data, error }) => {
+          if (data) {
+            dataByYear[year] = data;
+            hasAnyData = true;
+          } else if (error) {
+            console.error(`Year ${year} failed to load:`, error);
+          }
+        });
+        
+        if (!hasAnyData) {
+          throw new Error('Failed to load data for any year');
+        }
+        
+        setAllYearData(dataByYear);
+        console.log('All year data loaded successfully');
+        
       } catch (err) {
         console.error('Error loading data:', err);
-        setError(`Failed to load data for ${selectedYear}`);
+        setError('Failed to load data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [selectedYear]);
+    fetchAllData();
+  }, []); // Only run once on mount
 
   const handleYearChange = (year) => {
     setSelectedYear(year);
@@ -51,15 +90,32 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl text-gray-600">Loading {selectedYear} data...</div>
+        <div className="text-center">
+          <div className="text-xl text-gray-600 mb-2">Loading data for all years...</div>
+          <div className="text-sm text-gray-500">This may take a moment on first load</div>
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && Object.keys(allYearData).length === 0) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-xl text-red-600">{error}</div>
+      </div>
+    );
+  }
+
+  // Show a message if current year data is not available
+  if (!data && !loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl text-red-600 mb-2">Data for {selectedYear} is not available</div>
+          <div className="text-sm text-gray-500">
+            Available years: {Object.keys(allYearData).join(', ')}
+          </div>
+        </div>
       </div>
     );
   }
@@ -90,6 +146,7 @@ function App() {
           <YearTabs 
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
+            availableYears={Object.keys(allYearData).map(Number)}
           />
           <StateFilter
             selectedState={selectedState}

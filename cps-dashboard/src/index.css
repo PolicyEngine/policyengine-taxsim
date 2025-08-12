@@ -136,6 +136,18 @@ body {
   box-shadow: 0 2px 8px rgba(12, 26, 39, 0.1);
 }
 
+.year-tab.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--medium-dark-gray) !important;
+  color: var(--gray) !important;
+}
+
+.year-tab.disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* Section titles styling */
 .section-title {
   font-size: 1.5rem;
@@ -163,6 +175,10 @@ body {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.ml-1 {
+  margin-left: 0.25rem;
 }
 
 .card-container {

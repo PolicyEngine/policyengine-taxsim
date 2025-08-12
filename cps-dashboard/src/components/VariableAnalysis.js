@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
 const VariableAnalysis = ({ data, selectedState }) => {
@@ -57,27 +57,26 @@ const VariableAnalysis = ({ data, selectedState }) => {
     }));
   };
 
-  const compareResults = (taxsimResults, policyengineResults, selectedState) => {
+  const compareResults = useCallback((taxsimResults, policyengineResults, selectedState) => {
     if (!taxsimResults || !policyengineResults || taxsimResults.length === 0 || policyengineResults.length === 0) {
       return [];
     }
 
     // Filter by state if selected
     const filteredTaxsim = selectedState 
-      ? taxsimResults.filter(item => item.state === selectedState || item.state == selectedState)
+      ? taxsimResults.filter(item => item.state === selectedState || item.state === selectedState)
       : taxsimResults;
     
     const filteredPE = selectedState
-      ? policyengineResults.filter(item => item.state === selectedState || item.state == selectedState)
+      ? policyengineResults.filter(item => item.state === selectedState || item.state === selectedState)
       : policyengineResults;
 
 
 
     const analysis = [];
     
-    targetVariables.forEach((variable, index) => {
+    targetVariables.forEach((variable) => {
       const differences = [];
-      let matchedRecords = 0;
       
       // Match records by taxsimid and compare
       filteredTaxsim.forEach(taxsimRecord => {
@@ -89,7 +88,6 @@ const VariableAnalysis = ({ data, selectedState }) => {
         });
         
         if (peRecord) {
-          matchedRecords++;
           const taxsimValue = parseFloat(taxsimRecord[variable.code]) || 0;
           const peValue = parseFloat(peRecord[variable.code]) || 0;
           const diff = taxsimValue - peValue;
@@ -124,7 +122,7 @@ const VariableAnalysis = ({ data, selectedState }) => {
 
     // Sort by mismatch count (most problematic first)
     return analysis.sort((a, b) => b.count - a.count);
-  };
+  }, [targetVariables]);
 
   const analysisData = useMemo(() => {
     if (!data) return { all: [], tax: [], income: [], deduction: [], credit: [] };
@@ -144,7 +142,7 @@ const VariableAnalysis = ({ data, selectedState }) => {
 
     // Fallback to simple mismatch analysis for backward compatibility
     return { all: [], tax: [], income: [], deduction: [], credit: [] };
-  }, [data, selectedState]);
+  }, [data, selectedState, compareResults]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
