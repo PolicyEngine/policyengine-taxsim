@@ -1,2 +1,2 @@
-taxsimid,year,state,mstat,idtl,pwages,opt1,opt1v,opt2,opt2v,depx,age1,age2,age3,childcare
-164930,2024,12,1,5,19850,30,2,88,1,3,5,10,18,3000
+taxsimid,year,state,mstat,page,sage,depx,pwages,psemp,swages,ssemp,dividends,intrec,stcg,ltcg,otherprop,nonprop,pensions,gssi,pui,sui,transfers,rentpaid,proptax,otheritem,childcare,mortgage,scorp,idtl,age1,age2,age3,age4,age5,age6,age7,age8,age9,age10,age11
+22474,2021,47,2,57,54,0,99523.80952380953,0.0,130952.38095238096,0.0,913.7425742574258,3170.187873612297,257.58620689655174,1889.443757725587,0,0,0.0,0.0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0.0,2,,,,,,,,,,,

@@ -51,6 +51,22 @@ def add_additional_units(state, year, situation, taxsim_vars):
                 tax_unit["state_sales_tax"] = {str(year): 0}
                 continue
 
+            if field == "va_rebate":
+                tax_unit["va_rebate"] = {str(year): 0}
+                continue
+
+            if field == "nm_2021_income_rebate":
+                tax_unit["nm_2021_income_rebate"] = {str(year): 0}
+                continue
+
+            if field == "nm_additional_2021_income_rebate":
+                tax_unit["nm_additional_2021_income_rebate"] = {str(year): 0}
+                continue
+
+            if field == "nm_supplemental_2021_income_rebate":
+                tax_unit["nm_supplemental_2021_income_rebate"] = {str(year): 0}
+                continue
+
             if len(values) > 1:
                 matching_values = [
                     taxsim_vars.get(value, 0)
