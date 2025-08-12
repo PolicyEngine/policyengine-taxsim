@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
 const VariableAnalysis = ({ data, selectedState }) => {
   const [activeTab, setActiveTab] = useState('all');
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Define the variables we want to analyze
   const targetVariables = [
@@ -158,198 +159,189 @@ const VariableAnalysis = ({ data, selectedState }) => {
 
   if (!data) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Variable Mismatch Analysis</h2>
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
+      <div className="card-container">
+        <div className="card-header">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">
-          Output Variable Mismatch Analysis
-          {selectedState && (
-            <span className="ml-2 text-sm text-gray-500">
-              (Filtered: {selectedState})
-            </span>
-          )}
-        </h2>
-        
-        {/* Tabs */}
-        <div className="flex space-x-1">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'all'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            All Variables
-          </button>
-          <button
-            onClick={() => setActiveTab('tax')}
-            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'tax'
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Tax Variables
-          </button>
-          <button
-            onClick={() => setActiveTab('income')}
-            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'income'
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Income Variables
-          </button>
-          <button
-            onClick={() => setActiveTab('deduction')}
-            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'deduction'
-                ? 'bg-purple-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Deductions
-          </button>
-          <button
-            onClick={() => setActiveTab('credit')}
-            className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-              activeTab === 'credit'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Credits
-          </button>
-        </div>
-      </div>
-
-      <div className="p-6">
-        {currentData.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No mismatches found for {activeTab} variables
-            {selectedState && ` in ${selectedState}`}.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Variable Summary Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Variable
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mismatches
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mismatch Rate
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Avg Difference
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Max Difference
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Impact
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentData.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {item.variable}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {item.name}
-                          </div>
-                          <div className="text-xs text-gray-400 capitalize">
-                            {item.category}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.count}
-                        <div className="text-xs text-gray-500">
-                          of {item.totalRecords}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className={`font-semibold ${
-                          item.mismatchRate > 50 
-                            ? 'text-red-600'
-                            : item.mismatchRate > 20
-                            ? 'text-yellow-600'
-                            : 'text-green-600'
-                        }`}>
-                          {item.mismatchRate.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(item.avgDiff)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(item.maxDiff)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.mismatchRate > 50 || item.avgDiff > 1000
-                            ? 'bg-red-100 text-red-800'
-                            : item.mismatchRate > 20 || item.avgDiff > 100
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {item.mismatchRate > 50 || item.avgDiff > 1000 ? 'High' : 
-                           item.mismatchRate > 20 || item.avgDiff > 100 ? 'Medium' : 'Low'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Distribution Chart */}
-            {currentData[0] && currentData[0].distribution && (
-              <div>
-                <h3 className="text-md font-medium text-gray-900 mb-4">
-                  Difference Distribution
-                </h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={currentData[0].distribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="range" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar 
-                        dataKey="count" 
-                        fill={activeTab === 'federal' ? '#3B82F6' : '#10B981'} 
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+    <div className="card-container">
+      {/* Collapsible Header */}
+      <div 
+        className="card-header cursor-pointer" 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="section-title mb-0 pb-0">Variable Mismatch Analysis</h2>
+            {selectedState && (
+              <div className="text-sm font-medium text-gray-600 mt-2">
+                Filtered Results: <span className="font-semibold text-gray-900">{selectedState}</span>
               </div>
             )}
           </div>
-        )}
+          <div className="text-2xl text-gray-500">
+            {isCollapsed ? <FiChevronDown /> : <FiChevronUp />}
+          </div>
+        </div>
       </div>
+
+      {/* Collapsible Content */}
+      {!isCollapsed && (
+        <div>
+          {/* Standard Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'all'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                All Variables
+              </button>
+              <button
+                onClick={() => setActiveTab('tax')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'tax'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Tax Variables
+              </button>
+              <button
+                onClick={() => setActiveTab('income')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'income'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Income Variables
+              </button>
+              <button
+                onClick={() => setActiveTab('deduction')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'deduction'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Deductions
+              </button>
+              <button
+                onClick={() => setActiveTab('credit')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'credit'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Credits
+              </button>
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {currentData.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No mismatches found for {activeTab} variables
+                {selectedState && ` in ${selectedState}`}.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Variable
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Mismatches
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Mismatch Rate
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Avg Difference
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Max Difference
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Impact
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentData.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {item.variable}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {item.name}
+                            </div>
+                            <div className="text-xs text-gray-400 capitalize">
+                              {item.category}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.count}
+                          <div className="text-xs text-gray-500">
+                            of {item.totalRecords}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className={`font-semibold ${
+                            item.mismatchRate > 50 
+                              ? 'text-red-600'
+                              : item.mismatchRate > 20
+                              ? 'text-yellow-600'
+                              : 'text-green-600'
+                          }`}>
+                            {item.mismatchRate.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatCurrency(item.avgDiff)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatCurrency(item.maxDiff)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            item.mismatchRate > 50 || item.avgDiff > 1000
+                              ? 'bg-red-100 text-red-800'
+                              : item.mismatchRate > 20 || item.avgDiff > 100
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {item.mismatchRate > 50 || item.avgDiff > 1000 ? 'High' : 
+                             item.mismatchRate > 20 || item.avgDiff > 100 ? 'Medium' : 'Low'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

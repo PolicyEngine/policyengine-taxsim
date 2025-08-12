@@ -64,17 +64,14 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-medium text-gray-900">
-          State-by-State Breakdown
-          {selectedState && (
-            <span className="ml-2 text-sm text-gray-500">
-              (Filtered: {selectedState})
-            </span>
-          )}
-        </h2>
-      </div>
+    <div className="card-container">
+      {selectedState && (
+        <div className="card-header">
+          <div className="text-sm font-medium text-gray-600">
+            Filtered Results: <span className="font-semibold text-gray-900">{selectedState}</span>
+          </div>
+        </div>
+      )}
       
       <div className="overflow-x-auto">
         <table className="state-table">

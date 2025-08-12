@@ -67,10 +67,10 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white shadow-sm">
+      <div className="main-header shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl main-title">
               PolicyEngine-Taxsim Emulator
             </h1>
             <button
@@ -98,25 +98,33 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div className="space-y-6">
-          {/* Metrics Row */}
-          <MetricsRow 
-            data={data}
-            selectedState={selectedState}
-          />
+        <div className="space-y-8">
+          {/* Performance Overview Section */}
+          <section>
+            <h2 className="section-title">Performance Overview</h2>
+            <MetricsRow 
+              data={data}
+              selectedState={selectedState}
+            />
+          </section>
 
-          {/* State Breakdown Table */}
-          <StateTable
-            data={data}
-            selectedState={selectedState}
-            onStateSelect={handleStateChange}
-          />
+          {/* State Analysis Section */}
+          <section>
+            <h2 className="section-title">State-by-State Analysis</h2>
+            <StateTable
+              data={data}
+              selectedState={selectedState}
+              onStateSelect={handleStateChange}
+            />
+          </section>
 
-          {/* Variable Analysis */}
-          <VariableAnalysis
-            data={data}
-            selectedState={selectedState}
-          />
+          {/* Variable Analysis Section */}
+          <section>
+            <VariableAnalysis
+              data={data}
+              selectedState={selectedState}
+            />
+          </section>
         </div>
       </div>
     </div>
