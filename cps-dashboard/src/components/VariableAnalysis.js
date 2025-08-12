@@ -57,22 +57,9 @@ const VariableAnalysis = ({ data, selectedState }) => {
   };
 
   const compareResults = (taxsimResults, policyengineResults, selectedState) => {
-    console.log('compareResults called with:', {
-      taxsimLength: taxsimResults?.length,
-      peLength: policyengineResults?.length,
-      selectedState
-    });
-    
     if (!taxsimResults || !policyengineResults || taxsimResults.length === 0 || policyengineResults.length === 0) {
-      console.log('Missing or empty results data');
       return [];
     }
-
-    // Debug the actual data structure
-    console.log('Sample TAXSIM record:', taxsimResults[0]);
-    console.log('Sample PE record:', policyengineResults[0]);
-    console.log('TAXSIM columns:', Object.keys(taxsimResults[0] || {}));
-    console.log('PE columns:', Object.keys(policyengineResults[0] || {}));
 
     // Filter by state if selected
     const filteredTaxsim = selectedState 
@@ -83,10 +70,7 @@ const VariableAnalysis = ({ data, selectedState }) => {
       ? policyengineResults.filter(item => item.state === selectedState || item.state == selectedState)
       : policyengineResults;
 
-    console.log('Filtered data:', {
-      filteredTaxsimLength: filteredTaxsim.length,
-      filteredPELength: filteredPE.length
-    });
+
 
     const analysis = [];
     
@@ -109,15 +93,7 @@ const VariableAnalysis = ({ data, selectedState }) => {
           const peValue = parseFloat(peRecord[variable.code]) || 0;
           const diff = taxsimValue - peValue;
           
-          // Debug first variable only to avoid spam
-          if (index === 0 && differences.length < 3) {
-            console.log(`${variable.code} comparison:`, {
-              taxsimid: taxsimRecord.taxsimid,
-              taxsimValue,
-              peValue,
-              diff
-            });
-          }
+
           
           if (Math.abs(diff) > 0.01) { // Only include meaningful differences
             differences.push(diff);
@@ -125,14 +101,7 @@ const VariableAnalysis = ({ data, selectedState }) => {
         }
       });
 
-      // Debug first variable
-      if (index === 0) {
-        console.log(`${variable.code} summary:`, {
-          matchedRecords,
-          differences: differences.length,
-          sampleDifferences: differences.slice(0, 3)
-        });
-      }
+
 
       if (differences.length > 0) {
         const avgDiff = differences.reduce((sum, diff) => sum + Math.abs(diff), 0) / differences.length;

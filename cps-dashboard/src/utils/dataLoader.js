@@ -48,9 +48,19 @@ const parseComparisonReport = (text) => {
   };
 };
 
-// Load CSV data
+// Global cache for loaded data
+const dataCache = new Map();
+
+// Load CSV data with caching
 const loadCSVData = async (url) => {
+  // Check cache first
+  if (dataCache.has(url)) {
+    console.log(`Loading ${url} from cache`);
+    return dataCache.get(url);
+  }
+
   try {
+    console.log(`Loading ${url} from server`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -64,6 +74,8 @@ const loadCSVData = async (url) => {
           if (results.errors.length > 0) {
             console.warn('CSV parsing warnings:', results.errors);
           }
+          // Cache the results
+          dataCache.set(url, results.data);
           resolve(results.data);
         },
         error: (error) => reject(error)
@@ -75,14 +87,24 @@ const loadCSVData = async (url) => {
   }
 };
 
-// Load text data
+// Load text data with caching
 const loadTextData = async (url) => {
+  // Check cache first
+  if (dataCache.has(url)) {
+    console.log(`Loading ${url} from cache`);
+    return dataCache.get(url);
+  }
+
   try {
+    console.log(`Loading ${url} from server`);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return await response.text();
+    const text = await response.text();
+    // Cache the results
+    dataCache.set(url, text);
+    return text;
   } catch (error) {
     console.error(`Error loading text from ${url}:`, error);
     throw error;
@@ -149,4 +171,18 @@ export const getStateName = (stateCode) => {
     return stateCode;
   }
   return STATE_MAPPING[stateCode] || stateCode;
+};
+
+// Utility function to clear cache if needed
+export const clearDataCache = () => {
+  dataCache.clear();
+  console.log('Data cache cleared');
+};
+
+// Utility function to get cache info
+export const getCacheInfo = () => {
+  return {
+    size: dataCache.size,
+    keys: Array.from(dataCache.keys())
+  };
 };
