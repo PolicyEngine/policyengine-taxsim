@@ -6,12 +6,26 @@ from io import StringIO
 try:
     from .core.input_mapper import generate_household
     from .core.output_mapper import export_household
+    from .runners.policyengine_runner import PolicyEngineRunner
+    from .runners.taxsim_runner import TaxsimRunner
+    from .comparison.comparator import TaxComparator, ComparisonConfig
+    from .comparison.statistics import ComparisonStatistics
 except ImportError:
     from policyengine_taxsim.core.input_mapper import generate_household
     from policyengine_taxsim.core.output_mapper import export_household
+    from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
+    from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+    from policyengine_taxsim.comparison.comparator import TaxComparator, ComparisonConfig
+    from policyengine_taxsim.comparison.statistics import ComparisonStatistics
 
 
-@click.command()
+@click.group()
+def cli():
+    """PolicyEngine-TAXSIM comparison and calculation tool"""
+    pass
+
+
+@cli.command()
 @click.argument("input_file", type=click.Path(exists=True))
 @click.option(
     "--output",
@@ -24,50 +38,160 @@ except ImportError:
 @click.option(
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
-def main(input_file, output, logs, disable_salt):
+@click.option("--sample", type=int, help="Sample N records from input")
+def policyengine(input_file, output, logs, disable_salt, sample):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
     """
     try:
         # Read input file
         df = pd.read_csv(input_file)
+        
+        # Apply sampling if requested
+        if sample and sample < len(df):
+            click.echo(f"Sampling {sample} records from {len(df)} total records")
+            df = df.sample(n=sample, random_state=42)
 
-        # Process each row
-        idtl_0_results = []
-        idtl_2_results = []
-        idtl_5_results = ""
-
-        for _, row in df.iterrows():
-            taxsim_input = row.to_dict()
-            pe_situation = generate_household(taxsim_input)
-
-            taxsim_output = export_household(
-                taxsim_input, pe_situation, logs, disable_salt
-            )
-
-            idtl = taxsim_input["idtl"]
-            if idtl == 0:
-                idtl_0_results.append(taxsim_output)
-            elif idtl == 2:
-                idtl_2_results.append(taxsim_output)
-            else:
-                idtl_5_results += taxsim_output
-
-        idtl_0_output = to_csv_str(idtl_0_results)
-        idtl_2_output = to_csv_str(idtl_2_results)
-
-        output_str = ""
-        if idtl_0_output:
-            output_str += idtl_0_output
-        if idtl_2_output:
-            output_str += f"\n{idtl_2_output}"
-        if idtl_5_results:
-            output_str += f"\n{idtl_5_results}"
-
-        print(output_str)
+        # Use the new PolicyEngineRunner but keep original output format
+        runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
+        runner.run_original_format()  # This preserves the exact original behavior
+        
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
         raise
+
+
+@cli.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("--output", "-o", default="taxsim_output.csv", help="Output file path")
+@click.option("--sample", type=int, help="Sample N records from input")
+@click.option("--taxsim-path", type=click.Path(exists=True), help="Custom path to TAXSIM executable")
+def taxsim(input_file, output, sample, taxsim_path):
+    """Run TAXSIM-35 tax calculations"""
+    try:
+        # Load and optionally sample data
+        df = pd.read_csv(input_file)
+        
+        if sample and sample < len(df):
+            click.echo(f"Sampling {sample} records from {len(df)} total records")
+            df = df.sample(n=sample, random_state=42)
+        
+        # Run TAXSIM
+        runner = TaxsimRunner(df, taxsim_path=taxsim_path)
+        results = runner.run()
+        
+        # Save results
+        results.to_csv(output, index=False)
+        click.echo(f"TAXSIM results saved to: {output}")
+        
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
+
+
+@cli.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("--sample", type=int, help="Sample N records from input")
+@click.option("--output-dir", default="comparison_output", help="Directory to save comparison results")
+@click.option("--save-mismatches", is_flag=True, help="Save detailed mismatch files")
+@click.option("--federal-tolerance", type=float, default=50.0, help="Federal tax comparison tolerance (dollars)")
+@click.option("--state-tolerance", type=float, default=15.0, help="State tax comparison tolerance (dollars)")
+@click.option("--year", type=int, help="Tax year for output file naming")
+@click.option("--disable-salt", is_flag=True, default=False, help="Disable SALT deduction in PolicyEngine")
+@click.option("--logs", is_flag=True, help="Generate PolicyEngine YAML logs")
+def compare(input_file, sample, output_dir, save_mismatches, 
+           federal_tolerance, state_tolerance, year, disable_salt, logs):
+    """Compare PolicyEngine and TAXSIM results"""
+    try:
+        # Load and optionally sample data
+        df = pd.read_csv(input_file)
+        
+        if sample and sample < len(df):
+            click.echo(f"Sampling {sample} records from {len(df)} total records")
+            df = df.sample(n=sample, random_state=42)
+        
+        click.echo(f"Processing {len(df)} records for comparison")
+        
+        # Run PolicyEngine
+        click.echo("Running PolicyEngine...")
+        pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
+        pe_results = pe_runner.run()
+        
+        # Run TAXSIM
+        click.echo("Running TAXSIM...")
+        taxsim_runner = TaxsimRunner(df)
+        taxsim_results = taxsim_runner.run()
+        
+        # Compare results
+        click.echo("Comparing results...")
+        config = ComparisonConfig(
+            federal_tolerance=federal_tolerance,
+            state_tolerance=state_tolerance
+        )
+        
+        comparator = TaxComparator(taxsim_results, pe_results, config)
+        comparison_results = comparator.compare()
+        
+        # Generate statistics
+        stats = ComparisonStatistics(comparison_results, df)
+        stats.print_summary()
+        
+        # Save outputs
+        output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True)
+        
+        # Save raw results
+        year_suffix = f"_{year}" if year else ""
+        pe_results.to_csv(output_path / f"policyengine_results{year_suffix}.csv", index=False)
+        taxsim_results.to_csv(output_path / f"taxsim_results{year_suffix}.csv", index=False)
+        
+        # Save detailed report
+        with open(output_path / f"comparison_report{year_suffix}.txt", 'w') as f:
+            f.write(stats.detailed_report())
+        
+        # Save mismatches if requested
+        if save_mismatches:
+            comparison_results.save_mismatches(output_path, df, year)
+        
+        click.echo(f"\nComparison results saved to: {output_path}")
+        
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
+
+@cli.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("--sample", type=int, help="Sample N records and save to new file")
+@click.option("--output", "-o", help="Output file for sampled data (auto-generated if not specified)")
+def sample_data(input_file, sample, output):
+    """Sample records from a large dataset"""
+    try:
+        df = pd.read_csv(input_file)
+        
+        if not sample:
+            click.echo(f"File contains {len(df)} records. Use --sample N to extract N records.")
+            return
+        
+        if sample >= len(df):
+            click.echo(f"Sample size ({sample}) is larger than file size ({len(df)})")
+            return
+        
+        # Sample data
+        sampled_df = df.sample(n=sample, random_state=42)
+        
+        # Generate output filename if not provided
+        if not output:
+            input_path = Path(input_file)
+            output = input_path.parent / f"{input_path.stem}_sample_{sample}{input_path.suffix}"
+        
+        # Save sampled data
+        sampled_df.to_csv(output, index=False)
+        click.echo(f"Sampled {sample} records from {len(df)} total records")
+        click.echo(f"Sampled data saved to: {output}")
+        
+    except Exception as e:
+        click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
 
 
 def to_csv_str(results):
@@ -81,4 +205,4 @@ def to_csv_str(results):
 
 
 if __name__ == "__main__":
-    main()
+    cli()
