@@ -6,7 +6,7 @@ const parseComparisonReport = (text) => {
   
   // Extract total records
   const totalRecordsLine = lines.find(line => line.includes('Total Records Processed:'));
-  const totalRecords = totalRecordsLine ? parseInt(totalRecordsLine.split(':')[1].trim()) : 0;
+  const totalRecords = totalRecordsLine ? parseInt(totalRecordsLine.split(':')[1].trim().replace(/,/g, '')) : 0;
   
   // Extract federal match data - look for the first "Matches:" line
   const federalMatchLine = lines.find(line => line.includes('Matches:') && line.includes('(') && line.includes('%'));
