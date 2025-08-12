@@ -67,9 +67,8 @@ STATE_MAPPING = {
 
 def get_state_code(state_number):
     """Convert state number to state code."""
-    if state_number == 0:
-        return "UNKNOWN"  # Better than N/A for debugging
-    return STATE_MAPPING.get(state_number, f"INVALID_{state_number}")
+    # For invalid state codes (including 0), default to Texas (consistent with set_taxsim_defaults)
+    return STATE_MAPPING.get(state_number, "TX")
 
 
 def get_state_number(state_code):

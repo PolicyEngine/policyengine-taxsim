@@ -10,7 +10,7 @@ class ComparisonConfig:
     """Configuration for tax comparison"""
     federal_tax_col: str = "fiitax"
     state_tax_col: str = "siitax"
-    federal_tolerance: float = 50.0  # $50 absolute tolerance
+    federal_tolerance: float = 15.0  # $15 absolute tolerance
     state_tolerance: float = 15.0    # $15 absolute tolerance
     id_col: str = "taxsimid"
 
