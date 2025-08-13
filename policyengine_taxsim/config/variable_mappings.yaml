@@ -837,7 +837,6 @@ taxsim_to_policyengine:
           - 'in'
           - 'ok'
       - de_relief_rebate: 
-      - va_rebate:
       - nm_2021_income_rebate:
       - nm_additional_2021_income_rebate:
       - nm_supplemental_2021_income_rebate:

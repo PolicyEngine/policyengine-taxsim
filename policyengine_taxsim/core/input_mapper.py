@@ -51,10 +51,6 @@ def add_additional_units(state, year, situation, taxsim_vars):
                 tax_unit["state_sales_tax"] = {str(year): 0}
                 continue
 
-            if field == "va_rebate":
-                tax_unit["va_rebate"] = {str(year): 0}
-                continue
-
             if field == "nm_2021_income_rebate":
                 tax_unit["nm_2021_income_rebate"] = {str(year): 0}
                 continue
