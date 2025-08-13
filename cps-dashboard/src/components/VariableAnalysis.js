@@ -94,7 +94,7 @@ const VariableAnalysis = ({ data, selectedState }) => {
           
 
           
-          if (Math.abs(diff) > 0.01) { // Only include meaningful differences
+          if (Math.abs(diff) > 15) { // Only include differences outside $15 tolerance
             differences.push(diff);
           }
         }

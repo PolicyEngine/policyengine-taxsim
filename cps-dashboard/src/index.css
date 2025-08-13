@@ -493,6 +493,29 @@ body {
   left: 100%;
 }
 
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid var(--blue-primary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue-primary);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(44, 100, 150, 0.1);
+}
+
+.btn-secondary:hover {
+  background: var(--blue-light);
+  border-color: var(--dark-blue-hover);
+  color: var(--dark-blue-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(44, 100, 150, 0.2);
+}
+
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -535,4 +558,364 @@ body {
     padding-left: 2rem;
     padding-right: 2rem;
   }
+}
+
+/* Household Details Section Styling */
+.household-section {
+  background: linear-gradient(135deg, var(--teal-light) 0%, var(--blue-98) 100%);
+  border-top: 1px solid var(--blue-light);
+  margin-top: 0;
+}
+
+.household-controls {
+  padding: 32px 40px;
+  border-bottom: 1px solid var(--blue-light);
+  background: var(--white);
+  box-shadow: 0 2px 4px rgba(44, 100, 150, 0.08);
+}
+
+.section-subtitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--darkest-blue);
+  margin: 0;
+  margin-right: 24px;
+}
+
+.filter-group {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkbox-label:hover {
+  transform: translateY(-1px);
+}
+
+.custom-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--blue-primary);
+  border-radius: 4px;
+  margin-right: 8px;
+  appearance: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.custom-checkbox:checked {
+  background: var(--blue-primary);
+  border-color: var(--blue-primary);
+}
+
+.custom-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 2px;
+  color: var(--white);
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.checkbox-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--darkest-blue);
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sort-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--darkest-blue);
+}
+
+.custom-select {
+  padding: 8px 12px;
+  border: 2px solid var(--blue-light);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--darkest-blue);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.custom-select:hover {
+  border-color: var(--blue-primary);
+  transform: translateY(-1px);
+}
+
+.custom-select:focus {
+  outline: none;
+  border-color: var(--blue-primary);
+  box-shadow: 0 0 0 3px rgba(44, 100, 150, 0.1);
+}
+
+.sort-button {
+  padding: 8px 12px;
+  border: 2px solid var(--blue-primary);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--blue-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 44px;
+}
+
+.sort-button:hover {
+  background: var(--blue-light);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(44, 100, 150, 0.2);
+}
+
+.household-list {
+  padding: 32px;
+}
+
+.household-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.no-data-message, .overflow-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--dark-gray);
+  font-size: 16px;
+  font-weight: 500;
+  background: var(--white);
+  border-radius: 12px;
+  border: 2px dashed var(--blue-light);
+}
+
+.overflow-message {
+  margin-top: 20px;
+  padding: 20px;
+  font-size: 14px;
+}
+
+/* Household Card Styling */
+.household-card {
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(12, 26, 39, 0.08);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.household-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(12, 26, 39, 0.12);
+}
+
+.household-card-match {
+  border-color: var(--green);
+  background: linear-gradient(135deg, var(--white) 0%, rgba(41, 212, 15, 0.02) 100%);
+}
+
+.household-card-mismatch {
+  border-color: var(--dark-red);
+  background: linear-gradient(135deg, var(--white) 0%, rgba(181, 13, 13, 0.02) 100%);
+}
+
+.household-header {
+  padding: 24px 32px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.household-header:hover {
+  background: linear-gradient(135deg, var(--blue-98) 0%, var(--teal-light) 100%);
+}
+
+.status-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  margin-right: 8px;
+}
+
+.status-icon-match {
+  background: var(--green);
+  color: var(--white);
+}
+
+.status-icon-mismatch {
+  background: var(--dark-red);
+  color: var(--white);
+}
+
+.household-id {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--darkest-blue);
+  margin-bottom: 4px;
+}
+
+.household-meta {
+  font-size: 14px;
+  color: var(--dark-gray);
+  font-weight: 500;
+}
+
+.household-difference {
+  margin-left: 12px;
+  color: var(--dark-red);
+  font-weight: 600;
+}
+
+.expand-icon {
+  color: var(--blue-primary);
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+.household-header:hover .expand-icon {
+  color: var(--dark-blue-hover);
+  transform: scale(1.1);
+}
+
+/* Household Details Table */
+.household-details {
+  border-top: 1px solid var(--blue-light);
+  background: var(--blue-98);
+}
+
+.household-table-container {
+  padding: 24px;
+  overflow-x: auto;
+}
+
+.household-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(12, 26, 39, 0.06);
+}
+
+.household-table thead {
+  background: linear-gradient(135deg, var(--darkest-blue) 0%, var(--blue-primary) 100%);
+}
+
+.household-table th {
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--white);
+}
+
+.household-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.household-table tbody tr:hover {
+  background: var(--blue-98);
+}
+
+.variable-mismatch {
+  background: rgba(181, 13, 13, 0.04) !important;
+  border-left: 4px solid var(--dark-red);
+}
+
+.variable-match {
+  background: var(--white);
+}
+
+.household-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--blue-95);
+  font-size: 14px;
+}
+
+.variable-info {
+  min-width: 140px;
+}
+
+.variable-code {
+  font-weight: 600;
+  color: var(--darkest-blue);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.variable-name {
+  font-size: 12px;
+  color: var(--dark-gray);
+  font-weight: 500;
+}
+
+.value-cell {
+  font-weight: 600;
+  color: var(--darkest-blue);
+  text-align: right;
+  min-width: 100px;
+}
+
+.difference-cell {
+  text-align: right;
+  min-width: 100px;
+}
+
+.difference-mismatch {
+  color: var(--dark-red);
+  font-weight: 700;
+}
+
+.difference-match {
+  color: var(--dark-gray);
+  font-weight: 500;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge-match {
+  background: rgba(41, 212, 15, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(41, 212, 15, 0.2);
+}
+
+.status-badge-mismatch {
+  background: rgba(181, 13, 13, 0.1);
+  color: var(--dark-red);
+  border: 1px solid rgba(181, 13, 13, 0.2);
 }
