@@ -171,6 +171,7 @@ function App() {
             <StateTable
               data={data}
               selectedState={selectedState}
+              selectedYear={selectedYear}
               onStateSelect={handleStateChange}
             />
           </section>
