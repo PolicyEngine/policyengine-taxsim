@@ -55,16 +55,12 @@ policyengine_to_taxsim:
     full_text_group: "Basic Output"
     group_column: 1
   fica:
-    variable: multiple_variable
+    variable: na_pe
     implemented: true
     idtl:
       - standard: 0
       - full: 2
       - full_text: 5
-    variables:
-      - employee_social_security_tax
-      - employee_medicare_tax
-      - additional_medicare_tax
     text_description: "6. SS Payroll Tax Liability"
     group_order: 1
     full_text_group: "Basic Output"
@@ -192,7 +188,7 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
-  qbi:
+  qbid:
     variable: qualified_business_income_deduction
     implemented: true
     idtl:
@@ -585,12 +581,12 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
   v42:
-    variable: qualified_business_income_deduction
+    variable: na_pe
     implemented: true
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "42. QBI Deduction"
+    text_description: "42. Earned Self-Employment Income for FICA"
     group_order: 5
     full_text_group: "TCJA 2018+"
     group_column: 1
