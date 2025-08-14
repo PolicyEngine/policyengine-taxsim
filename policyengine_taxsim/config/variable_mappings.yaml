@@ -837,9 +837,6 @@ taxsim_to_policyengine:
           - 'in'
           - 'ok'
       - de_relief_rebate: 
-      - nm_2021_income_rebate:
-      - nm_additional_2021_income_rebate:
-      - nm_supplemental_2021_income_rebate:
       - state_sales_tax: 
     additional_income_units:
       - taxable_interest_income:
