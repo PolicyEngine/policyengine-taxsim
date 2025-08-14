@@ -4,15 +4,11 @@ from pathlib import Path
 from io import StringIO
 
 try:
-    from .core.input_mapper import generate_household
-    from .core.output_mapper import export_household
     from .runners.policyengine_runner import PolicyEngineRunner
     from .runners.taxsim_runner import TaxsimRunner
     from .comparison.comparator import TaxComparator, ComparisonConfig
     from .comparison.statistics import ComparisonStatistics
 except ImportError:
-    from policyengine_taxsim.core.input_mapper import generate_household
-    from policyengine_taxsim.core.output_mapper import export_household
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
     from policyengine_taxsim.comparison.comparator import TaxComparator, ComparisonConfig
@@ -94,13 +90,12 @@ def taxsim(input_file, output, sample, taxsim_path):
 @click.option("--sample", type=int, help="Sample N records from input")
 @click.option("--output-dir", default="comparison_output", help="Directory to save comparison results")
 @click.option("--save-mismatches", is_flag=True, help="Save detailed mismatch files")
-@click.option("--federal-tolerance", type=float, default=15.0, help="Federal tax comparison tolerance (dollars)")
-@click.option("--state-tolerance", type=float, default=15.0, help="State tax comparison tolerance (dollars)")
+
 @click.option("--year", type=int, help="Tax year for output file naming")
 @click.option("--disable-salt", is_flag=True, default=False, help="Disable SALT deduction in PolicyEngine")
 @click.option("--logs", is_flag=True, help="Generate PolicyEngine YAML logs")
 def compare(input_file, sample, output_dir, save_mismatches, 
-           federal_tolerance, state_tolerance, year, disable_salt, logs):
+           year, disable_salt, logs):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
@@ -140,8 +135,8 @@ def compare(input_file, sample, output_dir, save_mismatches,
         # Compare results
         click.echo("Comparing results...")
         config = ComparisonConfig(
-            federal_tolerance=federal_tolerance,
-            state_tolerance=state_tolerance
+            federal_tolerance=15.0,
+            state_tolerance=15.0
         )
         
         comparator = TaxComparator(taxsim_results, pe_results, config)
