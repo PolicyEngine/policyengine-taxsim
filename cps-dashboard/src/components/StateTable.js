@@ -483,7 +483,7 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
           </div>
           <div className="rebate-note-content">
             <p>
-              For Virginia 2021, TAXSIM includes a state tax rebate that is not reflected in PolicyEngine calculations. 
+              For Virginia in 2021, TAXSIM includes a state tax rebate that is not reflected in PolicyEngine calculations. 
               This may result in apparent mismatches where TAXSIM shows lower state tax liability than PolicyEngine 
               due to the rebate being automatically applied in TAXSIM but not in PolicyEngine.
             </p>
@@ -508,7 +508,7 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
           </div>
           <div className="rebate-note-content">
             <p>
-              For New Mexico 2021, PolicyEngine includes three income rebates that are omitted in TAXSIM calculations. 
+              For New Mexico in 2021, PolicyEngine includes three income rebates that are omitted in TAXSIM calculations. 
               This may result in apparent mismatches where PolicyEngine shows lower state tax liability than TAXSIM 
               due to these rebates being included in PolicyEngine but not in TAXSIM.
             </p>
