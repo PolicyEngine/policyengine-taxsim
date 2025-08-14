@@ -462,9 +462,88 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
         </table>
       </div>
 
+      {/* State-specific rebate notes - shown when state is selected */}
+      {/* VA 2021 TAXSIM Rebate Note */}
+      {selectedState === 'VA' && selectedYear === 2021 && (
+        <div className="card-container va-rebate-note" style={{ margin: '1.5rem 0' }}>
+          <div className="card-header">
+            <div className="flex items-center">
+              <div className="rebate-note-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="rebate-note-title">
+                Virginia 2021 Tax Calculation Note
+              </h3>
+            </div>
+          </div>
+          <div className="rebate-note-content">
+            <p>
+              For Virginia 2021, TAXSIM includes a state tax rebate that is not reflected in PolicyEngine calculations. 
+              This may result in apparent mismatches where TAXSIM shows lower state tax liability than PolicyEngine 
+              due to the rebate being automatically applied in TAXSIM but not in PolicyEngine.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* NM 2021 PolicyEngine Rebate Note */}
+      {selectedState === 'NM' && selectedYear === 2021 && (
+        <div className="card-container va-rebate-note" style={{ margin: '1.5rem 0' }}>
+          <div className="card-header">
+            <div className="flex items-center">
+              <div className="rebate-note-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="rebate-note-title">
+                New Mexico 2021 Tax Calculation Note
+              </h3>
+            </div>
+          </div>
+          <div className="rebate-note-content">
+            <p>
+              For New Mexico 2021, PolicyEngine includes three income rebates that are omitted in TAXSIM calculations. 
+              This may result in apparent mismatches where PolicyEngine shows lower state tax liability than TAXSIM 
+              due to these rebates being included in PolicyEngine but not in TAXSIM.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* CO All Years TAXSIM Rebate Note */}
+      {selectedState === 'CO' && (
+        <div className="card-container va-rebate-note" style={{ margin: '1.5rem 0' }}>
+          <div className="card-header">
+            <div className="flex items-center">
+              <div className="rebate-note-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="rebate-note-title">
+                Colorado Tax Calculation Note
+              </h3>
+            </div>
+          </div>
+          <div className="rebate-note-content">
+            <p>
+              For Colorado, TAXSIM applies a rebate that is not included in PolicyEngine calculations. 
+              This may result in apparent mismatches where TAXSIM shows lower state tax liability than PolicyEngine 
+              due to the rebate being automatically applied in TAXSIM but not in PolicyEngine.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Household Details Section - Only shown when state is selected and user clicks "Inspect" */}
       {selectedState && showHouseholds && (
         <div className="household-section">
+
+
+
           {/* Household Controls */}
           <div className="household-controls">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -570,80 +649,7 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
         </div>
       )}
 
-      {/* VA 2021 TAXSIM Rebate Note */}
-      {selectedState === 'VA' && selectedYear === 2021 && (
-        <div className="card-container va-rebate-note">
-          <div className="card-header">
-            <div className="flex items-center">
-              <div className="rebate-note-icon">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h3 className="rebate-note-title">
-                Virginia 2021 Tax Calculation Note
-              </h3>
-            </div>
-          </div>
-          <div className="rebate-note-content">
-            <p>
-              For Virginia 2021, TAXSIM includes a state tax rebate that is not reflected in PolicyEngine calculations. 
-              This may result in apparent mismatches where TAXSIM shows lower state tax liability than PolicyEngine 
-              due to the rebate being automatically applied in TAXSIM but not in PolicyEngine.
-            </p>
-          </div>
-        </div>
-      )}
 
-      {/* NM 2021 PolicyEngine Rebate Note */}
-      {selectedState === 'NM' && selectedYear === 2021 && (
-        <div className="card-container va-rebate-note">
-          <div className="card-header">
-            <div className="flex items-center">
-              <div className="rebate-note-icon">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h3 className="rebate-note-title">
-                New Mexico 2021 Tax Calculation Note
-              </h3>
-            </div>
-          </div>
-          <div className="rebate-note-content">
-            <p>
-              For New Mexico 2021, PolicyEngine includes three income rebates that are omitted in TAXSIM calculations. 
-              This may result in apparent mismatches where PolicyEngine shows lower state tax liability than TAXSIM 
-              due to these rebates being included in PolicyEngine but not in TAXSIM.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* CO All Years TAXSIM Rebate Note */}
-      {selectedState === 'CO' && (
-        <div className="card-container va-rebate-note">
-          <div className="card-header">
-            <div className="flex items-center">
-              <div className="rebate-note-icon">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h3 className="rebate-note-title">
-                Colorado Tax Calculation Note
-              </h3>
-            </div>
-          </div>
-          <div className="rebate-note-content">
-            <p>
-              For Colorado, TAXSIM applies a rebate that is not included in PolicyEngine calculations. 
-              This may result in apparent mismatches where TAXSIM shows lower state tax liability than PolicyEngine 
-              due to the rebate being automatically applied in TAXSIM but not in PolicyEngine.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* GitHub Issues Section - Always shown when a state is selected */}
       {selectedState && (
