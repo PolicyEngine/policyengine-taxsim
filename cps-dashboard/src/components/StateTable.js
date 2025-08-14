@@ -100,9 +100,10 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
     // { code: 'v42', name: 'Earned Self-Employment Income for FICA' },
     { code: 'v43', name: 'Net Investment Income Tax' },
     { code: 'v44', name: 'Medicare Tax on Earnings' },
-    { code: 'v45', name: 'Cares Recovery Rebates' },
+    // { code: 'v45', name: 'Cares Act Recovery Rebates' },
     { code: 'qbid', name: 'Qualified Business Income Deduction' },
     { code: 'sctc', name: 'State Child Tax Credit' },
+    { code: 'v46', name: 'Cares Rebate' },
   ];
 
   const householdData = useMemo(() => {

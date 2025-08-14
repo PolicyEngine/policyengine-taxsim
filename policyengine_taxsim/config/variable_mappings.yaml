@@ -385,10 +385,10 @@ policyengine_to_taxsim:
     special_cases:
       - mn:
           implemented: false
-          variable: na_pe
+          variable: adjusted_gross_income
       - il:
           implemented: true
-          variable: state_base_income
+          variable: il_base_income
   v33:
     variable: state_exemptions
     implemented: false
@@ -452,6 +452,10 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+    special_cases:
+      - sc:
+          implemented: true
+          variable: taxable_income
   tax_before_credits:
     variable: state_income_tax_before_non_refundable_credits
     implemented: true
@@ -756,7 +760,7 @@ policyengine_to_taxsim:
     group_order: 7
     full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
     group_column: 1
-  v45:
+  cares:
     variable: recovery_rebate_credit
     implemented: true
     idtl:
