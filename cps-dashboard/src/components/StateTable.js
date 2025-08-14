@@ -706,15 +706,16 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
               <div>
                 {/* Controls for Input Values */}
                 {Object.keys(household.inputData).length > 0 && (
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="checkbox-label text-xs">
+                  <div className="flex justify-between items-center mb-4" style={{ padding: '0 8px' }}>
+                    <label className="checkbox-label" style={{ fontSize: '11px', color: '#808080' }}>
                       <input
                         type="checkbox"
                         checked={hideZeroValues}
                         onChange={(e) => setHideZeroValues(e.target.checked)}
-                        className="custom-checkbox mr-1 scale-75"
+                        className="custom-checkbox mr-1"
+                        style={{ transform: 'scale(0.8)' }}
                       />
-                      <span className="checkbox-text text-xs">Hide zero values</span>
+                      <span className="checkbox-text" style={{ fontSize: '11px', color: '#808080' }}>Hide zero values</span>
                     </label>
                     <button
                       onClick={downloadInputData}
