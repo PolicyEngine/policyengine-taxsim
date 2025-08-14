@@ -1241,3 +1241,79 @@ body {
 .input-no-data p {
   margin-bottom: 8px;
 }
+
+/* VA 2021 Rebate Note Styling */
+.va-rebate-note {
+  margin-top: 1.5rem;
+  border-left: 5px solid var(--teal-accent);
+  background: linear-gradient(135deg, var(--teal-light) 0%, var(--white) 100%);
+}
+
+.va-rebate-note .card-header {
+  background: linear-gradient(135deg, rgba(57, 198, 192, 0.08) 0%, rgba(57, 198, 192, 0.04) 100%);
+  border-bottom-color: rgba(57, 198, 192, 0.2);
+}
+
+.va-rebate-note .card-header::before {
+  background: linear-gradient(90deg, var(--teal-accent), var(--teal-pressed));
+}
+
+.rebate-note-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--teal-accent);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(57, 198, 192, 0.3);
+}
+
+.rebate-note-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--darkest-blue);
+  margin: 0;
+}
+
+.rebate-note-content {
+  padding: 24px 32px;
+  background: var(--white);
+}
+
+.rebate-note-content p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--darkest-blue);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Rebate list bullet styling for both notes */
+.va-rebate-note .rebate-list li::before {
+  content: '•';
+  color: var(--teal-accent);
+  font-weight: bold;
+  position: absolute;
+  left: -16px;
+  font-size: 16px;
+}
+
+/* General rebate list styling for both notes */
+.rebate-list {
+  margin: 16px 0 0 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.rebate-list li {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--darkest-blue);
+  position: relative;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
