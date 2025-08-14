@@ -882,9 +882,25 @@ body {
   min-width: 100px;
 }
 
+.value-cell.text-center {
+  text-align: center !important;
+}
+
+.value-cell.text-left {
+  text-align: left !important;
+}
+
 .difference-cell {
   text-align: right;
   min-width: 100px;
+}
+
+.difference-cell.text-center {
+  text-align: center !important;
+}
+
+.difference-cell.text-left {
+  text-align: left !important;
 }
 
 .difference-mismatch {
@@ -1146,4 +1162,79 @@ body {
 .tab-button-active:hover {
   transform: none;
   background: var(--white);
+}
+
+/* Text alignment utility classes */
+.text-left {
+  text-align: left !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+/* Input Variables Grid Layout */
+.input-variables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 8px;
+}
+
+.input-variable-item {
+  background: var(--blue-98);
+  border: 1px solid var(--blue-95);
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.input-variable-item:hover {
+  background: var(--white);
+  border-color: var(--blue-light);
+  box-shadow: 0 2px 4px rgba(44, 100, 150, 0.1);
+}
+
+.input-variable-label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+
+.input-variable-code {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--blue-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.input-variable-name {
+  font-size: 11px;
+  color: var(--dark-gray);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.input-variable-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--darkest-blue);
+  text-align: left;
+  padding-top: 4px;
+  border-top: 1px solid var(--blue-95);
+}
+
+.input-no-data {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 32px;
+  color: var(--dark-gray);
+}
+
+.input-no-data p {
+  margin-bottom: 8px;
 }

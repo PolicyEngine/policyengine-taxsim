@@ -33,8 +33,17 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
     { code: 'page', name: 'Primary Taxpayer Age' },
     { code: 'sage', name: 'Spouse Age' },
     { code: 'depx', name: 'Number of Dependents' },
-    { code: 'age1', name: 'First Dependent Age' },
-    { code: 'age2', name: 'Second Dependent Age' },
+    { code: 'age1', name: 'Dependent 1 Age' },
+    { code: 'age2', name: 'Dependent 2 Age' },
+    { code: 'age3', name: 'Dependent 3 Age' },
+    { code: 'age4', name: 'Dependent 4 Age' },
+    { code: 'age5', name: 'Dependent 5 Age' },
+    { code: 'age6', name: 'Dependent 6 Age' },
+    { code: 'age7', name: 'Dependent 7 Age' },
+    { code: 'age8', name: 'Dependent 8 Age' },
+    { code: 'age9', name: 'Dependent 9 Age' },
+    { code: 'age10', name: 'Dependent 10 Age' },
+    { code: 'age11', name: 'Dependent 11 Age' },
     { code: 'pwages', name: 'Primary Wages' },
     { code: 'swages', name: 'Spouse Wages' },
     { code: 'psemp', name: 'Primary Self-Employment' },
@@ -596,13 +605,14 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
 const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVariables, outputVariables }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('inputs'); // 'inputs' or 'outputs'
+  const [hideZeroValues, setHideZeroValues] = useState(true); // Hide zero values by default
 
   // Helper function to format input values appropriately
   const formatInputValue = (variableCode, value) => {
     const numericValue = parseFloat(value) || 0;
     
     // Age fields and counts should be integers
-    if (['page', 'sage', 'age1', 'age2', 'depx', 'mstat'].includes(variableCode)) {
+    if (['page', 'sage', 'age1', 'age2', 'age3', 'age4', 'age5', 'age6', 'age7', 'age8', 'age9', 'age10', 'age11', 'depx', 'mstat'].includes(variableCode)) {
       if (variableCode === 'mstat') {
         return numericValue === 1 ? 'Single' : numericValue === 2 ? 'Married Filing Jointly' : numericValue.toString();
       }
@@ -711,9 +721,18 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
           <div className="household-table-container">
             {activeTab === 'inputs' ? (
               <div>
-                {/* Download Button for Input Values */}
+                {/* Controls for Input Values */}
                 {Object.keys(household.inputData).length > 0 && (
-                  <div className="flex justify-end mb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="checkbox-label text-sm">
+                      <input
+                        type="checkbox"
+                        checked={hideZeroValues}
+                        onChange={(e) => setHideZeroValues(e.target.checked)}
+                        className="custom-checkbox mr-2"
+                      />
+                      <span className="checkbox-text">Hide zero values</span>
+                    </label>
                     <button
                       onClick={downloadInputData}
                       className="btn-secondary text-xs"
@@ -725,47 +744,42 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
                   </div>
                 )}
                 
-                <table className="household-table">
-                  <thead>
-                    <tr>
-                      <th>Variable</th>
-                      <th>Value</th>
-                    </tr>
-                  </thead>
-                <tbody>
-                  {inputVariables.map((variable) => {
+                <div className="input-variables-grid">
+                  {inputVariables.filter(variable => {
+                    const value = household.inputData[variable.code];
+                    // Always filter out undefined, null, and empty string
+                    if (value === undefined || value === null || value === '') {
+                      return false;
+                    }
+                    // If hideZeroValues is enabled, also filter out zero values (string or numeric)
+                    if (hideZeroValues && (value === 0 || value === '0' || value === '0.0' || parseFloat(value) === 0)) {
+                      return false;
+                    }
+                    return true;
+                  }).map((variable) => {
                     const value = household.inputData[variable.code];
                     
-                    // Only show if has a meaningful value
-                    if (value === undefined || value === null || value === '' || value === 0) {
-                      return null;
-                    }
-                    
                     return (
-                      <tr key={variable.code}>
-                        <td className="variable-info">
-                          <div className="variable-code">{variable.code}</div>
-                          <div className="variable-name">{variable.name}</div>
-                        </td>
-                        <td className="value-cell">
+                      <div key={variable.code} className="input-variable-item">
+                        <div className="input-variable-label">
+                          <span className="input-variable-code">{variable.code}</span>
+                          <span className="input-variable-name">{variable.name}</span>
+                        </div>
+                        <div className="input-variable-value">
                           {formatInputValue(variable.code, value)}
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     );
                   })}
                   {Object.keys(household.inputData).length === 0 && (
-                    <tr>
-                      <td colSpan="2" className="text-center text-gray-500 py-4">
-                        Input data not available for this household.
-                        <br />
-                        <span className="text-sm">
-                          (Input data is only available for households that appear in mismatch files)
-                        </span>
-                      </td>
-                    </tr>
+                    <div className="input-no-data">
+                      <p>Input data not available for this household.</p>
+                      <p className="text-sm">
+                        (Input data is only available for households that appear in mismatch files)
+                      </p>
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </div>
               </div>
             ) : (
               <table className="household-table">
@@ -789,13 +803,13 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
                           <div className="variable-code">{variable.code}</div>
                           <div className="variable-name">{variable.name}</div>
                         </td>
-                        <td className="value-cell">
+                        <td className="value-cell text-left">
                           {formatCurrency(diff.taxsim)}
                         </td>
-                        <td className="value-cell">
+                        <td className="value-cell text-left">
                           {formatCurrency(diff.policyengine)}
                         </td>
-                        <td className="difference-cell">
+                        <td className="difference-cell text-left">
                           <span className={diff.hasMismatch ? 'difference-mismatch' : 'difference-match'}>
                             {formatDifference(diff.difference)}
                           </span>
