@@ -379,21 +379,6 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
 
   return (
     <div className="card-container">
-      <div className="card-header">
-        <h2 className="section-title">State-by-State Analysis</h2>
-        {selectedState && (
-          <div className="text-sm font-medium text-gray-600 mt-2">
-            Filtered Results: <span className="font-semibold text-gray-900">{selectedState}</span>
-            <span className="ml-4">
-              <span className="text-green-600">{matchCount} matches</span>
-              <span className="mx-2">•</span>
-              <span className="text-orange-600">{federalMismatchCount} federal mismatches</span>
-              <span className="mx-2">•</span>
-              <span className="text-red-600">{stateMismatchCount} state mismatches</span>
-            </span>
-          </div>
-        )}
-      </div>
       
       <div className="overflow-x-auto">
         <table className="state-table">
@@ -724,14 +709,14 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
                 {/* Controls for Input Values */}
                 {Object.keys(household.inputData).length > 0 && (
                   <div className="flex justify-between items-center mb-4">
-                    <label className="checkbox-label text-sm">
+                    <label className="checkbox-label text-xs">
                       <input
                         type="checkbox"
                         checked={hideZeroValues}
                         onChange={(e) => setHideZeroValues(e.target.checked)}
-                        className="custom-checkbox mr-2"
+                        className="custom-checkbox mr-1 scale-75"
                       />
-                      <span className="checkbox-text">Hide zero values</span>
+                      <span className="checkbox-text text-xs">Hide zero values</span>
                     </label>
                     <button
                       onClick={downloadInputData}

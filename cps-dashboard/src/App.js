@@ -176,13 +176,7 @@ function App() {
             />
           </section>
 
-          {/* Variable Analysis Section */}
-          <section>
-            <VariableAnalysis
-              data={data}
-              selectedState={selectedState}
-            />
-          </section>
+
 
 
         </div>
