@@ -919,3 +919,185 @@ body {
   color: var(--dark-red);
   border: 1px solid rgba(181, 13, 13, 0.2);
 }
+
+/* GitHub Issues Styles */
+.github-issues-container {
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(12, 26, 39, 0.08);
+  margin-top: 24px;
+  overflow: hidden;
+}
+
+.github-issues-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--blue-95);
+  background: linear-gradient(135deg, var(--blue-98) 0%, var(--white) 100%);
+}
+
+.issue-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--blue-primary);
+  color: var(--white);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  color: var(--dark-gray);
+  font-size: 14px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--blue-95);
+  border-top: 2px solid var(--blue-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  color: var(--dark-red);
+  font-size: 14px;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+}
+
+.no-issues-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  color: var(--dark-gray);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.issues-list {
+  padding: 0;
+}
+
+.issue-card {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--blue-95);
+  transition: all 0.2s ease;
+}
+
+.issue-card:hover {
+  background: var(--blue-98);
+}
+
+.issue-card:last-child {
+  border-bottom: none;
+}
+
+.issue-header {
+  margin-bottom: 12px;
+}
+
+.issue-title-container {
+  margin-bottom: 8px;
+}
+
+.issue-title {
+  display: inline-flex;
+  align-items: center;
+  color: var(--blue-primary);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+}
+
+.issue-title:hover {
+  color: var(--dark-blue-hover);
+  text-decoration: underline;
+}
+
+.external-link-icon {
+  margin-left: 8px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.issue-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--dark-gray);
+}
+
+.issue-author,
+.issue-date {
+  display: flex;
+  align-items: center;
+}
+
+.meta-icon {
+  margin-right: 4px;
+  font-size: 12px;
+}
+
+.issue-labels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.label-icon {
+  margin-right: 4px;
+  font-size: 12px;
+  color: var(--dark-gray);
+}
+
+.issue-label {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--white);
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.issue-body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--darkest-blue);
+  background: var(--blue-98);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid var(--blue-primary);
+}

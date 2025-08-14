@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FiArrowUp, FiArrowDown, FiChevronDown, FiChevronUp, FiCheck, FiX, FiEye } from 'react-icons/fi';
+import GitHubIssues from './GitHubIssues';
 
 const StateTable = ({ data, selectedState, onStateSelect }) => {
   const [sortField, setSortField] = useState('federalPct');
@@ -458,6 +459,11 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* GitHub Issues Section - Always shown when a state is selected */}
+      {selectedState && (
+        <GitHubIssues selectedState={selectedState} />
       )}
       
       {sortedData.length === 0 && (
