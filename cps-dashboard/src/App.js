@@ -4,7 +4,6 @@ import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
 import StateTable from './components/StateTable';
-import VariableAnalysis from './components/VariableAnalysis';
 
 import { loadYearData } from './utils/dataLoader';
 import './App.css';

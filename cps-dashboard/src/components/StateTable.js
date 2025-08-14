@@ -373,9 +373,7 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
     return sortDirection === 'asc' ? <FiArrowUp className="ml-1" /> : <FiArrowDown className="ml-1" />;
   };
 
-  const matchCount = householdData.filter(h => !h.hasMismatches).length;
-  const federalMismatchCount = householdData.filter(h => h.hasFederalMismatch).length;
-  const stateMismatchCount = householdData.filter(h => h.hasStateMismatch).length;
+
 
   return (
     <div className="card-container">
