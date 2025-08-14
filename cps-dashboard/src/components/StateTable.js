@@ -27,8 +27,38 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
     showHouseholds
   });
 
-  // Define the key variables to display in household comparison
-  const keyVariables = [
+  // Define the key input variables for household comparison
+  const inputVariables = [
+    { code: 'mstat', name: 'Marital Status' },
+    { code: 'page', name: 'Primary Taxpayer Age' },
+    { code: 'sage', name: 'Spouse Age' },
+    { code: 'depx', name: 'Number of Dependents' },
+    { code: 'age1', name: 'First Dependent Age' },
+    { code: 'age2', name: 'Second Dependent Age' },
+    { code: 'pwages', name: 'Primary Wages' },
+    { code: 'swages', name: 'Spouse Wages' },
+    { code: 'psemp', name: 'Primary Self-Employment' },
+    { code: 'ssemp', name: 'Spouse Self-Employment' },
+    { code: 'dividends', name: 'Dividend Income' },
+    { code: 'intrec', name: 'Interest Income' },
+    { code: 'stcg', name: 'Short-Term Capital Gains' },
+    { code: 'ltcg', name: 'Long-Term Capital Gains' },
+    { code: 'otherprop', name: 'Other Property Income' },
+    { code: 'nonprop', name: 'Other Non-Property Income' },
+    { code: 'pensions', name: 'Taxable Pensions' },
+    { code: 'gssi', name: 'Gross Social Security' },
+    { code: 'pui', name: 'Primary Unemployment Income' },
+    { code: 'sui', name: 'Spouse Unemployment Income' },
+    { code: 'transfers', name: 'Non-Taxable Transfers' },
+    { code: 'rentpaid', name: 'Rent Paid' },
+    { code: 'proptax', name: 'Property Taxes' },
+    { code: 'otheritem', name: 'Other Itemized Deductions' },
+    { code: 'childcare', name: 'Child Care Expenses' },
+    { code: 'mortgage', name: 'Mortgage Interest' }
+  ];
+
+  // Define the key output variables to display in household comparison
+  const outputVariables = [
     { code: 'fiitax', name: 'Federal Income Tax' },
     { code: 'siitax', name: 'State Income Tax' },
     { code: 'fica', name: 'FICA Tax' },
@@ -75,10 +105,12 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
       return [];
     }
 
-    const { taxsimResults, policyengineResults } = data;
+    const { taxsimResults, policyengineResults, federalMismatches, stateMismatches } = data;
     console.log('HouseholdData: Processing data for state', selectedState, {
       taxsimLength: taxsimResults.length,
-      peLength: policyengineResults.length
+      peLength: policyengineResults.length,
+      federalMismatchesLength: federalMismatches?.length || 0,
+      stateMismatchesLength: stateMismatches?.length || 0
     });
     
     // Convert state code to FIPS code for filtering
@@ -104,6 +136,32 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
     const filteredPE = policyengineResults.filter(item => 
       item.state == fipsCode || item.state === selectedState || item.state == selectedState
     );
+
+    // Filter mismatch data for the selected state to get input variables
+    const filteredFederalMismatches = federalMismatches?.filter(item => 
+      item.state == fipsCode || item.state === selectedState || item.state == selectedState
+    ) || [];
+    
+    const filteredStateMismatches = stateMismatches?.filter(item => 
+      item.state == fipsCode || item.state === selectedState || item.state == selectedState
+    ) || [];
+
+    // Create a combined mismatch lookup for input data
+    const mismatchInputData = new Map();
+    
+    // Add federal mismatch data (contains input variables)
+    filteredFederalMismatches.forEach(item => {
+      const id = String(item.taxsimid).replace('.0', '');
+      mismatchInputData.set(id, item);
+    });
+    
+    // Add state mismatch data (contains input variables) - merge with existing
+    filteredStateMismatches.forEach(item => {
+      const id = String(item.taxsimid).replace('.0', '');
+      if (!mismatchInputData.has(id)) {
+        mismatchInputData.set(id, item);
+      }
+    });
 
     console.log('HouseholdData: Filtered data', {
       selectedState,
@@ -134,7 +192,7 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
         let federalMismatchAmount = 0;
         let stateMismatchAmount = 0;
 
-        keyVariables.forEach(variable => {
+        outputVariables.forEach(variable => {
           const taxsimValue = parseFloat(taxsimRecord[variable.code]) || 0;
           const peValue = parseFloat(peRecord[variable.code]) || 0;
           const diff = taxsimValue - peValue;
@@ -161,6 +219,10 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
         const hasMismatches = hasFederalMismatch || hasStateMismatch;
         const totalMismatchAmount = federalMismatchAmount + stateMismatchAmount;
 
+        // Get input data from mismatch files if available
+        const householdId = String(taxsimRecord.taxsimid).replace('.0', '');
+        const inputData = mismatchInputData.get(householdId) || {};
+
         households.push({
           taxsimid: taxsimRecord.taxsimid,
           year: taxsimRecord.year,
@@ -173,7 +235,8 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
           stateMismatchAmount,
           differences,
           taxsimRecord,
-          peRecord
+          peRecord,
+          inputData // Include input variables from mismatch data
         });
       }
     });
@@ -219,7 +282,7 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
     });
 
     return filteredHouseholds;
-  }, [data, selectedState, householdFilters, keyVariables]);
+  }, [data, selectedState, householdFilters, outputVariables]);
 
   if (!data || !data.summary || !data.summary.stateBreakdown) {
     return (
@@ -500,7 +563,8 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
                     household={household} 
                     formatCurrency={formatCurrency} 
                     formatDifference={formatDifference} 
-                    keyVariables={keyVariables} 
+                    inputVariables={inputVariables}
+                    outputVariables={outputVariables} 
                   />
                 ))}
                 {householdData.length > 50 && (
@@ -529,8 +593,25 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
 };
 
 // Separate component for individual household cards
-const HouseholdCard = ({ household, formatCurrency, formatDifference, keyVariables }) => {
+const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVariables, outputVariables }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState('inputs'); // 'inputs' or 'outputs'
+
+  // Helper function to format input values appropriately
+  const formatInputValue = (variableCode, value) => {
+    const numericValue = parseFloat(value) || 0;
+    
+    // Age fields and counts should be integers
+    if (['page', 'sage', 'age1', 'age2', 'depx', 'mstat'].includes(variableCode)) {
+      if (variableCode === 'mstat') {
+        return numericValue === 1 ? 'Single' : numericValue === 2 ? 'Married Filing Jointly' : numericValue.toString();
+      }
+      return numericValue.toString();
+    }
+    
+    // All other values are currency
+    return formatCurrency(numericValue);
+  };
 
   return (
     <div className={`household-card ${household.hasMismatches ? 'household-card-mismatch' : 'household-card-match'}`}>
@@ -567,49 +648,109 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, keyVariabl
       {/* Expanded Details */}
       {isExpanded && (
         <div className="household-details">
+          {/* Tab Navigation */}
+          <div className="tab-navigation">
+            <button
+              onClick={() => setActiveTab('inputs')}
+              className={`tab-button ${activeTab === 'inputs' ? 'tab-button-active' : ''}`}
+            >
+              Input Values
+            </button>
+            <button
+              onClick={() => setActiveTab('outputs')}
+              className={`tab-button ${activeTab === 'outputs' ? 'tab-button-active' : ''}`}
+            >
+              Calculated Results
+            </button>
+          </div>
+
           <div className="household-table-container">
-            <table className="household-table">
-              <thead>
-                <tr>
-                  <th>Variable</th>
-                  <th>TAXSIM</th>
-                  <th>PolicyEngine</th>
-                  <th>Difference</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {keyVariables.map((variable) => {
-                  const diff = household.differences[variable.code];
-                  if (!diff) return null;
-                  
-                  return (
-                    <tr key={variable.code} className={diff.hasMismatch ? 'variable-mismatch' : 'variable-match'}>
-                      <td className="variable-info">
-                        <div className="variable-code">{variable.code}</div>
-                        <div className="variable-name">{variable.name}</div>
-                      </td>
-                      <td className="value-cell">
-                        {formatCurrency(diff.taxsim)}
-                      </td>
-                      <td className="value-cell">
-                        {formatCurrency(diff.policyengine)}
-                      </td>
-                      <td className="difference-cell">
-                        <span className={diff.hasMismatch ? 'difference-mismatch' : 'difference-match'}>
-                          {formatDifference(diff.difference)}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${diff.hasMismatch ? 'status-badge-mismatch' : 'status-badge-match'}`}>
-                          {diff.hasMismatch ? 'Mismatch' : 'Match'}
+            {activeTab === 'inputs' ? (
+              <table className="household-table">
+                <thead>
+                  <tr>
+                    <th>Variable</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inputVariables.map((variable) => {
+                    const value = household.inputData[variable.code];
+                    
+                    // Only show if has a meaningful value
+                    if (value === undefined || value === null || value === '' || value === 0) {
+                      return null;
+                    }
+                    
+                    return (
+                      <tr key={variable.code}>
+                        <td className="variable-info">
+                          <div className="variable-code">{variable.code}</div>
+                          <div className="variable-name">{variable.name}</div>
+                        </td>
+                        <td className="value-cell">
+                          {formatInputValue(variable.code, value)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {Object.keys(household.inputData).length === 0 && (
+                    <tr>
+                      <td colSpan="2" className="text-center text-gray-500 py-4">
+                        Input data not available for this household.
+                        <br />
+                        <span className="text-sm">
+                          (Input data is only available for households that appear in mismatch files)
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="household-table">
+                <thead>
+                  <tr>
+                    <th>Variable</th>
+                    <th>TAXSIM</th>
+                    <th>PolicyEngine</th>
+                    <th>Difference</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outputVariables.map((variable) => {
+                    const diff = household.differences[variable.code];
+                    if (!diff) return null;
+                    
+                    return (
+                      <tr key={variable.code} className={diff.hasMismatch ? 'variable-mismatch' : 'variable-match'}>
+                        <td className="variable-info">
+                          <div className="variable-code">{variable.code}</div>
+                          <div className="variable-name">{variable.name}</div>
+                        </td>
+                        <td className="value-cell">
+                          {formatCurrency(diff.taxsim)}
+                        </td>
+                        <td className="value-cell">
+                          {formatCurrency(diff.policyengine)}
+                        </td>
+                        <td className="difference-cell">
+                          <span className={diff.hasMismatch ? 'difference-mismatch' : 'difference-match'}>
+                            {formatDifference(diff.difference)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${diff.hasMismatch ? 'status-badge-mismatch' : 'status-badge-match'}`}>
+                            {diff.hasMismatch ? 'Mismatch' : 'Match'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
