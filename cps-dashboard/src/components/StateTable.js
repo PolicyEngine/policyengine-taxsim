@@ -8,7 +8,8 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
   const [showHouseholds, setShowHouseholds] = useState(false);
   const [householdFilters, setHouseholdFilters] = useState({
     showMatches: true,
-    showMismatches: true,
+    showFederalMismatches: true,
+    showStateMismatches: true,
     sortBy: 'taxsimid',
     sortOrder: 'asc'
   });
@@ -128,11 +129,10 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
       if (peRecord) {
         // Calculate differences for key variables
         const differences = {};
-        let hasMismatches = false;
-        let totalMismatchAmount = 0;
-
-        // Define the critical tax variables for overall match/mismatch determination
-        const criticalTaxVariables = ['fiitax', 'siitax']; // Federal and State Income Tax
+        let hasFederalMismatch = false;
+        let hasStateMismatch = false;
+        let federalMismatchAmount = 0;
+        let stateMismatchAmount = 0;
 
         keyVariables.forEach(variable => {
           const taxsimValue = parseFloat(taxsimRecord[variable.code]) || 0;
@@ -146,19 +146,31 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
             hasMismatch: Math.abs(diff) > 15
           };
 
-          // Only count federal and state income tax for overall household match/mismatch
-          if (criticalTaxVariables.includes(variable.code) && Math.abs(diff) > 15) {
-            hasMismatches = true;
-            totalMismatchAmount += Math.abs(diff);
+          // Track federal and state mismatches separately
+          if (variable.code === 'fiitax' && Math.abs(diff) > 15) {
+            hasFederalMismatch = true;
+            federalMismatchAmount = Math.abs(diff);
+          }
+          if (variable.code === 'siitax' && Math.abs(diff) > 15) {
+            hasStateMismatch = true;
+            stateMismatchAmount = Math.abs(diff);
           }
         });
+
+        // Determine if household is a match (no mismatches in either federal or state)
+        const hasMismatches = hasFederalMismatch || hasStateMismatch;
+        const totalMismatchAmount = federalMismatchAmount + stateMismatchAmount;
 
         households.push({
           taxsimid: taxsimRecord.taxsimid,
           year: taxsimRecord.year,
           state: taxsimRecord.state,
           hasMismatches,
+          hasFederalMismatch,
+          hasStateMismatch,
           totalMismatchAmount,
+          federalMismatchAmount,
+          stateMismatchAmount,
           differences,
           taxsimRecord,
           peRecord
@@ -166,14 +178,14 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
       }
     });
 
-    // Apply household filters
-    let filteredHouseholds = households;
-    if (!householdFilters.showMatches) {
-      filteredHouseholds = filteredHouseholds.filter(h => h.hasMismatches);
-    }
-    if (!householdFilters.showMismatches) {
-      filteredHouseholds = filteredHouseholds.filter(h => !h.hasMismatches);
-    }
+    // Apply household filters - show household if ANY of the selected criteria match
+    let filteredHouseholds = households.filter(household => {
+      const showMatch = householdFilters.showMatches && !household.hasMismatches;
+      const showFederalMismatch = householdFilters.showFederalMismatches && household.hasFederalMismatch;
+      const showStateMismatch = householdFilters.showStateMismatches && household.hasStateMismatch;
+      
+      return showMatch || showFederalMismatch || showStateMismatch;
+    });
 
     // Sort households
     filteredHouseholds.sort((a, b) => {
@@ -290,7 +302,8 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
   };
 
   const matchCount = householdData.filter(h => !h.hasMismatches).length;
-  const mismatchCount = householdData.filter(h => h.hasMismatches).length;
+  const federalMismatchCount = householdData.filter(h => h.hasFederalMismatch).length;
+  const stateMismatchCount = householdData.filter(h => h.hasStateMismatch).length;
 
   return (
     <div className="card-container">
@@ -302,7 +315,9 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
             <span className="ml-4">
               <span className="text-green-600">{matchCount} matches</span>
               <span className="mx-2">•</span>
-              <span className="text-red-600">{mismatchCount} mismatches</span>
+              <span className="text-orange-600">{federalMismatchCount} federal mismatches</span>
+              <span className="mx-2">•</span>
+              <span className="text-red-600">{stateMismatchCount} state mismatches</span>
             </span>
           </div>
         )}
@@ -397,41 +412,55 @@ const StateTable = ({ data, selectedState, onStateSelect }) => {
         <div className="household-section">
           {/* Household Controls */}
           <div className="household-controls">
-            <div className="flex flex-wrap items-center gap-8">
-              <h3 className="section-subtitle">
-                Individual Households in {selectedState}
-              </h3>
-              
-              {/* Filter Controls */}
-              <div className="filter-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={householdFilters.showMatches}
-                    onChange={(e) => setHouseholdFilters(prev => ({
-                      ...prev,
-                      showMatches: e.target.checked
-                    }))}
-                    className="custom-checkbox"
-                  />
-                  <span className="checkbox-text">Show Matches</span>
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={householdFilters.showMismatches}
-                    onChange={(e) => setHouseholdFilters(prev => ({
-                      ...prev,
-                      showMismatches: e.target.checked
-                    }))}
-                    className="custom-checkbox"
-                  />
-                  <span className="checkbox-text">Show Mismatches</span>
-                </label>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-8">
+                <h3 className="section-subtitle">
+                  Individual Households in {selectedState}
+                </h3>
+                
+                {/* Filter Controls */}
+                <div className="filter-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={householdFilters.showMatches}
+                      onChange={(e) => setHouseholdFilters(prev => ({
+                        ...prev,
+                        showMatches: e.target.checked
+                      }))}
+                      className="custom-checkbox"
+                    />
+                    <span className="checkbox-text">Show Matches</span>
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={householdFilters.showFederalMismatches}
+                      onChange={(e) => setHouseholdFilters(prev => ({
+                        ...prev,
+                        showFederalMismatches: e.target.checked
+                      }))}
+                      className="custom-checkbox"
+                    />
+                    <span className="checkbox-text">Show Federal Mismatches</span>
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={householdFilters.showStateMismatches}
+                      onChange={(e) => setHouseholdFilters(prev => ({
+                        ...prev,
+                        showStateMismatches: e.target.checked
+                      }))}
+                      className="custom-checkbox"
+                    />
+                    <span className="checkbox-text">Show State Mismatches</span>
+                  </label>
+                </div>
               </div>
 
-              {/* Sort Controls */}
-              <div className="sort-controls">
+              {/* Sort Controls - moved to the right */}
+              <div className="sort-controls ml-auto">
                 <span className="sort-label">Sort by:</span>
                 <select
                   value={householdFilters.sortBy}
