@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FiArrowUp, FiArrowDown, FiChevronDown, FiChevronUp, FiCheck, FiX, FiEye } from 'react-icons/fi';
+import { FiArrowUp, FiArrowDown, FiChevronDown, FiChevronUp, FiCheck, FiX, FiEye, FiDownload } from 'react-icons/fi';
 import GitHubIssues from './GitHubIssues';
 
 const StateTable = ({ data, selectedState, onStateSelect }) => {
@@ -613,6 +613,50 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
     return formatCurrency(numericValue);
   };
 
+  // Function to download input data as CSV
+  const downloadInputData = () => {
+    const householdId = String(household.taxsimid).replace('.0', '');
+    
+    // Prepare CSV data with all input variables
+    const csvData = [];
+    const headers = [];
+    const values = [];
+    
+    // Add basic identifiers first
+    ['taxsimid', 'year', 'state'].forEach(field => {
+      if (household.inputData[field] !== undefined) {
+        headers.push(field);
+        values.push(household.inputData[field]);
+      }
+    });
+    
+    // Add all other input variables that have values
+    inputVariables.forEach(variable => {
+      const value = household.inputData[variable.code];
+      if (value !== undefined && value !== null && value !== '' && value !== 0) {
+        headers.push(variable.code);
+        values.push(value);
+      }
+    });
+    
+    // Create CSV content
+    csvData.push(headers.join(','));
+    csvData.push(values.join(','));
+    
+    const csvContent = csvData.join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `household_${householdId}_input_data.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className={`household-card ${household.hasMismatches ? 'household-card-mismatch' : 'household-card-match'}`}>
       {/* Household Header */}
@@ -666,13 +710,28 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
 
           <div className="household-table-container">
             {activeTab === 'inputs' ? (
-              <table className="household-table">
-                <thead>
-                  <tr>
-                    <th>Variable</th>
-                    <th>Value</th>
-                  </tr>
-                </thead>
+              <div>
+                {/* Download Button for Input Values */}
+                {Object.keys(household.inputData).length > 0 && (
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={downloadInputData}
+                      className="btn-secondary text-xs"
+                      title="Download input data as CSV"
+                    >
+                      <FiDownload className="mr-1" />
+                      Download CSV
+                    </button>
+                  </div>
+                )}
+                
+                <table className="household-table">
+                  <thead>
+                    <tr>
+                      <th>Variable</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {inputVariables.map((variable) => {
                     const value = household.inputData[variable.code];
@@ -707,6 +766,7 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
                   )}
                 </tbody>
               </table>
+              </div>
             ) : (
               <table className="household-table">
                 <thead>
