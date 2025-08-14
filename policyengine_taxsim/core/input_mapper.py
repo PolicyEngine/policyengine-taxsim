@@ -17,20 +17,20 @@ def add_additional_units(state, year, situation, taxsim_vars):
 
     tax_unit = situation["tax_units"]["your tax unit"]
     people_unit = situation["people"]
-    
+
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
     is_married_filing_jointly = mstat == 2
-    
+
     # Income types that should be split evenly between spouses when married filing jointly
     income_types_to_split = {
         "taxable_interest_income",
-        "qualified_dividend_income", 
+        "qualified_dividend_income",
         "long_term_capital_gains",
         "partnership_s_corp_income",
         "taxable_private_pension_income",
         "short_term_capital_gains",
-        "social_security_retirement"
+        "social_security_retirement",
     }
 
     for item in additional_tax_units_config:
@@ -84,9 +84,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
                 ]
                 if matching_values:
                     total_value = sum(matching_values)
-                    
+
                     # Split evenly between spouses if married filing jointly and this income type should be split
-                    if is_married_filing_jointly and "your partner" in people_unit and field in income_types_to_split:
+                    if (
+                        is_married_filing_jointly
+                        and "your partner" in people_unit
+                        and field in income_types_to_split
+                    ):
                         split_value = total_value / 2
                         people_unit["you"][field] = {str(year): split_value}
                         people_unit["your partner"][field] = {str(year): split_value}
@@ -95,9 +99,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
 
             elif len(values) == 1 and values[0] in taxsim_vars:
                 total_value = taxsim_vars[values[0]]
-                
+
                 # Split evenly between spouses if married filing jointly and this income type should be split
-                if is_married_filing_jointly and "your partner" in people_unit and field in income_types_to_split:
+                if (
+                    is_married_filing_jointly
+                    and "your partner" in people_unit
+                    and field in income_types_to_split
+                ):
                     split_value = total_value / 2
                     people_unit["you"][field] = {str(year): split_value}
                     people_unit["your partner"][field] = {str(year): split_value}

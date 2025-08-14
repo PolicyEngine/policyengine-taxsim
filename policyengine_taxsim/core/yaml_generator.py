@@ -177,7 +177,7 @@ class PETestsYAMLGenerator:
                 "real_estate_taxes",
                 # Tax unit role fields
                 "is_tax_unit_dependent",
-                "is_tax_unit_head", 
+                "is_tax_unit_head",
                 "is_tax_unit_spouse",
             ]
 
@@ -185,7 +185,9 @@ class PETestsYAMLGenerator:
                 if field in person_data:
                     value = person_data[field].get(year_str, 0)
                     # Include non-zero values, or all boolean values for role fields
-                    if value != 0 or (field.startswith("is_tax_unit_") and isinstance(value, bool)):
+                    if value != 0 or (
+                        field.startswith("is_tax_unit_") and isinstance(value, bool)
+                    ):
                         person_output[field] = value
 
             config["input"]["people"][new_id] = person_output
