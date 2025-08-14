@@ -1131,23 +1131,26 @@ body {
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  border: 1px solid transparent;
+  border: 1px solid var(--medium-light-gray);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
   font-size: 13px;
   font-weight: 500;
-  color: var(--dark-gray);
-  background: var(--light-gray);
+  color: var(--darkest-blue);
+  background: linear-gradient(135deg, var(--white) 0%, var(--blue-98) 100%);
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
   margin-bottom: -2px;
+  box-shadow: 0 1px 3px rgba(12, 26, 39, 0.05);
 }
 
 .tab-button:hover {
-  background: var(--blue-95);
+  background: linear-gradient(135deg, var(--blue-98) 0%, var(--blue-95) 100%);
   color: var(--blue-primary);
   transform: translateY(-1px);
+  border-color: var(--blue-light);
+  box-shadow: 0 2px 6px rgba(44, 100, 150, 0.1);
 }
 
 .tab-button-active {
