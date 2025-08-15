@@ -382,19 +382,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - mn:
-          implemented: false
-          variable: adjusted_gross_income
-      - il:
-          implemented: true
-          variable: il_base_income
-      - mi:
-          implemented: true
-          variable: adjusted_gross_income
-      - sc:
-          implemented: true
-          variable: taxable_income
   v33:
     variable: state_exemptions
     implemented: false
