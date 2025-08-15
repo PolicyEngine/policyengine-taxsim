@@ -8,6 +8,9 @@ try:
     from .runners.taxsim_runner import TaxsimRunner
     from .comparison.comparator import TaxComparator, ComparisonConfig
     from .comparison.statistics import ComparisonStatistics
+    from .core.yaml_generator import generate_pe_tests_yaml
+    from .core.input_mapper import form_household_situation
+    from .core.utils import get_state_code
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
@@ -16,6 +19,41 @@ except ImportError:
         ComparisonConfig,
     )
     from policyengine_taxsim.comparison.statistics import ComparisonStatistics
+    from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
+    from policyengine_taxsim.core.input_mapper import form_household_situation
+    from policyengine_taxsim.core.utils import get_state_code
+
+
+def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
+    """Generate YAML test files for each record when logs=True"""
+    for idx, row in input_df.iterrows():
+        try:
+            # Create household data for this record
+            year = int(row['year'])
+            state = get_state_code(int(row['state']))
+            
+            # Convert taxsim data to proper types
+            taxsim_data = row.to_dict()
+            for key, value in taxsim_data.items():
+                if isinstance(value, float) and value.is_integer():
+                    taxsim_data[key] = int(value)
+            
+            household = form_household_situation(year, state, taxsim_data)
+            
+            # Get results for this record from results_df
+            result_row = results_df.iloc[idx]
+            
+            # Extract key outputs for YAML
+            outputs = []
+            outputs.append({"variable": "income_tax", "value": float(result_row.get('fiitax', 0))})
+            outputs.append({"variable": "state_income_tax", "value": float(result_row.get('siitax', 0))})
+            
+            # Generate YAML file
+            yaml_filename = f"taxsim_record_{int(row['taxsimid'])}_{year}.yaml"
+            generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
+            
+        except Exception as e:
+            print(f"Warning: Could not generate YAML for record {idx}: {e}")
 
 
 @click.group()
@@ -51,9 +89,17 @@ def policyengine(input_file, output, logs, disable_salt, sample):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
             df = df.sample(n=sample, random_state=42)
 
-        # Use the new PolicyEngineRunner but keep original output format
+        # Use the PolicyEngineRunner with microsimulation
         runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
-        runner.run_original_format()  # This preserves the exact original behavior
+        results_df = runner.run(show_progress=True)
+        
+        # Generate YAML files if requested
+        if logs:
+            _generate_yaml_files(df, results_df)
+        
+        # Save results to output file
+        results_df.to_csv(output, index=False)
+        click.echo(f"Results saved to {output}")
 
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
