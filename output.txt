@@ -1,0 +1,2 @@
+taxsimid,year,state,fiitax,siitax,tfica
+37328.0,2021,44,7114.69,0.0,8014.29
