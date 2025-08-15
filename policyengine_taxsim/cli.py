@@ -29,29 +29,36 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
     for idx, row in input_df.iterrows():
         try:
             # Create household data for this record
-            year = int(row['year'])
-            state = get_state_code(int(row['state']))
-            
+            year = int(row["year"])
+            state = get_state_code(int(row["state"]))
+
             # Convert taxsim data to proper types
             taxsim_data = row.to_dict()
             for key, value in taxsim_data.items():
                 if isinstance(value, float) and value.is_integer():
                     taxsim_data[key] = int(value)
-            
+
             household = form_household_situation(year, state, taxsim_data)
-            
+
             # Get results for this record from results_df
             result_row = results_df.iloc[idx]
-            
+
             # Extract key outputs for YAML
             outputs = []
-            outputs.append({"variable": "income_tax", "value": float(result_row.get('fiitax', 0))})
-            outputs.append({"variable": "state_income_tax", "value": float(result_row.get('siitax', 0))})
-            
+            outputs.append(
+                {"variable": "income_tax", "value": float(result_row.get("fiitax", 0))}
+            )
+            outputs.append(
+                {
+                    "variable": "state_income_tax",
+                    "value": float(result_row.get("siitax", 0)),
+                }
+            )
+
             # Generate YAML file
             yaml_filename = f"taxsim_record_{int(row['taxsimid'])}_{year}.yaml"
             generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
-            
+
         except Exception as e:
             print(f"Warning: Could not generate YAML for record {idx}: {e}")
 
@@ -92,11 +99,11 @@ def policyengine(input_file, output, logs, disable_salt, sample):
         # Use the PolicyEngineRunner with microsimulation
         runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         results_df = runner.run(show_progress=True)
-        
+
         # Generate YAML files if requested
         if logs:
             _generate_yaml_files(df, results_df)
-        
+
         # Save results to output file
         results_df.to_csv(output, index=False)
         click.echo(f"Results saved to {output}")
