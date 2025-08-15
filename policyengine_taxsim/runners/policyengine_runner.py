@@ -30,9 +30,49 @@ class TaxsimMicrosimDataset(Dataset):
         self.file_path = Path(self.tmp_file.name)
         super().__init__()
 
+    def _ensure_required_columns(self, df):
+        """
+        Ensure all required columns exist in the DataFrame with default values.
+        Uses the existing column definitions from TaxsimRunner.
+        
+        Args:
+            df: The DataFrame to check and modify
+            
+        Returns:
+            DataFrame with all required columns present
+        """
+        from .taxsim_runner import TaxsimRunner
+        
+        # Use the existing column definitions from TaxsimRunner
+        all_columns = TaxsimRunner.ALL_COLUMNS
+        
+        # Default values - using same logic as set_taxsim_defaults
+        default_values = {
+            'taxsimid': 0,
+            'year': 2021,
+            'state': 44,    # Texas
+            'mstat': 1,     # Single
+            'depx': 0,      # Number of dependents
+            'idtl': 0,      # Output flag
+            'page': 40,     # Primary age
+            'sage': 40,     # Spouse age
+        }
+        
+        # Add missing columns with default values
+        for col in all_columns:
+            if col not in df.columns:
+                # Use specific default if defined, otherwise 0
+                default_value = default_values.get(col, 0)
+                df[col] = default_value
+                
+        return df
+
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
         n_records = len(self.input_df)
+        
+        # Ensure all required columns exist with default values
+        self.input_df = self._ensure_required_columns(self.input_df)
         
         # Set defaults for all records
         for idx, row in self.input_df.iterrows():
@@ -305,7 +345,7 @@ class PolicyEngineRunner(BaseTaxRunner):
     vectorized microsimulation engine. Creates proper household structures
     with multiple people based on marital status and dependents.
     """
-
+    
     def __init__(
         self, input_df: pd.DataFrame, logs: bool = False, disable_salt: bool = False
     ):
@@ -313,6 +353,43 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.logs = logs
         self.disable_salt = disable_salt
         self.mappings = load_variable_mappings()
+
+    def _ensure_required_columns(self, df):
+        """
+        Ensure all required columns exist in the DataFrame with default values.
+        Uses the existing column definitions from TaxsimRunner.
+        
+        Args:
+            df: The DataFrame to check and modify
+            
+        Returns:
+            DataFrame with all required columns present
+        """
+        from .taxsim_runner import TaxsimRunner
+        
+        # Use the existing column definitions from TaxsimRunner
+        all_columns = TaxsimRunner.ALL_COLUMNS
+        
+        # Default values - using same logic as set_taxsim_defaults
+        default_values = {
+            'taxsimid': 0,
+            'year': 2021,
+            'state': 44,    # Texas
+            'mstat': 1,     # Single
+            'depx': 0,      # Number of dependents
+            'idtl': 0,      # Output flag
+            'page': 40,     # Primary age
+            'sage': 40,     # Spouse age
+        }
+        
+        # Add missing columns with default values
+        for col in all_columns:
+            if col not in df.columns:
+                # Use specific default if defined, otherwise 0
+                default_value = default_values.get(col, 0)
+                df[col] = default_value
+                
+        return df
 
     def run(self, show_progress: bool = True) -> pd.DataFrame:
         """
@@ -376,6 +453,9 @@ class PolicyEngineRunner(BaseTaxRunner):
     def _extract_vectorized_results(self, sim: Microsimulation, input_df: pd.DataFrame) -> pd.DataFrame:
         """Extract results from Microsimulation and format as TAXSIM output"""
         results = []
+        
+        # Ensure input_df has all required columns
+        input_df = self._ensure_required_columns(input_df)
         
         # Process each unique year
         years = sorted(set(input_df['year'].unique()))
