@@ -32,6 +32,98 @@ class TaxsimMicrosimDataset(Dataset):
         self.file_path = Path(self.tmp_file.name)
         super().__init__()
 
+    def _extract_policyengine_variables_from_mappings(self) -> set:
+        """
+        Extract all PolicyEngine variables from the variable mappings.
+        
+        Returns:
+            set: Set of all PolicyEngine variable names found in mappings
+        """
+        pe_variables = set()
+        
+        # Get variable mappings
+        mappings = load_variable_mappings()
+        
+        # Extract from policyengine_to_taxsim mappings
+        pe_to_taxsim = mappings.get("policyengine_to_taxsim", {})
+        for taxsim_var, mapping in pe_to_taxsim.items():
+            if isinstance(mapping, dict):
+                # Single variable mapping
+                pe_var = mapping.get("variable")
+                if pe_var and pe_var not in ["taxsimid", "get_year", "get_state_code", "na_pe"]:
+                    pe_variables.add(pe_var)
+                
+                # Multiple variables mapping
+                variables = mapping.get("variables", [])
+                for var in variables:
+                    if var and "state" not in var:  # Skip state-specific variables for now
+                        pe_variables.add(var)
+        
+        # Extract from taxsim_to_policyengine additional units
+        taxsim_to_pe = mappings.get("taxsim_to_policyengine", {})
+        household_situation = taxsim_to_pe.get("household_situation", {})
+        
+        # Additional income units (person-level variables)
+        additional_income_units = household_situation.get("additional_income_units", [])
+        for item in additional_income_units:
+            if isinstance(item, dict):
+                for field, values in item.items():
+                    pe_variables.add(field)
+        
+        # Additional tax units (tax-unit-level variables)
+        additional_tax_units = household_situation.get("additional_tax_units", [])
+        for item in additional_tax_units:
+            if isinstance(item, dict):
+                for field, values in item.items():
+                    if field not in ["state_use_tax"]:  # Skip state-specific variables
+                        pe_variables.add(field)
+        
+        return pe_variables
+
+    def _initialize_dataset_structure(self) -> dict:
+        """
+        Initialize the dataset structure with all required PolicyEngine variables.
+        Uses variable mappings to automatically discover PolicyEngine variables.
+        
+        Returns:
+            dict: Dictionary with all required variables initialized as empty dicts
+        """
+        # Extract PolicyEngine variables from mappings
+        pe_variables = self._extract_policyengine_variables_from_mappings()
+        
+        # Define required entity structure variables (these are always needed)
+        entity_variables = {
+            "person_id", "person_household_id", "person_tax_unit_id", 
+            "person_family_id", "person_spm_unit_id", "person_marital_unit_id", 
+            "person_weight", "age",
+            "household_id", "household_weight", "state_fips",
+            "tax_unit_id", "tax_unit_weight",
+            "family_id", "family_weight",
+            "spm_unit_id", "spm_unit_weight",
+            "marital_unit_id", "marital_unit_weight"
+        }
+        
+        # Essential person-level variables that might not be in mappings
+        essential_person_variables = {
+            "employment_income",  # Core income variable used directly
+            "charitable_cash_donations",  # Used in dataset creation
+        }
+        
+        # Variables that can cause circular dependencies
+        problematic_variables = {
+            "co_child_care_subsidies", "state_and_local_sales_or_income_tax"
+        }
+        
+        # Combine all variables
+        all_variables = pe_variables | entity_variables | essential_person_variables | problematic_variables
+        
+        # Initialize all variables as empty dictionaries
+        data = {}
+        for var in all_variables:
+            data[var] = {}
+                
+        return data
+
     def _ensure_required_columns(self, df):
         """
         Ensure all required columns exist in the DataFrame with default values.
@@ -84,59 +176,7 @@ class TaxsimMicrosimDataset(Dataset):
         # Proper approach: Check mstat to determine household structure
         # mstat 2 or 6 = spouse present → create multi-person household
         # mstat 1,3,4,5 = no spouse → single-person household + dependents
-        data = {}
-
-        # Person-level data
-        data["person_id"] = {}
-        data["person_household_id"] = {}
-        data["person_tax_unit_id"] = {}
-        data["person_family_id"] = {}
-        data["person_spm_unit_id"] = {}
-        data["person_marital_unit_id"] = {}
-        data["person_weight"] = {}
-        data["age"] = {}
-        data["employment_income"] = {}
-        data["self_employment_income"] = {}
-        data["qualified_dividend_income"] = {}
-        data["taxable_interest_income"] = {}
-        data["short_term_capital_gains"] = {}
-        data["long_term_capital_gains"] = {}
-        data["taxable_private_pension_income"] = {}
-        data["social_security_retirement"] = {}
-        data["unemployment_compensation"] = {}
-        data["partnership_s_corp_income"] = {}
-        data["real_estate_taxes"] = {}
-        data["charitable_cash_donations"] = {}
-
-        # Benefits/subsidies that can cause circular dependencies - set to 0
-        data["co_child_care_subsidies"] = {}
-
-        # Tax deduction variables that may need to be disabled
-        data["state_and_local_sales_or_income_tax"] = {}
-
-        # Household-level data
-        data["household_id"] = {}
-        data["household_weight"] = {}
-
-        # State data (trying different variable names)
-        data["state_fips"] = {}
-
-        # Tax unit-level data
-        data["tax_unit_id"] = {}
-        data["tax_unit_weight"] = {}
-        # filing_status will be auto-calculated by PolicyEngine based on household structure
-
-        # Family-level data
-        data["family_id"] = {}
-        data["family_weight"] = {}
-
-        # SPM unit-level data
-        data["spm_unit_id"] = {}
-        data["spm_unit_weight"] = {}
-
-        # Marital unit-level data
-        data["marital_unit_id"] = {}
-        data["marital_unit_weight"] = {}
+        data = self._initialize_dataset_structure()
 
         # Process each year separately
         for year in unique_years:
