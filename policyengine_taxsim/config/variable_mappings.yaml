@@ -192,6 +192,7 @@ policyengine_to_taxsim:
     variable: qualified_business_income_deduction
     implemented: true
     idtl:
+      - full: 2
       - full_text: 5
     text_description: "QBI deduction"
     group_order: 3

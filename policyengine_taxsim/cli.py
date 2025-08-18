@@ -102,7 +102,9 @@ def policyengine(input_file, output, logs, disable_salt, sample):
 
         # Generate YAML files if requested
         if logs:
+            click.echo("Generating PolicyEngine YAML test files...")
             _generate_yaml_files(df, results_df)
+            click.echo(f"Generated {len(df)} YAML test files")
 
         # Save results to output file
         results_df.to_csv(output, index=False)
@@ -195,6 +197,12 @@ def compare(input_file, sample, output_dir, save_mismatches, year, disable_salt,
         click.echo("Running PolicyEngine...")
         pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         pe_results = pe_runner.run()
+        
+        # Generate YAML files if requested  
+        if logs:
+            click.echo("Generating PolicyEngine YAML test files...")
+            _generate_yaml_files(df, pe_results)
+            click.echo(f"Generated {len(df)} YAML test files")
 
         # Run TAXSIM
         click.echo("Running TAXSIM...")

@@ -111,7 +111,7 @@ class TaxsimMicrosimDataset(Dataset):
         
         # Variables that can cause circular dependencies
         problematic_variables = {
-            "co_child_care_subsidies", "state_and_local_sales_or_income_tax"
+            "co_child_care_subsidies",
         }
         
         # Combine all variables
@@ -263,6 +263,30 @@ class TaxsimMicrosimDataset(Dataset):
         # Get variable mapping
         var_mapping = self._get_taxsim_to_pe_variable_mapping()
         
+        # Filter mapping to only include variables where source data exists
+        filtered_mapping = {}
+        for pe_var, mapping in var_mapping.items():
+            if pe_var == "age":
+                # Always include age
+                filtered_mapping[pe_var] = mapping
+                continue
+                
+            # Check if any of the source variables exist in the data
+            source_exists = False
+            for person_type in ["primary", "spouse"]:
+                source = mapping.get(person_type)
+                if isinstance(source, str) and source in year_data.columns:
+                    source_exists = True
+                    break
+                elif callable(source):
+                    # For callable sources, check if the variables they reference exist
+                    # This is a bit more complex, but for now assume they exist
+                    source_exists = True
+                    break
+            
+            if source_exists:
+                filtered_mapping[pe_var] = mapping
+        
         # Initialize data collectors
         person_data = {}
         entity_data = {
@@ -275,7 +299,7 @@ class TaxsimMicrosimDataset(Dataset):
         }
         
         # Initialize variable data collectors
-        for pe_var in var_mapping.keys():
+        for pe_var in filtered_mapping.keys():
             person_data[pe_var] = []
         
         current_person_id = 0
@@ -306,7 +330,7 @@ class TaxsimMicrosimDataset(Dataset):
                     dep_num = person_idx - (1 if has_spouse else 0)
                 
                 # Process each variable
-                for pe_var, mapping in var_mapping.items():
+                for pe_var, mapping in filtered_mapping.items():
                     if person_type == "dependent" and pe_var == "age":
                         # Special handling for dependent age
                         age_col = mapping["dependent"](dep_num)
@@ -322,11 +346,12 @@ class TaxsimMicrosimDataset(Dataset):
                         if callable(source):
                             value = source(row)
                         elif isinstance(source, str):
-                            # Use default if column doesn't exist
+                            # Only set if the source column exists in the data
                             if source in row and pd.notna(row[source]):
                                 value = float(row[source]) if pe_var != "age" else int(row[source])
                             else:
-                                value = mapping.get("default", 0.0)
+                                # Skip this variable if source data is not available
+                                continue
                         else:
                             value = source  # Direct value (like 0.0)
                     
