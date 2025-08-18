@@ -124,6 +124,228 @@ class TaxsimMicrosimDataset(Dataset):
                 
         return data
 
+    def _get_taxsim_to_pe_variable_mapping(self) -> dict:
+        """
+        Get TAXSIM to PolicyEngine variable mappings from existing configuration.
+        Leverages the variable_mappings.yaml to avoid duplication.
+        
+        Returns:
+            dict: Mapping of PolicyEngine variables to their TAXSIM sources and rules
+        """
+        mappings = load_variable_mappings()
+        
+        # Get basic age mapping from defaults
+        age_mapping = {
+            "primary": "page",
+            "spouse": "sage", 
+            "dependent": lambda dep_num: f"age{dep_num}",
+            "default": {"primary": 40, "spouse": 40, "dependent": 10}
+        }
+        
+        # Extract TAXSIM input definitions to understand primary/spouse pairs
+        taxsim_input_def = mappings.get("taxsim_input_definition", [])
+        paired_vars = {}  # Maps primary var to spouse var
+        
+        for item in taxsim_input_def:
+            if isinstance(item, dict):
+                for var_name, definition in item.items():
+                    if isinstance(definition, dict) and "pair" in definition:
+                        paired_vars[var_name] = definition["pair"]
+        
+        # Build variable mapping from additional_income_units
+        taxsim_to_pe = mappings.get("taxsim_to_policyengine", {})
+        household_situation = taxsim_to_pe.get("household_situation", {})
+        additional_income_units = household_situation.get("additional_income_units", [])
+        
+        variable_mapping = {"age": age_mapping}  # Start with age
+        
+        # Process additional income units to create mappings
+        for item in additional_income_units:
+            if isinstance(item, dict):
+                for pe_var, taxsim_vars in item.items():
+                    if not taxsim_vars:  # Skip empty mappings
+                        continue
+                        
+                    if len(taxsim_vars) == 1:
+                        # Single variable - check if it has a spouse pair
+                        taxsim_var = taxsim_vars[0]
+                        spouse_var = paired_vars.get(taxsim_var)
+                        
+                        if spouse_var:
+                            # Has spouse pair (like pwages/swages)
+                            variable_mapping[pe_var] = {
+                                "primary": taxsim_var,
+                                "spouse": spouse_var,
+                                "dependent": 0.0,
+                                "default": 0.0
+                            }
+                        else:
+                            # No spouse pair - primary gets all, others get 0
+                            variable_mapping[pe_var] = {
+                                "primary": taxsim_var,
+                                "spouse": 0.0,
+                                "dependent": 0.0,
+                                "default": 0.0
+                            }
+                    
+                    elif len(taxsim_vars) == 2:
+                        # Two variables - check if they're a primary/spouse pair
+                        var1, var2 = taxsim_vars
+                        if var2 == paired_vars.get(var1):
+                            # They're a primary/spouse pair
+                            variable_mapping[pe_var] = {
+                                "primary": var1,
+                                "spouse": var2,
+                                "dependent": 0.0,
+                                "default": 0.0
+                            }
+                        elif var1 == paired_vars.get(var2):
+                            # Reverse order - var2 is primary, var1 is spouse
+                            variable_mapping[pe_var] = {
+                                "primary": var2,
+                                "spouse": var1,
+                                "dependent": 0.0,
+                                "default": 0.0
+                            }
+                        else:
+                            # Not a pair - combine them (like pui + sui)
+                            variable_mapping[pe_var] = {
+                                "primary": lambda row, vars=taxsim_vars: sum(float(row.get(v, 0)) for v in vars),
+                                "spouse": 0.0,
+                                "dependent": 0.0,
+                                "default": 0.0
+                            }
+                    
+                    else:
+                        # Multiple variables - primary gets all, others get 0
+                        variable_mapping[pe_var] = {
+                            "primary": taxsim_vars[0],  # Use first one for now
+                            "spouse": 0.0,
+                            "dependent": 0.0,
+                            "default": 0.0
+                        }
+        
+        # Add employment_income manually since it's not in additional_income_units
+        variable_mapping["employment_income"] = {
+            "primary": "pwages",
+            "spouse": "swages",
+            "dependent": 0.0,
+            "default": 0.0
+        }
+        
+        return variable_mapping
+
+    def _process_person_data_for_year(self, year_data: pd.DataFrame, year: int) -> dict:
+        """
+        Process person-level data for a specific year using consolidated mapping approach.
+        
+        Args:
+            year_data: DataFrame containing TAXSIM data for one year
+            year: The year being processed
+            
+        Returns:
+            dict: Processed person-level data arrays
+        """
+        n_year_records = len(year_data)
+        
+        # Calculate household structure
+        total_people = 0
+        people_per_household = []
+        
+        for _, row in year_data.iterrows():
+            mstat = int(row["mstat"])
+            depx = int(row["depx"])
+            has_spouse = mstat in [2, 6]
+            n_people = 1 + (1 if has_spouse else 0) + depx
+            people_per_household.append(n_people)
+            total_people += n_people
+        
+        # Get variable mapping
+        var_mapping = self._get_taxsim_to_pe_variable_mapping()
+        
+        # Initialize data collectors
+        person_data = {}
+        entity_data = {
+            "person_id": [],
+            "person_household_id": [],
+            "person_tax_unit_id": [],
+            "person_family_id": [],
+            "person_spm_unit_id": [],
+            "person_marital_unit_id": []
+        }
+        
+        # Initialize variable data collectors
+        for pe_var in var_mapping.keys():
+            person_data[pe_var] = []
+        
+        current_person_id = 0
+        
+        # Process each household
+        for household_idx, (_, row) in enumerate(year_data.iterrows()):
+            mstat = int(row["mstat"])
+            depx = int(row["depx"])
+            has_spouse = mstat in [2, 6]
+            n_people = people_per_household[household_idx]
+            
+            # Process each person in the household
+            for person_idx in range(n_people):
+                # Entity structure data
+                for entity_var in entity_data.keys():
+                    if entity_var == "person_id":
+                        entity_data[entity_var].append(current_person_id)
+                    else:
+                        entity_data[entity_var].append(household_idx)
+                
+                # Determine person type
+                if person_idx == 0:
+                    person_type = "primary"
+                elif person_idx == 1 and has_spouse:
+                    person_type = "spouse"
+                else:
+                    person_type = "dependent"
+                    dep_num = person_idx - (1 if has_spouse else 0)
+                
+                # Process each variable
+                for pe_var, mapping in var_mapping.items():
+                    if person_type == "dependent" and pe_var == "age":
+                        # Special handling for dependent age
+                        age_col = mapping["dependent"](dep_num)
+                        value = int(row.get(age_col, mapping["default"]["dependent"]))
+                        if value <= 0:
+                            value = mapping["default"]["dependent"]
+                    elif person_type == "spouse" and pe_var == "age":
+                        # Special handling for spouse age
+                        value = int(row[mapping["spouse"]]) if row[mapping["spouse"]] > 0 else int(row[mapping["primary"]])
+                    else:
+                        # Standard mapping
+                        source = mapping.get(person_type)
+                        if callable(source):
+                            value = source(row)
+                        elif isinstance(source, str):
+                            # Use default if column doesn't exist
+                            if source in row and pd.notna(row[source]):
+                                value = float(row[source]) if pe_var != "age" else int(row[source])
+                            else:
+                                value = mapping.get("default", 0.0)
+                        else:
+                            value = source  # Direct value (like 0.0)
+                    
+                    person_data[pe_var].append(value)
+                
+                current_person_id += 1
+        
+        # Convert to numpy arrays and combine entity + person data
+        result = {}
+        for var, values in entity_data.items():
+            result[var] = np.array(values)
+        for var, values in person_data.items():
+            result[var] = np.array(values)
+        
+        # Add person weight
+        result["person_weight"] = np.ones(total_people)
+        
+        return result
+
     def _ensure_required_columns(self, df):
         """
         Ensure all required columns exist in the DataFrame with default values.
@@ -190,148 +412,19 @@ class TaxsimMicrosimDataset(Dataset):
             # Fill NaN values with defaults
             year_data = year_data.fillna(0)
 
-            # Calculate total people needed based on household structure
-            total_people = 0
-            people_per_household = []
+            # Process person-level data using consolidated approach
+            person_data = self._process_person_data_for_year(year_data, year)
 
-            for _, row in year_data.iterrows():
-                mstat = int(row["mstat"])
-                depx = int(row["depx"])
+            # Assign person-level data to dataset
+            for var_name, values in person_data.items():
+                data[var_name][year] = values
 
-                # Check if spouse is present: mstat 2 (joint) or 6 (separate)
-                has_spouse = mstat in [2, 6]
-
-                # Calculate people: 1 primary + (1 spouse if present) + dependents
-                n_people = 1 + (1 if has_spouse else 0) + depx
-                people_per_household.append(n_people)
-                total_people += n_people
-
-            # Create person-level arrays for the entire year
-            all_person_ids = []
-            all_person_household_ids = []
-            all_person_tax_unit_ids = []
-            all_person_family_ids = []
-            all_person_spm_unit_ids = []
-            all_person_marital_unit_ids = []
-            all_ages = []
-            all_employment_income = []
-            all_self_employment_income = []
-            all_dividend_income = []
-            all_interest_income = []
-            all_stcg = []
-            all_ltcg = []
-            all_pensions = []
-            all_gssi = []
-            all_ui = []
-            all_scorp = []
-            all_real_estate_taxes = []
-            all_charitable = []
-
-            current_person_id = 0
-
-            # Create people for each household
-            for household_idx, (_, row) in enumerate(year_data.iterrows()):
-                mstat = int(row["mstat"])
-                depx = int(row["depx"])
-                has_spouse = mstat in [2, 6]
-                n_people = people_per_household[household_idx]
-
-                for person_idx in range(n_people):
-                    all_person_ids.append(current_person_id)
-                    all_person_household_ids.append(household_idx)
-                    all_person_tax_unit_ids.append(household_idx)
-                    all_person_family_ids.append(household_idx)
-                    all_person_spm_unit_ids.append(household_idx)
-                    all_person_marital_unit_ids.append(household_idx)
-
-                    if person_idx == 0:  # Primary taxpayer
-                        all_ages.append(int(row["page"]))
-                        all_employment_income.append(float(row["pwages"]))
-                        all_self_employment_income.append(float(row["psemp"]))
-                        # Primary gets all non-wage income
-                        all_dividend_income.append(float(row["dividends"]))
-                        all_interest_income.append(float(row["intrec"]))
-                        all_stcg.append(float(row["stcg"]))
-                        all_ltcg.append(float(row["ltcg"]))
-                        all_pensions.append(float(row["pensions"]))
-                        all_gssi.append(float(row["gssi"]))
-                        all_ui.append(float(row["pui"]) + float(row["sui"]))
-                        all_scorp.append(float(row["scorp"]))
-                        all_real_estate_taxes.append(float(row["proptax"]))
-                        all_charitable.append(float(row["otheritem"]))
-
-                    elif person_idx == 1 and has_spouse:  # Spouse
-                        spouse_age = (
-                            int(row["sage"]) if row["sage"] > 0 else int(row["page"])
-                        )
-                        all_ages.append(spouse_age)
-                        all_employment_income.append(float(row["swages"]))
-                        all_self_employment_income.append(float(row["ssemp"]))
-                        # Spouse gets zeros for non-wage income (assigned to primary)
-                        all_dividend_income.append(0.0)
-                        all_interest_income.append(0.0)
-                        all_stcg.append(0.0)
-                        all_ltcg.append(0.0)
-                        all_pensions.append(0.0)
-                        all_gssi.append(0.0)
-                        all_ui.append(0.0)
-                        all_scorp.append(0.0)
-                        all_real_estate_taxes.append(0.0)
-                        all_charitable.append(0.0)
-
-                    else:  # Dependent
-                        dep_num = person_idx - (1 if has_spouse else 0)
-                        age_col = f"age{dep_num}"
-                        dep_age = (
-                            int(row.get(age_col, 10)) if row.get(age_col, 0) > 0 else 10
-                        )
-                        all_ages.append(dep_age)
-                        # Dependents get zeros for all income
-                        all_employment_income.append(0.0)
-                        all_self_employment_income.append(0.0)
-                        all_dividend_income.append(0.0)
-                        all_interest_income.append(0.0)
-                        all_stcg.append(0.0)
-                        all_ltcg.append(0.0)
-                        all_pensions.append(0.0)
-                        all_gssi.append(0.0)
-                        all_ui.append(0.0)
-                        all_scorp.append(0.0)
-                        all_real_estate_taxes.append(0.0)
-                        all_charitable.append(0.0)
-
-                    current_person_id += 1
-
-            # Create entity ID arrays
+            # Create entity ID arrays for household-level data
             year_household_ids = np.arange(n_year_records)
             year_tax_unit_ids = np.arange(n_year_records)
             year_family_ids = np.arange(n_year_records)
             year_spm_unit_ids = np.arange(n_year_records)
             year_marital_unit_ids = np.arange(n_year_records)
-
-            # Set data for this year using our person-level arrays
-            data["person_id"][year] = np.array(all_person_ids)
-            data["person_household_id"][year] = np.array(all_person_household_ids)
-            data["person_tax_unit_id"][year] = np.array(all_person_tax_unit_ids)
-            data["person_family_id"][year] = np.array(all_person_family_ids)
-            data["person_spm_unit_id"][year] = np.array(all_person_spm_unit_ids)
-            data["person_marital_unit_id"][year] = np.array(all_person_marital_unit_ids)
-            data["person_weight"][year] = np.ones(total_people)
-
-            # Personal characteristics and income (now properly distributed across people)
-            data["age"][year] = np.array(all_ages)
-            data["employment_income"][year] = np.array(all_employment_income)
-            data["self_employment_income"][year] = np.array(all_self_employment_income)
-            data["qualified_dividend_income"][year] = np.array(all_dividend_income)
-            data["taxable_interest_income"][year] = np.array(all_interest_income)
-            data["short_term_capital_gains"][year] = np.array(all_stcg)
-            data["long_term_capital_gains"][year] = np.array(all_ltcg)
-            data["taxable_private_pension_income"][year] = np.array(all_pensions)
-            data["social_security_retirement"][year] = np.array(all_gssi)
-            data["unemployment_compensation"][year] = np.array(all_ui)
-            data["partnership_s_corp_income"][year] = np.array(all_scorp)
-            data["real_estate_taxes"][year] = np.array(all_real_estate_taxes)
-            data["charitable_cash_donations"][year] = np.array(all_charitable)
 
             # Set problematic variables to 0 directly in dataset to prevent circular dependency calculations
             data["co_child_care_subsidies"][year] = np.zeros(
