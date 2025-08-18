@@ -10,43 +10,51 @@ from .base_runner import BaseTaxRunner
 class TaxsimRunner(BaseTaxRunner):
     """Clean TAXSIMTEST executable runner"""
 
-    # TAXSIM column definitions (extracted from vectorized_validation.py)
+    # TAXSIM column definitions based on official NBER documentation
+    # https://taxsim.nber.org/taxsimtest/
     REQUIRED_COLUMNS = [
-        "year",
-        "state",
-        "mstat",
-        "pwages",
-        "depx",
-        "mortgage",
-        "taxsimid",
-        "idtl",
+        "taxsimid",     # 1. Case ID
+        "year",         # 2. Tax year  
+        "state",        # 3. State code
+        "mstat",        # 4. Marital status
+        "page",         # 5. Primary taxpayer age
+        "sage",         # 5. Spouse age
+        "depx",         # 6. Number of dependents
     ]
 
-    ADDITIONAL_COLUMNS = [
-        "page",
-        "sage",
-        "swages",
-        "psemp",
-        "ssemp",
-        "dividends",
-        "intrec",
-        "stcg",
-        "ltcg",
-        "otherprop",
-        "nonprop",
-        "pensions",
-        "gssi",
-        "pui",
-        "sui",
-        "transfers",
-        "rentpaid",
-        "proptax",
-        "otheritem",
-        "childcare",
-        "scorp",
+    # Dependent ages come after depx according to official docs
+    DEPENDENT_AGE_COLUMNS = [
+        "age1", "age2", "age3", "age4", "age5", "age6", 
+        "age7", "age8", "age9", "age10", "age11"
     ]
 
-    ALL_COLUMNS = REQUIRED_COLUMNS + ADDITIONAL_COLUMNS
+    # Income and deduction columns
+    INCOME_COLUMNS = [
+        "pwages",       # Primary wages
+        "swages",       # Spouse wages  
+        "psemp",        # Primary self-employment
+        "ssemp",        # Spouse self-employment
+        "dividends",    # Dividend income
+        "intrec",       # Interest received
+        "stcg",         # Short-term capital gains
+        "ltcg",         # Long-term capital gains
+        "otherprop",    # Other property income
+        "nonprop",      # Other non-property income
+        "pensions",     # Taxable pensions
+        "gssi",         # Gross social security
+        "pui",          # Primary unemployment insurance
+        "sui",          # Spouse unemployment insurance
+        "transfers",    # Non-taxable transfers
+        "rentpaid",     # Rent paid
+        "proptax",      # Property taxes
+        "otheritem",    # Other itemized deductions
+        "childcare",    # Child care expenses
+        "mortgage",     # Mortgage interest
+        "scorp",        # S-Corp profits
+        "idtl",         # Output control
+    ]
+
+    ALL_COLUMNS = REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + INCOME_COLUMNS
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
         super().__init__(input_df)
@@ -83,13 +91,45 @@ class TaxsimRunner(BaseTaxRunner):
 
     def _format_input_for_taxsim(self, df: pd.DataFrame) -> pd.DataFrame:
         """Format DataFrame for TAXSIM input requirements"""
-        # Ensure all required columns exist
+        formatted_df = df.copy()
+        
+        # Ensure all columns exist with default values
         for col in self.ALL_COLUMNS:
-            if col not in df.columns:
-                df[col] = 0
-
-        # Reorder columns to match TAXSIM requirements
-        return df[self.ALL_COLUMNS].copy()
+            if col not in formatted_df.columns:
+                formatted_df[col] = 0
+        
+        # Create dynamic column list based on number of dependents
+        result_rows = []
+        
+        for _, row in formatted_df.iterrows():
+            depx = int(row.get('depx', 0))
+            
+            # Start with required columns
+            dynamic_columns = self.REQUIRED_COLUMNS.copy()
+            
+            # Add only age columns for actual dependents (up to 11 max)
+            for i in range(min(depx, 11)):
+                age_col = f"age{i+1}"
+                dynamic_columns.append(age_col)
+            
+            # Add income columns
+            dynamic_columns.extend(self.INCOME_COLUMNS)
+            
+            # Create row data with only needed columns
+            row_data = {}
+            for col in dynamic_columns:
+                row_data[col] = row.get(col, 0)
+            
+            result_rows.append(row_data)
+        
+        # Convert to DataFrame and store dynamic columns
+        if result_rows:
+            result_df = pd.DataFrame(result_rows)
+            self._dynamic_columns = result_df.columns.tolist()
+            return result_df
+        else:
+            # Fallback to all columns if no data
+            return formatted_df[self.ALL_COLUMNS].copy()
 
     def _create_taxsim_input_file(self, df: pd.DataFrame) -> str:
         """Create properly formatted TAXSIM input file"""
@@ -100,12 +140,15 @@ class TaxsimRunner(BaseTaxRunner):
 
         # Write CSV format that TAXSIM expects
         with open(temp_file.name, "w") as f:
+            # Use dynamic columns if available, otherwise fall back to ALL_COLUMNS
+            columns_to_use = getattr(self, '_dynamic_columns', self.ALL_COLUMNS)
+            
             # Write header
-            f.write(",".join(self.ALL_COLUMNS) + "\n")
+            f.write(",".join(columns_to_use) + "\n")
 
             # Write data rows
             for _, row in formatted_df.iterrows():
-                f.write(",".join(str(row[col]) for col in self.ALL_COLUMNS) + "\n")
+                f.write(",".join(str(row[col]) for col in columns_to_use) + "\n")
 
         return temp_file.name
 
