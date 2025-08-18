@@ -192,12 +192,13 @@ def form_household_situation(year, state, taxsim_vars):
     return household_situation
 
 
-def set_taxsim_defaults(taxsim_vars: dict) -> dict:
+def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
     """
     Set default values for TAXSIM variables if they don't exist or are falsy.
 
     Args:
         taxsim_vars (dict): Dictionary containing TAXSIM input variables
+        year (int): Default year to use if not specified in taxsim_vars
 
     Returns:
         dict: Updated dictionary with default values set where needed
@@ -208,6 +209,9 @@ def set_taxsim_defaults(taxsim_vars: dict) -> dict:
         - mstat: 1 (Marital status)
         - taxsimid: 0 (TAXSIM ID)
         - idtl: 0 (output flag)
+        - year: 2021 (Tax year, can be overridden)
+        - page: 40 (Primary taxpayer age)
+        - sage: 40 (Spouse age)
     """
     DEFAULTS = {
         "state": 44,  # Texas
@@ -215,12 +219,37 @@ def set_taxsim_defaults(taxsim_vars: dict) -> dict:
         "mstat": 1,  # Marital status
         "taxsimid": 0,  # TAXSIM ID
         "idtl": 0,  # output flag
+        "year": year,  # Tax year
+        "page": 40,  # Primary taxpayer age
+        "sage": 40,  # Spouse age
     }
 
     for key, default_value in DEFAULTS.items():
         taxsim_vars[key] = int(taxsim_vars.get(key, default_value) or default_value)
 
     return taxsim_vars
+
+
+def get_taxsim_defaults(year: int = 2021) -> dict:
+    """
+    Get a dictionary of all TAXSIM default values.
+    
+    Args:
+        year (int): Tax year for defaults
+        
+    Returns:
+        dict: Dictionary containing all default TAXSIM values
+    """
+    return {
+        "taxsimid": 0,
+        "year": year,
+        "state": 44,  # Texas
+        "mstat": 1,  # Single
+        "depx": 0,  # Number of dependents
+        "idtl": 0,  # Output flag
+        "page": 40,  # Primary age
+        "sage": 40,  # Spouse age
+    }
 
 
 def generate_household(taxsim_vars):
@@ -234,9 +263,9 @@ def generate_household(taxsim_vars):
         dict: PolicyEngine situation dictionary
     """
 
-    year = str(int(taxsim_vars["year"]))  # Ensure year is an integer string
+    year = str(int(taxsim_vars.get("year", 2021)))  # Ensure year is an integer string
 
-    taxsim_vars = set_taxsim_defaults(taxsim_vars)
+    taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
 
     state = get_state_code(taxsim_vars["state"])
 

@@ -6,24 +6,14 @@ from typing import Dict, Any
 from .base_runner import BaseTaxRunner
 
 # Import core functions needed for microsimulation
-try:
-    from ..core.utils import (
+from policyengine_taxsim.core.utils import (
         load_variable_mappings,
         SOI_TO_FIPS_MAP,
         get_state_code,
         get_state_number,
         to_roundedup_number,
     )
-    from ..core.input_mapper import set_taxsim_defaults
-except ImportError:
-    from policyengine_taxsim.core.utils import (
-        load_variable_mappings,
-        SOI_TO_FIPS_MAP,
-        get_state_code,
-        get_state_number,
-        to_roundedup_number,
-    )
-    from policyengine_taxsim.core.input_mapper import set_taxsim_defaults
+from policyengine_taxsim.core.input_mapper import set_taxsim_defaults, get_taxsim_defaults
 
 from policyengine_us import Microsimulation
 from policyengine_core.data import Dataset
@@ -58,17 +48,8 @@ class TaxsimMicrosimDataset(Dataset):
         # Use the existing column definitions from TaxsimRunner
         all_columns = TaxsimRunner.ALL_COLUMNS
 
-        # Default values - using same logic as set_taxsim_defaults
-        default_values = {
-            "taxsimid": 0,
-            "year": 2021,
-            "state": 44,  # Texas
-            "mstat": 1,  # Single
-            "depx": 0,  # Number of dependents
-            "idtl": 0,  # Output flag
-            "page": 40,  # Primary age
-            "sage": 40,  # Spouse age
-        }
+        # Get default values from shared function
+        default_values = get_taxsim_defaults(2021)
 
         # Add missing columns with default values
         for col in all_columns:
@@ -89,7 +70,8 @@ class TaxsimMicrosimDataset(Dataset):
         # Set defaults for all records
         for idx, row in self.input_df.iterrows():
             taxsim_vars = row.to_dict()
-            taxsim_vars = set_taxsim_defaults(taxsim_vars)
+            year = int(taxsim_vars.get("year", 2021))
+            taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
             for key, value in taxsim_vars.items():
                 self.input_df.loc[idx, key] = value
 
@@ -390,17 +372,8 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Use the existing column definitions from TaxsimRunner
         all_columns = TaxsimRunner.ALL_COLUMNS
 
-        # Default values - using same logic as set_taxsim_defaults
-        default_values = {
-            "taxsimid": 0,
-            "year": 2021,
-            "state": 44,  # Texas
-            "mstat": 1,  # Single
-            "depx": 0,  # Number of dependents
-            "idtl": 0,  # Output flag
-            "page": 40,  # Primary age
-            "sage": 40,  # Spouse age
-        }
+        # Get default values from shared function
+        default_values = get_taxsim_defaults(2021)
 
         # Add missing columns with default values
         for col in all_columns:
