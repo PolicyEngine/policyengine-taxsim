@@ -672,24 +672,20 @@ class PolicyEngineRunner(BaseTaxRunner):
 
                             result[taxsim_var] = to_roundedup_number(value)
                         except Exception as e:
-                            # Default to 0 on calculation errors (often state-specific variables not implemented)
-                            if self.logs and "does not exist" not in str(e):
-                                print(f"Error calculating {pe_var}: {e}")
-                            result[taxsim_var] = 0.0
+                            # Only catch specific "variable does not exist" errors for unimplemented state variables
+                            # All other errors should bubble up to reveal real problems
+                            if "does not exist" in str(e):
+                                if self.logs:
+                                    print(f"Variable {pe_var} not implemented in PolicyEngine, setting to 0")
+                                result[taxsim_var] = 0.0
+                            else:
+                                # Real error - don't mask it
+                                raise RuntimeError(f"Error calculating {pe_var} for {taxsim_var}: {e}") from e
 
                     results.append(result)
 
             except Exception as e:
-                print(f"Error processing year {year}: {e}")
-                # Fall back to basic results for this year
-                for _, row in year_data.iterrows():
-                    result = {
-                        "taxsimid": row["taxsimid"],
-                        "year": year,
-                        "state": get_state_number(get_state_code(row["state"])),
-                        "fiitax": 0.0,
-                        "siitax": 0.0,
-                    }
-                    results.append(result)
+                # Don't mask errors with fallback results - let them bubble up
+                raise RuntimeError(f"Error processing year {year}: {e}") from e
 
         return pd.DataFrame(results)
