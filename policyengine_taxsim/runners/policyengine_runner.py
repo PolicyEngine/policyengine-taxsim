@@ -112,6 +112,7 @@ class TaxsimMicrosimDataset(Dataset):
         # Variables that can cause circular dependencies
         problematic_variables = {
             "co_child_care_subsidies",
+            "la_standard_deduction",
         }
         
         # Combine all variables
@@ -539,6 +540,9 @@ class TaxsimMicrosimDataset(Dataset):
             data["co_child_care_subsidies"][year] = np.zeros(
                 n_year_records
             )  # Prevent Colorado subsidy calculations
+            data["la_standard_deduction"][year] = np.zeros(
+                n_year_records
+            )  # Prevent Louisiana standard deduction calculations
 
             # Household data
             data["household_id"][year] = year_household_ids
@@ -662,20 +666,7 @@ class PolicyEngineRunner(BaseTaxRunner):
 
             # Disable problematic variables that cause circular dependencies
             years = sorted(set(self.input_df["year"].unique()))
-            problematic_vars = [
-                "ca_child_care_subsidies",
-                "ne_child_care_subsidies",  # State-specific subsidies (co_child_care_subsidies handled in dataset)
-            ]
 
-            for var in problematic_vars:
-                for year in years:
-                    try:
-                        # Set to zero for annual period
-                        sim.set_input(var, 0.0, period=str(year))
-                        # Set to zero for all monthly periods
-                    except Exception:
-                        # If variable doesn't exist in PolicyEngine, continue
-                        pass
 
             # Extract results
             results_df = self._extract_vectorized_results(sim, self.input_df)
