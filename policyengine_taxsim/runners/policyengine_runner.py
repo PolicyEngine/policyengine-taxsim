@@ -235,6 +235,83 @@ class TaxsimMicrosimDataset(Dataset):
         
         return variable_mapping
 
+    def _get_tax_unit_variable_mapping(self) -> dict:
+        """
+        Get TAXSIM to PolicyEngine variable mappings for tax unit level variables.
+        
+        Returns:
+            dict: Mapping of PolicyEngine tax unit variables to their TAXSIM sources
+        """
+        mappings = load_variable_mappings()
+        taxsim_to_pe = mappings.get("taxsim_to_policyengine", {})
+        household_situation = taxsim_to_pe.get("household_situation", {})
+        additional_tax_units = household_situation.get("additional_tax_units", [])
+        
+        tax_unit_mapping = {}
+        
+        # Process additional tax units to create mappings
+        for item in additional_tax_units:
+            if isinstance(item, dict):
+                for pe_var, taxsim_vars in item.items():
+                    if not taxsim_vars:  # Skip empty mappings
+                        continue
+                    
+                    # For tax unit variables, use the first TAXSIM variable as the source
+                    # (most tax unit variables map to a single TAXSIM input)
+                    if isinstance(taxsim_vars, list) and len(taxsim_vars) > 0:
+                        tax_unit_mapping[pe_var] = taxsim_vars[0]
+                    elif isinstance(taxsim_vars, str):
+                        tax_unit_mapping[pe_var] = taxsim_vars
+        
+        return tax_unit_mapping
+
+    def _process_tax_unit_data_for_year(self, year_data: pd.DataFrame, year: int) -> dict:
+        """
+        Process tax unit level data for a specific year.
+        
+        Args:
+            year_data: DataFrame containing TAXSIM data for one year
+            year: The year being processed
+            
+        Returns:
+            dict: Processed tax unit level data arrays
+        """
+        n_year_records = len(year_data)
+        
+        # Get tax unit variable mapping
+        tax_unit_mapping = self._get_tax_unit_variable_mapping()
+        
+        # Filter mapping to only include variables where source data exists
+        filtered_mapping = {}
+        for pe_var, taxsim_var in tax_unit_mapping.items():
+            if taxsim_var in year_data.columns:
+                filtered_mapping[pe_var] = taxsim_var
+        
+        # Initialize data collectors
+        tax_unit_data = {}
+        
+        # Initialize variable data collectors
+        for pe_var in filtered_mapping.keys():
+            tax_unit_data[pe_var] = []
+        
+        # Process each tax unit (one per record in TAXSIM)
+        for _, row in year_data.iterrows():
+            # Process each tax unit variable
+            for pe_var, taxsim_var in filtered_mapping.items():
+                if taxsim_var in row and pd.notna(row[taxsim_var]):
+                    value = float(row[taxsim_var])
+                else:
+                    value = 0.0
+                
+                tax_unit_data[pe_var].append(value)
+        
+        # Convert to numpy arrays
+        result = {}
+        for var, values in tax_unit_data.items():
+            result[var] = np.array(values)
+        
+        return result
+
     def _process_person_data_for_year(self, year_data: pd.DataFrame, year: int) -> dict:
         """
         Process person-level data for a specific year using consolidated mapping approach.
@@ -442,6 +519,13 @@ class TaxsimMicrosimDataset(Dataset):
 
             # Assign person-level data to dataset
             for var_name, values in person_data.items():
+                data[var_name][year] = values
+
+            # Process tax unit level data
+            tax_unit_data = self._process_tax_unit_data_for_year(year_data, year)
+
+            # Assign tax unit level data to dataset
+            for var_name, values in tax_unit_data.items():
                 data[var_name][year] = values
 
             # Create entity ID arrays for household-level data
