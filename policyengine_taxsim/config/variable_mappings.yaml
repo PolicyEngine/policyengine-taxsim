@@ -198,6 +198,16 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
+  niit:
+    variable: net_investment_income_tax
+    implemented: true
+    idtl:
+      - full: 2
+      - full_text: 5
+    text_description: "Net Investment Income Tax"
+    group_order: 3
+    full_text_group: "Federal Tax Calculation"
+    group_column: 1
   v18:
     variable: taxable_income
     implemented: true
@@ -321,15 +331,6 @@ policyengine_to_taxsim:
     idtl:
       - full_text: 5
     text_description: "Total Credits"
-    group_order: 3
-    full_text_group: "Federal Tax Calculation"
-    group_column: 1
-  net_investment_income_tax:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Net Investment Income Tax"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -585,12 +586,12 @@ policyengine_to_taxsim:
     full_text_group: "TCJA 2018+"
     group_column: 1
   v43:
-    variable: net_investment_income_tax
+    variable: na_pe
     implemented: true
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "Net Investment Income Tax"
+    text_description: "Medicare Tax on Unearned Income"
     group_order: 6
     full_text_group: "Additional Medicare Taxes 2013+"
     group_column: 1
