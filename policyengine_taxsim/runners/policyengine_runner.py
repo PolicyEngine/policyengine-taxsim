@@ -710,8 +710,10 @@ class PolicyEngineRunner(BaseTaxRunner):
 
             # Get results for this year
             try:
-                federal_taxes = sim.calculate("income_tax", period=year_str)
+                federal_taxes_main = sim.calculate("income_tax", period=year_str)
+                medicare = sim.calculate("additional_medicare_tax", period=year_str)
                 state_taxes = sim.calculate("state_income_tax", period=year_str)
+                federal_taxes = federal_taxes_main + medicare
 
                 # Create results for this year
                 for idx, (_, row) in enumerate(year_data.iterrows()):
