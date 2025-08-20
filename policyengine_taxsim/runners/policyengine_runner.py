@@ -113,6 +113,12 @@ class TaxsimMicrosimDataset(Dataset):
         problematic_variables = {
             "co_child_care_subsidies",
             "la_standard_deduction",
+            "il_use_tax",
+            "pa_use_tax",
+            "ca_use_tax",
+            "nc_use_tax",
+            "ok_use_tax",
+            "id_grocery_credit_qualified_months",
         }
         
         # Combine all variables
@@ -543,6 +549,29 @@ class TaxsimMicrosimDataset(Dataset):
             data["la_standard_deduction"][year] = np.zeros(
                 n_year_records
             )  # Prevent Louisiana standard deduction calculations
+            data["il_use_tax"][year] = np.zeros(
+                n_year_records
+            )  # Prevent Illinois use tax calculations
+            data["pa_use_tax"][year] = np.zeros(
+                n_year_records
+            )  # Prevent Pennsylvania use tax calculations
+            data["ca_use_tax"][year] = np.zeros(
+                n_year_records
+            )  # Prevent California use tax calculations
+            data["nc_use_tax"][year] = np.zeros(
+                n_year_records
+            )  # Prevent North Carolina use tax calculations
+            data["ok_use_tax"][year] = np.zeros(
+                n_year_records
+            )  # Prevent Oklahoma use tax calculations
+            
+            # Set Idaho grocery credit qualified months to 12 for full year
+            # This needs to be set per person, not per tax unit
+            total_people_for_year = len(person_data.get("person_id", []))
+            if total_people_for_year > 0:
+                data["id_grocery_credit_qualified_months"][year] = np.full(
+                    total_people_for_year, 12
+                )  # Set qualified months to 12 for full year eligibility
 
             # Household data
             data["household_id"][year] = year_household_ids
