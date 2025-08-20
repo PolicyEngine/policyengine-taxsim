@@ -542,6 +542,31 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
         </div>
       )}
 
+      {/* LA All Years Income Exemption Note */}
+      {selectedState === 'LA' && (
+        <div className="card-container va-rebate-note" style={{ margin: '1.5rem 0' }}>
+          <div className="card-header">
+            <div className="flex items-center">
+              <div className="rebate-note-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="rebate-note-title">
+                Louisiana Tax Calculation Note
+              </h3>
+            </div>
+          </div>
+          <div className="rebate-note-content">
+            <p>
+              For Louisiana, TAXSIM and PolicyEngine handle income exemption amounts differently. 
+              This may result in apparent mismatches between the two calculation systems 
+              due to different interpretations or implementations of Louisiana's income exemption rules.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Household Details Section - Only shown when state is selected and user clicks "Inspect" */}
       {selectedState && showHouseholds && (
         <div className="household-section">
