@@ -148,7 +148,15 @@ class TaxsimRunner(BaseTaxRunner):
 
             # Write data rows
             for _, row in formatted_df.iterrows():
-                f.write(",".join(str(row[col]) for col in columns_to_use) + "\n")
+                # Convert each value to string, handling NaN values properly
+                values = []
+                for col in columns_to_use:
+                    val = row[col]
+                    if pd.isna(val):
+                        values.append("0")  # Use 0 for NaN values instead of empty string
+                    else:
+                        values.append(str(val))
+                f.write(",".join(values) + "\n")
 
         return temp_file.name
 
@@ -169,12 +177,27 @@ class TaxsimRunner(BaseTaxRunner):
             else:
                 creation_flags = 0x00000008  # DETACHED_PROCESS
 
+        # Set up environment to include Homebrew path on macOS
+        env = os.environ.copy()
+        if system == "darwin":
+            # Ensure Homebrew paths are included for dynamic library resolution
+            homebrew_paths = ["/opt/homebrew/bin", "/usr/local/bin"]
+            current_path = env.get("PATH", "")
+            
+            # Add Homebrew paths to the beginning if not already present
+            for homebrew_path in reversed(homebrew_paths):
+                if homebrew_path not in current_path:
+                    current_path = f"{homebrew_path}:{current_path}"
+            
+            env["PATH"] = current_path
+
         # Execute TAXSIM
         process = subprocess.run(
             cmd,
             shell=True,
             capture_output=True,
             text=True,
+            env=env,
             creationflags=creation_flags if system == "windows" else 0,
         )
 

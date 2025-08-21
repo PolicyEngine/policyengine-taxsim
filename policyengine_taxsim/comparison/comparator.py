@@ -50,6 +50,14 @@ class TaxComparator:
             self.policyengine_results.columns.str.lower()
         )
 
+        # Remove any records with NaN taxsimid from TAXSIM results (these are often artifacts)
+        if self.config.id_col in self.taxsim_results.columns:
+            initial_taxsim_count = len(self.taxsim_results)
+            self.taxsim_results = self.taxsim_results.dropna(subset=[self.config.id_col])
+            removed_count = initial_taxsim_count - len(self.taxsim_results)
+            if removed_count > 0:
+                print(f"Warning: Removed {removed_count} TAXSIM records with NaN {self.config.id_col}")
+
         # Sort both DataFrames by taxsimid
         self.taxsim_results = self.taxsim_results.sort_values(
             self.config.id_col
@@ -57,6 +65,39 @@ class TaxComparator:
         self.policyengine_results = self.policyengine_results.sort_values(
             self.config.id_col
         ).reset_index(drop=True)
+
+        # Handle duplicate taxsimids in TAXSIM results by keeping only the first occurrence
+        # This can happen when TAXSIM outputs multiple records per household
+        if self.taxsim_results[self.config.id_col].duplicated().any():
+            initial_count = len(self.taxsim_results)
+            self.taxsim_results = self.taxsim_results.drop_duplicates(
+                subset=[self.config.id_col], keep='first'
+            ).reset_index(drop=True)
+            removed_duplicates = initial_count - len(self.taxsim_results)
+            print(f"Warning: Removed {removed_duplicates} duplicate TAXSIM records, keeping first occurrence of each {self.config.id_col}")
+
+        # Ensure both datasets contain the same taxsimids
+        taxsim_ids = set(self.taxsim_results[self.config.id_col])
+        pe_ids = set(self.policyengine_results[self.config.id_col])
+        
+        common_ids = taxsim_ids.intersection(pe_ids)
+        taxsim_only = taxsim_ids - pe_ids
+        pe_only = pe_ids - taxsim_ids
+        
+        if taxsim_only:
+            print(f"Warning: {len(taxsim_only)} {self.config.id_col}s only in TAXSIM results")
+        if pe_only:
+            print(f"Warning: {len(pe_only)} {self.config.id_col}s only in PolicyEngine results")
+        
+        # Filter both datasets to only include common IDs
+        self.taxsim_results = self.taxsim_results[
+            self.taxsim_results[self.config.id_col].isin(common_ids)
+        ].reset_index(drop=True)
+        self.policyengine_results = self.policyengine_results[
+            self.policyengine_results[self.config.id_col].isin(common_ids)
+        ].reset_index(drop=True)
+        
+        print(f"Comparing {len(common_ids)} records present in both datasets")
 
         # Convert numeric columns to float
         for df in [self.taxsim_results, self.policyengine_results]:
