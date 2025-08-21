@@ -113,7 +113,6 @@ class TaxsimMicrosimDataset(Dataset):
         # Variables that can cause circular dependencies
         problematic_variables = {
             "co_child_care_subsidies",
-            "la_standard_deduction",
             "il_use_tax",
             "pa_use_tax",
             "ca_use_tax",
@@ -551,9 +550,7 @@ class TaxsimMicrosimDataset(Dataset):
             data["co_child_care_subsidies"][year] = np.zeros(
                 n_year_records
             )  # Prevent Colorado subsidy calculations
-            data["la_standard_deduction"][year] = np.zeros(
-                n_year_records
-            )  # Prevent Louisiana standard deduction calculations
+
             data["il_use_tax"][year] = np.zeros(
                 n_year_records
             )  # Prevent Illinois use tax calculations
@@ -724,6 +721,28 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         return results_df
 
+    def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
+        """
+        Check if a variable has year restrictions and should not be computed for the given year.
+        
+        Args:
+            variable_name: Name of the PolicyEngine variable
+            year: Tax year
+            
+        Returns:
+            True if the variable should be skipped for this year, False otherwise
+        """
+        # Dictionary of variables and their minimum effective years
+        year_restricted_variables = {
+            # Georgia programs starting in 2025
+            "ga_ctc": 2025,
+            "la_standard_deduction": 2025,
+            # Add other state programs as needed
+            # Format: "variable_name": minimum_year
+        }
+        
+        return variable_name in year_restricted_variables and year < year_restricted_variables[variable_name]
+
     def _extract_vectorized_results(
         self, sim: Microsimulation, input_df: pd.DataFrame
     ) -> pd.DataFrame:
@@ -801,6 +820,13 @@ class PolicyEngineRunner(BaseTaxRunner):
                         state_name = get_state_code(row["state"])
                         if "state" in pe_var:
                             pe_var = pe_var.replace("state", state_name.lower())
+
+                        # Check for year-restricted state programs before calculation
+                        if self._is_year_restricted_variable(pe_var, year):
+                            if self.logs:
+                                print(f"Variable {pe_var} not available in {year}, setting to 0")
+                            result[taxsim_var] = 0.0
+                            continue
 
                         # Calculate value
                         try:
