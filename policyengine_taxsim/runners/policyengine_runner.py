@@ -3,6 +3,7 @@ import numpy as np
 import tempfile
 from pathlib import Path
 from typing import Dict, Any
+from tqdm import tqdm
 from .base_runner import BaseTaxRunner
 
 # Import core functions needed for microsimulation
@@ -302,7 +303,7 @@ class TaxsimMicrosimDataset(Dataset):
             tax_unit_data[pe_var] = []
         
         # Process each tax unit (one per record in TAXSIM)
-        for _, row in year_data.iterrows():
+        for _, row in tqdm(year_data.iterrows(), total=len(year_data), desc=f"Processing tax units ({year})", leave=False):
             # Process each tax unit variable
             for pe_var, taxsim_var in filtered_mapping.items():
                 if taxsim_var in row and pd.notna(row[taxsim_var]):
@@ -389,7 +390,7 @@ class TaxsimMicrosimDataset(Dataset):
         current_person_id = 0
         
         # Process each household
-        for household_idx, (_, row) in enumerate(year_data.iterrows()):
+        for household_idx, (_, row) in enumerate(tqdm(year_data.iterrows(), total=len(year_data), desc=f"Processing households ({year})", leave=False)):
             mstat = int(row["mstat"])
             depx = int(row["depx"])
             has_spouse = mstat in [2, 6]
@@ -491,7 +492,8 @@ class TaxsimMicrosimDataset(Dataset):
         self.input_df = self._ensure_required_columns(self.input_df)
 
         # Set defaults for all records
-        for idx, row in self.input_df.iterrows():
+        print("Setting defaults for TAXSIM records...")
+        for idx, row in tqdm(self.input_df.iterrows(), total=n_records, desc="Processing defaults"):
             taxsim_vars = row.to_dict()
             year = int(taxsim_vars.get("year", 2021))
             taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
@@ -510,7 +512,8 @@ class TaxsimMicrosimDataset(Dataset):
         data = self._initialize_dataset_structure()
 
         # Process each year separately
-        for year in unique_years:
+        print("Processing years for dataset generation...")
+        for year in tqdm(unique_years, desc="Dataset generation by year"):
             year_mask = self.input_df["year"] == year
             year_data = self.input_df[year_mask].copy()
             n_year_records = len(year_data)
@@ -676,9 +679,13 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         try:
             # Generate the dataset
+            if show_progress:
+                print("Generating PolicyEngine dataset...")
             dataset.generate()
 
             # Create Microsimulation
+            if show_progress:
+                print("Creating PolicyEngine microsimulation...")
             sim = Microsimulation(dataset=dataset)
 
             # Apply SALT override if needed
@@ -698,6 +705,8 @@ class PolicyEngineRunner(BaseTaxRunner):
 
 
             # Extract results
+            if show_progress:
+                print("Extracting results from PolicyEngine...")
             results_df = self._extract_vectorized_results(sim, self.input_df)
 
         finally:
@@ -720,7 +729,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Process each unique year
         years = sorted(set(input_df["year"].unique()))
 
-        for year in years:
+        for year in tqdm(years, desc="Processing years"):
             year_str = str(year)
             year_mask = input_df["year"] == year
             year_data = input_df[year_mask]
@@ -736,7 +745,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                 federal_taxes = federal_taxes_main + medicare
 
                 # Create results for this year
-                for idx, (_, row) in enumerate(year_data.iterrows()):
+                for idx, (_, row) in enumerate(tqdm(year_data.iterrows(), total=len(year_data), desc=f"Extracting results ({year})", leave=False)):
                     result = {
                         "taxsimid": row["taxsimid"],
                         "year": year,

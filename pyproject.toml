@@ -29,6 +29,7 @@ dependencies = [
     "matplotlib",
     "numpy",
     "taxcalc",
+    "tqdm",
 ]
 
 [tool.hatch.metadata]
