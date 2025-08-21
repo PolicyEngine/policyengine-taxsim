@@ -120,6 +120,8 @@ class TaxsimMicrosimDataset(Dataset):
             "nc_use_tax",
             "ok_use_tax",
             "id_grocery_credit_qualified_months",
+            "ak_energy_relief",
+            "ak_permanent_fund_dividend",
         }
         
         # Combine all variables
@@ -568,10 +570,15 @@ class TaxsimMicrosimDataset(Dataset):
                 n_year_records
             )  # Prevent Oklahoma use tax calculations
             
-            # Set Idaho grocery credit qualified months to 12 for full year
-            # This needs to be set per person, not per tax unit
+            # Set person-level variables that need to be set per person, not per tax unit
             total_people_for_year = len(person_data.get("person_id", []))
             if total_people_for_year > 0:
+                data["ak_energy_relief"][year] = np.zeros(
+                    total_people_for_year
+                )  # Prevent Alaska energy relief calculations
+                data["ak_permanent_fund_dividend"][year] = np.zeros(
+                    total_people_for_year
+                )  # Prevent Alaska permanent fund dividend calculations
                 data["id_grocery_credit_qualified_months"][year] = np.full(
                     total_people_for_year, 12
                 )  # Set qualified months to 12 for full year eligibility

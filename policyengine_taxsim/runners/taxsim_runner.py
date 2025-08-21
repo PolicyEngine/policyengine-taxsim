@@ -118,7 +118,13 @@ class TaxsimRunner(BaseTaxRunner):
             # Create row data with only needed columns
             row_data = {}
             for col in dynamic_columns:
-                row_data[col] = row.get(col, 0)
+                value = row.get(col, 0)
+                
+                # Convert dependent ages of 0 to 10 for TAXSIM compatibility
+                if col.startswith('age') and col[3:].isdigit() and value <= 0:
+                    value = 10
+                
+                row_data[col] = value
             
             result_rows.append(row_data)
         
