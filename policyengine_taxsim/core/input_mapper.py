@@ -17,20 +17,20 @@ def add_additional_units(state, year, situation, taxsim_vars):
 
     tax_unit = situation["tax_units"]["your tax unit"]
     people_unit = situation["people"]
-    
+
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
     is_married_filing_jointly = mstat == 2
-    
+
     # Income types that should be split evenly between spouses when married filing jointly
     income_types_to_split = {
         "taxable_interest_income",
-        "qualified_dividend_income", 
+        "qualified_dividend_income",
         "long_term_capital_gains",
         "partnership_s_corp_income",
         "taxable_private_pension_income",
         "short_term_capital_gains",
-        "social_security_retirement"
+        "social_security_retirement",
     }
 
     for item in additional_tax_units_config:
@@ -84,9 +84,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
                 ]
                 if matching_values:
                     total_value = sum(matching_values)
-                    
+
                     # Split evenly between spouses if married filing jointly and this income type should be split
-                    if is_married_filing_jointly and "your partner" in people_unit and field in income_types_to_split:
+                    if (
+                        is_married_filing_jointly
+                        and "your partner" in people_unit
+                        and field in income_types_to_split
+                    ):
                         split_value = total_value / 2
                         people_unit["you"][field] = {str(year): split_value}
                         people_unit["your partner"][field] = {str(year): split_value}
@@ -95,9 +99,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
 
             elif len(values) == 1 and values[0] in taxsim_vars:
                 total_value = taxsim_vars[values[0]]
-                
+
                 # Split evenly between spouses if married filing jointly and this income type should be split
-                if is_married_filing_jointly and "your partner" in people_unit and field in income_types_to_split:
+                if (
+                    is_married_filing_jointly
+                    and "your partner" in people_unit
+                    and field in income_types_to_split
+                ):
                     split_value = total_value / 2
                     people_unit["you"][field] = {str(year): split_value}
                     people_unit["your partner"][field] = {str(year): split_value}
@@ -184,12 +192,13 @@ def form_household_situation(year, state, taxsim_vars):
     return household_situation
 
 
-def set_taxsim_defaults(taxsim_vars: dict) -> dict:
+def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
     """
     Set default values for TAXSIM variables if they don't exist or are falsy.
 
     Args:
         taxsim_vars (dict): Dictionary containing TAXSIM input variables
+        year (int): Default year to use if not specified in taxsim_vars
 
     Returns:
         dict: Updated dictionary with default values set where needed
@@ -200,6 +209,9 @@ def set_taxsim_defaults(taxsim_vars: dict) -> dict:
         - mstat: 1 (Marital status)
         - taxsimid: 0 (TAXSIM ID)
         - idtl: 0 (output flag)
+        - year: 2021 (Tax year, can be overridden)
+        - page: 40 (Primary taxpayer age)
+        - sage: 40 (Spouse age)
     """
     DEFAULTS = {
         "state": 44,  # Texas
@@ -207,12 +219,37 @@ def set_taxsim_defaults(taxsim_vars: dict) -> dict:
         "mstat": 1,  # Marital status
         "taxsimid": 0,  # TAXSIM ID
         "idtl": 0,  # output flag
+        "year": year,  # Tax year
+        "page": 40,  # Primary taxpayer age
+        "sage": 40,  # Spouse age
     }
 
     for key, default_value in DEFAULTS.items():
         taxsim_vars[key] = int(taxsim_vars.get(key, default_value) or default_value)
 
     return taxsim_vars
+
+
+def get_taxsim_defaults(year: int = 2021) -> dict:
+    """
+    Get a dictionary of all TAXSIM default values.
+    
+    Args:
+        year (int): Tax year for defaults
+        
+    Returns:
+        dict: Dictionary containing all default TAXSIM values
+    """
+    return {
+        "taxsimid": 0,
+        "year": year,
+        "state": 44,  # Texas
+        "mstat": 1,  # Single
+        "depx": 0,  # Number of dependents
+        "idtl": 0,  # Output flag
+        "page": 40,  # Primary age
+        "sage": 40,  # Spouse age
+    }
 
 
 def generate_household(taxsim_vars):
@@ -226,9 +263,9 @@ def generate_household(taxsim_vars):
         dict: PolicyEngine situation dictionary
     """
 
-    year = str(int(taxsim_vars["year"]))  # Ensure year is an integer string
+    year = str(int(taxsim_vars.get("year", 2021)))  # Ensure year is an integer string
 
-    taxsim_vars = set_taxsim_defaults(taxsim_vars)
+    taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
 
     state = get_state_code(taxsim_vars["state"])
 
