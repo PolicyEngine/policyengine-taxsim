@@ -1,12 +1,7 @@
 import React from 'react';
+import { getPercentageClass } from '../utils/formatters';
 
 const MetricCard = ({ title, value, type, description }) => {
-  const getPercentageClass = (percentage) => {
-    if (percentage >= 80) return 'percentage-good';
-    if (percentage >= 60) return 'percentage-warning';
-    return 'percentage-poor';
-  };
-
   return (
     <div className={`metric-card ${type}`}>
       <div className="flex items-center justify-between">

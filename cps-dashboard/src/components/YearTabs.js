@@ -1,7 +1,8 @@
 import React from 'react';
+import { AVAILABLE_YEARS } from '../constants';
 
 const YearTabs = ({ selectedYear, onYearChange, availableYears = [] }) => {
-  const years = [2021, 2022, 2023, 2024];
+  const years = AVAILABLE_YEARS;
 
   return (
     <div className="flex space-x-1">

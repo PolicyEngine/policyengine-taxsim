@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiExternalLink, FiClock, FiUser, FiTag, FiGithub } from 'react-icons/fi';
 import { fetchGitHubIssues, getIssuesForState, formatIssue } from '../utils/githubApi';
+import { formatDate } from '../utils/formatters';
+import { LABEL_COLORS } from '../constants';
 
 const GitHubIssues = ({ selectedState }) => {
   const [issues, setIssues] = useState([]);
@@ -33,29 +35,9 @@ const GitHubIssues = ({ selectedState }) => {
     loadIssues();
   }, [selectedState]);
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   const getLabelColor = (label) => {
-    // Define colors for common label types
-    const labelColors = {
-      'bug': '#d73a4a',
-      'enhancement': '#0075ca',
-      'documentation': '#0075ca',
-      'good first issue': '#7057ff',
-      'help wanted': '#008672',
-      'question': '#d876e3',
-      'wontfix': '#ffffff',
-      'duplicate': '#cfd3d7',
-      'invalid': '#e4e669'
-    };
-
-    return labelColors[label.toLowerCase()] || '#0366d6';
+    return LABEL_COLORS[label.toLowerCase()] || '#0366d6';
   };
 
   if (!selectedState) {

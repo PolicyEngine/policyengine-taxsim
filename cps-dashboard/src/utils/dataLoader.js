@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { FIPS_TO_STATE } from '../constants';
 
 // Parse the comparison report text file
 const parseComparisonReport = (text) => {
@@ -233,21 +234,11 @@ export const loadYearData = async (year) => {
   }
 };
 
-// State code to name mapping
-export const STATE_MAPPING = {
-  1: 'AL', 2: 'AK', 3: 'AZ', 4: 'AR', 5: 'CA', 6: 'CA', 7: 'CO', 8: 'CT', 9: 'DE', 10: 'DC',
-  11: 'FL', 12: 'FL', 13: 'GA', 14: 'HI', 15: 'ID', 16: 'IL', 17: 'IN', 18: 'IA', 19: 'KS', 20: 'KY',
-  21: 'LA', 22: 'ME', 23: 'MD', 24: 'MA', 25: 'MI', 26: 'MN', 27: 'MS', 28: 'MO', 29: 'MT', 30: 'NE',
-  31: 'NV', 32: 'NH', 33: 'NJ', 34: 'NM', 35: 'NY', 36: 'NY', 37: 'NC', 38: 'ND', 39: 'OH', 40: 'OK',
-  41: 'OR', 42: 'PA', 43: 'RI', 44: 'SC', 45: 'SD', 46: 'TN', 47: 'TX', 48: 'TX', 49: 'UT', 50: 'VT',
-  51: 'VA', 52: 'WA', 53: 'WV', 54: 'WI', 55: 'WY'
-};
-
 export const getStateName = (stateCode) => {
   if (typeof stateCode === 'string' && stateCode.length === 2) {
     return stateCode;
   }
-  return STATE_MAPPING[stateCode] || stateCode;
+  return FIPS_TO_STATE[stateCode] || stateCode;
 };
 
 // Utility function to clear cache if needed

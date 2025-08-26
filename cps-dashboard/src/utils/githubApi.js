@@ -1,22 +1,18 @@
 // GitHub API utility for fetching issues from PolicyEngine/policyengine-taxsim repository
-
-const GITHUB_API_BASE = 'https://api.github.com';
-const REPO_OWNER = 'PolicyEngine';
-const REPO_NAME = 'policyengine-taxsim';
+import { GITHUB_CONFIG } from '../constants';
 
 // Cache for GitHub issues to avoid repeated API calls
 let issuesCache = null;
 let cacheTimestamp = null;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const fetchGitHubIssues = async () => {
   // Check cache first
-  if (issuesCache && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
+  if (issuesCache && cacheTimestamp && (Date.now() - cacheTimestamp) < GITHUB_CONFIG.CACHE_DURATION) {
     return issuesCache;
   }
 
   try {
-    const response = await fetch(`${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/issues?state=open&per_page=100`);
+    const response = await fetch(`${GITHUB_CONFIG.API_BASE}/repos/${GITHUB_CONFIG.REPO_OWNER}/${GITHUB_CONFIG.REPO_NAME}/issues?state=open&per_page=100`);
     
     if (!response.ok) {
       throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);

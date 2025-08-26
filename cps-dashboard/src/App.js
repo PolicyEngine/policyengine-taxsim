@@ -4,8 +4,8 @@ import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
 import StateTable from './components/StateTable';
-
 import { loadYearData } from './utils/dataLoader';
+import { AVAILABLE_YEARS } from './constants';
 import './App.css';
 
 function App() {
@@ -14,8 +14,6 @@ function App() {
   const [allYearData, setAllYearData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  const availableYears = [2021, 2022, 2023, 2024];
   
   // Get current year data from cached data
   const data = allYearData[selectedYear] || null;
@@ -30,7 +28,7 @@ function App() {
         console.log('Loading data for all years...');
         
         // Load all years in parallel
-        const loadPromises = availableYears.map(async (year) => {
+        const loadPromises = AVAILABLE_YEARS.map(async (year) => {
           try {
             const yearData = await loadYearData(year);
             return { year, data: yearData };
