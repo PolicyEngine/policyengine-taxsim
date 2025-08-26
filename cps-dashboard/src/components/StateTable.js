@@ -232,9 +232,35 @@ const StateTable = ({ data, selectedState, selectedYear, onStateSelect }) => {
         const hasMismatches = hasFederalMismatch || hasStateMismatch;
         const totalMismatchAmount = federalMismatchAmount + stateMismatchAmount;
 
-        // Get input data from mismatch files if available
+        // Get input data from consolidated results or fallback to mismatch files
         const householdId = String(taxsimRecord.taxsimid).replace('.0', '');
-        const inputData = mismatchInputData.get(householdId) || {};
+        
+        // Use consolidated data first (has input data for all households)
+        let inputData = {};
+        
+        // Extract input data from taxsim record - these are the original TAXSIM input fields
+        const inputFields = [
+          'taxsimid', 'state', 'mstat', 'page', 'sage', 'depx', 'pwages', 'swages', 
+          'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'otherprop', 'nonprop',
+          'pensions', 'gssi', 'pui', 'sui', 'transfers', 'rentpaid', 'proptax', 'otheritem',
+          'childcare', 'mortgage', 'scorp', 'age1', 'age2', 'age3', 'age4', 'age5', 'age6',
+          'age7', 'age8', 'age9', 'age10', 'age11', 'year'
+        ];
+        
+        // Copy input fields from the taxsim record
+        inputFields.forEach(field => {
+          if (taxsimRecord[field] !== undefined) {
+            inputData[field] = taxsimRecord[field];
+          }
+        });
+        
+        // Fallback to mismatch data if consolidated data is not available or incomplete
+        const legacyInputData = mismatchInputData.get(householdId) || {};
+        Object.keys(legacyInputData).forEach(key => {
+          if (inputData[key] === undefined || inputData[key] === null) {
+            inputData[key] = legacyInputData[key];
+          }
+        });
 
         households.push({
           taxsimid: taxsimRecord.taxsimid,
@@ -894,7 +920,7 @@ const HouseholdCard = ({ household, formatCurrency, formatDifference, inputVaria
                     <div className="input-no-data">
                       <p>Input data not available for this household.</p>
                       <p className="text-sm">
-                        (Input data is only available for households that appear in mismatch files)
+                        (This may indicate an issue with the data source)
                       </p>
                     </div>
                   )}
