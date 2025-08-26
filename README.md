@@ -1,9 +1,10 @@
 # PolicyEngine-TAXSIM
 
-A TAXSIM emulator using the PolicyEngine US federal and state tax calculator, with comparison tools and an interactive dashboard for analyzing results.
+A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax calculator, with advanced comparison tools and an interactive dashboard for analyzing tax calculation accuracy across different scenarios.
 
 ## Table of Contents
 - [Overview](#overview)
+- [Quick Start](#quick-start)
 - [Installation](#installation)
   - [From Source](#from-source)
   - [From PyPI](#from-pypi)
@@ -20,22 +21,38 @@ A TAXSIM emulator using the PolicyEngine US federal and state tax calculator, wi
   - [Income](#income)
   - [Expenses](#expenses)
   - [Output Types](#output-types)
-- [Contributing](#contributing)
-- [License](#license)
-- [Support](#support)
+- [State-Specific Features](#state-specific-features)
+- [Output Variables](#output-variables)
+
 
 ## Overview
 
-This project provides an emulator for TAXSIM-35, utilizing PolicyEngine's US federal and state tax calculator. It processes tax calculations through a CSV input format compatible with TAXSIM-35 specifications.
+This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyEngine's comprehensive US federal and state tax calculator. It enables researchers, analysts, and policymakers to run large-scale tax microsimulations with full compatibility to TAXSIM-35 input/output formats.
 
 ### Key Features
 
-- **PolicyEngine Integration**: Calculate taxes using PolicyEngine's comprehensive US tax system
-- **TAXSIM Compatibility**: Run native TAXSIM-35 calculations for comparison
-- **Automated Comparison**: Compare results between PolicyEngine and TAXSIM with configurable tolerances
-- **Interactive Dashboard**: Visualize and explore tax calculation comparisons across years and states
-- **Data Analysis**: Generate detailed statistics and mismatch reports
-- **Flexible CLI**: Multiple commands for different use cases
+- **High-Performance Microsimulation**: Process thousands of households simultaneously using PolicyEngine's vectorized calculations
+- **TAXSIM-35 Compatibility**: Full compatibility with TAXSIM input CSV format and output variables
+- **Advanced State Handling**: Correctly handles state-specific tax conformity rules (e.g., states that adopt federal AGI vs federal taxable income)
+- **Comprehensive Comparison Tools**: Side-by-side comparison of PolicyEngine vs TAXSIM results with detailed mismatch analysis
+- **Interactive Dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
+- **Flexible Output Options**: Standard, full, and text description output formats matching TAXSIM specifications
+- **YAML Test Generation**: Generate PolicyEngine test cases for reproducibility and validation
+
+## Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/PolicyEngine/policyengine-taxsim.git
+cd policyengine-taxsim
+pip install -e .
+
+# Run a comparison analysis on sample data
+python policyengine_taxsim/cli.py compare your_data.csv --sample 1000 --year 2021
+
+# Start the interactive dashboard
+cd cps-dashboard && npm install && npm start
+```
 
 ## Installation
 
@@ -71,7 +88,7 @@ This project provides an emulator for TAXSIM-35, utilizing PolicyEngine's US fed
    pip install -e . --upgrade
    ```
 
-### From PyPI
+### From GitHub
 
 ```bash
 pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
@@ -128,7 +145,7 @@ python policyengine_taxsim/cli.py taxsim input.csv --output taxsim_results.csv
 
 ### Comparison Analysis
 
-Compare PolicyEngine and TAXSIM results side-by-side:
+Run comprehensive side-by-side comparisons between PolicyEngine and TAXSIM:
 
 ```bash
 python policyengine_taxsim/cli.py compare your_input_file.csv
@@ -138,25 +155,36 @@ python policyengine_taxsim/cli.py compare your_input_file.csv
 | Option | Description |
 |--------|-------------|
 | `--output-dir` | Directory for comparison results (default: comparison_output) |
-| `--save-mismatches` | Save detailed mismatch files |
 | `--year` | Override tax year for calculations |
 | `--sample N` | Sample N records for comparison |
 | `--disable-salt` | Disable SALT deduction in PolicyEngine |
-| `--logs` | Generate PolicyEngine YAML logs |
+| `--logs` | Generate PolicyEngine YAML test logs |
 
-The comparison uses a fixed $15 tolerance for both federal and state tax comparisons.
+The comparison uses a $15 tolerance for both federal and state tax comparisons, which accounts for reasonable rounding differences.
 
-**Example:**
+**Examples:**
+
+Basic comparison:
 ```bash
-python policyengine_taxsim/cli.py compare input.csv --save-mismatches --sample 5000 --year 2023
+python policyengine_taxsim/cli.py compare cps_households.csv --sample 1000
 ```
 
-This generates:
-- `policyengine_results_2023.csv` - PolicyEngine output
-- `taxsim_results_2023.csv` - TAXSIM output  
-- `comparison_report_2023.txt` - Summary statistics
-- `federal_mismatches_2023.csv` - Federal tax mismatches (if `--save-mismatches`)
-- `state_mismatches_2023.csv` - State tax mismatches (if `--save-mismatches`)
+Year-specific analysis with detailed logging:
+```bash
+python policyengine_taxsim/cli.py compare input.csv --year 2023 --logs --sample 5000
+```
+
+**Output Files:**
+- `comparison_results_YYYY.csv` - Consolidated results with both PolicyEngine and TAXSIM outputs for each household
+- Console output with match statistics and summary
+
+The consolidated output includes (by default):
+- All input variables for each household
+- Complete TAXSIM output variables
+- Complete PolicyEngine output variables  
+- Match/mismatch indicators for federal and state taxes
+- State codes for easy filtering
+- **All mismatches are automatically included** - no separate mismatch files needed
 
 ### Data Sampling
 
@@ -174,7 +202,7 @@ python policyengine_taxsim/cli.py sample-data input.csv --sample 1000
 
 ## Dashboard
 
-The project includes an interactive React dashboard for visualizing and exploring tax calculation comparisons across multiple years and states.
+The project includes a comprehensive React-based interactive dashboard for visualizing and exploring tax calculation comparisons across multiple years and states.
 
 ### Dashboard Setup
 
@@ -197,21 +225,40 @@ The project includes an interactive React dashboard for visualizing and explorin
 
 ### Dashboard Features
 
-- **Multi-Year Analysis**: Compare results across tax years 2021-2024
-- **State-by-State Breakdown**: Detailed analysis by US state
-- **Interactive Filtering**: Filter by state and view specific mismatches
-- **Match/Mismatch Visualization**: Visual indicators for calculation accuracy
-- **Household-Level Detail**: Expand individual households to see variable-by-variable comparisons
-- **Export Functionality**: Download comparison data for further analysis
-- **Fixed Tolerance**: Uses $15 tolerance for realistic tax calculation comparisons
-- **GitHub Integration**: View related issues and discussions
+- **Multi-Year Analysis**: Compare results across tax years 2021-2024 with year-over-year trends
+- **State-by-State Breakdown**: Detailed analysis by all 50 US states plus DC
+- **Interactive Filtering**: Advanced filtering by state, match status, and household characteristics
+- **Variable-Level Comparisons**: Drill down to see differences in specific tax variables (v10, v32, etc.)
+- **Match Rate Analytics**: Visualize federal vs state tax calculation accuracy rates
+- **Household Explorer**: Expand individual households to examine all input and output variables
+- **Mismatch Analysis**: Identify patterns in calculation differences
+- **Export Capabilities**: Download filtered comparison data in CSV format
+- **Smart Tolerance**: Uses $15 tolerance accounting for reasonable calculation differences
+- **Real-Time Statistics**: Dynamic summary statistics that update with filtering
+- **GitHub Integration**: Direct links to relevant issues and documentation
 
-The dashboard automatically loads pre-generated comparison data from the `public/data/` directory. To update this data, run comparison analyses using the CLI and copy results to the appropriate year folders.
+### Data Management
+
+The dashboard loads comparison data from `public/data/YYYY/comparison_results_YYYY.csv` files. To update:
+
+1. **Generate new comparison data:**
+   ```bash
+   python policyengine_taxsim/cli.py compare your_data.csv --year 2024
+   ```
+
+2. **Copy results to dashboard:**
+   ```bash
+   cp comparison_output/comparison_results_2024.csv cps-dashboard/public/data/2024/
+   ```
+
+3. **Restart dashboard** to load new data
 
 **Production Build:**
 ```bash
 npm run build
 ```
+
+The dashboard provides an intuitive interface for researchers and analysts to explore large-scale tax calculation comparisons without requiring technical expertise.
 
 ## Input Variables
 
@@ -267,15 +314,49 @@ Depending on the idtl input value it can generate output types as following:
 |------|-----------------|
 | 0    | Standard output |
 | 2    | Full output     |
+| 5    | Full text description output |
 
+## Output Variables
 
-## Contributing
+The emulator produces all standard TAXSIM output variables:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Basic Output (idtl = 0, 2, 5)
+| Variable | Description |
+|----------|-------------|
+| taxsimid | Record identifier |
+| year | Tax year |
+| state | State code |
+| fiitax | Federal income tax liability |
+| siitax | State income tax liability |
+| fica | FICA taxes |
 
-## License 
-[MIT License](https://github.com/PolicyEngine/policyengine-taxsim?tab=License-1-ov-file#)
-
-## Support
-
-For issues and feature requests, please [open an issue](https://github.com/PolicyEngine/policyengine-taxsim/issues).
+### Extended Output (idtl = 2, 5)
+| Variable | Description |
+|----------|-------------|
+| v10 | Federal adjusted gross income |
+| v11 | Unemployment compensation in AGI |
+| v12 | Social Security benefits in AGI |
+| v13 | Zero bracket amount/standard deduction |
+| v14 | Personal exemptions |
+| v17 | Itemized deductions |
+| v18 | Federal taxable income |
+| v19 | Federal income tax before credits |
+| v22 | Child tax credit |
+| v23 | Additional child tax credit (refundable portion) |
+| v24 | Child and dependent care credit |
+| v25 | Earned income tax credit |
+| v26 | Alternative minimum tax income |
+| v27 | Alternative minimum tax |
+| v28 | Income tax before credits |
+| v29 | FICA taxes |
+| v32 | **State AGI** (or federal AGI/taxable income for conformity states) |
+| v34 | State standard deduction |
+| v35 | State itemized deductions |
+| v36 | State taxable income |
+| v37 | Property tax credit |
+| v38 | State child care credit |
+| v39 | State earned income credit |
+| v40 | Total state credits |
+| qbid | Qualified business income deduction |
+| niit | Net investment income tax |
+| cares | COVID-related recovery rebate credit |

@@ -155,7 +155,6 @@ def taxsim(input_file, output, sample, taxsim_path):
     default="comparison_output",
     help="Directory to save comparison results",
 )
-@click.option("--save-mismatches", is_flag=True, help="Save detailed mismatch files")
 @click.option("--year", type=int, help="Tax year for output file naming")
 @click.option(
     "--disable-salt",
@@ -164,7 +163,7 @@ def taxsim(input_file, output, sample, taxsim_path):
     help="Disable SALT deduction in PolicyEngine",
 )
 @click.option("--logs", is_flag=True, help="Generate PolicyEngine YAML logs")
-def compare(input_file, sample, output_dir, save_mismatches, year, disable_salt, logs):
+def compare(input_file, sample, output_dir, year, disable_salt, logs):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
@@ -224,13 +223,8 @@ def compare(input_file, sample, output_dir, save_mismatches, year, disable_salt,
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
 
-        # Save consolidated results (replaces all separate files)
+        # Save consolidated results (includes all matches and mismatches)
         comparison_results.save_consolidated_results(output_path, df, year)
-        
-        # Keep old save_mismatches for backward compatibility if explicitly requested
-        if save_mismatches:
-            click.echo("Note: --save-mismatches now generates consolidated output by default.")
-            click.echo("Old separate mismatch files are no longer created.")
 
         click.echo(f"\nComparison results saved to: {output_path}")
 
