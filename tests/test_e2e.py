@@ -177,6 +177,7 @@ class E2ETest(unittest.TestCase):
         cmd = [
             sys.executable,
             str(self.cli_path.absolute()),
+            "policyengine",
             str(self.input_file_single_household.absolute()),
             "-o",
             str(output_file.absolute()),
@@ -281,6 +282,7 @@ class E2ETest(unittest.TestCase):
         cmd = [
             sys.executable,
             str(self.cli_path.absolute()),
+            "policyengine",
             str(self.input_file_joint_household.absolute()),
             "-o",
             str(output_file.absolute()),
@@ -390,6 +392,7 @@ class E2ETest(unittest.TestCase):
         cmd = [
             sys.executable,
             str(self.cli_path.absolute()),
+            "policyengine",
             str(self.input_file_household_with_dependent.absolute()),
             "-o",
             str(output_file.absolute()),
@@ -505,6 +508,7 @@ class E2ETest(unittest.TestCase):
         cmd = [
             sys.executable,
             str(self.cli_path.absolute()),
+            "policyengine",
             str(self.input_file_household_with_dependent_single_parent.absolute()),
             "-o",
             str(output_file.absolute()),

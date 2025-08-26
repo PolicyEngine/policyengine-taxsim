@@ -29,6 +29,7 @@ dependencies = [
     "matplotlib",
     "numpy",
     "taxcalc",
+    "tqdm",
 ]
 
 [tool.hatch.metadata]
@@ -51,6 +52,8 @@ include = [
 
 [tool.hatch.build.targets.wheel.shared-data]
 "resources/taxsim35" = "share/policyengine_taxsim/taxsim35"
+"resources/taxsimtest" = "share/policyengine_taxsim/taxsimtest"
+
 "policyengine_taxsim/config" = "policyengine_taxsim/config"
 
 
