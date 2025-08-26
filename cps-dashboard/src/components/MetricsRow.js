@@ -1,7 +1,7 @@
 import React from 'react';
 import { getPercentageClass } from '../utils/formatters';
 
-const MetricCard = ({ title, value, type, description }) => {
+const MetricCard = React.memo(({ title, value, type, description }) => {
   return (
     <div className={`metric-card ${type}`}>
       <div className="flex items-center justify-between">
@@ -19,9 +19,11 @@ const MetricCard = ({ title, value, type, description }) => {
       </div>
     </div>
   );
-};
+});
 
-const MetricsRow = ({ data, selectedState }) => {
+MetricCard.displayName = 'MetricCard';
+
+const MetricsRow = React.memo(({ data, selectedState }) => {
   if (!data || !data.summary) {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -75,6 +77,8 @@ const MetricsRow = ({ data, selectedState }) => {
       />
     </div>
   );
-};
+});
+
+MetricsRow.displayName = 'MetricsRow';
 
 export default MetricsRow;

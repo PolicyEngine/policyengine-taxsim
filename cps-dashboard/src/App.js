@@ -1,117 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { FiDownload } from 'react-icons/fi';
 import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
 import StateTable from './components/StateTable';
-import { loadYearData } from './utils/dataLoader';
-import { AVAILABLE_YEARS } from './constants';
+import LoadingSpinner from './components/common/LoadingSpinner';
+import ErrorMessage from './components/common/ErrorMessage';
+import Button from './components/common/Button';
+import { useYearData } from './hooks/useYearData';
 import './App.css';
 
 function App() {
-  const [selectedYear, setSelectedYear] = useState(2023);
   const [selectedState, setSelectedState] = useState(null);
-  const [allYearData, setAllYearData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // Get current year data from cached data
-  const data = allYearData[selectedYear] || null;
+  const {
+    selectedYear,
+    setSelectedYear,
+    currentYearData,
+    allYearData,
+    availableYears,
+    loading,
+    error
+  } = useYearData(2023);
 
-  // Load all year data on component mount
-  useEffect(() => {
-    const fetchAllData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        console.log('Loading data for all years...');
-        
-        // Load all years in parallel
-        const loadPromises = AVAILABLE_YEARS.map(async (year) => {
-          try {
-            const yearData = await loadYearData(year);
-            return { year, data: yearData };
-          } catch (err) {
-            console.warn(`Failed to load data for year ${year}:`, err);
-            return { year, data: null, error: err.message };
-          }
-        });
-        
-        const results = await Promise.all(loadPromises);
-        
-        // Build the data object
-        const dataByYear = {};
-        let hasAnyData = false;
-        
-        results.forEach(({ year, data, error }) => {
-          if (data) {
-            dataByYear[year] = data;
-            hasAnyData = true;
-          } else if (error) {
-            console.error(`Year ${year} failed to load:`, error);
-          }
-        });
-        
-        if (!hasAnyData) {
-          throw new Error('Failed to load data for any year');
-        }
-        
-        setAllYearData(dataByYear);
-        console.log('All year data loaded successfully');
-        
-      } catch (err) {
-        console.error('Error loading data:', err);
-        setError('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllData();
-  }, []); // Only run once on mount
-
-  const handleYearChange = (year) => {
+  const handleYearChange = useCallback((year) => {
     setSelectedYear(year);
     setSelectedState(null); // Reset state filter when year changes
-  };
+  }, [setSelectedYear]);
 
-  const handleStateChange = (state) => {
+  const handleStateChange = useCallback((state) => {
     setSelectedState(state);
-  };
+  }, []);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     // TODO: Implement export functionality
     console.log('Export data for year:', selectedYear, 'state:', selectedState);
-  };
+  }, [selectedYear, selectedState]);
 
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl text-gray-600 mb-2">Loading data for all years...</div>
-          <div className="text-sm text-gray-500">This may take a moment on first load</div>
-        </div>
-      </div>
+      <LoadingSpinner 
+        message="Loading data for all years..." 
+        subMessage="This may take a moment on first load"
+      />
     );
   }
 
+  // Error state with no data
   if (error && Object.keys(allYearData).length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl text-red-600">{error}</div>
-      </div>
-    );
+    return <ErrorMessage error={error} />;
   }
 
-  // Show a message if current year data is not available
-  if (!data && !loading) {
+  // No data for selected year
+  if (!currentYearData && !loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 flex-center">
         <div className="text-center">
-          <div className="text-xl text-red-600 mb-2">Data for {selectedYear} is not available</div>
+          <div className="text-xl text-red-600 mb-2">
+            Data for {selectedYear} is not available
+          </div>
           <div className="text-sm text-gray-500">
-            Available years: {Object.keys(allYearData).join(', ')}
+            Available years: {availableYears.join(', ')}
           </div>
         </div>
       </div>
@@ -121,30 +70,30 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="main-header shadow-sm">
+      <header className="main-header shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex-between py-6">
             <h1 className="text-3xl main-title">
               PolicyEngine-Taxsim Emulator
             </h1>
-            <button
+            <Button
               onClick={handleExport}
-              className="btn"
+              icon={<FiDownload />}
             >
-              <FiDownload className="mr-2" />
               Export Data
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Controls */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col gap-4 mb-6" style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Controls */}
+        <div className="flex-between mb-6">
           <YearTabs 
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
-            availableYears={Object.keys(allYearData).map(Number)}
+            availableYears={availableYears}
           />
           <StateFilter
             selectedState={selectedState}
@@ -152,33 +101,29 @@ function App() {
           />
         </div>
 
-        {/* Main Content */}
+        {/* Dashboard Sections */}
         <div className="space-y-8">
-          {/* Performance Overview Section */}
+          {/* Performance Overview */}
           <section>
             <h2 className="section-title">Performance Overview</h2>
             <MetricsRow 
-              data={data}
+              data={currentYearData}
               selectedState={selectedState}
             />
           </section>
 
-          {/* State Analysis Section */}
+          {/* State Analysis */}
           <section>
             <h2 className="section-title">State-by-State Analysis</h2>
             <StateTable
-              data={data}
+              data={currentYearData}
               selectedState={selectedState}
               selectedYear={selectedYear}
               onStateSelect={handleStateChange}
             />
           </section>
-
-
-
-
         </div>
-      </div>
+      </main>
     </div>
   );
 }
