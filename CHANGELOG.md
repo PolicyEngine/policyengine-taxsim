@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [1.1.0] - 2025-08-26 22:12:03
+
+### Added
+
+- Remove Colorado Note from the dashboard.
+
 ## [1.0.0] - 2025-08-26 21:56:12
 
 ### Added
@@ -34,6 +40,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[1.1.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.2.0...1.0.0
 [0.2.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.1.0...0.1.1

@@ -21,3 +21,8 @@
     - Frontend Dashboard for comparing PolicyEngine and TAXSIM results.
     - CLI for comparing PolicyEngine and TAXSIM results.
   date: 2025-08-26 21:56:12
+- bump: minor
+  changes:
+    added:
+    - Remove Colorado Note from the dashboard.
+  date: 2025-08-26 22:12:03
