@@ -403,6 +403,9 @@ policyengine_to_taxsim:
       - nd:
           implemented: true
           variable: taxable_income
+      - ut:
+          implemented: true
+          variable: ut_total_income
       - sc:
           implemented: true
           variable: taxable_income

@@ -56,12 +56,12 @@ const dataCache = new Map();
 const loadCSVData = async (url) => {
   // Check cache first
   if (dataCache.has(url)) {
-    console.log(`Loading ${url} from cache`);
+    // Loading from cache
     return dataCache.get(url);
   }
 
   try {
-    console.log(`Loading ${url} from server`);
+    // Loading from server
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -92,12 +92,12 @@ const loadCSVData = async (url) => {
 const loadTextData = async (url) => {
   // Check cache first
   if (dataCache.has(url)) {
-    console.log(`Loading ${url} from cache`);
+    // Loading from cache
     return dataCache.get(url);
   }
 
   try {
-    console.log(`Loading ${url} from server`);
+    // Loading from server
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -123,7 +123,7 @@ export const loadYearData = async (year) => {
       const reportText = await loadTextData(`${baseUrl}/comparison_report_${year}.txt`);
       summary = parseComparisonReport(reportText);
     } catch (reportError) {
-      console.log('Comparison report not found - will extract summary from consolidated data');
+      // Comparison report not found - will extract summary from consolidated data
       // We can derive basic stats from consolidated data if needed
       summary = {
         totalRecords: 0,
@@ -153,7 +153,7 @@ export const loadYearData = async (year) => {
         federalMismatches = consolidatedResults.filter(row => row.federal_match === 'False' || row.federal_match === false);
         stateMismatches = consolidatedResults.filter(row => row.state_match === 'False' || row.state_match === false);
         
-        console.log(`Loaded consolidated results: ${consolidatedResults.length} rows for ${taxsimResults.length} records`);
+        // Successfully loaded consolidated results
         
         // If we don't have a summary report, extract basic stats from consolidated data
         if (summary.totalRecords === 0 && taxsimResults.length > 0) {
@@ -201,11 +201,11 @@ export const loadYearData = async (year) => {
             stateMatchPct: Math.round((stateMatches / totalRecords) * 100),
             stateBreakdown: stateBreakdown
           };
-          console.log('Generated summary with state breakdown from consolidated data');
+          // Generated summary with state breakdown from consolidated data
         }
       }
     } catch (error) {
-      console.log('Consolidated results not found, trying legacy format...');
+      // Consolidated results not found, trying legacy format
       
       // Fallback to old format for backward compatibility
       try {
@@ -213,9 +213,9 @@ export const loadYearData = async (year) => {
         stateMismatches = await loadCSVData(`${baseUrl}/state_mismatches_${year}.csv`);
         taxsimResults = await loadCSVData(`${baseUrl}/taxsim_results_${year}.csv`);
         policyengineResults = await loadCSVData(`${baseUrl}/policyengine_results_${year}.csv`);
-        console.log('Using legacy format files');
+        // Using legacy format files
       } catch (legacyError) {
-        console.log('Neither consolidated nor legacy files found');
+        // Neither consolidated nor legacy files found
       }
     }
     
@@ -244,7 +244,7 @@ export const getStateName = (stateCode) => {
 // Utility function to clear cache if needed
 export const clearDataCache = () => {
   dataCache.clear();
-  console.log('Data cache cleared');
+  // Data cache cleared
 };
 
 // Utility function to get cache info

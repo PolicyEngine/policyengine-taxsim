@@ -70,7 +70,6 @@ const StateFilter = ({ selectedState, onStateChange, availableStates }) => {
         id="state-filter"
         value={selectedState || ''}
         onChange={(e) => {
-          console.log('StateFilter onChange:', e.target.value);
           onStateChange(e.target.value || null);
         }}
         className="select"

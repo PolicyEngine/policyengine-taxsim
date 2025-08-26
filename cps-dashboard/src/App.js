@@ -8,7 +8,6 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorMessage from './components/common/ErrorMessage';
 import Button from './components/common/Button';
 import { useYearData } from './hooks/useYearData';
-import './App.css';
 
 function App() {
   const [selectedState, setSelectedState] = useState(null);
@@ -33,7 +32,7 @@ function App() {
 
   const handleExport = useCallback(() => {
     // TODO: Implement export functionality
-    console.log('Export data for year:', selectedYear, 'state:', selectedState);
+    alert(`Export functionality coming soon!\nYear: ${selectedYear}, State: ${selectedState || 'All'}`);
   }, [selectedYear, selectedState]);
 
   // Loading state

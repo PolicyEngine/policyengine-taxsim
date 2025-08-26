@@ -14,7 +14,7 @@ export const useYearData = (initialYear = 2023) => {
       setError(null);
       
       try {
-        console.log('Loading data for all years...');
+        // Loading data for all years
         
         // Load all years in parallel
         const loadPromises = AVAILABLE_YEARS.map(async (year) => {
@@ -47,7 +47,7 @@ export const useYearData = (initialYear = 2023) => {
         }
         
         setAllYearData(dataByYear);
-        console.log('All year data loaded successfully');
+        // All year data loaded successfully
         
       } catch (err) {
         console.error('Error loading data:', err);
