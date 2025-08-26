@@ -224,22 +224,13 @@ def compare(input_file, sample, output_dir, save_mismatches, year, disable_salt,
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
 
-        # Save raw results
-        year_suffix = f"_{year}" if year else ""
-        pe_results.to_csv(
-            output_path / f"policyengine_results{year_suffix}.csv", index=False
-        )
-        taxsim_results.to_csv(
-            output_path / f"taxsim_results{year_suffix}.csv", index=False
-        )
-
-        # Save detailed report
-        with open(output_path / f"comparison_report{year_suffix}.txt", "w") as f:
-            f.write(stats.detailed_report())
-
-        # Save mismatches if requested
+        # Save consolidated results (replaces all separate files)
+        comparison_results.save_consolidated_results(output_path, df, year)
+        
+        # Keep old save_mismatches for backward compatibility if explicitly requested
         if save_mismatches:
-            comparison_results.save_mismatches(output_path, df, year)
+            click.echo("Note: --save-mismatches now generates consolidated output by default.")
+            click.echo("Old separate mismatch files are no longer created.")
 
         click.echo(f"\nComparison results saved to: {output_path}")
 

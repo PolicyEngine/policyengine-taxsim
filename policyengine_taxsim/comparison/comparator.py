@@ -4,6 +4,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
+try:
+    from ..core.utils import get_state_code
+except ImportError:
+    from policyengine_taxsim.core.utils import get_state_code
+
 
 @dataclass
 class ComparisonConfig:
@@ -169,6 +174,8 @@ class TaxComparator:
             state_matches=state_matches,
             state_mismatches=state_mismatches,
             config=self.config,
+            taxsim_results=self.taxsim_results,
+            policyengine_results=self.policyengine_results,
         )
 
 
@@ -183,6 +190,8 @@ class ComparisonResults:
         state_matches: np.ndarray,
         state_mismatches: List[MismatchRecord],
         config: ComparisonConfig,
+        taxsim_results: pd.DataFrame = None,
+        policyengine_results: pd.DataFrame = None,
     ):
         self.total_records = total_records
         self.federal_matches = federal_matches
@@ -190,6 +199,8 @@ class ComparisonResults:
         self.state_matches = state_matches
         self.state_mismatches = state_mismatches
         self.config = config
+        self.taxsim_results = taxsim_results
+        self.policyengine_results = policyengine_results
 
     @property
     def federal_match_count(self) -> int:
@@ -245,6 +256,104 @@ class ComparisonResults:
             print(
                 f"Saved {len(self.state_mismatches)} state tax mismatches to: {state_path}"
             )
+
+    def save_consolidated_results(
+        self, output_dir: Path, input_data: pd.DataFrame = None, year: int = None
+    ):
+        """Save consolidated comparison results with both matches and mismatches in a single CSV"""
+        output_dir = Path(output_dir)
+        output_dir.mkdir(exist_ok=True)
+
+        year_suffix = f"_{year}" if year else ""
+        
+        if self.taxsim_results is None or self.policyengine_results is None:
+            print("Error: Cannot save consolidated results without original result dataframes")
+            return
+            
+        # Create consolidated dataframe with 2 rows per record
+        consolidated_rows = []
+        
+        # Get all taxsimids that we compared
+        taxsim_ids = set(self.taxsim_results[self.config.id_col])
+        
+        # Create mismatch lookup sets for quick checking
+        federal_mismatch_ids = {m.taxsimid for m in self.federal_mismatches}
+        state_mismatch_ids = {m.taxsimid for m in self.state_mismatches}
+        
+        for taxsim_id in taxsim_ids:
+            # Get the records for this ID
+            taxsim_record = self.taxsim_results[
+                self.taxsim_results[self.config.id_col] == taxsim_id
+            ].iloc[0]
+            pe_record = self.policyengine_results[
+                self.policyengine_results[self.config.id_col] == taxsim_id
+            ].iloc[0]
+            
+            # Get input data for this record if available
+            input_record = None
+            if input_data is not None:
+                input_matches = input_data[input_data[self.config.id_col] == taxsim_id]
+                if len(input_matches) > 0:
+                    input_record = input_matches.iloc[0]
+            
+            # Determine match status
+            federal_match = taxsim_id not in federal_mismatch_ids
+            state_match = taxsim_id not in state_mismatch_ids
+            
+            # Create TAXSIM row
+            taxsim_row = self._create_consolidated_row(
+                taxsim_record, input_record, "taxsim", federal_match, state_match
+            )
+            consolidated_rows.append(taxsim_row)
+            
+            # Create PolicyEngine row  
+            pe_row = self._create_consolidated_row(
+                pe_record, input_record, "policyengine", federal_match, state_match
+            )
+            consolidated_rows.append(pe_row)
+        
+        # Create DataFrame and save
+        consolidated_df = pd.DataFrame(consolidated_rows)
+        consolidated_path = output_dir / f"comparison_results{year_suffix}.csv"
+        consolidated_df.to_csv(consolidated_path, index=False)
+        
+        print(f"Saved consolidated comparison results ({len(consolidated_rows)} rows for {len(taxsim_ids)} records) to: {consolidated_path}")
+
+    def _create_consolidated_row(
+        self, 
+        result_record: pd.Series, 
+        input_record: pd.Series = None, 
+        source: str = "taxsim",
+        federal_match: bool = True,
+        state_match: bool = True
+    ) -> dict:
+        """Create a single row for the consolidated output with shared column names"""
+        row = {}
+        
+        # Add input data columns if available (these should be identical for both rows)
+        if input_record is not None:
+            for col in input_record.index:
+                row[col] = input_record[col]
+        
+        # Add state code column based on numeric state value
+        if "state" in row:
+            row["state_code"] = get_state_code(int(row["state"]) if pd.notna(row["state"]) else 0)
+        elif "state" in result_record.index:
+            row["state_code"] = get_state_code(int(result_record["state"]) if pd.notna(result_record["state"]) else 0)
+        
+        # Add source identifier and match status
+        row["source"] = source
+        row["federal_match"] = federal_match
+        row["state_match"] = state_match
+        row["overall_match"] = federal_match and state_match
+        
+        # Add all result columns from the source (without prefixes)
+        for col in result_record.index:
+            # Only add columns that aren't already in the row (from input data)
+            if col not in row:
+                row[col] = result_record[col]
+        
+        return row
 
     def _create_mismatch_dataframe(
         self, mismatches: List[MismatchRecord], input_data: pd.DataFrame = None

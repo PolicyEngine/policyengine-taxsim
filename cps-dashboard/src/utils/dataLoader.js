@@ -116,30 +116,106 @@ export const loadYearData = async (year) => {
   const baseUrl = `/data/${year}`;
   
   try {
-    // Load comparison report
-    const reportText = await loadTextData(`${baseUrl}/comparison_report_${year}.txt`);
-    const summary = parseComparisonReport(reportText);
-    
-    // Load mismatch data (for backward compatibility)
-    let federalMismatches = [];
-    let stateMismatches = [];
-    
+    // Load comparison report (optional - may not exist in new format)
+    let summary = {};
     try {
-      federalMismatches = await loadCSVData(`${baseUrl}/federal_mismatches_${year}.csv`);
-      stateMismatches = await loadCSVData(`${baseUrl}/state_mismatches_${year}.csv`);
-    } catch (error) {
-      console.log('Mismatch files not found, will use results files for detailed analysis');
+      const reportText = await loadTextData(`${baseUrl}/comparison_report_${year}.txt`);
+      summary = parseComparisonReport(reportText);
+    } catch (reportError) {
+      console.log('Comparison report not found - will extract summary from consolidated data');
+      // We can derive basic stats from consolidated data if needed
+      summary = {
+        totalRecords: 0,
+        federalMatchPct: 0,
+        stateMatchPct: 0,
+        stateBreakdown: []
+      };
     }
     
-    // Load full results for detailed variable analysis
+    // Load consolidated comparison results (new format)
+    let consolidatedResults = [];
+    let federalMismatches = [];
+    let stateMismatches = [];
     let taxsimResults = [];
     let policyengineResults = [];
     
     try {
-      taxsimResults = await loadCSVData(`${baseUrl}/taxsim_results_${year}.csv`);
-      policyengineResults = await loadCSVData(`${baseUrl}/policyengine_results_${year}.csv`);
+      consolidatedResults = await loadCSVData(`${baseUrl}/comparison_results_${year}.csv`);
+      
+      // Extract data from consolidated format for backward compatibility
+      if (consolidatedResults.length > 0) {
+        // Separate TAXSIM and PolicyEngine records
+        taxsimResults = consolidatedResults.filter(row => row.source === 'taxsim');
+        policyengineResults = consolidatedResults.filter(row => row.source === 'policyengine');
+        
+        // Extract mismatches (records where match status is false)
+        federalMismatches = consolidatedResults.filter(row => row.federal_match === 'False' || row.federal_match === false);
+        stateMismatches = consolidatedResults.filter(row => row.state_match === 'False' || row.state_match === false);
+        
+        console.log(`Loaded consolidated results: ${consolidatedResults.length} rows for ${taxsimResults.length} records`);
+        
+        // If we don't have a summary report, extract basic stats from consolidated data
+        if (summary.totalRecords === 0 && taxsimResults.length > 0) {
+          const totalRecords = taxsimResults.length;
+          const federalMatches = taxsimResults.filter(row => row.federal_match === 'True' || row.federal_match === true).length;
+          const stateMatches = taxsimResults.filter(row => row.state_match === 'True' || row.state_match === true).length;
+          
+          // Generate state breakdown from consolidated data
+          const stateStats = {};
+          
+          // Group records by state
+          taxsimResults.forEach(row => {
+            // Use state_code if available, otherwise fall back to converting numeric state
+            const state = row.state_code || getStateName(row.state);
+            if (!stateStats[state]) {
+              stateStats[state] = {
+                households: 0,
+                federalMatches: 0,
+                stateMatches: 0
+              };
+            }
+            
+            stateStats[state].households++;
+            if (row.federal_match === 'True' || row.federal_match === true) {
+              stateStats[state].federalMatches++;
+            }
+            if (row.state_match === 'True' || row.state_match === true) {
+              stateStats[state].stateMatches++;
+            }
+          });
+          
+          // Convert to array format expected by dashboard
+          const stateBreakdown = Object.entries(stateStats).map(([state, stats]) => ({
+            state: state,
+            households: stats.households,
+            federalMatches: stats.federalMatches,
+            stateMatches: stats.stateMatches,
+            federalPct: Math.round((stats.federalMatches / stats.households) * 100),
+            statePct: Math.round((stats.stateMatches / stats.households) * 100)
+          }));
+          
+          summary = {
+            totalRecords: totalRecords,
+            federalMatchPct: Math.round((federalMatches / totalRecords) * 100),
+            stateMatchPct: Math.round((stateMatches / totalRecords) * 100),
+            stateBreakdown: stateBreakdown
+          };
+          console.log('Generated summary with state breakdown from consolidated data');
+        }
+      }
     } catch (error) {
-      console.log('Results files not found, using mismatch data only');
+      console.log('Consolidated results not found, trying legacy format...');
+      
+      // Fallback to old format for backward compatibility
+      try {
+        federalMismatches = await loadCSVData(`${baseUrl}/federal_mismatches_${year}.csv`);
+        stateMismatches = await loadCSVData(`${baseUrl}/state_mismatches_${year}.csv`);
+        taxsimResults = await loadCSVData(`${baseUrl}/taxsim_results_${year}.csv`);
+        policyengineResults = await loadCSVData(`${baseUrl}/policyengine_results_${year}.csv`);
+        console.log('Using legacy format files');
+      } catch (legacyError) {
+        console.log('Neither consolidated nor legacy files found');
+      }
     }
     
     return {
@@ -148,7 +224,8 @@ export const loadYearData = async (year) => {
       federalMismatches,
       stateMismatches,
       taxsimResults,
-      policyengineResults
+      policyengineResults,
+      consolidatedResults
     };
   } catch (error) {
     console.error(`Error loading data for year ${year}:`, error);
