@@ -15,3 +15,9 @@
     added:
     - Add is_tax_unit_dependent to each dependent in the household in the yaml generator.
   date: 2025-07-29 14:27:02
+- bump: major
+  changes:
+    added:
+    - Frontend Dashboard for comparing PolicyEngine and TAXSIM results.
+    - CLI for comparing PolicyEngine and TAXSIM results.
+  date: 2025-08-26 21:56:12

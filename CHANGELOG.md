@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [1.0.0] - 2025-08-26 21:56:12
+
+### Added
+
+- Frontend Dashboard for comparing PolicyEngine and TAXSIM results.
+- CLI for comparing PolicyEngine and TAXSIM results.
+
 ## [0.2.0] - 2025-07-29 14:27:02
 
 ### Added
@@ -27,5 +34,6 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[1.0.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.2.0...1.0.0
 [0.2.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.1.0...0.1.1

@@ -1,5 +1,0 @@
-- bump: major
-  changes:
-    added:
-    - Frontend Dashboard for comparing PolicyEngine and TAXSIM results.
-    - CLI for comparing PolicyEngine and TAXSIM results.
