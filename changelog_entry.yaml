@@ -1,0 +1,4 @@
+- bump: minor
+  changes:
+    added:
+    - Remove Colorado Note from the dashboard.
