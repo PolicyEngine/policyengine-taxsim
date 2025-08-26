@@ -1,0 +1,4 @@
+- bump: patch
+  changes:
+    fixed:
+    - Fix idtl 5 when running the comparison.

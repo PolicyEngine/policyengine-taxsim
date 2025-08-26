@@ -215,7 +215,7 @@ class TaxsimRunner(BaseTaxRunner):
     def _parse_taxsim_output(self, output_file: str) -> pd.DataFrame:
         """Parse TAXSIM output file into DataFrame"""
         try:
-            # TAXSIM outputs CSV format
+            # First, try to read as CSV (for idtl values like 2)
             output_df = pd.read_csv(output_file)
 
             # Convert numeric columns
@@ -226,15 +226,121 @@ class TaxsimRunner(BaseTaxRunner):
             return output_df
 
         except Exception as e:
-            # If parsing fails, try to read raw output for debugging
+            # If CSV parsing fails, check if it's verbose output (idtl=5)
             if os.path.exists(output_file):
                 with open(output_file, "r") as f:
                     raw_output = f.read()
-                raise Exception(
-                    f"Failed to parse TAXSIM output: {e}\nRaw output:\n{raw_output}"
-                )
+                
+                # Try to parse verbose output format
+                try:
+                    return self._parse_verbose_taxsim_output(raw_output)
+                except Exception as verbose_error:
+                    raise Exception(
+                        f"Failed to parse TAXSIM output as both CSV and verbose format.\n"
+                        f"CSV error: {e}\n"
+                        f"Verbose parsing error: {verbose_error}\n"
+                        f"Raw output:\n{raw_output}"
+                    )
             else:
                 raise Exception(f"TAXSIM output file not found: {output_file}")
+
+    def _parse_verbose_taxsim_output(self, raw_output: str) -> pd.DataFrame:
+        """Parse verbose TAXSIM output (idtl=5) into DataFrame"""
+        import re
+        
+        lines = raw_output.strip().split('\n')
+        records = []
+        
+        # Find the Basic Output section only
+        in_basic_output = False
+        basic_output_lines = []
+        
+        for line in lines:
+            if "Basic Output:" in line:
+                in_basic_output = True
+                continue
+            elif in_basic_output and ("Marginal Rates" in line or line.strip() == ""):
+                # End of basic output section when we hit marginal rates or empty line
+                if "Marginal Rates" in line:
+                    break
+            elif in_basic_output and line.strip():
+                basic_output_lines.append(line)
+        
+        # Parse the basic output section
+        record = {}
+        for line in basic_output_lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Parse key-value pairs from the basic output
+            # Format: "      1. Record ID:                12323."
+            match = re.match(r'\s*(\d+)\.\s*([^:]+):\s*(.+)', line)
+            if match:
+                field_num = int(match.group(1))
+                field_name = match.group(2).strip()
+                field_value = match.group(3).strip()
+                
+                # Extract numeric value, removing state name if present
+                value_match = re.search(r'([\d.-]+)', field_value)
+                if value_match:
+                    numeric_value = float(value_match.group(1))
+                    
+                    # Map to standard TAXSIM column names (only from Basic Output section)
+                    if field_num == 1:  # Record ID
+                        record['taxsimid'] = numeric_value
+                    elif field_num == 2:  # Year
+                        record['year'] = numeric_value
+                    elif field_num == 3:  # State
+                        record['state'] = numeric_value
+                        # Extract state name if present
+                        state_match = re.search(r'\d+\s+(\w+)', field_value)
+                        if state_match:
+                            record['state_name'] = state_match.group(1)
+                    elif field_num == 4:  # Federal IIT Liability
+                        record['fiitax'] = numeric_value
+                    elif field_num == 5:  # State IIT Liability
+                        record['siitax'] = numeric_value
+                    elif field_num == 6:  # SS Payroll Tax Liability
+                        record['fica'] = numeric_value
+        
+        # Now parse the Marginal Rates section
+        in_marginal_rates = False
+        for line in lines:
+            if "Marginal Rates wrt  Earner" in line:
+                in_marginal_rates = True
+                continue
+            elif in_marginal_rates and "Federal Tax Calculation:" in line:
+                break
+            elif in_marginal_rates and line.strip():
+                match = re.match(r'\s*(\d+)\.\s*([^:]+):\s*(.+)', line)
+                if match:
+                    field_num = int(match.group(1))
+                    field_value = match.group(3).strip()
+                    
+                    value_match = re.search(r'([\d.-]+)', field_value)
+                    if value_match:
+                        numeric_value = float(value_match.group(1))
+                        
+                        if field_num == 7:  # Federal Marginal Rate
+                            record['frate'] = numeric_value
+                        elif field_num == 8:  # State Marginal Rate
+                            record['srate'] = numeric_value
+                        elif field_num == 9:  # Taxpayer SS Rate
+                            record['ficar'] = numeric_value
+        
+        if not record:
+            raise Exception("No valid record found in verbose TAXSIM output")
+        
+        # Convert to DataFrame
+        df = pd.DataFrame([record])
+        
+        # Ensure all numeric columns are properly typed
+        for col in df.columns:
+            if col != "state_name":
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        
+        return df
 
     def run(self, show_progress: bool = True) -> pd.DataFrame:
         """
