@@ -131,11 +131,6 @@ export const STATE_TAX_NOTES = {
     title: 'New Mexico 2021 Tax Calculation Note',
     content: 'For New Mexico in 2021, PolicyEngine includes three income rebates that are omitted in TAXSIM calculations. This may result in apparent mismatches where PolicyEngine shows lower state tax liability than TAXSIM due to these rebates being included in PolicyEngine but not in TAXSIM.'
   },
-  CO: {
-    years: 'all',
-    title: 'Colorado Tax Calculation Note',
-    content: 'For Colorado, TAXSIM applies a rebate that is not included in PolicyEngine calculations. This may result in apparent mismatches where TAXSIM shows lower state tax liability than PolicyEngine due to the rebate being automatically applied in TAXSIM but not in PolicyEngine.'
-  },
   LA: {
     years: 'all',
     title: 'Louisiana Tax Calculation Note',
