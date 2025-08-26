@@ -26,3 +26,8 @@
     added:
     - Remove Colorado Note from the dashboard.
   date: 2025-08-26 22:12:03
+- bump: patch
+  changes:
+    fixed:
+    - Fix idtl 5 when running the comparison.
+  date: 2025-08-26 22:28:10
