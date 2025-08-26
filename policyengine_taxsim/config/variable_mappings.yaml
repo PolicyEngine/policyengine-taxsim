@@ -384,6 +384,28 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+    special_cases:
+      - co:
+          implemented: true
+          variable: taxable_income
+      - id:
+          implemented: true
+          variable: taxable_income
+      - mi:
+          implemented: true
+          variable: adjusted_gross_income
+      - mn:
+          implemented: true
+          variable: adjusted_gross_income
+      - nc:
+          implemented: true
+          variable: adjusted_gross_income
+      - nd:
+          implemented: true
+          variable: taxable_income
+      - sc:
+          implemented: true
+          variable: taxable_income
   v33:
     variable: state_exemptions
     implemented: false
@@ -546,7 +568,7 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
     variables:
-      - state_non_refundable_credit
+      - state_non_refundable_credits
       - state_refundable_credits
   energy_fuel_credit2:
     variable: na_pe

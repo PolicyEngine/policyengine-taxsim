@@ -816,10 +816,26 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ]:
                             continue
 
-                        # Handle state-specific variables
+                        # Handle state-specific variables and special cases
                         state_name = get_state_code(row["state"])
+                        state_initial = state_name.lower()
+                        
+                        # First apply standard state replacement
                         if "state" in pe_var:
-                            pe_var = pe_var.replace("state", state_name.lower())
+                            pe_var = pe_var.replace("state", state_initial)
+                        
+                        # Then check for special cases that override the standard mapping
+                        if "special_cases" in mapping:
+                            found_state = next(
+                                (case for case in mapping["special_cases"] if state_initial in case),
+                                None
+                            )
+                            if found_state and found_state[state_initial]["implemented"]:
+                                special_variable = found_state[state_initial]["variable"]
+                                if "state" in special_variable:
+                                    pe_var = special_variable.replace("state", state_initial)
+                                else:
+                                    pe_var = special_variable
 
                         # Check for year-restricted state programs before calculation
                         if self._is_year_restricted_variable(pe_var, year):

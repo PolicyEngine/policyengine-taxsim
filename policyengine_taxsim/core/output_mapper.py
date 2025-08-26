@@ -110,7 +110,7 @@ def generate_text_description_output(
                 variable = each_item["variable"]
 
                 if "state" in variable:
-                    variable = variable.replace("state", state_name).lower()
+                    variable = variable.replace("state", state_initial)
                 if var_name == "taxsimid":
                     value = taxsim_input["taxsimid"]
                 elif var_name == "year":
