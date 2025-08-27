@@ -29,8 +29,8 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
     for idx, row in input_df.iterrows():
         try:
             # Create household data for this record
-            year = int(row["year"])
-            state = get_state_code(int(row["state"]))
+            year = int(float(row["year"]))
+            state = get_state_code(int(float(row["state"])))
 
             # Convert taxsim data to proper types
             taxsim_data = row.to_dict()
@@ -178,7 +178,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
             )
         elif year is None and "year" in df.columns:
             # Use year from the data
-            year = int(df["year"].iloc[0]) if len(df) > 0 else 2021
+            year = int(float(df["year"].iloc[0])) if len(df) > 0 else 2021
             click.echo(f"Using year {year} from input data")
         elif year is None:
             # Default year if no year column exists
@@ -196,8 +196,8 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         click.echo("Running PolicyEngine...")
         pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         pe_results = pe_runner.run()
-        
-        # Generate YAML files if requested  
+
+        # Generate YAML files if requested
         if logs:
             click.echo("Generating PolicyEngine YAML test files...")
             _generate_yaml_files(df, pe_results)

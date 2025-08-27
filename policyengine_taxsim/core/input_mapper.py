@@ -233,10 +233,10 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
 def get_taxsim_defaults(year: int = 2021) -> dict:
     """
     Get a dictionary of all TAXSIM default values.
-    
+
     Args:
         year (int): Tax year for defaults
-        
+
     Returns:
         dict: Dictionary containing all default TAXSIM values
     """
@@ -263,7 +263,9 @@ def generate_household(taxsim_vars):
         dict: PolicyEngine situation dictionary
     """
 
-    year = str(int(taxsim_vars.get("year", 2021)))  # Ensure year is an integer string
+    year = str(
+        int(float(taxsim_vars.get("year", 2021)))
+    )  # Ensure year is an integer string, handling decimals
 
     taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
 
