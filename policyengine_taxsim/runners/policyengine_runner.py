@@ -8,13 +8,16 @@ from .base_runner import BaseTaxRunner
 
 # Import core functions needed for microsimulation
 from policyengine_taxsim.core.utils import (
-        load_variable_mappings,
-        SOI_TO_FIPS_MAP,
-        get_state_code,
-        get_state_number,
-        to_roundedup_number,
-    )
-from policyengine_taxsim.core.input_mapper import set_taxsim_defaults, get_taxsim_defaults
+    load_variable_mappings,
+    SOI_TO_FIPS_MAP,
+    get_state_code,
+    get_state_number,
+    to_roundedup_number,
+)
+from policyengine_taxsim.core.input_mapper import (
+    set_taxsim_defaults,
+    get_taxsim_defaults,
+)
 
 from policyengine_us import Microsimulation
 from policyengine_core.data import Dataset
@@ -36,41 +39,48 @@ class TaxsimMicrosimDataset(Dataset):
     def _extract_policyengine_variables_from_mappings(self) -> set:
         """
         Extract all PolicyEngine variables from the variable mappings.
-        
+
         Returns:
             set: Set of all PolicyEngine variable names found in mappings
         """
         pe_variables = set()
-        
+
         # Get variable mappings
         mappings = load_variable_mappings()
-        
+
         # Extract from policyengine_to_taxsim mappings
         pe_to_taxsim = mappings.get("policyengine_to_taxsim", {})
         for taxsim_var, mapping in pe_to_taxsim.items():
             if isinstance(mapping, dict):
                 # Single variable mapping
                 pe_var = mapping.get("variable")
-                if pe_var and pe_var not in ["taxsimid", "get_year", "get_state_code", "na_pe"]:
+                if pe_var and pe_var not in [
+                    "taxsimid",
+                    "get_year",
+                    "get_state_code",
+                    "na_pe",
+                ]:
                     pe_variables.add(pe_var)
-                
+
                 # Multiple variables mapping
                 variables = mapping.get("variables", [])
                 for var in variables:
-                    if var and "state" not in var:  # Skip state-specific variables for now
+                    if (
+                        var and "state" not in var
+                    ):  # Skip state-specific variables for now
                         pe_variables.add(var)
-        
+
         # Extract from taxsim_to_policyengine additional units
         taxsim_to_pe = mappings.get("taxsim_to_policyengine", {})
         household_situation = taxsim_to_pe.get("household_situation", {})
-        
+
         # Additional income units (person-level variables)
         additional_income_units = household_situation.get("additional_income_units", [])
         for item in additional_income_units:
             if isinstance(item, dict):
                 for field, values in item.items():
                     pe_variables.add(field)
-        
+
         # Additional tax units (tax-unit-level variables)
         additional_tax_units = household_situation.get("additional_tax_units", [])
         for item in additional_tax_units:
@@ -78,38 +88,49 @@ class TaxsimMicrosimDataset(Dataset):
                 for field, values in item.items():
                     if field not in ["state_use_tax"]:  # Skip state-specific variables
                         pe_variables.add(field)
-        
+
         return pe_variables
 
     def _initialize_dataset_structure(self) -> dict:
         """
         Initialize the dataset structure with all required PolicyEngine variables.
         Uses variable mappings to automatically discover PolicyEngine variables.
-        
+
         Returns:
             dict: Dictionary with all required variables initialized as empty dicts
         """
         # Extract PolicyEngine variables from mappings
         pe_variables = self._extract_policyengine_variables_from_mappings()
-        
+
         # Define required entity structure variables (these are always needed)
         entity_variables = {
-            "person_id", "person_household_id", "person_tax_unit_id", 
-            "person_family_id", "person_spm_unit_id", "person_marital_unit_id", 
-            "person_weight", "age",
-            "household_id", "household_weight", "state_fips",
-            "tax_unit_id", "tax_unit_weight",
-            "family_id", "family_weight",
-            "spm_unit_id", "spm_unit_weight",
-            "marital_unit_id", "marital_unit_weight"
+            "person_id",
+            "person_household_id",
+            "person_tax_unit_id",
+            "person_family_id",
+            "person_spm_unit_id",
+            "person_marital_unit_id",
+            "person_weight",
+            "age",
+            "household_id",
+            "household_weight",
+            "state_fips",
+            "tax_unit_id",
+            "tax_unit_weight",
+            "family_id",
+            "family_weight",
+            "spm_unit_id",
+            "spm_unit_weight",
+            "marital_unit_id",
+            "marital_unit_weight",
         }
-        
+
         # Essential person-level variables that might not be in mappings
         essential_person_variables = {
             "employment_income",  # Core income variable used directly
             "charitable_cash_donations",  # Used in dataset creation
         }
-        
+
         # Variables that can cause circular dependencies
         problematic_variables = {
             "co_child_care_subsidies",
@@ -122,71 +143,76 @@ class TaxsimMicrosimDataset(Dataset):
             "ak_energy_relief",
             "ak_permanent_fund_dividend",
         }
-        
+
         # Combine all variables
-        all_variables = pe_variables | entity_variables | essential_person_variables | problematic_variables
-        
+        all_variables = (
+            pe_variables
+            | entity_variables
+            | essential_person_variables
+            | problematic_variables
+        )
+
         # Initialize all variables as empty dictionaries
         data = {}
         for var in all_variables:
             data[var] = {}
-                
+
         return data
 
     def _get_taxsim_to_pe_variable_mapping(self) -> dict:
         """
         Get TAXSIM to PolicyEngine variable mappings from existing configuration.
         Leverages the variable_mappings.yaml to avoid duplication.
-        
+
         Returns:
             dict: Mapping of PolicyEngine variables to their TAXSIM sources and rules
         """
         mappings = load_variable_mappings()
-        
+
         # Get basic age mapping from defaults
         age_mapping = {
             "primary": "page",
-            "spouse": "sage", 
+            "spouse": "sage",
             "dependent": lambda dep_num: f"age{dep_num}",
-            "default": {"primary": 40, "spouse": 40, "dependent": 10}
+            "default": {"primary": 40, "spouse": 40, "dependent": 10},
         }
-        
+
         # Extract TAXSIM input definitions to understand primary/spouse pairs
         taxsim_input_def = mappings.get("taxsim_input_definition", [])
         paired_vars = {}  # Maps primary var to spouse var
-        
+
         for item in taxsim_input_def:
             if isinstance(item, dict):
                 for var_name, definition in item.items():
                     if isinstance(definition, dict) and "pair" in definition:
                         paired_vars[var_name] = definition["pair"]
-        
+
         # Build variable mapping from additional_income_units
         taxsim_to_pe = mappings.get("taxsim_to_policyengine", {})
         household_situation = taxsim_to_pe.get("household_situation", {})
         additional_income_units = household_situation.get("additional_income_units", [])
-        
+
         variable_mapping = {"age": age_mapping}  # Start with age
-        
+
         # Process additional income units to create mappings
         for item in additional_income_units:
             if isinstance(item, dict):
                 for pe_var, taxsim_vars in item.items():
                     if not taxsim_vars:  # Skip empty mappings
                         continue
-                        
+
                     if len(taxsim_vars) == 1:
                         # Single variable - check if it has a spouse pair
                         taxsim_var = taxsim_vars[0]
                         spouse_var = paired_vars.get(taxsim_var)
-                        
+
                         if spouse_var:
                             # Has spouse pair (like pwages/swages)
                             variable_mapping[pe_var] = {
                                 "primary": taxsim_var,
                                 "spouse": spouse_var,
                                 "dependent": 0.0,
-                                "default": 0.0
+                                "default": 0.0,
                             }
                         else:
                             # No spouse pair - primary gets all, others get 0
@@ -194,9 +220,9 @@ class TaxsimMicrosimDataset(Dataset):
                                 "primary": taxsim_var,
                                 "spouse": 0.0,
                                 "dependent": 0.0,
-                                "default": 0.0
+                                "default": 0.0,
                             }
-                    
+
                     elif len(taxsim_vars) == 2:
                         # Two variables - check if they're a primary/spouse pair
                         var1, var2 = taxsim_vars
@@ -206,7 +232,7 @@ class TaxsimMicrosimDataset(Dataset):
                                 "primary": var1,
                                 "spouse": var2,
                                 "dependent": 0.0,
-                                "default": 0.0
+                                "default": 0.0,
                             }
                         elif var1 == paired_vars.get(var2):
                             # Reverse order - var2 is primary, var1 is spouse
@@ -214,40 +240,42 @@ class TaxsimMicrosimDataset(Dataset):
                                 "primary": var2,
                                 "spouse": var1,
                                 "dependent": 0.0,
-                                "default": 0.0
+                                "default": 0.0,
                             }
                         else:
                             # Not a pair - combine them (like pui + sui)
                             variable_mapping[pe_var] = {
-                                "primary": lambda row, vars=taxsim_vars: sum(float(row.get(v, 0)) for v in vars),
+                                "primary": lambda row, vars=taxsim_vars: sum(
+                                    float(row.get(v, 0)) for v in vars
+                                ),
                                 "spouse": 0.0,
                                 "dependent": 0.0,
-                                "default": 0.0
+                                "default": 0.0,
                             }
-                    
+
                     else:
                         # Multiple variables - primary gets all, others get 0
                         variable_mapping[pe_var] = {
                             "primary": taxsim_vars[0],  # Use first one for now
                             "spouse": 0.0,
                             "dependent": 0.0,
-                            "default": 0.0
+                            "default": 0.0,
                         }
-        
+
         # Add employment_income manually since it's not in additional_income_units
         variable_mapping["employment_income"] = {
             "primary": "pwages",
             "spouse": "swages",
             "dependent": 0.0,
-            "default": 0.0
+            "default": 0.0,
         }
-        
+
         return variable_mapping
 
     def _get_tax_unit_variable_mapping(self) -> dict:
         """
         Get TAXSIM to PolicyEngine variable mappings for tax unit level variables.
-        
+
         Returns:
             dict: Mapping of PolicyEngine tax unit variables to their TAXSIM sources
         """
@@ -255,89 +283,96 @@ class TaxsimMicrosimDataset(Dataset):
         taxsim_to_pe = mappings.get("taxsim_to_policyengine", {})
         household_situation = taxsim_to_pe.get("household_situation", {})
         additional_tax_units = household_situation.get("additional_tax_units", [])
-        
+
         tax_unit_mapping = {}
-        
+
         # Process additional tax units to create mappings
         for item in additional_tax_units:
             if isinstance(item, dict):
                 for pe_var, taxsim_vars in item.items():
                     if not taxsim_vars:  # Skip empty mappings
                         continue
-                    
+
                     # For tax unit variables, use the first TAXSIM variable as the source
                     # (most tax unit variables map to a single TAXSIM input)
                     if isinstance(taxsim_vars, list) and len(taxsim_vars) > 0:
                         tax_unit_mapping[pe_var] = taxsim_vars[0]
                     elif isinstance(taxsim_vars, str):
                         tax_unit_mapping[pe_var] = taxsim_vars
-        
+
         return tax_unit_mapping
 
-    def _process_tax_unit_data_for_year(self, year_data: pd.DataFrame, year: int) -> dict:
+    def _process_tax_unit_data_for_year(
+        self, year_data: pd.DataFrame, year: int
+    ) -> dict:
         """
         Process tax unit level data for a specific year.
-        
+
         Args:
             year_data: DataFrame containing TAXSIM data for one year
             year: The year being processed
-            
+
         Returns:
             dict: Processed tax unit level data arrays
         """
         n_year_records = len(year_data)
-        
+
         # Get tax unit variable mapping
         tax_unit_mapping = self._get_tax_unit_variable_mapping()
-        
+
         # Filter mapping to only include variables where source data exists
         filtered_mapping = {}
         for pe_var, taxsim_var in tax_unit_mapping.items():
             if taxsim_var in year_data.columns:
                 filtered_mapping[pe_var] = taxsim_var
-        
+
         # Initialize data collectors
         tax_unit_data = {}
-        
+
         # Initialize variable data collectors
         for pe_var in filtered_mapping.keys():
             tax_unit_data[pe_var] = []
-        
+
         # Process each tax unit (one per record in TAXSIM)
-        for _, row in tqdm(year_data.iterrows(), total=len(year_data), desc=f"Processing tax units ({year})", leave=False):
+        for _, row in tqdm(
+            year_data.iterrows(),
+            total=len(year_data),
+            desc=f"Processing tax units ({year})",
+            leave=False,
+        ):
             # Process each tax unit variable
             for pe_var, taxsim_var in filtered_mapping.items():
                 if taxsim_var in row and pd.notna(row[taxsim_var]):
                     value = float(row[taxsim_var])
                 else:
                     value = 0.0
-                
+
                 tax_unit_data[pe_var].append(value)
-        
+
         # Convert to numpy arrays
         result = {}
         for var, values in tax_unit_data.items():
             result[var] = np.array(values)
-        
+
         return result
 
     def _process_person_data_for_year(self, year_data: pd.DataFrame, year: int) -> dict:
         """
         Process person-level data for a specific year using consolidated mapping approach.
-        
+
         Args:
             year_data: DataFrame containing TAXSIM data for one year
             year: The year being processed
-            
+
         Returns:
             dict: Processed person-level data arrays
         """
         n_year_records = len(year_data)
-        
+
         # Calculate household structure
         total_people = 0
         people_per_household = []
-        
+
         for _, row in year_data.iterrows():
             mstat = int(row["mstat"])
             depx = int(row["depx"])
@@ -345,10 +380,10 @@ class TaxsimMicrosimDataset(Dataset):
             n_people = 1 + (1 if has_spouse else 0) + depx
             people_per_household.append(n_people)
             total_people += n_people
-        
+
         # Get variable mapping
         var_mapping = self._get_taxsim_to_pe_variable_mapping()
-        
+
         # Filter mapping to only include variables where source data exists
         filtered_mapping = {}
         for pe_var, mapping in var_mapping.items():
@@ -356,7 +391,7 @@ class TaxsimMicrosimDataset(Dataset):
                 # Always include age
                 filtered_mapping[pe_var] = mapping
                 continue
-                
+
             # Check if any of the source variables exist in the data
             source_exists = False
             for person_type in ["primary", "spouse"]:
@@ -369,10 +404,10 @@ class TaxsimMicrosimDataset(Dataset):
                     # This is a bit more complex, but for now assume they exist
                     source_exists = True
                     break
-            
+
             if source_exists:
                 filtered_mapping[pe_var] = mapping
-        
+
         # Initialize data collectors
         person_data = {}
         entity_data = {
@@ -381,22 +416,29 @@ class TaxsimMicrosimDataset(Dataset):
             "person_tax_unit_id": [],
             "person_family_id": [],
             "person_spm_unit_id": [],
-            "person_marital_unit_id": []
+            "person_marital_unit_id": [],
         }
-        
+
         # Initialize variable data collectors
         for pe_var in filtered_mapping.keys():
             person_data[pe_var] = []
-        
+
         current_person_id = 0
-        
+
         # Process each household
-        for household_idx, (_, row) in enumerate(tqdm(year_data.iterrows(), total=len(year_data), desc=f"Processing households ({year})", leave=False)):
+        for household_idx, (_, row) in enumerate(
+            tqdm(
+                year_data.iterrows(),
+                total=len(year_data),
+                desc=f"Processing households ({year})",
+                leave=False,
+            )
+        ):
             mstat = int(row["mstat"])
             depx = int(row["depx"])
             has_spouse = mstat in [2, 6]
             n_people = people_per_household[household_idx]
-            
+
             # Process each person in the household
             for person_idx in range(n_people):
                 # Entity structure data
@@ -405,7 +447,7 @@ class TaxsimMicrosimDataset(Dataset):
                         entity_data[entity_var].append(current_person_id)
                     else:
                         entity_data[entity_var].append(household_idx)
-                
+
                 # Determine person type
                 if person_idx == 0:
                     person_type = "primary"
@@ -414,7 +456,7 @@ class TaxsimMicrosimDataset(Dataset):
                 else:
                     person_type = "dependent"
                     dep_num = person_idx - (1 if has_spouse else 0)
-                
+
                 # Process each variable
                 for pe_var, mapping in filtered_mapping.items():
                     if person_type == "dependent" and pe_var == "age":
@@ -425,7 +467,11 @@ class TaxsimMicrosimDataset(Dataset):
                             value = mapping["default"]["dependent"]
                     elif person_type == "spouse" and pe_var == "age":
                         # Special handling for spouse age
-                        value = int(row[mapping["spouse"]]) if row[mapping["spouse"]] > 0 else int(row[mapping["primary"]])
+                        value = (
+                            int(row[mapping["spouse"]])
+                            if row[mapping["spouse"]] > 0
+                            else int(row[mapping["primary"]])
+                        )
                     else:
                         # Standard mapping
                         source = mapping.get(person_type)
@@ -434,27 +480,31 @@ class TaxsimMicrosimDataset(Dataset):
                         elif isinstance(source, str):
                             # Only set if the source column exists in the data
                             if source in row and pd.notna(row[source]):
-                                value = float(row[source]) if pe_var != "age" else int(row[source])
+                                value = (
+                                    float(row[source])
+                                    if pe_var != "age"
+                                    else int(row[source])
+                                )
                             else:
                                 # Skip this variable if source data is not available
                                 continue
                         else:
                             value = source  # Direct value (like 0.0)
-                    
+
                     person_data[pe_var].append(value)
-                
+
                 current_person_id += 1
-        
+
         # Convert to numpy arrays and combine entity + person data
         result = {}
         for var, values in entity_data.items():
             result[var] = np.array(values)
         for var, values in person_data.items():
             result[var] = np.array(values)
-        
+
         # Add person weight
         result["person_weight"] = np.ones(total_people)
-        
+
         return result
 
     def _ensure_required_columns(self, df):
@@ -494,14 +544,17 @@ class TaxsimMicrosimDataset(Dataset):
 
         # Set defaults for all records
         print("Setting defaults for TAXSIM records...")
-        for idx, row in tqdm(self.input_df.iterrows(), total=n_records, desc="Processing defaults"):
+        for idx, row in tqdm(
+            self.input_df.iterrows(), total=n_records, desc="Processing defaults"
+        ):
             taxsim_vars = row.to_dict()
-            year = int(taxsim_vars.get("year", 2021))
+            year = int(float(taxsim_vars.get("year", 2021)))
             taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
             for key, value in taxsim_vars.items():
                 self.input_df.loc[idx, key] = value
 
         # Extract years (assuming all records might have different years)
+        # Years should already be converted to integers in the run() method
         years = self.input_df["year"].values
         unique_years = sorted(self.input_df["year"].unique())
 
@@ -526,18 +579,20 @@ class TaxsimMicrosimDataset(Dataset):
             year_data = year_data.fillna(0)
 
             # Process person-level data using consolidated approach
-            person_data = self._process_person_data_for_year(year_data, year)
+            # Ensure year is an integer for proper period handling
+            year_int = int(year) if isinstance(year, (float, np.floating)) else year
+            person_data = self._process_person_data_for_year(year_data, year_int)
 
             # Assign person-level data to dataset
             for var_name, values in person_data.items():
-                data[var_name][year] = values
+                data[var_name][year_int] = values
 
             # Process tax unit level data
-            tax_unit_data = self._process_tax_unit_data_for_year(year_data, year)
+            tax_unit_data = self._process_tax_unit_data_for_year(year_data, year_int)
 
             # Assign tax unit level data to dataset
             for var_name, values in tax_unit_data.items():
-                data[var_name][year] = values
+                data[var_name][year_int] = values
 
             # Create entity ID arrays for household-level data
             year_household_ids = np.arange(n_year_records)
@@ -547,50 +602,53 @@ class TaxsimMicrosimDataset(Dataset):
             year_marital_unit_ids = np.arange(n_year_records)
 
             # Set problematic variables to 0 directly in dataset to prevent circular dependency calculations
-            data["co_child_care_subsidies"][year] = np.zeros(
+            data["co_child_care_subsidies"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Colorado subsidy calculations
 
-            data["il_use_tax"][year] = np.zeros(
+            data["il_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Illinois use tax calculations
-            data["pa_use_tax"][year] = np.zeros(
+            data["pa_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Pennsylvania use tax calculations
-            data["ca_use_tax"][year] = np.zeros(
+            data["ca_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent California use tax calculations
-            data["nc_use_tax"][year] = np.zeros(
+            data["nc_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent North Carolina use tax calculations
-            data["ok_use_tax"][year] = np.zeros(
+            data["ok_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Oklahoma use tax calculations
-            
+
             # Set person-level variables that need to be set per person, not per tax unit
             total_people_for_year = len(person_data.get("person_id", []))
             if total_people_for_year > 0:
-                data["ak_energy_relief"][year] = np.zeros(
+                data["ak_energy_relief"][year_int] = np.zeros(
                     total_people_for_year
                 )  # Prevent Alaska energy relief calculations
-                data["ak_permanent_fund_dividend"][year] = np.zeros(
+                data["ak_permanent_fund_dividend"][year_int] = np.zeros(
                     total_people_for_year
                 )  # Prevent Alaska permanent fund dividend calculations
-                data["id_grocery_credit_qualified_months"][year] = np.full(
+                data["id_grocery_credit_qualified_months"][year_int] = np.full(
                     total_people_for_year, 12
                 )  # Set qualified months to 12 for full year eligibility
 
             # Household data
-            data["household_id"][year] = year_household_ids
-            data["household_weight"][year] = np.ones(n_year_records)
+            data["household_id"][year_int] = year_household_ids
+            data["household_weight"][year_int] = np.ones(n_year_records)
             # Convert SOI codes to FIPS codes for PolicyEngine
-            data["state_fips"][year] = np.array(
-                [SOI_TO_FIPS_MAP.get(int(s), 6) for s in year_data["state"].values]
+            data["state_fips"][year_int] = np.array(
+                [
+                    SOI_TO_FIPS_MAP.get(int(float(s)), 6)
+                    for s in year_data["state"].values
+                ]
             )
 
             # Tax unit data
-            data["tax_unit_id"][year] = year_tax_unit_ids
-            data["tax_unit_weight"][year] = np.ones(n_year_records)
+            data["tax_unit_id"][year_int] = year_tax_unit_ids
+            data["tax_unit_weight"][year_int] = np.ones(n_year_records)
 
             # No explicit filing status mapping - let PolicyEngine auto-calculate based on:
             # - Household structure (spouse presence from mstat 2/6)
@@ -599,16 +657,16 @@ class TaxsimMicrosimDataset(Dataset):
             # This should correctly handle SINGLE vs HEAD_OF_HOUSEHOLD vs JOINT vs SEPARATE
 
             # Family data
-            data["family_id"][year] = year_family_ids
-            data["family_weight"][year] = np.ones(n_year_records)
+            data["family_id"][year_int] = year_family_ids
+            data["family_weight"][year_int] = np.ones(n_year_records)
 
             # SPM unit data
-            data["spm_unit_id"][year] = year_spm_unit_ids
-            data["spm_unit_weight"][year] = np.ones(n_year_records)
+            data["spm_unit_id"][year_int] = year_spm_unit_ids
+            data["spm_unit_weight"][year_int] = np.ones(n_year_records)
 
             # Marital unit data
-            data["marital_unit_id"][year] = year_marital_unit_ids
-            data["marital_unit_weight"][year] = np.ones(n_year_records)
+            data["marital_unit_id"][year_int] = year_marital_unit_ids
+            data["marital_unit_weight"][year_int] = np.ones(n_year_records)
 
         self.save_dataset(data)
 
@@ -678,6 +736,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                 f"Running PolicyEngine Microsimulation on {len(self.input_df)} records"
             )
 
+        # Ensure years are integers to handle decimal values like 2021.0
+        self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
+
         # Create the dataset
         dataset = TaxsimMicrosimDataset(self.input_df)
 
@@ -701,12 +762,15 @@ class PolicyEngineRunner(BaseTaxRunner):
                     sim.set_input(
                         variable_name="state_and_local_sales_or_income_tax",
                         value=np.zeros(n_year_records),
-                        period=str(year),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
                     )
 
             # Disable problematic variables that cause circular dependencies
             years = sorted(set(self.input_df["year"].unique()))
-
 
             # Extract results
             if show_progress:
@@ -724,11 +788,11 @@ class PolicyEngineRunner(BaseTaxRunner):
     def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
         """
         Check if a variable has year restrictions and should not be computed for the given year.
-        
+
         Args:
             variable_name: Name of the PolicyEngine variable
             year: Tax year
-            
+
         Returns:
             True if the variable should be skipped for this year, False otherwise
         """
@@ -740,8 +804,11 @@ class PolicyEngineRunner(BaseTaxRunner):
             # Add other state programs as needed
             # Format: "variable_name": minimum_year
         }
-        
-        return variable_name in year_restricted_variables and year < year_restricted_variables[variable_name]
+
+        return (
+            variable_name in year_restricted_variables
+            and year < year_restricted_variables[variable_name]
+        )
 
     def _extract_vectorized_results(
         self, sim: Microsimulation, input_df: pd.DataFrame
@@ -771,7 +838,14 @@ class PolicyEngineRunner(BaseTaxRunner):
                 federal_taxes = federal_taxes_main + medicare
 
                 # Create results for this year
-                for idx, (_, row) in enumerate(tqdm(year_data.iterrows(), total=len(year_data), desc=f"Extracting results ({year})", leave=False)):
+                for idx, (_, row) in enumerate(
+                    tqdm(
+                        year_data.iterrows(),
+                        total=len(year_data),
+                        desc=f"Extracting results ({year})",
+                        leave=False,
+                    )
+                ):
                     result = {
                         "taxsimid": row["taxsimid"],
                         "year": year,
@@ -819,28 +893,41 @@ class PolicyEngineRunner(BaseTaxRunner):
                         # Handle state-specific variables and special cases
                         state_name = get_state_code(row["state"])
                         state_initial = state_name.lower()
-                        
+
                         # First apply standard state replacement
                         if "state" in pe_var:
                             pe_var = pe_var.replace("state", state_initial)
-                        
+
                         # Then check for special cases that override the standard mapping
                         if "special_cases" in mapping:
                             found_state = next(
-                                (case for case in mapping["special_cases"] if state_initial in case),
-                                None
+                                (
+                                    case
+                                    for case in mapping["special_cases"]
+                                    if state_initial in case
+                                ),
+                                None,
                             )
-                            if found_state and found_state[state_initial]["implemented"]:
-                                special_variable = found_state[state_initial]["variable"]
+                            if (
+                                found_state
+                                and found_state[state_initial]["implemented"]
+                            ):
+                                special_variable = found_state[state_initial][
+                                    "variable"
+                                ]
                                 if "state" in special_variable:
-                                    pe_var = special_variable.replace("state", state_initial)
+                                    pe_var = special_variable.replace(
+                                        "state", state_initial
+                                    )
                                 else:
                                     pe_var = special_variable
 
                         # Check for year-restricted state programs before calculation
                         if self._is_year_restricted_variable(pe_var, year):
                             if self.logs:
-                                print(f"Variable {pe_var} not available in {year}, setting to 0")
+                                print(
+                                    f"Variable {pe_var} not available in {year}, setting to 0"
+                                )
                             result[taxsim_var] = 0.0
                             continue
 
@@ -865,11 +952,15 @@ class PolicyEngineRunner(BaseTaxRunner):
                             # All other errors should bubble up to reveal real problems
                             if "does not exist" in str(e):
                                 if self.logs:
-                                    print(f"Variable {pe_var} not implemented in PolicyEngine, setting to 0")
+                                    print(
+                                        f"Variable {pe_var} not implemented in PolicyEngine, setting to 0"
+                                    )
                                 result[taxsim_var] = 0.0
                             else:
                                 # Real error - don't mask it
-                                raise RuntimeError(f"Error calculating {pe_var} for {taxsim_var}: {e}") from e
+                                raise RuntimeError(
+                                    f"Error calculating {pe_var} for {taxsim_var}: {e}"
+                                ) from e
 
                     results.append(result)
 
