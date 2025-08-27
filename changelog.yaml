@@ -31,3 +31,8 @@
     fixed:
     - Fix idtl 5 when running the comparison.
   date: 2025-08-26 22:28:10
+- bump: patch
+  changes:
+    fixed:
+    - Handling of floats for year inputs.
+  date: 2025-08-27 16:17:40

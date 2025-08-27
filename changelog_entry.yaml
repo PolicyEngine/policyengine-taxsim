@@ -1,4 +1,0 @@
-- bump: patch
-  changes:
-    fixed:
-    - Handling of floats for year inputs.

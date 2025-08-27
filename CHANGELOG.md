@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [1.1.2] - 2025-08-27 16:17:40
+
+### Fixed
+
+- Handling of floats for year inputs.
+
 ## [1.1.1] - 2025-08-26 22:28:10
 
 ### Fixed
@@ -46,6 +52,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[1.1.2]: https://github.com/PolicyEngine/policyengine-taxsim/compare/1.1.1...1.1.2
 [1.1.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/0.2.0...1.0.0
