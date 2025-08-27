@@ -11,27 +11,27 @@ export const useHouseholdData = (data, selectedState, householdFilters) => {
     const { taxsimResults, policyengineResults, federalMismatches, stateMismatches } = data;
     const fipsCode = STATE_TO_FIPS[selectedState];
     
-    // Filter by FIPS code (numeric) or original state value
+    // Filter by FIPS code (numeric) or original state value or state_code
     // Using == for numeric comparison as state can be string or number
     const filteredTaxsim = taxsimResults.filter(item => 
       // eslint-disable-next-line eqeqeq
-      item.state == fipsCode || item.state === selectedState
+      item.state == fipsCode || item.state === selectedState || item.state_code === selectedState
     );
     
     const filteredPE = policyengineResults.filter(item => 
       // eslint-disable-next-line eqeqeq
-      item.state == fipsCode || item.state === selectedState
+      item.state == fipsCode || item.state === selectedState || item.state_code === selectedState
     );
 
     // Filter mismatch data for the selected state to get input variables
     const filteredFederalMismatches = federalMismatches?.filter(item => 
       // eslint-disable-next-line eqeqeq
-      item.state == fipsCode || item.state === selectedState
+      item.state == fipsCode || item.state === selectedState || item.state_code === selectedState
     ) || [];
     
     const filteredStateMismatches = stateMismatches?.filter(item => 
       // eslint-disable-next-line eqeqeq
-      item.state == fipsCode || item.state === selectedState
+      item.state == fipsCode || item.state === selectedState || item.state_code === selectedState
     ) || [];
 
     // Create a combined mismatch lookup for input data

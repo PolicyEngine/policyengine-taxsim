@@ -112,6 +112,7 @@ def get_ordinal(n):
 # TAXSIM SOI to PolicyEngine FIPS state code mapping
 # Based on https://taxsim.nber.org/statesoi.html and PolicyEngine's state mapping
 SOI_TO_FIPS_MAP = {
+    0: 48,  # No state tax -> Texas (which has no state income tax)
     1: 1,  # Alabama
     2: 2,  # Alaska
     3: 4,  # Arizona

@@ -115,6 +115,7 @@ class TaxsimMicrosimDataset(Dataset):
             "household_id",
             "household_weight",
             "state_fips",
+            "household_state_name",  # Critical for state tax calculations
             "tax_unit_id",
             "tax_unit_weight",
             "family_id",
@@ -639,12 +640,17 @@ class TaxsimMicrosimDataset(Dataset):
             data["household_id"][year_int] = year_household_ids
             data["household_weight"][year_int] = np.ones(n_year_records)
             # Convert SOI codes to FIPS codes for PolicyEngine
+            # Default to 48 (Texas) for invalid codes since TX has no state income tax
             data["state_fips"][year_int] = np.array(
                 [
-                    SOI_TO_FIPS_MAP.get(int(float(s)), 6)
+                    SOI_TO_FIPS_MAP.get(int(float(s)), 48)
                     for s in year_data["state"].values
                 ]
             )
+            # Set household state names - critical for state tax calculations
+            # PolicyEngine expects state names as object dtype for string storage
+            state_names = [get_state_code(int(float(s))) for s in year_data["state"].values]
+            data["household_state_name"][year_int] = np.array(state_names, dtype=object)
 
             # Tax unit data
             data["tax_unit_id"][year_int] = year_tax_unit_ids

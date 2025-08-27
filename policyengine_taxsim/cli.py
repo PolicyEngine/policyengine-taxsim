@@ -9,7 +9,7 @@ try:
     from .comparison.comparator import TaxComparator, ComparisonConfig
     from .comparison.statistics import ComparisonStatistics
     from .core.yaml_generator import generate_pe_tests_yaml
-    from .core.input_mapper import form_household_situation
+    from .core.input_mapper import form_household_situation, convert_v32_dependent_format
     from .core.utils import get_state_code
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
@@ -20,8 +20,52 @@ except ImportError:
     )
     from policyengine_taxsim.comparison.statistics import ComparisonStatistics
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
-    from policyengine_taxsim.core.input_mapper import form_household_situation
+    from policyengine_taxsim.core.input_mapper import form_household_situation, convert_v32_dependent_format
     from policyengine_taxsim.core.utils import get_state_code
+
+
+def convert_v32_dataframe(df: pd.DataFrame, remove_v32_fields: bool = True) -> pd.DataFrame:
+    """
+    Convert v32 format columns in DataFrame to age columns for dashboard compatibility.
+    
+    This function adds age1, age2, etc. columns based on dep13, dep17, dep18 values
+    and optionally removes the v32 fields.
+    
+    Args:
+        df: DataFrame with potential v32 columns
+        remove_v32_fields: If True, remove dep13, dep17, dep18 columns after conversion
+        
+    Returns:
+        DataFrame with added age columns
+    """
+    # Check if v32 columns exist
+    if not any(col in df.columns for col in ["dep13", "dep17", "dep18"]):
+        return df
+    
+    # Create a copy to avoid modifying the original
+    df = df.copy()
+    
+    # Process each row
+    for idx, row in df.iterrows():
+        row_dict = row.to_dict()
+        
+        # Convert v32 format, keeping original fields temporarily
+        converted = convert_v32_dependent_format(row_dict, keep_v32_fields=True)
+        
+        # Update the row with new age columns
+        for key, value in converted.items():
+            if key.startswith("age") and key not in ['page', 'sage']:
+                if key not in df.columns:
+                    # Add the column if it doesn't exist
+                    df[key] = pd.NA
+                df.at[idx, key] = value
+    
+    # Remove v32 columns if requested
+    if remove_v32_fields:
+        v32_cols = ["dep13", "dep17", "dep18"]
+        df = df.drop(columns=[col for col in v32_cols if col in df.columns])
+    
+    return df
 
 
 def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
@@ -189,6 +233,9 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
             df = df.sample(n=sample, random_state=42)
+        
+        # Convert v32 format to age columns for dashboard compatibility
+        df = convert_v32_dataframe(df)
 
         click.echo(f"Processing {len(df)} records for comparison")
 
