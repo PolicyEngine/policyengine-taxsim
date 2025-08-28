@@ -102,7 +102,17 @@ class TaxsimRunner(BaseTaxRunner):
         """Format DataFrame for TAXSIM input requirements"""
         formatted_df = df.copy()
 
-        # Ensure all columns exist with default values
+        # Apply TAXSIM defaults first, including idtl=2
+        from policyengine_taxsim.core.input_mapper import set_taxsim_defaults
+        
+        for idx, row in formatted_df.iterrows():
+            taxsim_vars = row.to_dict()
+            year = int(float(taxsim_vars.get("year", 2021)))
+            taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
+            for key, value in taxsim_vars.items():
+                formatted_df.loc[idx, key] = value
+
+        # Ensure all columns exist with default values (for any remaining columns)
         for col in self.ALL_COLUMNS:
             if col not in formatted_df.columns:
                 formatted_df[col] = 0
