@@ -130,6 +130,9 @@ class TaxsimMicrosimDataset(Dataset):
         essential_person_variables = {
             "employment_income",  # Core income variable used directly
             "charitable_cash_donations",  # Used in dataset creation
+            "is_tax_unit_dependent",  # Tax unit role flag
+            "is_tax_unit_head",  # Tax unit role flag
+            "is_tax_unit_spouse",  # Tax unit role flag
         }
 
         # Variables that can cause circular dependencies
@@ -423,6 +426,11 @@ class TaxsimMicrosimDataset(Dataset):
         # Initialize variable data collectors
         for pe_var in filtered_mapping.keys():
             person_data[pe_var] = []
+        
+        # Initialize tax unit role flags
+        person_data["is_tax_unit_dependent"] = []
+        person_data["is_tax_unit_head"] = []
+        person_data["is_tax_unit_spouse"] = []
 
         current_person_id = 0
 
@@ -457,6 +465,11 @@ class TaxsimMicrosimDataset(Dataset):
                 else:
                     person_type = "dependent"
                     dep_num = person_idx - (1 if has_spouse else 0)
+                
+                # Set tax unit role flags
+                person_data["is_tax_unit_head"].append(person_type == "primary")
+                person_data["is_tax_unit_spouse"].append(person_type == "spouse")
+                person_data["is_tax_unit_dependent"].append(person_type == "dependent")
 
                 # Process each variable
                 for pe_var, mapping in filtered_mapping.items():

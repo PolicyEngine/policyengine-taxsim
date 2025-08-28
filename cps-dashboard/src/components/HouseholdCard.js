@@ -14,6 +14,7 @@ const HouseholdCard = ({ household, inputVariables, outputVariables }) => {
     const headers = [];
     const values = [];
     
+    // Always include core fields
     ['taxsimid', 'year', 'state'].forEach(field => {
       if (household.inputData[field] !== undefined) {
         headers.push(field);
@@ -21,11 +22,18 @@ const HouseholdCard = ({ household, inputVariables, outputVariables }) => {
       }
     });
     
+    // Include all input variables, even if they are 0 or empty
+    // This ensures compatibility with TAXSIM and PolicyEngine
     inputVariables.forEach(variable => {
       const value = household.inputData[variable.code];
-      if (value !== undefined && value !== null && value !== '' && value !== 0) {
-        headers.push(variable.code);
+      // Include the column even if value is 0, null, or undefined
+      // Use 0 as default for missing numeric values
+      headers.push(variable.code);
+      if (value !== undefined && value !== null && value !== '') {
         values.push(value);
+      } else {
+        // Default to 0 for missing values to maintain column structure
+        values.push(0);
       }
     });
     
