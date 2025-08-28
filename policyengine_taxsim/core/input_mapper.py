@@ -115,6 +115,76 @@ def add_additional_units(state, year, situation, taxsim_vars):
     return situation
 
 
+def convert_v32_dependent_format(taxsim_vars, keep_v32_fields=False):
+    """
+    Convert TAXSIM v32 dependent age format to individual ages.
+    
+    In v32:
+    - depx: Total personal exemption count
+    - dep13: Dependents under 13
+    - dep17: Dependents under 17 (includes those under 13)
+    - dep18: Dependents under 18 (includes those under 17 and 13)
+    
+    This function converts these overlapping counts into individual dependent ages
+    compatible with the current format (age1, age2, etc.)
+    
+    Args:
+        taxsim_vars (dict): Input variables potentially in v32 format
+        keep_v32_fields (bool): If True, preserve v32 fields alongside converted ages
+    
+    Returns:
+        dict: Modified taxsim_vars with individual dependent ages
+    """
+    # Check if v32 format is being used
+    if "dep13" in taxsim_vars or "dep17" in taxsim_vars or "dep18" in taxsim_vars:
+        depx = int(taxsim_vars.get("depx", 0))
+        dep13 = int(taxsim_vars.get("dep13", 0))
+        dep17 = int(taxsim_vars.get("dep17", 0))
+        dep18 = int(taxsim_vars.get("dep18", 0))
+        
+        # Calculate the number of dependents in each age group
+        # dep13: under 13
+        # dep17 - dep13: 13-16
+        # dep18 - dep17: 17
+        # depx - dep18: 18+
+        
+        num_under_13 = dep13
+        num_13_to_16 = max(0, dep17 - dep13)
+        num_17 = max(0, dep18 - dep17)
+        num_18_plus = max(0, depx - dep18)
+        
+        # Assign ages to dependents
+        dependent_ages = []
+        
+        # Add dependents under 13 (assign age 10 as default)
+        for _ in range(num_under_13):
+            dependent_ages.append(10)
+        
+        # Add dependents 13-16 (assign age 15 as default)
+        for _ in range(num_13_to_16):
+            dependent_ages.append(15)
+        
+        # Add dependents who are 17
+        for _ in range(num_17):
+            dependent_ages.append(17)
+        
+        # Add dependents 18+ (assign age 19 as default)
+        for _ in range(num_18_plus):
+            dependent_ages.append(19)
+        
+        # Set individual ages in taxsim_vars
+        for i, age in enumerate(dependent_ages, 1):
+            taxsim_vars[f"age{i}"] = age
+        
+        # Clean up v32 specific fields unless asked to keep them
+        if not keep_v32_fields:
+            taxsim_vars.pop("dep13", None)
+            taxsim_vars.pop("dep17", None)
+            taxsim_vars.pop("dep18", None)
+    
+    return taxsim_vars
+
+
 def form_household_situation(year, state, taxsim_vars):
     mappings = load_variable_mappings()["taxsim_to_policyengine"]
 
@@ -208,7 +278,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         - depx: 0 (Number of dependents)
         - mstat: 1 (Marital status)
         - taxsimid: 0 (TAXSIM ID)
-        - idtl: 0 (output flag)
+        - idtl: 2 (output flag - full output)
         - year: 2021 (Tax year, can be overridden)
         - page: 40 (Primary taxpayer age)
         - sage: 40 (Spouse age)
@@ -218,14 +288,18 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         "depx": 0,  # Number of dependents
         "mstat": 1,  # Marital status
         "taxsimid": 0,  # TAXSIM ID
-        "idtl": 0,  # output flag
+        "idtl": 2,  # output flag - full output
         "year": year,  # Tax year
         "page": 40,  # Primary taxpayer age
         "sage": 40,  # Spouse age
     }
 
     for key, default_value in DEFAULTS.items():
-        taxsim_vars[key] = int(taxsim_vars.get(key, default_value) or default_value)
+        # Use default only if key is missing or None, not if it's 0
+        if key not in taxsim_vars or taxsim_vars[key] is None:
+            taxsim_vars[key] = default_value
+        else:
+            taxsim_vars[key] = int(taxsim_vars[key])
 
     return taxsim_vars
 
@@ -246,7 +320,7 @@ def get_taxsim_defaults(year: int = 2021) -> dict:
         "state": 44,  # Texas
         "mstat": 1,  # Single
         "depx": 0,  # Number of dependents
-        "idtl": 0,  # Output flag
+        "idtl": 2,  # Output flag - full output
         "page": 40,  # Primary age
         "sage": 40,  # Spouse age
     }
@@ -268,6 +342,9 @@ def generate_household(taxsim_vars):
     )  # Ensure year is an integer string, handling decimals
 
     taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
+    
+    # Convert v32 dependent format if present
+    taxsim_vars = convert_v32_dependent_format(taxsim_vars)
 
     state = get_state_code(taxsim_vars["state"])
 

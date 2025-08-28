@@ -848,6 +848,8 @@ taxsim_to_policyengine:
     additional_tax_units:
       - tax_unit_childcare_expenses:
           - childcare
+      - misc_deduction:
+          - otheritem
       - state_use_tax:
           - 'pa'
           - 'nc'
@@ -864,6 +866,8 @@ taxsim_to_policyengine:
           - rentpaid
       - qualified_dividend_income:
           - dividends
+      - non_qualified_dividend_income:
+          - otherprop
       - long_term_capital_gains:
           - ltcg
       - self_employment_income:
@@ -954,4 +958,3 @@ taxsim_input_definition:
       name: "27. Txpy/Spouse QBI w/o PO"
   - pprofinc:
       name: "28. Txpy/Spouse SSTB w PO"
-

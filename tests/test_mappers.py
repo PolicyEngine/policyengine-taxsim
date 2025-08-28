@@ -1,6 +1,7 @@
 import pytest
 
 from policyengine_taxsim import generate_household, export_household
+from policyengine_taxsim.core.input_mapper import convert_v32_dependent_format
 
 
 @pytest.fixture
@@ -432,3 +433,140 @@ def test_roundtrip(sample_taxsim_input):
     # Again, we can't easily check the exact tax values, but we can ensure they exist
     assert "fiitax" in taxsim_output
     assert "siitax" in taxsim_output
+
+
+# Tests for v32 dependent format compatibility
+@pytest.fixture
+def sample_taxsim_v32_basic():
+    """Basic v32 format with overlapping dependent counts"""
+    return {
+        "year": 2021,
+        "state": 44,
+        "mstat": 2,
+        "depx": 3,
+        "dep13": 1,
+        "dep17": 2,
+        "dep18": 3,
+        "pwages": 50000,
+        "swages": 30000,
+        "page": 35,
+        "sage": 33,
+        "taxsimid": 1,
+    }
+
+
+@pytest.fixture
+def sample_taxsim_v32_with_adults():
+    """V32 format with adult dependents"""
+    return {
+        "year": 2021,
+        "state": 44,
+        "mstat": 1,
+        "depx": 4,
+        "dep13": 1,
+        "dep17": 2,
+        "dep18": 2,
+        "pwages": 75000,
+        "page": 40,
+        "taxsimid": 2,
+    }
+
+
+@pytest.fixture  
+def sample_taxsim_v32_all_young():
+    """V32 format with all dependents under 13"""
+    return {
+        "year": 2021,
+        "state": 44,
+        "mstat": 2,
+        "depx": 3,
+        "dep13": 3,
+        "dep17": 3,
+        "dep18": 3,
+        "pwages": 60000,
+        "swages": 40000,
+        "page": 38,
+        "sage": 36,
+        "taxsimid": 3,
+    }
+
+
+def test_v32_format_conversion_basic():
+    """Test basic v32 dependent format conversion"""
+    taxsim_vars = {
+        "depx": 3,
+        "dep13": 1,
+        "dep17": 2,
+        "dep18": 3,
+    }
+    
+    result = convert_v32_dependent_format(taxsim_vars.copy())
+    
+    # Check that individual ages are created
+    assert result["age1"] == 10  # under 13
+    assert result["age2"] == 15  # 13-16
+    assert result["age3"] == 17  # exactly 17
+    
+    # Check that v32 fields are removed
+    assert "dep13" not in result
+    assert "dep17" not in result
+    assert "dep18" not in result
+
+
+def test_v32_format_preserves_existing():
+    """Test that existing age1, age2 format is preserved when v32 not present"""
+    taxsim_vars = {
+        "depx": 2,
+        "age1": 5,
+        "age2": 12,
+    }
+    
+    result = convert_v32_dependent_format(taxsim_vars.copy())
+    
+    # Should preserve existing ages
+    assert result["age1"] == 5
+    assert result["age2"] == 12
+    assert "dep13" not in result
+
+
+def test_v32_household_generation(sample_taxsim_v32_basic):
+    """Test household generation with v32 format"""
+    household = generate_household(sample_taxsim_v32_basic)
+    
+    # Check that correct number of people are created
+    assert "you" in household["people"]
+    assert "your partner" in household["people"]
+    assert "your first dependent" in household["people"]
+    assert "your second dependent" in household["people"]
+    assert "your third dependent" in household["people"]
+    
+    # Check that ages are assigned correctly based on v32 conversion
+    # dep13=1, dep17=2, dep18=3 -> ages 10, 15, 17
+    assert household["people"]["your first dependent"]["age"]["2021"] == 10
+    assert household["people"]["your second dependent"]["age"]["2021"] == 15
+    assert household["people"]["your third dependent"]["age"]["2021"] == 17
+
+
+def test_v32_with_adult_dependents(sample_taxsim_v32_with_adults):
+    """Test v32 format with adult dependents"""
+    household = generate_household(sample_taxsim_v32_with_adults)
+    
+    # Check people creation
+    assert len(household["people"]) == 5  # taxpayer + 4 dependents
+    
+    # dep13=1, dep17=2, dep18=2, depx=4
+    # -> 1 under 13, 1 aged 13-16, 0 aged 17, 2 aged 18+
+    assert household["people"]["your first dependent"]["age"]["2021"] == 10
+    assert household["people"]["your second dependent"]["age"]["2021"] == 15
+    assert household["people"]["your third dependent"]["age"]["2021"] == 19
+    assert household["people"]["your fourth dependent"]["age"]["2021"] == 19
+
+
+def test_v32_all_young_dependents(sample_taxsim_v32_all_young):
+    """Test v32 format when all dependents are under 13"""
+    household = generate_household(sample_taxsim_v32_all_young)
+    
+    # All 3 dependents should be age 10
+    assert household["people"]["your first dependent"]["age"]["2021"] == 10
+    assert household["people"]["your second dependent"]["age"]["2021"] == 10
+    assert household["people"]["your third dependent"]["age"]["2021"] == 10
