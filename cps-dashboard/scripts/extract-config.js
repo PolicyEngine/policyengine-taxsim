@@ -101,7 +101,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
           });
         });
 
-        // Handle special cases
+        // Handle special cases and paired variables
         if (taxsimVar === 'taxsimid') {
           policyengineVar = 'taxsimid';
           implemented = true;
@@ -126,10 +126,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
         } else if (taxsimVar === 'psemp' || taxsimVar === 'ssemp') {
           policyengineVar = 'self_employment_income';
           implemented = true;
-        } else if (taxsimVar === 'sage') {
-          policyengineVar = 'age';
-          implemented = true;
-        } else if (taxsimVar === 'sui') {
+        } else if (taxsimVar === 'pui' || taxsimVar === 'sui') {
           policyengineVar = 'unemployment_compensation';
           implemented = true;
         }
@@ -158,7 +155,88 @@ function extractTaxsimToPolicyEngineMappings(config) {
     }
   });
 
-  return mappings;
+  // Sort mappings by logical category order and insert spouse variables in the right places
+  const sortedMappings = [];
+  
+  // Basic inputs first
+  const basicOrder = ['taxsimid', 'year', 'state', 'mstat', 'page', 'dependent_exemption', 'depx'];
+  basicOrder.forEach(varName => {
+    const mapping = mappings.find(m => m.taxsim === varName);
+    if (mapping) sortedMappings.push(mapping);
+  });
+  
+  // Add sage (spouse age) after page
+  const sageIndex = sortedMappings.findIndex(m => m.taxsim === 'page');
+  if (sageIndex >= 0) {
+    const githubLink = generatePolicyEngineGitHubLink('age');
+    sortedMappings.splice(sageIndex + 1, 0, {
+      taxsim: 'sage',
+      policyengine: 'age',
+      description: 'Spouse age',
+      implemented: true,
+      githubLink: githubLink
+    });
+  }
+  
+  // Income inputs
+  const incomeOrder = ['pwages', 'psemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui'];
+  incomeOrder.forEach(varName => {
+    const mapping = mappings.find(m => m.taxsim === varName);
+    if (mapping) sortedMappings.push(mapping);
+  });
+  
+  // Add spouse income variables after their primary counterparts
+  const pwagesIndex = sortedMappings.findIndex(m => m.taxsim === 'pwages');
+  if (pwagesIndex >= 0) {
+    const githubLink = generatePolicyEngineGitHubLink('employment_income');
+    sortedMappings.splice(pwagesIndex + 1, 0, {
+      taxsim: 'swages',
+      policyengine: 'employment_income',
+      description: 'Spouse wages',
+      implemented: true,
+      githubLink: githubLink
+    });
+  }
+  
+  const psempIndex = sortedMappings.findIndex(m => m.taxsim === 'psemp');
+  if (psempIndex >= 0) {
+    const githubLink = generatePolicyEngineGitHubLink('self_employment_income');
+    sortedMappings.splice(psempIndex + 1, 0, {
+      taxsim: 'ssemp',
+      policyengine: 'self_employment_income',
+      description: 'Spouse self-employment income',
+      implemented: true,
+      githubLink: githubLink
+    });
+  }
+  
+  const puiIndex = sortedMappings.findIndex(m => m.taxsim === 'pui');
+  if (puiIndex >= 0) {
+    const githubLink = generatePolicyEngineGitHubLink('unemployment_compensation');
+    sortedMappings.splice(puiIndex + 1, 0, {
+      taxsim: 'sui',
+      policyengine: 'unemployment_compensation',
+      description: 'Spouse unemployment compensation',
+      implemented: true,
+      githubLink: githubLink
+    });
+  }
+  
+  // Business income
+  const businessOrder = ['scorp', 'pbusinc', 'pprofinc'];
+  businessOrder.forEach(varName => {
+    const mapping = mappings.find(m => m.taxsim === varName);
+    if (mapping) sortedMappings.push(mapping);
+  });
+  
+  // Expense inputs
+  const expenseOrder = ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem'];
+  expenseOrder.forEach(varName => {
+    const mapping = mappings.find(m => m.taxsim === varName);
+    if (mapping) sortedMappings.push(mapping);
+  });
+
+  return sortedMappings;
 }
 
 /**

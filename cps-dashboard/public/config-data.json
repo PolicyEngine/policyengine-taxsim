@@ -36,6 +36,13 @@
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/demographic/age.py"
     },
     {
+      "taxsim": "sage",
+      "policyengine": "age",
+      "description": "Spouse age",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/demographic/age.py"
+    },
+    {
       "taxsim": "dependent_exemption",
       "policyengine": "dependents",
       "description": "Dependent Exemptions",
@@ -57,9 +64,23 @@
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/employment_income.py"
     },
     {
+      "taxsim": "swages",
+      "policyengine": "employment_income",
+      "description": "Spouse wages",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/employment_income.py"
+    },
+    {
       "taxsim": "psemp",
       "policyengine": "self_employment_income",
       "description": "Self-employment income",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+    },
+    {
+      "taxsim": "ssemp",
+      "policyengine": "self_employment_income",
+      "description": "Spouse self-employment income",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
     },
@@ -92,20 +113,6 @@
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/capital_gains/long_term_capital_gains.py"
     },
     {
-      "taxsim": "otherprop",
-      "policyengine": "na_pe",
-      "description": "Other Property",
-      "implemented": false,
-      "githubLink": null
-    },
-    {
-      "taxsim": "nonprop",
-      "policyengine": "na_pe",
-      "description": "Other Non-Property",
-      "implemented": false,
-      "githubLink": null
-    },
-    {
       "taxsim": "pensions",
       "policyengine": "taxable_private_pension_income",
       "description": "Taxable Pensions",
@@ -127,46 +134,11 @@
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/states/unemployment_compensation.py"
     },
     {
-      "taxsim": "transfers",
-      "policyengine": "na_pe",
-      "description": "Non-taxable Transfers",
-      "implemented": false,
-      "githubLink": null
-    },
-    {
-      "taxsim": "rentpaid",
-      "policyengine": "rent",
-      "description": "Rent Paid",
+      "taxsim": "sui",
+      "policyengine": "unemployment_compensation",
+      "description": "Spouse unemployment compensation",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/housing/rent.py"
-    },
-    {
-      "taxsim": "proptax",
-      "policyengine": "real_estate_taxes",
-      "description": "Property Taxes Paid",
-      "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/tax/real_estate_taxes.py"
-    },
-    {
-      "taxsim": "otheritem",
-      "policyengine": "na_pe",
-      "description": "Other Itemized Deds",
-      "implemented": false,
-      "githubLink": null
-    },
-    {
-      "taxsim": "childcare",
-      "policyengine": "tax_unit_childcare_expenses",
-      "description": "Child Care Expenses",
-      "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/childcare/tax_unit_childcare_expenses.py"
-    },
-    {
-      "taxsim": "mortgage",
-      "policyengine": "deductible_mortgage_interest",
-      "description": "Mortgage Interest",
-      "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/person/deductible_mortgage_interest.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/states/unemployment_compensation.py"
     },
     {
       "taxsim": "scorp",
@@ -186,6 +158,62 @@
       "taxsim": "pprofinc",
       "policyengine": "na_pe",
       "description": "Txpy/Spouse SSTB w PO",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "rentpaid",
+      "policyengine": "rent",
+      "description": "Rent Paid",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/housing/rent.py"
+    },
+    {
+      "taxsim": "proptax",
+      "policyengine": "real_estate_taxes",
+      "description": "Property Taxes Paid",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/tax/real_estate_taxes.py"
+    },
+    {
+      "taxsim": "childcare",
+      "policyengine": "tax_unit_childcare_expenses",
+      "description": "Child Care Expenses",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/childcare/tax_unit_childcare_expenses.py"
+    },
+    {
+      "taxsim": "mortgage",
+      "policyengine": "deductible_mortgage_interest",
+      "description": "Mortgage Interest",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/person/deductible_mortgage_interest.py"
+    },
+    {
+      "taxsim": "otherprop",
+      "policyengine": "na_pe",
+      "description": "Other Property",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "nonprop",
+      "policyengine": "na_pe",
+      "description": "Other Non-Property",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "transfers",
+      "policyengine": "na_pe",
+      "description": "Non-taxable Transfers",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "otheritem",
+      "policyengine": "na_pe",
+      "description": "Other Itemized Deds",
       "implemented": false,
       "githubLink": null
     }
@@ -253,5 +281,5 @@
       }
     ]
   },
-  "lastUpdated": "2025-09-01T20:35:58.615Z"
+  "lastUpdated": "2025-09-01T21:12:22.368Z"
 }

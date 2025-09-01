@@ -194,51 +194,117 @@ const Documentation = ({ onBackToDashboard }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMappings.map((mapping, index) => (
-                        <tr key={index}>
-                          <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
-                            {mapping.taxsim}
-                          </td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                            {mapping.githubLink ? (
-                              <a 
-                                href={mapping.githubLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ 
-                                  color: 'var(--blue-primary)', 
-                                  textDecoration: 'none',
-                                  display: 'inline-flex',
-                                  alignItems: 'center'
-                                }}
-                                onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                                onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                              >
-                                {mapping.policyengine}
-                                <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-                              </a>
-                            ) : (
-                              mapping.policyengine
-                            )}
-                          </td>
-                          <td style={{ fontSize: '14px', color: 'var(--dark-gray)' }}>
-                            {mapping.description}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {mapping.implemented ? (
-                              <span className="status-badge status-badge-match">
-                                <FiCheck className="w-3 h-3 mr-1" />
-                                Implemented
-                              </span>
-                            ) : (
-                              <span className="status-badge status-badge-mismatch">
-                                <FiX className="w-3 h-3 mr-1" />
-                                Not Available
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        // Categorize variables with spouse inputs in each section
+                        const basicInputs = ['taxsimid', 'year', 'state', 'mstat', 'page', 'sage', 'dependent_exemption', 'depx'];
+                        const incomeInputs = ['pwages', 'swages', 'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui', 'sui'];
+                        const businessIncomeInputs = ['scorp', 'pbusinc', 'pprofinc'];
+                        const expenseInputs = ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem'];
+
+                        const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
+                          <tr>
+                            <td colSpan="4" style={{ 
+                              padding: '12px 20px',
+                              backgroundColor: bgColor,
+                              borderTop: `2px solid ${color}`,
+                              borderBottom: `2px solid ${color}`,
+                              textAlign: 'center',
+                              fontWeight: '600',
+                              fontSize: '14px',
+                              color: color === 'var(--blue-primary)' ? 'var(--darkest-blue)' : 'var(--teal-pressed)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}>
+                              {title}
+                            </td>
+                          </tr>
+                        );
+
+                        const renderVariableRow = (mapping, index, categoryClass = '') => (
+                          <tr key={`var-${index}`} style={categoryClass ? { backgroundColor: categoryClass } : {}}>
+                            <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
+                              {mapping.taxsim}
+                            </td>
+                            <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
+                              {mapping.githubLink ? (
+                                <a 
+                                  href={mapping.githubLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ 
+                                    color: 'var(--blue-primary)', 
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center'
+                                  }}
+                                  onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                                  onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                                >
+                                  {mapping.policyengine}
+                                  <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+                                </a>
+                              ) : (
+                                mapping.policyengine
+                              )}
+                            </td>
+                            <td style={{ fontSize: '14px', color: 'var(--dark-gray)' }}>
+                              {mapping.description}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {mapping.implemented ? (
+                                <span className="status-badge status-badge-match">
+                                  <FiCheck className="w-3 h-3 mr-1" />
+                                  Implemented
+                                </span>
+                              ) : (
+                                <span className="status-badge status-badge-mismatch">
+                                  <FiX className="w-3 h-3 mr-1" />
+                                  Not Available
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+
+                        const results = [];
+                        let hasAddedBasic = false;
+                        let hasAddedIncome = false;
+                        let hasAddedBusiness = false;
+                        let hasAddedExpense = false;
+
+                        filteredMappings.forEach((mapping, index) => {
+                          // Add section dividers
+                          if (basicInputs.includes(mapping.taxsim) && !hasAddedBasic) {
+                            results.push(React.cloneElement(createDivider('Basic Inputs'), { key: `divider-basic` }));
+                            hasAddedBasic = true;
+                          } else if (incomeInputs.includes(mapping.taxsim) && !hasAddedIncome) {
+                            results.push(React.cloneElement(createDivider('Income Inputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-income` }));
+                            hasAddedIncome = true;
+                          } else if (businessIncomeInputs.includes(mapping.taxsim) && !hasAddedBusiness) {
+                            results.push(React.cloneElement(createDivider('Business Income', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-business` }));
+                            hasAddedBusiness = true;
+                          } else if (expenseInputs.includes(mapping.taxsim) && !hasAddedExpense) {
+                            results.push(React.cloneElement(createDivider('Expense & Deduction Inputs', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-expense` }));
+                            hasAddedExpense = true;
+                          }
+
+                          // Add the variable row with appropriate styling
+                          let categoryClass = '';
+                          if (basicInputs.includes(mapping.taxsim)) {
+                            categoryClass = 'rgba(44, 100, 150, 0.02)';
+                          } else if (incomeInputs.includes(mapping.taxsim)) {
+                            categoryClass = 'rgba(57, 198, 192, 0.02)';
+                          } else if (businessIncomeInputs.includes(mapping.taxsim)) {
+                            categoryClass = 'rgba(97, 97, 97, 0.02)';
+                          } else if (expenseInputs.includes(mapping.taxsim)) {
+                            categoryClass = 'rgba(44, 100, 150, 0.02)';
+                          }
+
+                          results.push(renderVariableRow(mapping, index, categoryClass));
+                        });
+
+                        return results;
+                      })()}
                     </tbody>
                   </table>
                 </div>
