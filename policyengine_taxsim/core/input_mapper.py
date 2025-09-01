@@ -76,6 +76,14 @@ def add_additional_units(state, year, situation, taxsim_vars):
                         str(year): taxsim_vars.get("ssemp", 0)
                     }
 
+            elif field == "unemployment_compensation":
+                if "pui" in taxsim_vars:
+                    people_unit["you"][field] = {str(year): taxsim_vars.get("pui", 0)}
+                if "your partner" in people_unit and "sui" in taxsim_vars:
+                    people_unit["your partner"][field] = {
+                        str(year): taxsim_vars.get("sui", 0)
+                    }
+
             elif len(values) > 1:
                 matching_values = [
                     taxsim_vars.get(value, 0)
@@ -164,7 +172,6 @@ def form_household_situation(year, state, taxsim_vars):
         "age": {str(year): int(taxsim_vars.get("page") or 40)},
         "employment_income": {str(year): float(taxsim_vars.get("pwages", 0))},
         "is_tax_unit_head": {str(year): True},
-        "unemployment_compensation": {str(year): float(taxsim_vars.get("pui", 0))},
     }
 
     if mstat == 2:
@@ -172,7 +179,6 @@ def form_household_situation(year, state, taxsim_vars):
             "age": {str(year): int(taxsim_vars.get("sage") or 40)},
             "employment_income": {str(year): float(taxsim_vars.get("swages", 0))},
             "is_tax_unit_spouse": {str(year): True},
-            "unemployment_compensation": {str(year): float(taxsim_vars.get("sui", 0))},
         }
 
     for i in range(1, depx + 1):

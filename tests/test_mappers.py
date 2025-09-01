@@ -90,7 +90,7 @@ def test_import_single_household(sample_taxsim_input):
                 "age": {"2021": 35},
                 "employment_income": {"2021": 50000},
                 "is_tax_unit_head": {"2021": True},
-                "unemployment_compensation": {"2021": 0},
+                
             }
         },
         "spm_units": {"your household": {"members": ["you"]}},
@@ -113,7 +113,7 @@ def test_import_single_household_without_state(sample_taxsim_input_without_state
                 "age": {"2021": 35},
                 "employment_income": {"2021": 50000},
                 "is_tax_unit_head": {"2021": True},
-                "unemployment_compensation": {"2021": 0},
+                
             }
         },
         "spm_units": {"your household": {"members": ["you"]}},
@@ -136,7 +136,7 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
                 "age": {"2021": 35},
                 "employment_income": {"2021": 50000},
                 "is_tax_unit_head": {"2021": True},
-                "unemployment_compensation": {"2021": 0},
+                
             }
         },
         "spm_units": {"your household": {"members": ["you"]}},
@@ -158,7 +158,7 @@ def test_export_single_household(sample_taxsim_input):
             "you": {
                 "age": {"2021": 35},
                 "employment_income": {"2021": 50000},
-                "unemployment_compensation": {"2021": 0},
+                
                 "is_tax_unit_head": {"2021": True},
             }
         },
@@ -214,13 +214,13 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "age": {"2023": 40},
                 "employment_income": {"2023": 45000.0},
                 "is_tax_unit_head": {"2023": True},
-                "unemployment_compensation": {"2023": 0},
+                
             },
             "your partner": {
                 "age": {"2023": 40},
                 "employment_income": {"2023": 30000.0},
                 "is_tax_unit_spouse": {"2023": True},
-                "unemployment_compensation": {"2023": 0},
+                
             },
             "your first dependent": {
                 "age": {"2023": 10},
@@ -302,13 +302,13 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "age": {"2023": 40},
                 "employment_income": {"2023": 81000.001},
                 "is_tax_unit_head": {"2023": True},
-                "unemployment_compensation": {"2023": 0},
+                
             },
             "your partner": {
                 "age": {"2023": 40},
                 "employment_income": {"2023": 0.0},
                 "is_tax_unit_spouse": {"2023": True},
-                "unemployment_compensation": {"2023": 0},
+                
             },
             "your first dependent": {
                 "age": {"2023": 4},
@@ -343,7 +343,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                     "your first dependent",
                     "your second dependent",
                 ],
-                "pa_use_tax": {"2023": 0.0},
+                                    "pa_use_tax": {"2023": 0},
             }
         },
     }
@@ -383,7 +383,7 @@ def test_household_with_dependent_single_parent(
                 "age": {"2023": 40},
                 "employment_income": {"2023": 81000.001},
                 "is_tax_unit_head": {"2023": True},
-                "unemployment_compensation": {"2023": 0},
+                
             },
             "your first dependent": {
                 "age": {"2023": 4},
@@ -408,7 +408,7 @@ def test_household_with_dependent_single_parent(
         "tax_units": {
             "your tax unit": {
                 "members": ["you", "your first dependent", "your second dependent"],
-                "pa_use_tax": {"2023": 0.0},
+                                    "pa_use_tax": {"2023": 0},
             }
         },
     }
