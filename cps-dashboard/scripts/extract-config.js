@@ -7,6 +7,60 @@ const yamlPath = path.join(__dirname, '../../policyengine_taxsim/config/variable
 const outputPath = path.join(__dirname, '../public/config-data.json');
 
 /**
+ * Generate GitHub link for PolicyEngine variable
+ */
+function generatePolicyEngineGitHubLink(variableName) {
+  const baseUrl = 'https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables';
+  
+  // Variables that should NOT have links (utility functions, system variables)
+  const noLinkVariables = [
+    'taxsimid', 
+    'get_year', 
+    'get_state_code', 
+    'marital_status', // This is likely a system variable
+    'dependents' // This might be a computed variable
+  ];
+  
+  if (noLinkVariables.includes(variableName)) {
+    return null;
+  }
+  
+  // Map variables to their actual paths in PolicyEngine-US (verified working paths)
+  const variablePathMap = {
+    // Income variables
+    'employment_income': 'input/employment_income.py',
+    'self_employment_income': 'household/income/self_employment/self_employment_income.py',
+    'qualified_dividend_income': 'household/income/person/dividends/qualified_dividend_income.py',
+    'taxable_interest_income': 'household/income/person/interest/taxable_interest_income.py',
+    'short_term_capital_gains': 'household/income/person/capital_gains/short_term_capital_gains.py',
+    'long_term_capital_gains': 'household/income/person/capital_gains/long_term_capital_gains.py',
+    'taxable_private_pension_income': 'household/income/person/retirement/taxable_private_pension_income.py',
+    'social_security_retirement': 'gov/ssa/ss/social_security_retirement.py',
+    'unemployment_compensation': 'gov/states/unemployment_compensation.py',
+    'partnership_s_corp_income': 'household/income/person/self_employment/partnership_s_corp_income.py',
+    'qualified_business_income': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
+    
+    // Expense/Deduction variables
+    'rent': 'household/expense/housing/rent.py',
+    'real_estate_taxes': 'household/expense/tax/real_estate_taxes.py',
+    'tax_unit_childcare_expenses': 'household/expense/childcare/tax_unit_childcare_expenses.py',
+    'deductible_mortgage_interest': 'household/expense/person/deductible_mortgage_interest.py',
+    
+    // Demographics
+    'age': 'household/demographic/age.py'
+  };
+  
+  const path = variablePathMap[variableName];
+  if (path) {
+    return `${baseUrl}/${path}`;
+  }
+  
+  // For variables we're not sure about, don't provide a link
+  // This prevents broken links
+  return null;
+}
+
+/**
  * Extract TAXSIM to PolicyEngine variable mappings from the configuration
  */
 function extractTaxsimToPolicyEngineMappings(config) {
@@ -87,11 +141,18 @@ function extractTaxsimToPolicyEngineMappings(config) {
           implemented = false;
         }
 
+        // Generate GitHub link for PolicyEngine variable
+        let githubLink = null;
+        if (implemented && policyengineVar !== 'na_pe' && policyengineVar !== 'Not mapped') {
+          githubLink = generatePolicyEngineGitHubLink(policyengineVar);
+        }
+
         mappings.push({
           taxsim: taxsimVar,
           policyengine: policyengineVar,
           description: description,
-          implemented: implemented
+          implemented: implemented,
+          githubLink: githubLink
         });
       });
     }

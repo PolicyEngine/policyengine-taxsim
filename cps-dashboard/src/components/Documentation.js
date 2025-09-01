@@ -200,7 +200,26 @@ const Documentation = ({ onBackToDashboard }) => {
                             {mapping.taxsim}
                           </td>
                           <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                            {mapping.policyengine}
+                            {mapping.githubLink ? (
+                              <a 
+                                href={mapping.githubLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ 
+                                  color: 'var(--blue-primary)', 
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center'
+                                }}
+                                onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                                onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                              >
+                                {mapping.policyengine}
+                                <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+                              </a>
+                            ) : (
+                              mapping.policyengine
+                            )}
                           </td>
                           <td style={{ fontSize: '14px', color: 'var(--dark-gray)' }}>
                             {mapping.description}
