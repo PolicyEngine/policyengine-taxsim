@@ -86,36 +86,28 @@ function App() {
             <h1 className="text-3xl main-title">
               PolicyEngine-Taxsim Emulator
             </h1>
-            <Button
-              onClick={handleExport}
-              icon={<FiDownload />}
-            >
-              Export Data
-            </Button>
+            <div className="flex space-x-3">
+              <Button
+                onClick={handleExport}
+                icon={<FiDownload />}
+              >
+                Export Data
+              </Button>
+              <Button
+                onClick={() => handleViewChange('documentation')}
+                variant="ghost"
+                icon={<FiBook />}
+              >
+                Documentation
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Navigation Tabs */}
-        <div className="flex justify-end mb-3">
-          <nav className="flex space-x-1">
-            <button
-              onClick={() => handleViewChange('dashboard')}
-              className={`year-tab ${currentView === 'dashboard' ? 'active' : 'inactive'}`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => handleViewChange('documentation')}
-              className={`year-tab ${currentView === 'documentation' ? 'active' : 'inactive'} flex items-center`}
-            >
-              <FiBook className="mr-1 w-4 h-4" />
-              Documentation
-            </button>
-          </nav>
-        </div>
+
 
         {/* Controls */}
         <div className="flex-between mb-6">
