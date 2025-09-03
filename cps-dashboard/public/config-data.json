@@ -265,10 +265,9 @@
       }
     ],
     "knownLimitations": [
-      "Variables marked as \"na_pe\" (not available in PolicyEngine) are not implemented",
-      "Some state-specific calculations may have different implementations",
-      "Marginal rate calculations are not currently supported",
-      "FICA calculations use PolicyEngine methodology, not TAXSIM's approach"
+      "Variables marked as \"N/A\" are currently not implemented in the Emulator but are supported by both models",
+      "Calculations may vary due to differences in the model coverage and know limitations",
+      "Marginal rate calculations are not currently supported"
     ],
     "multipleVariableHandling": [
       {
@@ -281,5 +280,5 @@
       }
     ]
   },
-  "lastUpdated": "2025-09-01T21:12:22.368Z"
+  "lastUpdated": "2025-09-03T18:22:03.617Z"
 }

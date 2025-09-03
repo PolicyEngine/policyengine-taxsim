@@ -294,10 +294,9 @@ function extractImplementationDetails() {
       { code: 5, name: 'Full Text', description: 'Complete variable descriptions and values' }
     ],
     knownLimitations: [
-      'Variables marked as "na_pe" (not available in PolicyEngine) are not implemented',
-      'Some state-specific calculations may have different implementations',
+      'Variables marked as "N/A" are currently not implemented in the Emulator but are supported by both models',
+      'Calculations may vary due to differences in the model coverage and know limitations',
       'Marginal rate calculations are not currently supported',
-      'FICA calculations use PolicyEngine methodology, not TAXSIM\'s approach'
     ],
     multipleVariableHandling: [
       { 

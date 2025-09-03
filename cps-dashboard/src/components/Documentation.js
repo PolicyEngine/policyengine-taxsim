@@ -716,10 +716,10 @@ const Documentation = ({ onBackToDashboard }) => {
     filteredMappings.forEach((mapping, index) => {
       // Add section dividers for outputs
       if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(React.cloneElement(createDivider('Basic Output Variables'), { key: `divider-basic` }));
+        results.push(React.cloneElement(createDivider('Basic Outputs'), { key: `divider-basic` }));
         hasAddedBasic = true;
       } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
-        results.push(React.cloneElement(createDivider('Primary Tax Outputs'), { key: `divider-tax` }));
+        results.push(React.cloneElement(createDivider('Primary Tax Calculations'), { key: `divider-tax` }));
         hasAddedTax = true;
       } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
         results.push(React.cloneElement(createDivider('Adjusted Gross Income', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-agi` }));
@@ -734,13 +734,14 @@ const Documentation = ({ onBackToDashboard }) => {
         results.push(React.cloneElement(createDivider('Tax Credits', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-credit` }));
         hasAddedCredit = true;
       } else if (amtOutputs.includes(mapping.taxsim) && !hasAddedAMT) {
+        // AMT section now only contains v26, v27 (v28 moved to taxable income)
         results.push(React.cloneElement(createDivider('Alternative Minimum Tax', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-amt` }));
         hasAddedAMT = true;
       } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
         results.push(React.cloneElement(createDivider('State-Specific Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-state` }));
         hasAddedState = true;
       } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
-        results.push(React.cloneElement(createDivider('Additional Taxes', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
+        results.push(React.cloneElement(createDivider('Additional Outputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
         hasAddedAdditional = true;
       }
 

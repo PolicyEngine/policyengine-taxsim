@@ -71,12 +71,12 @@ export const INPUT_VARIABLES = [
 // Based on TAXSIM documentation: https://taxsim.nber.org/taxsimtest/
 // Linked to PolicyEngine US variables: https://github.com/PolicyEngine/policyengine-us/tree/master/policyengine_us/variables
 export const OUTPUT_VARIABLES = [
-  // Basic Output Variables
+  // Basic Outputs
   { code: 'taxsimid', name: 'Case ID', policyengine: 'taxsimid' },
   { code: 'year', name: 'Year', policyengine: 'year' },
   { code: 'state', name: 'State code', policyengine: 'state_code' },
   
-  // Primary Tax Outputs
+  // Primary Tax Calculations
   { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
   { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
 
@@ -93,11 +93,12 @@ export const OUTPUT_VARIABLES = [
   { code: 'v17', name: 'Itemized Deductions in taxable income', policyengine: 'itemized_deductions' },
   { code: 'qbid', name: 'Qualified business income deduction', policyengine: 'qualified_business_income_deduction' },
 
-  // Federal Taxable Income and Tax Calculations (v18-v21)
+  // Federal Taxable Income and Tax Calculations (v18-v21, v28)
   { code: 'v18', name: 'Federal Taxable Income', policyengine: 'taxable_income' },
   { code: 'v19', name: 'Tax on Taxable Income (no special capital gains rates)', policyengine: 'income_tax_before_credits' },
   { code: 'v20', name: 'Exemption Surtax', policyengine: null },
   { code: 'v21', name: 'General Tax Credit', policyengine: null },
+  { code: 'v28', name: 'Federal Income Tax Before Credits (includes special treatment of Capital gains, exemption surtax (1988-1996) and 15% rate phaseout (1988-1990) but not AMT)', policyengine: 'income_tax_before_credits' },
 
   // Federal Tax Credits (v22-v25)
   { code: 'v22', name: 'Child Tax Credit (as adjusted includes additional ctc)', policyengine: 'ctc' },
@@ -107,10 +108,9 @@ export const OUTPUT_VARIABLES = [
   { code: 'actc', name: 'Additional child tax credit', policyengine: 'additional_ctc' },
   { code: 'cares', name: 'Cares rebate', policyengine: 'recovery_rebate_credit' },
 
-  // Federal AMT and Special Taxes (v26-v28)
+  // Federal AMT (v26-v27)
   { code: 'v26', name: 'Income for the Alternative Minimum Tax', policyengine: 'amt_income' },
   { code: 'v27', name: 'AMT Liability after credit for regular tax and other allowed credits', policyengine: 'amt' },
-  { code: 'v28', name: 'Federal Income Tax Before Credits (includes special treatment of Capital gains, exemption surtax (1988-1996) and 15% rate phaseout (1988-1990) but not AMT)', policyengine: 'income_tax_before_credits' },
 
   // State Income Calculations (v30-v36)
   { code: 'v30', name: 'State Household Income (imputation for property tax credit)', policyengine: 'household_income' },
@@ -149,7 +149,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'addmed', name: 'Medicare additional earnings Tax', policyengine: 'additional_medicare_tax' },
   { code: 'cdate', name: 'Date this version of Taxsim was compiled', policyengine: null },
 
-  // Additional Taxes (moved to end for proper section ordering)
+  // Additional Outputs (moved to end for proper section ordering)
   { code: 'fica', name: 'FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)', policyengine: null },
   { code: 'tfica', name: 'Taxpayer liability for FICA', policyengine: 'taxsim_tfica' },
   { code: 'frate', name: 'Federal marginal rate', policyengine: null },
@@ -178,9 +178,9 @@ export const OUTPUT_VARIABLE_CATEGORIES = {
   taxOutputs: ['fiitax', 'siitax'],
   agiOutputs: ['v10', 'v11', 'v12'],
   deductionOutputs: ['v13', 'v14', 'v15', 'v16', 'v17', 'qbid'],
-  taxableIncomeOutputs: ['v18', 'v19', 'v20', 'v21'],
+  taxableIncomeOutputs: ['v18', 'v19', 'v20', 'v21', 'v28'],
   creditOutputs: ['v22', 'v24', 'v25', 'actc', 'cares'],
-  amtOutputs: ['v26', 'v27', 'v28'],
+  amtOutputs: ['v26', 'v27'],
   stateOutputs: ['v30', 'v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'],
   additionalOutputs: ['v42', 'v43', 'v44', 'v45', 'niit', 'addmed', 'cdate', 'fica', 'tfica', 'frate', 'ficar']
 };
