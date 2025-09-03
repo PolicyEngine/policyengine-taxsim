@@ -456,8 +456,30 @@ const Documentation = ({ onBackToDashboard }) => {
                                 {mapping.taxsim}
                               </td>
                               <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                                {mapping.policyengine}
-                              </td>
+                              {mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
+                               mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year' && 
+                               mapping.policyengine !== 'get_state_code' ? (
+                                <a 
+                                  href={`https://github.com/PolicyEngine/policyengine-us/search?q=${mapping.policyengine}&type=code`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ 
+                                    color: 'var(--blue-primary)', 
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    cursor: 'pointer'
+                                  }}
+                                  onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                                  onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                                >
+                                  {mapping.policyengine}
+                                  <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+                                </a>
+                              ) : (
+                                mapping.policyengine || 'N/A'
+                              )}
+                            </td>
                                                           <td style={{ 
                               fontSize: '14px', 
                               color: 'var(--dark-gray)',
