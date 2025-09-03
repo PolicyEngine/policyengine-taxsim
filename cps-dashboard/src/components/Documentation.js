@@ -443,7 +443,7 @@ const Documentation = ({ onBackToDashboard }) => {
                                 ) : (
                                   <span className="status-badge status-badge-mismatch">
                                     <FiX className="w-3 h-3 mr-1" />
-                                    Not Available
+                                    Not Implemented
                                   </span>
                                 )}
                               </td>
@@ -606,7 +606,7 @@ const Documentation = ({ onBackToDashboard }) => {
                               ) : (
                                 <span className="status-badge status-badge-mismatch">
                                   <FiX className="w-3 h-3 mr-1" />
-                                  Not Available
+                                  Not Implemented
                                 </span>
                               )}
                             </td>
