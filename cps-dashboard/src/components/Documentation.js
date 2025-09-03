@@ -178,7 +178,7 @@ const Documentation = ({ onBackToDashboard }) => {
     
     return {
       taxsim: variable.code,
-      policyengine: isImplemented && actualVariable !== 'na_pe' ? actualVariable : variable.policyengine || variable.code,
+      policyengine: isImplemented && actualVariable !== 'na_pe' ? actualVariable : null,
       description: variable.name,
       implemented: isImplemented,
       githubLink: isImplemented && actualVariable !== 'na_pe' ? `https://github.com/PolicyEngine/policyengine-us/tree/master/policyengine_us/variables` : null

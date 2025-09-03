@@ -82,7 +82,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'fica', name: 'FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)', policyengine: null },
   { code: 'tfica', name: 'Taxpayer liability for FICA', policyengine: 'taxsim_tfica' },
 
-  // Marginal Rates
+  // Marginal Rates (NOT IMPLEMENTED - all have na_pe)
   { code: 'frate', name: 'Federal marginal rate', policyengine: null },
   { code: 'srate', name: 'State marginal rate', policyengine: null },
   { code: 'ficar', name: 'FICA rate', policyengine: null },
