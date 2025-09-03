@@ -594,16 +594,55 @@ const Documentation = ({ onBackToDashboard }) => {
                 <div>
                   <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Multiple Variable Handling</h3>
                   <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '14px', lineHeight: '1.6' }}>
-                    Some PolicyEngine outputs combine multiple TAXSIM variables:
+                    Some TAXSIM output variables combine multiple PolicyEngine variables for accurate calculations:
                   </p>
                   <div style={{ backgroundColor: 'var(--blue-98)', padding: '20px', borderRadius: '8px', border: '1px solid var(--blue-95)' }}>
-                    <div className="space-y-2">
-                      {configData.implementationDetails.multipleVariableHandling?.map((item, index) => (
-                        <div key={index} style={{ marginBottom: index === configData.implementationDetails.multipleVariableHandling.length - 1 ? '0' : '12px' }}>
-                          <code style={{ backgroundColor: 'var(--white)', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--blue-primary)', fontWeight: '600' }}>{item.taxsim}</code>
-                          <span style={{ color: 'var(--dark-gray)', marginLeft: '12px', fontSize: '14px' }}>→ {item.policyengine}</span>
+                    <div className="space-y-4">
+                      {Object.entries(getMultipleVariables ? {
+                        'v28': getMultipleVariables('v28'),
+                        'v40': getMultipleVariables('v40'),
+                        'v44': getMultipleVariables('v44')
+                      } : {}).filter(([_, variables]) => variables).map(([taxsimCode, variables], index) => (
+                        <div key={index} style={{ borderLeft: '3px solid var(--blue-primary)', paddingLeft: '16px', marginBottom: '16px' }}>
+                          <div style={{ marginBottom: '8px' }}>
+                            <code style={{ backgroundColor: 'var(--white)', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace', color: 'var(--blue-primary)', fontWeight: '700' }}>
+                              {taxsimCode}
+                            </code>
+                            <span style={{ color: 'var(--darkest-blue)', marginLeft: '12px', fontSize: '14px', fontWeight: '600' }}>
+                              {taxsimCode === 'v28' ? 'Federal Income Tax Before Credits' : 
+                               taxsimCode === 'v40' ? 'State Total Credits' : 
+                               taxsimCode === 'v44' ? 'Medicare Tax on Earned Income' : taxsimCode}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: '12px' }}>
+                            {variables.map((variable, varIndex) => (
+                              <div key={varIndex} style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: 'var(--dark-gray)', marginRight: '8px', fontSize: '14px' }}>→</span>
+                                <a 
+                                  href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(variable)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ 
+                                    color: 'var(--blue-primary)', 
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    fontSize: '12px',
+                                    fontFamily: 'monospace',
+                                    fontWeight: '600'
+                                  }}
+                                  onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                                  onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                                >
+                                  {variable}
+                                  <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+                                </a>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
+
                     </div>
                   </div>
                 </div>
