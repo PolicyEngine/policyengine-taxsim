@@ -12,6 +12,60 @@ const Documentation = ({ onBackToDashboard }) => {
     assumptions: false,
     implementation: false
   });
+
+  // Function to map PolicyEngine variable names to their GitHub file paths
+  const getVariablePath = (variableName) => {
+    const variablePaths = {
+      // Federal tax variables
+      'income_tax': 'gov/federal/tax/income/income_tax.py',
+      'adjusted_gross_income': 'gov/federal/tax/income/adjusted_gross_income.py',
+      'taxable_income': 'gov/federal/tax/income/taxable_income.py',
+      'standard_deduction': 'gov/federal/tax/income/deductions/standard_deduction.py',
+      'exemptions': 'gov/federal/tax/income/exemptions.py',
+      'itemized_deductions': 'gov/federal/tax/income/deductions/itemized_deductions.py',
+      'taxable_income_deductions_if_itemizing': 'gov/federal/tax/income/deductions/itemized_deductions.py',
+      'income_tax_main_rates': 'gov/federal/tax/income/income_tax.py',
+      'income_tax_before_credits': 'gov/federal/tax/income/income_tax.py',
+      
+      // Federal tax credits
+      'ctc': 'gov/federal/tax/credits/ctc/ctc.py',
+      'refundable_ctc': 'gov/federal/tax/credits/ctc/refundable_ctc.py',
+      'cdcc': 'gov/federal/tax/credits/cdcc.py',
+      'eitc': 'gov/federal/tax/credits/eitc.py',
+      
+      // AMT
+      'amt_income': 'gov/federal/tax/income/alternative_minimum_tax/amt_income.py',
+      'alternative_minimum_tax': 'gov/federal/tax/income/alternative_minimum_tax/alternative_minimum_tax.py',
+      
+      // FICA and payroll
+      'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
+      'net_investment_income_tax': 'gov/federal/tax/income/net_investment_income_tax.py',
+      'additional_medicare_tax': 'gov/federal/tax/payroll/additional_medicare_tax.py',
+      
+      // Income components
+      'tax_unit_taxable_unemployment_compensation': 'gov/federal/tax/income/taxable_unemployment_compensation.py',
+      'tax_unit_taxable_social_security': 'gov/federal/tax/income/taxable_social_security.py',
+      
+      // State tax variables
+      'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
+      'state_agi': 'gov/states/tax/income/agi.py',
+      'state_standard_deduction': 'gov/states/tax/income/deductions/standard_deduction.py',
+      'state_itemized_deductions': 'gov/states/tax/income/deductions/itemized_deductions.py',
+      'state_taxable_income': 'gov/states/tax/income/taxable_income.py',
+      'state_property_tax_credit': 'gov/states/tax/credits/property_tax_credit.py',
+      'state_cdcc': 'gov/states/tax/credits/cdcc.py',
+      'state_eitc': 'gov/states/tax/credits/eitc.py',
+      'state_ctc': 'gov/states/tax/credits/ctc.py',
+      
+      // Business income
+      'qualified_business_income_deduction': 'gov/federal/tax/income/deductions/qbi.py',
+      
+      // Recovery rebate
+      'recovery_rebate_credit': 'gov/federal/tax/credits/recovery_rebate_credit.py'
+    };
+    
+    return variablePaths[variableName] || `search?q=${variableName}&type=code`;
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [configData, setConfigData] = useState({
@@ -460,7 +514,7 @@ const Documentation = ({ onBackToDashboard }) => {
                                mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year' && 
                                mapping.policyengine !== 'get_state_code' ? (
                                 <a 
-                                  href={`https://github.com/PolicyEngine/policyengine-us/search?q=${mapping.policyengine}&type=code`}
+                                  href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   style={{ 
