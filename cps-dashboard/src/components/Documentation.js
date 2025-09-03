@@ -170,12 +170,11 @@ const Documentation = ({ onBackToDashboard }) => {
                 {/* Search Bar */}
                 <div className="mb-4">
                   <div className="relative">
-                    <FiSearch style={{ position: 'absolute', left: '12px', top: '12px', width: '16px', height: '16px', color: 'var(--dark-gray)' }} />
                     <input
                       type="text"
                       placeholder="Search variables..."
                       className="select"
-                      style={{ paddingLeft: '40px', width: '100%', maxWidth: '400px' }}
+                      style={{ paddingLeft: '16px', width: '100%', maxWidth: '400px' }}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -221,7 +220,10 @@ const Documentation = ({ onBackToDashboard }) => {
                         );
 
                         const renderVariableRow = (mapping, index, categoryClass = '') => (
-                          <tr key={`var-${index}`} style={categoryClass ? { backgroundColor: categoryClass } : {}}>
+                          <tr key={`var-${index}`} style={{ 
+                            ...(categoryClass ? { backgroundColor: categoryClass } : {}),
+                            cursor: 'default'
+                          }}>
                             <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
                               {mapping.taxsim}
                             </td>
@@ -235,7 +237,8 @@ const Documentation = ({ onBackToDashboard }) => {
                                     color: 'var(--blue-primary)', 
                                     textDecoration: 'none',
                                     display: 'inline-flex',
-                                    alignItems: 'center'
+                                    alignItems: 'center',
+                                    cursor: 'pointer'
                                   }}
                                   onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
                                   onMouseOut={(e) => e.target.style.textDecoration = 'none'}

@@ -256,7 +256,7 @@ body {
 
 .state-table tr:hover {
   background: linear-gradient(135deg, var(--blue-98), var(--blue-95));
-  cursor: pointer;
+  cursor: default;
   transform: translateX(2px);
 }
 
