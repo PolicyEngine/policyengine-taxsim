@@ -17,18 +17,16 @@ const Documentation = ({ onBackToDashboard }) => {
   const getVariablePath = (variableName) => {
     const variablePaths = {
       // Federal tax variables
-      'income_tax': 'gov/federal/tax/income/income_tax.py',
-      'adjusted_gross_income': 'gov/federal/tax/income/adjusted_gross_income.py',
-      'taxable_income': 'gov/federal/tax/income/taxable_income.py',
-      'standard_deduction': 'gov/federal/tax/income/deductions/standard_deduction.py',
-      'exemptions': 'gov/federal/tax/income/exemptions.py',
-      'itemized_deductions': 'gov/federal/tax/income/deductions/itemized_deductions.py',
-      'taxable_income_deductions_if_itemizing': 'gov/federal/tax/income/deductions/itemized_deductions.py',
-      'income_tax_main_rates': 'gov/federal/tax/income/income_tax.py',
-      'income_tax_before_credits': 'gov/federal/tax/income/income_tax.py',
+      'income_tax': 'gov/irs/tax/federal_income/income_tax.py',
+      'adjusted_gross_income': 'gov/irs/income/taxable_income/adjusted_gross_income/adjusted_gross_income.py',
+      'taxable_income': 'gov/irs/income/taxable_income/taxable_income.py',
+      'standard_deduction': 'gov/irs/income/taxable_income/deductions/standard_deduction/standard_deduction.py',
+      'exemptions': 'gov/irs/income/taxable_income/exemptions/exemptions.py',
+      'itemized_taxable_income_deductions': 'gov/irs/income/taxable_income/deductions/itemizing/itemized_taxable_income_deductions.py',
+      'income_tax_main_rates': 'gov/irs/tax/federal_income/before_credits/income_tax_main_rates.py',
       
       // Federal tax credits
-      'ctc': 'gov/federal/tax/credits/ctc/ctc.py',
+      'ctc': 'gov/irs/credits/ctc/ctc/ctc_value.py',
       'refundable_ctc': 'gov/federal/tax/credits/ctc/refundable_ctc.py',
       'cdcc': 'gov/federal/tax/credits/cdcc.py',
       'eitc': 'gov/federal/tax/credits/eitc.py',
@@ -45,6 +43,9 @@ const Documentation = ({ onBackToDashboard }) => {
       // Income components
       'tax_unit_taxable_unemployment_compensation': 'gov/federal/tax/income/taxable_unemployment_compensation.py',
       'tax_unit_taxable_social_security': 'gov/federal/tax/income/taxable_social_security.py',
+      
+      // Geographic/demographic variables
+      'state_code': 'household/demographic/geographic/state_code.py',
       
       // State tax variables
       'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
@@ -109,7 +110,7 @@ const Documentation = ({ onBackToDashboard }) => {
     // IMPLEMENTED variables (have actual PolicyEngine variable mappings)
     'taxsimid': { implemented: true, variable: 'taxsimid' },
     'year': { implemented: true, variable: 'get_year' },
-    'state': { implemented: true, variable: 'get_state_code' },
+    'state': { implemented: true, variable: 'state_code' },
     'fiitax': { implemented: true, variable: 'income_tax' },
     'siitax': { implemented: true, variable: 'state_income_tax' },
     'tfica': { implemented: true, variable: 'taxsim_tfica' },
@@ -118,10 +119,10 @@ const Documentation = ({ onBackToDashboard }) => {
     'v12': { implemented: true, variable: 'tax_unit_taxable_social_security' },
     'v13': { implemented: true, variable: 'standard_deduction' },
     'v14': { implemented: true, variable: 'exemptions' },
-    'v17': { implemented: true, variable: 'taxable_income_deductions_if_itemizing' },
+    'v17': { implemented: true, variable: 'itemized_taxable_income_deductions' },
     'v18': { implemented: true, variable: 'taxable_income' },
     'v19': { implemented: true, variable: 'income_tax_main_rates' },
-    'v22': { implemented: true, variable: 'ctc' },
+    'v22': { implemented: true, variable: 'ctc_value' },
     'v23': { implemented: true, variable: 'refundable_ctc' },
     'v24': { implemented: true, variable: 'cdcc' },
     'v25': { implemented: true, variable: 'eitc' },
@@ -513,8 +514,7 @@ const Documentation = ({ onBackToDashboard }) => {
                               </td>
                               <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
                               {mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
-                               mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year' && 
-                               mapping.policyengine !== 'get_state_code' ? (
+                               mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year' ? (
                                 <a 
                                   href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
                                   target="_blank"

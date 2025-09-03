@@ -179,7 +179,7 @@ policyengine_to_taxsim:
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v17:
-    variable: taxable_income_deductions_if_itemizing
+    variable: itemized_taxable_income_deductions
     implemented: true
     idtl:
       - full: 2
@@ -249,7 +249,7 @@ policyengine_to_taxsim:
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v22:
-    variable: ctc
+    variable: ctc_value
     implemented: true
     idtl:
       - full: 2

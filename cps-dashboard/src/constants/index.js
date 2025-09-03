@@ -74,7 +74,7 @@ export const OUTPUT_VARIABLES = [
   // Basic Output Variables
   { code: 'taxsimid', name: 'Case ID', policyengine: 'taxsimid' },
   { code: 'year', name: 'Year', policyengine: 'year' },
-  { code: 'state', name: 'State code', policyengine: 'state' },
+  { code: 'state', name: 'State code', policyengine: 'state_code' },
   
   // Primary Tax Outputs
   { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
