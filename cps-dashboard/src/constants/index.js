@@ -86,7 +86,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'v12', name: 'Social Security in AGI', policyengine: 'taxable_social_security' },
 
   // Federal Deductions and Exemptions (v13-v17)
-  { code: 'v13', name: 'Zero Bracket Amount (zero for itemizers)', policyengine: 'standard_deduction' },
+  { code: 'v13', name: 'Zero Bracket Amount (zero for itemizers) / Standard Deduction', policyengine: 'standard_deduction' },
   { code: 'v14', name: 'Personal Exemptions', policyengine: 'exemptions' },
   { code: 'v15', name: 'Exemption Phaseout', policyengine: null },
   { code: 'v16', name: 'Deduction Phaseout', policyengine: null },
@@ -107,11 +107,10 @@ export const OUTPUT_VARIABLES = [
   { code: 'actc', name: 'Additional child tax credit', policyengine: 'additional_ctc' },
   { code: 'cares', name: 'Cares rebate', policyengine: 'recovery_rebate_credit' },
 
-  // Federal AMT and Special Taxes (v26-v29)
+  // Federal AMT and Special Taxes (v26-v28)
   { code: 'v26', name: 'Income for the Alternative Minimum Tax', policyengine: 'amt_income' },
   { code: 'v27', name: 'AMT Liability after credit for regular tax and other allowed credits', policyengine: 'amt' },
   { code: 'v28', name: 'Federal Income Tax Before Credits (includes special treatment of Capital gains, exemption surtax (1988-1996) and 15% rate phaseout (1988-1990) but not AMT)', policyengine: 'income_tax_before_credits' },
-  { code: 'v29', name: 'FICA', policyengine: 'fica' },
 
   // State Income Calculations (v30-v36)
   { code: 'v30', name: 'State Household Income (imputation for property tax credit)', policyengine: 'household_income' },

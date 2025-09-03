@@ -144,7 +144,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "13. Zero Bracket Amount"
+    text_description: "13. Zero Bracket Amount / Standard Deduction"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -689,8 +689,8 @@ policyengine_to_taxsim:
     group_order: 7
     full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
     group_column: 1
-  refund_ctc:
-    variable: na_pe
+  actc:
+    variable: refundable_ctc
     implemented: false
     idtl:
       - full_text: 5

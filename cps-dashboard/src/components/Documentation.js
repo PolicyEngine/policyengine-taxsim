@@ -27,10 +27,10 @@ const Documentation = ({ onBackToDashboard }) => {
       'capital_gains_tax': 'gov/irs/tax/federal_income/capital_gains/capital_gains_tax.py',
       
       // Federal tax credits
-      'ctc': 'gov/irs/credits/ctc/ctc/ctc_value.py',
-      'refundable_ctc': 'gov/federal/tax/credits/ctc/refundable_ctc.py',
-      'cdcc': 'gov/federal/tax/credits/cdcc.py',
-      'eitc': 'gov/federal/tax/credits/eitc.py',
+      'ctc_value': 'gov/irs/credits/ctc/ctc_value.py',
+      'refundable_ctc': 'gov/irs/credits/ctc/refundable/refundable_ctc.py',
+      'cdcc': 'gov/irs/credits/cdcc/cdcc.py',
+      'eitc': 'gov/irs/credits/earned_income/eitc.py',
       
       // AMT
       'amt_income': 'gov/irs/tax/federal_income/alternative_minimum_tax/income/amt_income.py',
@@ -38,12 +38,12 @@ const Documentation = ({ onBackToDashboard }) => {
       
       // FICA and payroll
       'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
-      'net_investment_income_tax': 'gov/federal/tax/income/net_investment_income_tax.py',
-      'additional_medicare_tax': 'gov/federal/tax/payroll/additional_medicare_tax.py',
-      'employee_medicare_tax': 'gov/federal/tax/payroll/medicare_tax.py',
+      'net_investment_income_tax': 'gov/irs/tax/federal_income/net_investment_income_tax.py',
+      'additional_medicare_tax': 'gov/irs/tax/federal_income/additional_medicare_tax.py',
+      'employee_medicare_tax': 'gov/irs/tax/payroll/medicare/employee_medicare_tax.py',
       
       // Income components
-      'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/tax_unit_taxable_unemployment_compensation.py',
+      'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/unemployment_insurance/tax_unit_taxable_unemployment_compensation.py',
       'tax_unit_taxable_social_security': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/social_security/tax_unit_taxable_social_security.py',
       
       // Geographic/demographic variables
@@ -138,13 +138,11 @@ const Documentation = ({ onBackToDashboard }) => {
     'v18': { implemented: true, variable: 'taxable_income' },
     'v19': { implemented: true, variable: 'income_tax_main_rates' },
     'v22': { implemented: true, variable: 'ctc_value' },
-    'v23': { implemented: true, variable: 'refundable_ctc' },
     'v24': { implemented: true, variable: 'cdcc' },
     'v25': { implemented: true, variable: 'eitc' },
     'v26': { implemented: true, variable: 'amt_income' },
     'v27': { implemented: true, variable: 'alternative_minimum_tax' },
     'v28': { implemented: true, variable: 'multiple_variables' },
-    'v29': { implemented: true, variable: 'taxsim_tfica' },
     'v32': { implemented: true, variable: 'state_agi' },
     'v34': { implemented: true, variable: 'state_standard_deduction' },
     'v35': { implemented: true, variable: 'state_itemized_deductions' },
@@ -158,6 +156,7 @@ const Documentation = ({ onBackToDashboard }) => {
     'niit': { implemented: true, variable: 'net_investment_income_tax' },
     'sctc': { implemented: true, variable: 'state_ctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
+    'actc': { implemented: true, variable: 'refundable_ctc' },
     
     // ❌ NOT IMPLEMENTED variables - ALL HAVE 'na_pe' (NOT AVAILABLE IN POLICYENGINE)
     // IF variable = 'na_pe' --> IT IS NOT IMPLEMENTED
@@ -169,6 +168,7 @@ const Documentation = ({ onBackToDashboard }) => {
     'v16': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v20': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v21': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
+    'v23': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v30': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v31': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v33': { implemented: false, variable: 'state_exemptions' }, // Special case: still not implemented
@@ -176,14 +176,13 @@ const Documentation = ({ onBackToDashboard }) => {
     'v42': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v43': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v45': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v46': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'staxbc': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'srebate': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'senergy': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'sptcr': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'samt': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'addmed': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'actc': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
+    'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
     'cdate': { implemented: false, variable: 'na_pe' } // na_pe = NOT IMPLEMENTED
   };
 
@@ -493,12 +492,12 @@ const Documentation = ({ onBackToDashboard }) => {
                           // Output variables categorization
                           const basicOutputs = ['taxsimid', 'year', 'state'];
                           const taxOutputs = ['fiitax', 'siitax']; // Only primary tax outputs
-                          const agiOutputs = ['v10', 'v11', 'v12', 'v30'];
+                          const agiOutputs = ['v10', 'v11', 'v12'];
                           const deductionOutputs = ['v13', 'v14', 'v15', 'v16', 'v17', 'qbid'];
                           const taxableIncomeOutputs = ['v18', 'v19', 'v20', 'v21'];
                           const creditOutputs = ['v22', 'v24', 'v25', 'actc', 'cares'];
                           const amtOutputs = ['v26', 'v27', 'v28'];
-                          const stateOutputs = ['v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'];
+                          const stateOutputs = ['v30', 'v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'];
                           const additionalOutputs = ['v42', 'v43', 'v44', 'v45', 'v46', 'niit', 'addmed', 'cdate', 'fica', 'tfica', 'frate', 'ficar']; // Federal additional variables only
 
                           const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
