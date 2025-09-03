@@ -217,7 +217,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         - idtl: 0 (output flag)
         - year: 2021 (Tax year, can be overridden)
         - page: 40 (Primary taxpayer age)
-        - sage: 40 (Spouse age)
+        - sage: 40 (Age of secondary taxpayer)
     """
     DEFAULTS = {
         "state": 44,  # Texas
@@ -227,7 +227,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         "idtl": 0,  # output flag
         "year": year,  # Tax year
         "page": 40,  # Primary taxpayer age
-        "sage": 40,  # Spouse age
+        "sage": 40,  # Age of secondary taxpayer
     }
 
     for key, default_value in DEFAULTS.items():
@@ -254,7 +254,7 @@ def get_taxsim_defaults(year: int = 2021) -> dict:
         "depx": 0,  # Number of dependents
         "idtl": 0,  # Output flag
         "page": 40,  # Primary age
-        "sage": 40,  # Spouse age
+        "sage": 40,  # Age of secondary taxpayer
     }
 
 

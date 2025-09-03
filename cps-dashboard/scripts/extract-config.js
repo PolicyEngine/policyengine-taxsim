@@ -165,14 +165,14 @@ function extractTaxsimToPolicyEngineMappings(config) {
     if (mapping) sortedMappings.push(mapping);
   });
   
-  // Add sage (spouse age) after page
+  // Add sage (Age of secondary taxpayer) after page
   const sageIndex = sortedMappings.findIndex(m => m.taxsim === 'page');
   if (sageIndex >= 0) {
     const githubLink = generatePolicyEngineGitHubLink('age');
     sortedMappings.splice(sageIndex + 1, 0, {
       taxsim: 'sage',
       policyengine: 'age',
-      description: 'Spouse age',
+      description: 'Age of secondary taxpayer',
       implemented: true,
       githubLink: githubLink
     });
@@ -192,7 +192,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
     sortedMappings.splice(pwagesIndex + 1, 0, {
       taxsim: 'swages',
       policyengine: 'employment_income',
-      description: 'Spouse wages',
+      description: 'Wage and salary income of secondary taxpayer',
       implemented: true,
       githubLink: githubLink
     });
@@ -204,7 +204,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
     sortedMappings.splice(psempIndex + 1, 0, {
       taxsim: 'ssemp',
       policyengine: 'self_employment_income',
-      description: 'Spouse self-employment income',
+      description: 'Self-employment income of secondary taxpayer',
       implemented: true,
       githubLink: githubLink
     });
@@ -216,7 +216,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
     sortedMappings.splice(puiIndex + 1, 0, {
       taxsim: 'sui',
       policyengine: 'unemployment_compensation',
-      description: 'Spouse unemployment compensation',
+      description: 'Secondary taxpayer unemployment compensation',
       implemented: true,
       githubLink: githubLink
     });

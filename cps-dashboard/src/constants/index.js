@@ -32,7 +32,7 @@ export const MISMATCH_TOLERANCE = 15; // $15 tolerance for mismatches
 export const INPUT_VARIABLES = [
   { code: 'mstat', name: 'Marital Status' },
   { code: 'page', name: 'Primary Taxpayer Age' },
-  { code: 'sage', name: 'Spouse Age' },
+  { code: 'sage', name: 'Age of secondary taxpayer' },
   { code: 'depx', name: 'Number of Dependents' },
   { code: 'age1', name: 'Dependent 1 Age' },
   { code: 'age2', name: 'Dependent 2 Age' },
@@ -46,7 +46,7 @@ export const INPUT_VARIABLES = [
   { code: 'age10', name: 'Dependent 10 Age' },
   { code: 'age11', name: 'Dependent 11 Age' },
   { code: 'pwages', name: 'Primary Wages' },
-  { code: 'swages', name: 'Spouse Wages' },
+  { code: 'swages', name: 'Wage and salary income of secondary taxpayer' },
   { code: 'psemp', name: 'Primary Self-Employment' },
   { code: 'ssemp', name: 'Spouse Self-Employment' },
   { code: 'dividends', name: 'Dividend Income' },

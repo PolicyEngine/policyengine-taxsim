@@ -31,14 +31,14 @@
     {
       "taxsim": "page",
       "policyengine": "age",
-      "description": "Age (Txpyr/Spouse)",
+      "description": "Age of primary taxpayer",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/demographic/age.py"
     },
     {
       "taxsim": "sage",
       "policyengine": "age",
-      "description": "Spouse age",
+      "description": "Age of secondary taxpayer",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/demographic/age.py"
     },
@@ -52,35 +52,35 @@
     {
       "taxsim": "depx",
       "policyengine": "dependents",
-      "description": "#deps for CCC/CTC/EIC",
+      "description": "Number of Dependents",
       "implemented": true,
       "githubLink": null
     },
     {
       "taxsim": "pwages",
       "policyengine": "employment_income",
-      "description": "Wages (Txpyr/Spouse)",
+      "description": "Wage and salary income of primary taxpayer",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/employment_income.py"
     },
     {
       "taxsim": "swages",
       "policyengine": "employment_income",
-      "description": "Spouse wages",
+      "description": "Wage and salary income of secondary taxpayer",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/employment_income.py"
     },
     {
       "taxsim": "psemp",
       "policyengine": "self_employment_income",
-      "description": "Self-employment income",
+      "description": "Self-employment income of primary taxpayer",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
     },
     {
       "taxsim": "ssemp",
       "policyengine": "self_employment_income",
-      "description": "Spouse self-employment income",
+      "description": "Self-employment income of secondary taxpayer",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
     },
@@ -129,14 +129,14 @@
     {
       "taxsim": "pui",
       "policyengine": "unemployment_compensation",
-      "description": "Tot/Txpy/Spouse UI",
+      "description": "Primary taxpayer unemployment compensation",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/states/unemployment_compensation.py"
     },
     {
       "taxsim": "sui",
       "policyengine": "unemployment_compensation",
-      "description": "Spouse unemployment compensation",
+      "description": "Secondary taxpayer unemployment compensation",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/states/unemployment_compensation.py"
     },
@@ -150,14 +150,14 @@
     {
       "taxsim": "pbusinc",
       "policyengine": "qualified_business_income",
-      "description": "Txpy/Spouse QBI w/o PO",
+      "description": "Primary and secondary Taxpayer's active QBI",
       "implemented": true,
       "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py"
     },
     {
       "taxsim": "pprofinc",
       "policyengine": "na_pe",
-      "description": "Txpy/Spouse SSTB w PO",
+      "description": "Primary and secondary taxpayer's Specialized Service Trade or Business service",
       "implemented": false,
       "githubLink": null
     },

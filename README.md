@@ -273,7 +273,7 @@ The emulator accepts CSV files with the following variables:
 | state     | State code                     |                                             |
 | mstat     | Marital status                 | Only supports: 1 (single), 2 (joint)        |
 | page      | Primary taxpayer age           |                                             |
-| sage      | Spouse age                     |                                             |
+| sage      | Age of secondary taxpayer                     |                                             |
 | depx      | Number of dependents           |                                             |
 | age1      | First dependent's age          |                                             |
 | age2      | Second dependent's age         |                                             |
@@ -284,7 +284,7 @@ The emulator accepts CSV files with the following variables:
 | Variable  | Description                                                  |
 |-----------|--------------------------------------------------------------|
 | pwages    | Primary taxpayer wages                                       |
-| swages    | Spouse wages                                                 |
+| swages    | Wage and salary income of secondary taxpayer                                                 |
 | intrec    | Taxable interest income                                      |
 | dividends | Qualified dividend income                                    |
 | ltcg      | Long-term capital gains                                      |
