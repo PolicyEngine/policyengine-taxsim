@@ -165,6 +165,98 @@ export const INPUT_FIELDS = [
   'age7', 'age8', 'age9', 'age10', 'age11', 'year'
 ];
 
+// Variable categorization for documentation display
+export const INPUT_VARIABLE_CATEGORIES = {
+  basicInputs: ['taxsimid', 'year', 'state', 'mstat', 'page', 'sage', 'dependent_exemption', 'depx'],
+  incomeInputs: ['pwages', 'swages', 'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui', 'sui'],
+  businessIncomeInputs: ['scorp', 'pbusinc', 'pprofinc'],
+  expenseInputs: ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem']
+};
+
+export const OUTPUT_VARIABLE_CATEGORIES = {
+  basicOutputs: ['taxsimid', 'year', 'state'],
+  taxOutputs: ['fiitax', 'siitax'],
+  agiOutputs: ['v10', 'v11', 'v12'],
+  deductionOutputs: ['v13', 'v14', 'v15', 'v16', 'v17', 'qbid'],
+  taxableIncomeOutputs: ['v18', 'v19', 'v20', 'v21'],
+  creditOutputs: ['v22', 'v24', 'v25', 'actc', 'cares'],
+  amtOutputs: ['v26', 'v27', 'v28'],
+  stateOutputs: ['v30', 'v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'],
+  additionalOutputs: ['v42', 'v43', 'v44', 'v45', 'niit', 'addmed', 'cdate', 'fica', 'tfica', 'frate', 'ficar']
+};
+
+// Multiple variable mappings from YAML config
+export const MULTIPLE_VARIABLE_MAPPINGS = {
+  'v28': ['income_tax_main_rates', 'capital_gains_tax'],
+  'v40': ['state_non_refundable_credits', 'state_refundable_credits'],
+  'v44': ['employee_medicare_tax', 'additional_medicare_tax']
+};
+
+// PolicyEngine variable GitHub file paths
+export const POLICYENGINE_VARIABLE_PATHS = {
+  // Federal tax variables
+  'income_tax': 'gov/irs/tax/federal_income/income_tax.py',
+  'adjusted_gross_income': 'gov/irs/income/taxable_income/adjusted_gross_income/adjusted_gross_income.py',
+  'taxable_income': 'gov/irs/income/taxable_income/taxable_income.py',
+  'standard_deduction': 'gov/irs/income/taxable_income/deductions/standard_deduction/standard_deduction.py',
+  'exemptions': 'gov/irs/income/taxable_income/exemptions/exemptions.py',
+  'itemized_taxable_income_deductions': 'gov/irs/income/taxable_income/deductions/itemizing/itemized_taxable_income_deductions.py',
+  'income_tax_main_rates': 'gov/irs/tax/federal_income/before_credits/income_tax_main_rates.py',
+  'capital_gains_tax': 'gov/irs/tax/federal_income/capital_gains/capital_gains_tax.py',
+  
+  // Federal tax credits
+  'ctc_value': 'gov/irs/credits/ctc/ctc_value.py',
+  'refundable_ctc': 'gov/irs/credits/ctc/refundable/refundable_ctc.py',
+  'cdcc': 'gov/irs/credits/cdcc/cdcc.py',
+  'eitc': 'gov/irs/credits/earned_income/eitc.py',
+  
+  // AMT
+  'amt_income': 'gov/irs/tax/federal_income/alternative_minimum_tax/income/amt_income.py',
+  'alternative_minimum_tax': 'gov/irs/tax/federal_income/alternative_minimum_tax/alternative_minimum_tax.py',
+  
+  // FICA and payroll
+  'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
+  'net_investment_income_tax': 'gov/irs/tax/federal_income/net_investment_income_tax.py',
+  'additional_medicare_tax': 'gov/irs/tax/federal_income/additional_medicare_tax.py',
+  'employee_medicare_tax': 'gov/irs/tax/payroll/medicare/employee_medicare_tax.py',
+  
+  // Income components
+  'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/unemployment_insurance/tax_unit_taxable_unemployment_compensation.py',
+  'tax_unit_taxable_social_security': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/social_security/tax_unit_taxable_social_security.py',
+  
+  // Geographic/demographic variables
+  'state_code': 'household/demographic/geographic/state_code.py',
+  
+  // State tax variables
+  'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
+  'state_agi': 'gov/states/tax/income/agi.py',
+  'state_standard_deduction': 'gov/states/tax/income/deductions/state_standard_deduction.py',
+  'state_itemized_deductions': 'gov/states/tax/income/deductions/state_itemized_deductions.py',
+  'state_taxable_income': 'gov/states/tax/income/state_taxable_income.py',
+  'state_property_tax_credit': 'gov/states/tax/credits/state_property_tax_credit.py',
+  'state_cdcc': 'gov/states/tax/credits/state_cdcc.py',
+  'state_eitc': 'gov/states/tax/credits/state_eitc.py',
+  'state_ctc': 'gov/states/tax/credits/state_ctc.py',
+  'state_non_refundable_credits': 'gov/states/tax/credits/state_non_refundable_credits.py',
+  'state_refundable_credits': 'gov/states/tax/credits/state_refundable_credits.py',
+  
+  // Business income
+  'qualified_business_income_deduction': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
+  
+  // Recovery rebate
+  'recovery_rebate_credit': 'gov/irs/credits/recovery_rebate_credit/recovery_rebate_credit.py'
+};
+
+// Helper function to get PolicyEngine variable GitHub path
+export const getVariablePath = (variableName) => {
+  return POLICYENGINE_VARIABLE_PATHS[variableName] || `search?q=${variableName}&type=code`;
+};
+
+// Helper function to get multiple variables for combined calculations
+export const getMultipleVariables = (taxsimCode) => {
+  return MULTIPLE_VARIABLE_MAPPINGS[taxsimCode] || null;
+};
+
 // Label colors for GitHub issues
 export const LABEL_COLORS = {
   'bug': '#d73a4a',

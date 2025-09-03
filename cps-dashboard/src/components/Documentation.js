@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { FiExternalLink, FiChevronDown, FiChevronRight, FiSearch, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
 import { loadConfigurationData } from '../utils/configLoader';
 import LoadingSpinner from './common/LoadingSpinner';
-import { OUTPUT_VARIABLES } from '../constants';
+import { 
+  OUTPUT_VARIABLES, 
+  INPUT_VARIABLE_CATEGORIES,
+  OUTPUT_VARIABLE_CATEGORIES,
+  getVariablePath,
+  getMultipleVariables
+} from '../constants';
 
 const Documentation = ({ onBackToDashboard }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,75 +19,7 @@ const Documentation = ({ onBackToDashboard }) => {
     implementation: false
   });
 
-  // Function to map PolicyEngine variable names to their GitHub file paths
-  const getVariablePath = (variableName) => {
-    const variablePaths = {
-      // Federal tax variables
-      'income_tax': 'gov/irs/tax/federal_income/income_tax.py',
-      'adjusted_gross_income': 'gov/irs/income/taxable_income/adjusted_gross_income/adjusted_gross_income.py',
-      'taxable_income': 'gov/irs/income/taxable_income/taxable_income.py',
-      'standard_deduction': 'gov/irs/income/taxable_income/deductions/standard_deduction/standard_deduction.py',
-      'exemptions': 'gov/irs/income/taxable_income/exemptions/exemptions.py',
-      'itemized_taxable_income_deductions': 'gov/irs/income/taxable_income/deductions/itemizing/itemized_taxable_income_deductions.py',
-      'income_tax_main_rates': 'gov/irs/tax/federal_income/before_credits/income_tax_main_rates.py',
-      'capital_gains_tax': 'gov/irs/tax/federal_income/capital_gains/capital_gains_tax.py',
-      
-      // Federal tax credits
-      'ctc_value': 'gov/irs/credits/ctc/ctc_value.py',
-      'refundable_ctc': 'gov/irs/credits/ctc/refundable/refundable_ctc.py',
-      'cdcc': 'gov/irs/credits/cdcc/cdcc.py',
-      'eitc': 'gov/irs/credits/earned_income/eitc.py',
-      
-      // AMT
-      'amt_income': 'gov/irs/tax/federal_income/alternative_minimum_tax/income/amt_income.py',
-      'alternative_minimum_tax': 'gov/irs/tax/federal_income/alternative_minimum_tax/alternative_minimum_tax.py',
-      
-      // FICA and payroll
-      'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
-      'net_investment_income_tax': 'gov/irs/tax/federal_income/net_investment_income_tax.py',
-      'additional_medicare_tax': 'gov/irs/tax/federal_income/additional_medicare_tax.py',
-      'employee_medicare_tax': 'gov/irs/tax/payroll/medicare/employee_medicare_tax.py',
-      
-      // Income components
-      'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/unemployment_insurance/tax_unit_taxable_unemployment_compensation.py',
-      'tax_unit_taxable_social_security': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/social_security/tax_unit_taxable_social_security.py',
-      
-      // Geographic/demographic variables
-      'state_code': 'household/demographic/geographic/state_code.py',
-      
-      // State tax variables
-      'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
-      'state_agi': 'gov/states/tax/income/agi.py',
-      'state_standard_deduction': 'gov/states/tax/income/deductions/state_standard_deduction.py',
-      'state_itemized_deductions': 'gov/states/tax/income/deductions/state_itemized_deductions.py',
-      'state_taxable_income': 'gov/states/tax/income/state_taxable_income.py',
-      'state_property_tax_credit': 'gov/states/tax/credits/state_property_tax_credit.py',
-      'state_cdcc': 'gov/states/tax/credits/state_cdcc.py',
-      'state_eitc': 'gov/states/tax/credits/state_eitc.py',
-      'state_ctc': 'gov/states/tax/credits/state_ctc.py',
-      'state_non_refundable_credits': 'gov/states/tax/credits/state_non_refundable_credits.py',
-      'state_refundable_credits': 'gov/states/tax/credits/state_refundable_credits.py',
-      
-      // Business income
-      'qualified_business_income_deduction': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
-      
-      // Recovery rebate
-      'recovery_rebate_credit': 'gov/irs/credits/recovery_rebate_credit/recovery_rebate_credit.py'
-    };
-    
-    return variablePaths[variableName] || `search?q=${variableName}&type=code`;
-  };
 
-  // Function to get multiple variables for variables that combine several PolicyEngine variables
-  const getMultipleVariables = (taxsimCode) => {
-    const multipleVariableMappings = {
-      'v28': ['income_tax_main_rates', 'capital_gains_tax'],
-      'v40': ['state_non_refundable_credits', 'state_refundable_credits'],
-      'v44': ['employee_medicare_tax', 'additional_medicare_tax']
-    };
-    
-    return multipleVariableMappings[taxsimCode] || null;
-  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [configData, setConfigData] = useState({
@@ -116,6 +54,149 @@ const Documentation = ({ onBackToDashboard }) => {
       ...prev,
       [section]: !prev[section]
     }));
+  };
+
+  // Shared function to create section dividers
+  const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
+    <tr>
+      <td colSpan="4" style={{ 
+        padding: '12px 20px',
+        backgroundColor: bgColor,
+        borderTop: `2px solid ${color}`,
+        borderBottom: `2px solid ${color}`,
+        textAlign: 'center',
+        fontWeight: '600',
+        fontSize: '14px',
+        color: color === 'var(--blue-primary)' ? 'var(--darkest-blue)' : 'var(--teal-pressed)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      }}>
+        {title}
+      </td>
+    </tr>
+  );
+
+  // Shared function to render variable rows
+  const renderVariableRow = (mapping, index, categoryClass = '') => (
+    <tr key={`var-${index}`} style={{ 
+      ...(categoryClass ? { backgroundColor: categoryClass } : {}),
+      cursor: 'default'
+    }}>
+      <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
+        {mapping.taxsim}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
+        {activeTab === 'output' ? renderOutputPolicyEngineCell(mapping) : renderInputPolicyEngineCell(mapping)}
+      </td>
+      <td style={{ 
+        fontSize: '14px', 
+        color: 'var(--dark-gray)',
+        whiteSpace: 'normal',
+        wordWrap: 'break-word',
+        maxWidth: '300px',
+        lineHeight: '1.4'
+      }}>
+        {mapping.description}
+      </td>
+      <td style={{ textAlign: 'center' }}>
+        {mapping.implemented ? (
+          <span className="status-badge status-badge-match">
+            <FiCheck className="w-3 h-3 mr-1" />
+            Implemented
+          </span>
+        ) : (
+          <span className="status-badge status-badge-mismatch">
+            <FiX className="w-3 h-3 mr-1" />
+            Not Implemented
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+
+  // Function to render PolicyEngine cell for output variables (with multiple variables support)
+  const renderOutputPolicyEngineCell = (mapping) => {
+    const multipleVars = getMultipleVariables(mapping.taxsim);
+    
+    if (multipleVars && mapping.implemented) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {multipleVars.map((varName, index) => (
+            <a 
+              key={index}
+              href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(varName)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ 
+                color: 'var(--blue-primary)', 
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                fontSize: '11px'
+              }}
+              onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+            >
+              {varName}
+              <FiExternalLink style={{ marginLeft: '4px', fontSize: '9px' }} />
+            </a>
+          ))}
+        </div>
+      );
+    } else if (mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
+               mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year') {
+      return (
+        <a 
+          href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ 
+            color: 'var(--blue-primary)', 
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            cursor: 'pointer'
+          }}
+          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+        >
+          {mapping.policyengine}
+          <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+        </a>
+      );
+    } else {
+      return mapping.policyengine || 'N/A';
+    }
+  };
+
+  // Function to render PolicyEngine cell for input variables
+  const renderInputPolicyEngineCell = (mapping) => {
+    if (mapping.implemented && mapping.policyengine !== 'na_pe' && mapping.githubLink) {
+      return (
+        <a 
+          href={mapping.githubLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ 
+            color: 'var(--blue-primary)', 
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            cursor: 'pointer'
+          }}
+          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+        >
+          {mapping.policyengine}
+          <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+        </a>
+      );
+    } else if (mapping.implemented && mapping.policyengine !== 'na_pe') {
+      return mapping.policyengine;
+    } else {
+      return 'N/A';
+    }
   };
 
   // Create output mappings from OUTPUT_VARIABLES with actual implementation status
@@ -156,7 +237,7 @@ const Documentation = ({ onBackToDashboard }) => {
     'niit': { implemented: true, variable: 'net_investment_income_tax' },
     'sctc': { implemented: true, variable: 'state_ctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
-    'actc': { implemented: true, variable: 'refundable_ctc' },
+    'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
     
     // ❌ NOT IMPLEMENTED variables - ALL HAVE 'na_pe' (NOT AVAILABLE IN POLICYENGINE)
     // IF variable = 'na_pe' --> IT IS NOT IMPLEMENTED
@@ -182,7 +263,6 @@ const Documentation = ({ onBackToDashboard }) => {
     'sptcr': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'samt': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'addmed': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
     'cdate': { implemented: false, variable: 'na_pe' } // na_pe = NOT IMPLEMENTED
   };
 
@@ -364,325 +444,7 @@ const Documentation = ({ onBackToDashboard }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(() => {
-                        if (activeTab === 'input') {
-                          // Input variables categorization
-                          const basicInputs = ['taxsimid', 'year', 'state', 'mstat', 'page', 'sage', 'dependent_exemption', 'depx'];
-                          const incomeInputs = ['pwages', 'swages', 'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui', 'sui'];
-                          const businessIncomeInputs = ['scorp', 'pbusinc', 'pprofinc'];
-                          const expenseInputs = ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem'];
-
-                          const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
-                            <tr>
-                              <td colSpan="4" style={{ 
-                                padding: '12px 20px',
-                                backgroundColor: bgColor,
-                                borderTop: `2px solid ${color}`,
-                                borderBottom: `2px solid ${color}`,
-                                textAlign: 'center',
-                                fontWeight: '600',
-                                fontSize: '14px',
-                                color: color === 'var(--blue-primary)' ? 'var(--darkest-blue)' : 'var(--teal-pressed)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px'
-                              }}>
-                                {title}
-                              </td>
-                            </tr>
-                          );
-
-                          const renderVariableRow = (mapping, index, categoryClass = '') => (
-                            <tr key={`var-${index}`} style={{ 
-                              ...(categoryClass ? { backgroundColor: categoryClass } : {}),
-                              cursor: 'default'
-                            }}>
-                              <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
-                                {mapping.taxsim}
-                              </td>
-                              <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                                {mapping.implemented && mapping.policyengine !== 'na_pe' && mapping.githubLink ? (
-                                  <a 
-                                    href={mapping.githubLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ 
-                                      color: 'var(--blue-primary)', 
-                                      textDecoration: 'none',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      cursor: 'pointer'
-                                    }}
-                                    onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                                    onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                                  >
-                                    {mapping.policyengine}
-                                    <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-                                  </a>
-                                ) : mapping.implemented && mapping.policyengine !== 'na_pe' ? (
-                                  mapping.policyengine
-                                ) : (
-                                  'N/A'
-                                )}
-                              </td>
-                                                          <td style={{ 
-                              fontSize: '14px', 
-                              color: 'var(--dark-gray)',
-                              whiteSpace: 'normal',
-                              wordWrap: 'break-word',
-                              maxWidth: '300px',
-                              lineHeight: '1.4'
-                            }}>
-                              {mapping.description}
-                            </td>
-                              <td style={{ textAlign: 'center' }}>
-                                {mapping.implemented ? (
-                                  <span className="status-badge status-badge-match">
-                                    <FiCheck className="w-3 h-3 mr-1" />
-                                    Implemented
-                                  </span>
-                                ) : (
-                                  <span className="status-badge status-badge-mismatch">
-                                    <FiX className="w-3 h-3 mr-1" />
-                                    Not Implemented
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-
-                          const results = [];
-                          let hasAddedBasic = false;
-                          let hasAddedIncome = false;
-                          let hasAddedBusiness = false;
-                          let hasAddedExpense = false;
-
-                          filteredMappings.forEach((mapping, index) => {
-                            // Add section dividers
-                            if (basicInputs.includes(mapping.taxsim) && !hasAddedBasic) {
-                              results.push(React.cloneElement(createDivider('Basic Inputs'), { key: `divider-basic` }));
-                              hasAddedBasic = true;
-                            } else if (incomeInputs.includes(mapping.taxsim) && !hasAddedIncome) {
-                              results.push(React.cloneElement(createDivider('Income Inputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-income` }));
-                              hasAddedIncome = true;
-                            } else if (businessIncomeInputs.includes(mapping.taxsim) && !hasAddedBusiness) {
-                              results.push(React.cloneElement(createDivider('Business Income', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-business` }));
-                              hasAddedBusiness = true;
-                            } else if (expenseInputs.includes(mapping.taxsim) && !hasAddedExpense) {
-                              results.push(React.cloneElement(createDivider('Expense & Deduction Inputs', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-expense` }));
-                              hasAddedExpense = true;
-                            }
-
-                            // Add the variable row with appropriate styling
-                            let categoryClass = '';
-                            if (basicInputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            } else if (incomeInputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(57, 198, 192, 0.02)';
-                            } else if (businessIncomeInputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(97, 97, 97, 0.02)';
-                            } else if (expenseInputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            }
-
-                            results.push(renderVariableRow(mapping, index, categoryClass));
-                          });
-
-                          return results;
-                        } else {
-                          // Output variables categorization
-                          const basicOutputs = ['taxsimid', 'year', 'state'];
-                          const taxOutputs = ['fiitax', 'siitax']; // Only primary tax outputs
-                          const agiOutputs = ['v10', 'v11', 'v12'];
-                          const deductionOutputs = ['v13', 'v14', 'v15', 'v16', 'v17', 'qbid'];
-                          const taxableIncomeOutputs = ['v18', 'v19', 'v20', 'v21'];
-                          const creditOutputs = ['v22', 'v24', 'v25', 'actc', 'cares'];
-                          const amtOutputs = ['v26', 'v27', 'v28'];
-                          const stateOutputs = ['v30', 'v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'];
-                          const additionalOutputs = ['v42', 'v43', 'v44', 'v45', 'v46', 'niit', 'addmed', 'cdate', 'fica', 'tfica', 'frate', 'ficar']; // Federal additional variables only
-
-                          const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
-                            <tr>
-                              <td colSpan="4" style={{ 
-                                padding: '12px 20px',
-                                backgroundColor: bgColor,
-                                borderTop: `2px solid ${color}`,
-                                borderBottom: `2px solid ${color}`,
-                                textAlign: 'center',
-                                fontWeight: '600',
-                                fontSize: '14px',
-                                color: color === 'var(--blue-primary)' ? 'var(--darkest-blue)' : 'var(--teal-pressed)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px'
-                              }}>
-                                {title}
-                              </td>
-                            </tr>
-                          );
-
-                          const renderVariableRow = (mapping, index, categoryClass = '') => (
-                            <tr key={`var-${index}`} style={{ 
-                              ...(categoryClass ? { backgroundColor: categoryClass } : {}),
-                              cursor: 'default'
-                            }}>
-                              <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
-                                {mapping.taxsim}
-                              </td>
-                              <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                              {(() => {
-                                // Check if this is a multiple_variables case
-                                const multipleVars = getMultipleVariables(mapping.taxsim);
-                                
-                                if (multipleVars && mapping.implemented) {
-                                  // Display multiple variables with individual links
-                                  return (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      {multipleVars.map((varName, index) => (
-                                        <a 
-                                          key={index}
-                                          href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(varName)}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          style={{ 
-                                            color: 'var(--blue-primary)', 
-                                            textDecoration: 'none',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            fontSize: '11px'
-                                          }}
-                                          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                                          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                                        >
-                                          {varName}
-                                          <FiExternalLink style={{ marginLeft: '4px', fontSize: '9px' }} />
-                                        </a>
-                                      ))}
-                                    </div>
-                                  );
-                                } else if (mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
-                                           mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year') {
-                                  // Single variable with link
-                                  return (
-                                    <a 
-                                      href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{ 
-                                        color: 'var(--blue-primary)', 
-                                        textDecoration: 'none',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        cursor: 'pointer'
-                                      }}
-                                      onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                                      onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                                    >
-                                      {mapping.policyengine}
-                                      <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-                                    </a>
-                                  );
-                                } else {
-                                  // Not implemented or N/A
-                                  return mapping.policyengine || 'N/A';
-                                }
-                              })()}
-                            </td>
-                                                          <td style={{ 
-                              fontSize: '14px', 
-                              color: 'var(--dark-gray)',
-                              whiteSpace: 'normal',
-                              wordWrap: 'break-word',
-                              maxWidth: '300px',
-                              lineHeight: '1.4'
-                            }}>
-                              {mapping.description}
-                            </td>
-                              <td style={{ textAlign: 'center' }}>
-                              {mapping.implemented ? (
-                                <span className="status-badge status-badge-match">
-                                  <FiCheck className="w-3 h-3 mr-1" />
-                                  Implemented
-                                </span>
-                              ) : (
-                                <span className="status-badge status-badge-mismatch">
-                                  <FiX className="w-3 h-3 mr-1" />
-                                  Not Implemented
-                                </span>
-                              )}
-                            </td>
-                            </tr>
-                          );
-
-                          const results = [];
-                          let hasAddedBasic = false;
-                          let hasAddedTax = false;
-                          let hasAddedAGI = false;
-                          let hasAddedDeduction = false;
-                          let hasAddedTaxableIncome = false;
-                          let hasAddedCredit = false;
-                          let hasAddedAMT = false;
-                          let hasAddedState = false;
-                          let hasAddedAdditional = false;
-
-                          filteredMappings.forEach((mapping, index) => {
-                            // Add section dividers for outputs
-                            if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
-                              results.push(React.cloneElement(createDivider('Basic Output Variables'), { key: `divider-basic` }));
-                              hasAddedBasic = true;
-                            } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
-                              results.push(React.cloneElement(createDivider('Primary Tax Outputs'), { key: `divider-tax` }));
-                              hasAddedTax = true;
-                            } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
-                              results.push(React.cloneElement(createDivider('Adjusted Gross Income', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-agi` }));
-                              hasAddedAGI = true;
-                            } else if (deductionOutputs.includes(mapping.taxsim) && !hasAddedDeduction) {
-                              results.push(React.cloneElement(createDivider('Deductions & Exemptions', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-deduction` }));
-                              hasAddedDeduction = true;
-                            } else if (taxableIncomeOutputs.includes(mapping.taxsim) && !hasAddedTaxableIncome) {
-                              results.push(React.cloneElement(createDivider('Taxable Income & Tax Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-taxable` }));
-                              hasAddedTaxableIncome = true;
-                            } else if (creditOutputs.includes(mapping.taxsim) && !hasAddedCredit) {
-                              results.push(React.cloneElement(createDivider('Tax Credits', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-credit` }));
-                              hasAddedCredit = true;
-                            } else if (amtOutputs.includes(mapping.taxsim) && !hasAddedAMT) {
-                              results.push(React.cloneElement(createDivider('Alternative Minimum Tax', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-amt` }));
-                              hasAddedAMT = true;
-                            } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
-                              results.push(React.cloneElement(createDivider('State-Specific Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-state` }));
-                              hasAddedState = true;
-                            } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
-                              results.push(React.cloneElement(createDivider('Additional Taxes', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
-                              hasAddedAdditional = true;
-                            }
-
-                            // Add the variable row with appropriate styling
-                            let categoryClass = '';
-                            if (basicOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            } else if (taxOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            } else if (agiOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(57, 198, 192, 0.02)';
-                            } else if (deductionOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(97, 97, 97, 0.02)';
-                            } else if (taxableIncomeOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            } else if (creditOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(57, 198, 192, 0.02)';
-                            } else if (amtOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(97, 97, 97, 0.02)';
-                            } else if (stateOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            } else if (additionalOutputs.includes(mapping.taxsim)) {
-                              categoryClass = 'rgba(57, 198, 192, 0.02)';
-                            }
-
-                            results.push(renderVariableRow(mapping, index, categoryClass));
-                          });
-
-                          return results;
-                        }
-                      })()}
+                      {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
                     </tbody>
                   </table>
                 </div>
@@ -852,6 +614,124 @@ const Documentation = ({ onBackToDashboard }) => {
       </main>
     </div>
   );
+
+  // Helper function to render input variables
+  function renderInputVariables() {
+    const { basicInputs, incomeInputs, businessIncomeInputs, expenseInputs } = INPUT_VARIABLE_CATEGORIES;
+
+    const results = [];
+    let hasAddedBasic = false;
+    let hasAddedIncome = false;
+    let hasAddedBusiness = false;
+    let hasAddedExpense = false;
+
+    filteredMappings.forEach((mapping, index) => {
+      // Add section dividers
+      if (basicInputs.includes(mapping.taxsim) && !hasAddedBasic) {
+        results.push(React.cloneElement(createDivider('Basic Inputs'), { key: `divider-basic` }));
+        hasAddedBasic = true;
+      } else if (incomeInputs.includes(mapping.taxsim) && !hasAddedIncome) {
+        results.push(React.cloneElement(createDivider('Income Inputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-income` }));
+        hasAddedIncome = true;
+      } else if (businessIncomeInputs.includes(mapping.taxsim) && !hasAddedBusiness) {
+        results.push(React.cloneElement(createDivider('Business Income', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-business` }));
+        hasAddedBusiness = true;
+      } else if (expenseInputs.includes(mapping.taxsim) && !hasAddedExpense) {
+        results.push(React.cloneElement(createDivider('Expense & Deduction Inputs', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-expense` }));
+        hasAddedExpense = true;
+      }
+
+      // Add the variable row with appropriate styling
+      let categoryClass = '';
+      if (basicInputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(44, 100, 150, 0.02)';
+      } else if (incomeInputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(57, 198, 192, 0.02)';
+      } else if (businessIncomeInputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(97, 97, 97, 0.02)';
+      } else if (expenseInputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(44, 100, 150, 0.02)';
+      }
+
+      results.push(renderVariableRow(mapping, index, categoryClass));
+    });
+
+    return results;
+  }
+
+  // Helper function to render output variables
+  function renderOutputVariables() {
+    const { basicOutputs, taxOutputs, agiOutputs, deductionOutputs, taxableIncomeOutputs, creditOutputs, amtOutputs, stateOutputs, additionalOutputs } = OUTPUT_VARIABLE_CATEGORIES;
+
+    const results = [];
+    let hasAddedBasic = false;
+    let hasAddedTax = false;
+    let hasAddedAGI = false;
+    let hasAddedDeduction = false;
+    let hasAddedTaxableIncome = false;
+    let hasAddedCredit = false;
+    let hasAddedAMT = false;
+    let hasAddedState = false;
+    let hasAddedAdditional = false;
+
+    filteredMappings.forEach((mapping, index) => {
+      // Add section dividers for outputs
+      if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
+        results.push(React.cloneElement(createDivider('Basic Output Variables'), { key: `divider-basic` }));
+        hasAddedBasic = true;
+      } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
+        results.push(React.cloneElement(createDivider('Primary Tax Outputs'), { key: `divider-tax` }));
+        hasAddedTax = true;
+      } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
+        results.push(React.cloneElement(createDivider('Adjusted Gross Income', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-agi` }));
+        hasAddedAGI = true;
+      } else if (deductionOutputs.includes(mapping.taxsim) && !hasAddedDeduction) {
+        results.push(React.cloneElement(createDivider('Deductions & Exemptions', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-deduction` }));
+        hasAddedDeduction = true;
+      } else if (taxableIncomeOutputs.includes(mapping.taxsim) && !hasAddedTaxableIncome) {
+        results.push(React.cloneElement(createDivider('Taxable Income & Tax Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-taxable` }));
+        hasAddedTaxableIncome = true;
+      } else if (creditOutputs.includes(mapping.taxsim) && !hasAddedCredit) {
+        results.push(React.cloneElement(createDivider('Tax Credits', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-credit` }));
+        hasAddedCredit = true;
+      } else if (amtOutputs.includes(mapping.taxsim) && !hasAddedAMT) {
+        results.push(React.cloneElement(createDivider('Alternative Minimum Tax', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-amt` }));
+        hasAddedAMT = true;
+      } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
+        results.push(React.cloneElement(createDivider('State-Specific Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-state` }));
+        hasAddedState = true;
+      } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
+        results.push(React.cloneElement(createDivider('Additional Taxes', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
+        hasAddedAdditional = true;
+      }
+
+      // Add the variable row with appropriate styling
+      let categoryClass = '';
+      if (basicOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(44, 100, 150, 0.02)';
+      } else if (taxOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(44, 100, 150, 0.02)';
+      } else if (agiOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(57, 198, 192, 0.02)';
+      } else if (deductionOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(97, 97, 97, 0.02)';
+      } else if (taxableIncomeOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(44, 100, 150, 0.02)';
+      } else if (creditOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(57, 198, 192, 0.02)';
+      } else if (amtOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(97, 97, 97, 0.02)';
+      } else if (stateOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(44, 100, 150, 0.02)';
+      } else if (additionalOutputs.includes(mapping.taxsim)) {
+        categoryClass = 'rgba(57, 198, 192, 0.02)';
+      }
+
+      results.push(renderVariableRow(mapping, index, categoryClass));
+    });
+
+    return results;
+  }
 };
 
 export default Documentation;
