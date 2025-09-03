@@ -215,7 +215,7 @@ export const POLICYENGINE_VARIABLE_PATHS = {
   'alternative_minimum_tax': 'gov/irs/tax/federal_income/alternative_minimum_tax/alternative_minimum_tax.py',
   
   // FICA and payroll
-  'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
+  'taxsim_tfica': 'contrib/taxsim/taxsim_tfica.py',
   'net_investment_income_tax': 'gov/irs/tax/federal_income/net_investment_income_tax.py',
   'additional_medicare_tax': 'gov/irs/tax/federal_income/additional_medicare_tax.py',
   'employee_medicare_tax': 'gov/irs/tax/payroll/medicare/employee_medicare_tax.py',
