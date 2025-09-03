@@ -79,13 +79,6 @@ export const OUTPUT_VARIABLES = [
   // Primary Tax Outputs
   { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
   { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
-  { code: 'fica', name: 'FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)', policyengine: null },
-  { code: 'tfica', name: 'Taxpayer liability for FICA', policyengine: 'taxsim_tfica' },
-
-  // Marginal Rates (NOT IMPLEMENTED - all have na_pe)
-  { code: 'frate', name: 'Federal marginal rate', policyengine: null },
-  { code: 'srate', name: 'State marginal rate', policyengine: null },
-  { code: 'ficar', name: 'FICA rate', policyengine: null },
 
   // Federal AGI and Income Components (v10-v12)
   { code: 'v10', name: 'Federal AGI', policyengine: 'adjusted_gross_income' },
@@ -98,6 +91,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'v15', name: 'Exemption Phaseout', policyengine: null },
   { code: 'v16', name: 'Deduction Phaseout', policyengine: null },
   { code: 'v17', name: 'Itemized Deductions in taxable income', policyengine: 'itemized_deductions' },
+  { code: 'qbid', name: 'Qualified business income deduction', policyengine: 'qualified_business_income_deduction' },
 
   // Federal Taxable Income and Tax Calculations (v18-v21)
   { code: 'v18', name: 'Federal Taxable Income', policyengine: 'taxable_income' },
@@ -110,6 +104,8 @@ export const OUTPUT_VARIABLES = [
   { code: 'v23', name: 'Reserved', policyengine: null },
   { code: 'v24', name: 'Child Care Credit (including additional credit)', policyengine: 'cdcc' },
   { code: 'v25', name: 'Earned Income Credit (total federal)', policyengine: 'eitc' },
+  { code: 'actc', name: 'Additional child tax credit', policyengine: 'additional_ctc' },
+  { code: 'cares', name: 'Cares rebate', policyengine: 'recovery_rebate_credit' },
 
   // Federal AMT and Special Taxes (v26-v29)
   { code: 'v26', name: 'Income for the Alternative Minimum Tax', policyengine: 'amt_income' },
@@ -133,6 +129,15 @@ export const OUTPUT_VARIABLES = [
   { code: 'v40', name: 'State Total Credits', policyengine: 'state_tax_credits' },
   { code: 'v41', name: 'State Bracket Rate', policyengine: 'state_income_tax_rate' },
 
+  // Additional State Results (moved to be with other state variables)
+  { code: 'staxbc', name: 'State tax before credits', policyengine: 'state_income_tax_before_credits' },
+  { code: 'srebate', name: 'State income tax rebates (shown only in year paid even if eligibility depends on prior year)', policyengine: 'state_rebates' },
+  { code: 'senergy', name: 'State energy/fuel tax credits', policyengine: 'state_energy_credits' },
+  { code: 'sctc', name: 'State child tax credit', policyengine: 'state_ctc' },
+  { code: 'sptcr', name: 'State property tax credit', policyengine: 'state_property_tax_credit' },
+  { code: 'samt', name: 'State alternative minimum tax', policyengine: 'state_amt' },
+  { code: 'srate', name: 'State marginal rate', policyengine: null },
+
   // Additional Federal Results (v42-v46)
   { code: 'v42', name: 'Earned Self-Employment Income for FICA', policyengine: 'self_employment_income' },
   { code: 'v43', name: 'Medicare Tax on Unearned Income', policyengine: 'net_investment_income_tax' },
@@ -140,21 +145,16 @@ export const OUTPUT_VARIABLES = [
   { code: 'v45', name: 'CARES act Recovery Rebates', policyengine: 'recovery_rebate_credit' },
   { code: 'v46', name: 'Cares Rebate (duplicate)', policyengine: 'recovery_rebate_credit' },
 
-  // Additional State Results
-  { code: 'staxbc', name: 'State tax before credits', policyengine: 'state_income_tax_before_credits' },
-  { code: 'srebate', name: 'State income tax rebates (shown only in year paid even if eligibility depends on prior year)', policyengine: 'state_rebates' },
-  { code: 'senergy', name: 'State energy/fuel tax credits', policyengine: 'state_energy_credits' },
-  { code: 'sctc', name: 'State child tax credit', policyengine: 'state_ctc' },
-  { code: 'sptcr', name: 'State property tax credit', policyengine: 'state_property_tax_credit' },
-  { code: 'samt', name: 'State alternative minimum tax', policyengine: 'state_amt' },
-
   // Additional Federal Results
-  { code: 'qbid', name: 'Qualified business income deduction', policyengine: 'qbi_deduction' },
   { code: 'niit', name: 'Medicare Net Investment Income Tax', policyengine: 'net_investment_income_tax' },
   { code: 'addmed', name: 'Medicare additional earnings Tax', policyengine: 'additional_medicare_tax' },
-  { code: 'cares', name: 'Cares rebate', policyengine: 'recovery_rebate_credit' },
-  { code: 'actc', name: 'Additional child tax credit', policyengine: 'additional_ctc' },
   { code: 'cdate', name: 'Date this version of Taxsim was compiled', policyengine: null },
+
+  // Additional Taxes (moved to end for proper section ordering)
+  { code: 'fica', name: 'FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)', policyengine: null },
+  { code: 'tfica', name: 'Taxpayer liability for FICA', policyengine: 'taxsim_tfica' },
+  { code: 'frate', name: 'Federal marginal rate', policyengine: null },
+  { code: 'ficar', name: 'FICA rate', policyengine: null },
 ];
 
 // Input fields from TAXSIM

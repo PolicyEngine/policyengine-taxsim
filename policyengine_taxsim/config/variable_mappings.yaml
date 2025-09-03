@@ -622,7 +622,7 @@ policyengine_to_taxsim:
     text_description: "Medicare Tax on Unearned Income"
     group_order: 6
     full_text_group: "Additional Medicare Taxes 2013+"
-  group_column: 1
+    group_column: 1
   v44:
     variable: multiple_variable
     implemented: true

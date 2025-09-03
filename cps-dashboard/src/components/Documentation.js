@@ -491,14 +491,15 @@ const Documentation = ({ onBackToDashboard }) => {
                           return results;
                         } else {
                           // Output variables categorization
-                          const taxOutputs = ['fiitax', 'siitax', 'tfica', 'v29'];
-                          const agiOutputs = ['v10', 'v11', 'v12', 'v30', 'v32'];
-                          const deductionOutputs = ['v13', 'v14', 'v15', 'v16', 'v17', 'v33', 'v34', 'v35', 'qbid'];
-                          const taxableIncomeOutputs = ['v18', 'v19', 'v20', 'v21', 'v36'];
-                          const creditOutputs = ['v22', 'v24', 'v25', 'v37', 'v38', 'v39', 'v40', 'sctc', 'actc'];
-                          const amtOutputs = ['v26', 'v27', 'v28', 'samt'];
-                          const stateOutputs = ['v31', 'v41', 'staxbc', 'srebate', 'senergy', 'sptcr'];
-                          const specialOutputs = ['v42', 'v43', 'v44', 'v45', 'v46', 'niit', 'addmed', 'cares', 'cdate'];
+                          const basicOutputs = ['taxsimid', 'year', 'state'];
+                          const taxOutputs = ['fiitax', 'siitax']; // Only primary tax outputs
+                          const agiOutputs = ['v10', 'v11', 'v12', 'v30'];
+                          const deductionOutputs = ['v13', 'v14', 'v15', 'v16', 'v17', 'qbid'];
+                          const taxableIncomeOutputs = ['v18', 'v19', 'v20', 'v21'];
+                          const creditOutputs = ['v22', 'v24', 'v25', 'actc', 'cares'];
+                          const amtOutputs = ['v26', 'v27', 'v28'];
+                          const stateOutputs = ['v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'];
+                          const additionalOutputs = ['v42', 'v43', 'v44', 'v45', 'v46', 'niit', 'addmed', 'cdate', 'fica', 'tfica', 'frate', 'ficar']; // Federal additional variables only
 
                           const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
                             <tr>
@@ -614,6 +615,7 @@ const Documentation = ({ onBackToDashboard }) => {
                           );
 
                           const results = [];
+                          let hasAddedBasic = false;
                           let hasAddedTax = false;
                           let hasAddedAGI = false;
                           let hasAddedDeduction = false;
@@ -621,11 +623,14 @@ const Documentation = ({ onBackToDashboard }) => {
                           let hasAddedCredit = false;
                           let hasAddedAMT = false;
                           let hasAddedState = false;
-                          let hasAddedSpecial = false;
+                          let hasAddedAdditional = false;
 
                           filteredMappings.forEach((mapping, index) => {
                             // Add section dividers for outputs
-                            if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
+                            if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
+                              results.push(React.cloneElement(createDivider('Basic Output Variables'), { key: `divider-basic` }));
+                              hasAddedBasic = true;
+                            } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
                               results.push(React.cloneElement(createDivider('Primary Tax Outputs'), { key: `divider-tax` }));
                               hasAddedTax = true;
                             } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
@@ -646,14 +651,16 @@ const Documentation = ({ onBackToDashboard }) => {
                             } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
                               results.push(React.cloneElement(createDivider('State-Specific Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-state` }));
                               hasAddedState = true;
-                            } else if (specialOutputs.includes(mapping.taxsim) && !hasAddedSpecial) {
-                              results.push(React.cloneElement(createDivider('Special Taxes & Medicare', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-special` }));
-                              hasAddedSpecial = true;
+                            } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
+                              results.push(React.cloneElement(createDivider('Additional Taxes', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
+                              hasAddedAdditional = true;
                             }
 
                             // Add the variable row with appropriate styling
                             let categoryClass = '';
-                            if (taxOutputs.includes(mapping.taxsim)) {
+                            if (basicOutputs.includes(mapping.taxsim)) {
+                              categoryClass = 'rgba(44, 100, 150, 0.02)';
+                            } else if (taxOutputs.includes(mapping.taxsim)) {
                               categoryClass = 'rgba(44, 100, 150, 0.02)';
                             } else if (agiOutputs.includes(mapping.taxsim)) {
                               categoryClass = 'rgba(57, 198, 192, 0.02)';
@@ -667,7 +674,7 @@ const Documentation = ({ onBackToDashboard }) => {
                               categoryClass = 'rgba(97, 97, 97, 0.02)';
                             } else if (stateOutputs.includes(mapping.taxsim)) {
                               categoryClass = 'rgba(44, 100, 150, 0.02)';
-                            } else if (specialOutputs.includes(mapping.taxsim)) {
+                            } else if (additionalOutputs.includes(mapping.taxsim)) {
                               categoryClass = 'rgba(57, 198, 192, 0.02)';
                             }
 
