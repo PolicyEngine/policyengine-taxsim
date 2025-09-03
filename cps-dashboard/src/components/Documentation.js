@@ -32,8 +32,8 @@ const Documentation = ({ onBackToDashboard }) => {
       'eitc': 'gov/federal/tax/credits/eitc.py',
       
       // AMT
-      'amt_income': 'gov/federal/tax/income/alternative_minimum_tax/amt_income.py',
-      'alternative_minimum_tax': 'gov/federal/tax/income/alternative_minimum_tax/alternative_minimum_tax.py',
+      'amt_income': 'gov/irs/tax/federal_income/alternative_minimum_tax/income/amt_income.py',
+      'alternative_minimum_tax': 'gov/irs/tax/federal_income/alternative_minimum_tax/alternative_minimum_tax.py',
       
       // FICA and payroll
       'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
@@ -41,8 +41,8 @@ const Documentation = ({ onBackToDashboard }) => {
       'additional_medicare_tax': 'gov/federal/tax/payroll/additional_medicare_tax.py',
       
       // Income components
-      'tax_unit_taxable_unemployment_compensation': 'gov/federal/tax/income/taxable_unemployment_compensation.py',
-      'tax_unit_taxable_social_security': 'gov/federal/tax/income/taxable_social_security.py',
+      'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/tax_unit_taxable_unemployment_compensation.py',
+      'tax_unit_taxable_social_security': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/social_security/tax_unit_taxable_social_security.py',
       
       // Geographic/demographic variables
       'state_code': 'household/demographic/geographic/state_code.py',
@@ -50,19 +50,19 @@ const Documentation = ({ onBackToDashboard }) => {
       // State tax variables
       'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
       'state_agi': 'gov/states/tax/income/agi.py',
-      'state_standard_deduction': 'gov/states/tax/income/deductions/standard_deduction.py',
-      'state_itemized_deductions': 'gov/states/tax/income/deductions/itemized_deductions.py',
-      'state_taxable_income': 'gov/states/tax/income/taxable_income.py',
-      'state_property_tax_credit': 'gov/states/tax/credits/property_tax_credit.py',
-      'state_cdcc': 'gov/states/tax/credits/cdcc.py',
-      'state_eitc': 'gov/states/tax/credits/eitc.py',
-      'state_ctc': 'gov/states/tax/credits/ctc.py',
+      'state_standard_deduction': 'gov/states/tax/income/deductions/state_standard_deduction.py',
+      'state_itemized_deductions': 'gov/states/tax/income/deductions/state_itemized_deductions.py',
+      'state_taxable_income': 'gov/states/tax/income/state_taxable_income.py',
+      'state_property_tax_credit': 'gov/states/tax/credits/state_property_tax_credit.py',
+      'state_cdcc': 'gov/states/tax/credits/state_cdcc.py',
+      'state_eitc': 'gov/states/tax/credits/state_eitc.py',
+      'state_ctc': 'gov/states/tax/credits/state_ctc.py',
       
       // Business income
-      'qualified_business_income_deduction': 'gov/federal/tax/income/deductions/qbi.py',
+      'qualified_business_income_deduction': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
       
       // Recovery rebate
-      'recovery_rebate_credit': 'gov/federal/tax/credits/recovery_rebate_credit.py'
+      'recovery_rebate_credit': 'gov/irs/credits/recovery_rebate_credit/recovery_rebate_credit.py'
     };
     
     return variablePaths[variableName] || `search?q=${variableName}&type=code`;
