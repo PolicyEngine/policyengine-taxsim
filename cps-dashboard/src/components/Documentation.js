@@ -385,7 +385,7 @@ const Documentation = ({ onBackToDashboard }) => {
                                 {mapping.taxsim}
                               </td>
                               <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                                {mapping.githubLink ? (
+                                {mapping.implemented && mapping.policyengine !== 'na_pe' && mapping.githubLink ? (
                                   <a 
                                     href={mapping.githubLink}
                                     target="_blank"
@@ -403,8 +403,10 @@ const Documentation = ({ onBackToDashboard }) => {
                                     {mapping.policyengine}
                                     <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
                                   </a>
-                                ) : (
+                                ) : mapping.implemented && mapping.policyengine !== 'na_pe' ? (
                                   mapping.policyengine
+                                ) : (
+                                  'N/A'
                                 )}
                               </td>
                                                           <td style={{ 
