@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { FiDownload } from 'react-icons/fi';
+import { FiDownload, FiBook } from 'react-icons/fi';
 import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
 import StateTable from './components/StateTable';
+import Documentation from './components/Documentation';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorMessage from './components/common/ErrorMessage';
 import Button from './components/common/Button';
@@ -11,6 +12,7 @@ import { useYearData } from './hooks/useYearData';
 
 function App() {
   const [selectedState, setSelectedState] = useState(null);
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'documentation'
   const {
     selectedYear,
     setSelectedYear,
@@ -34,6 +36,10 @@ function App() {
     // TODO: Implement export functionality
     alert(`Export functionality coming soon!\nYear: ${selectedYear}, State: ${selectedState || 'All'}`);
   }, [selectedYear, selectedState]);
+
+  const handleViewChange = useCallback((view) => {
+    setCurrentView(view);
+  }, []);
 
   // Loading state
   if (loading) {
@@ -66,6 +72,11 @@ function App() {
     );
   }
 
+  // Show Documentation view
+  if (currentView === 'documentation') {
+    return <Documentation onBackToDashboard={() => handleViewChange('dashboard')} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -75,18 +86,29 @@ function App() {
             <h1 className="text-3xl main-title">
               PolicyEngine-Taxsim Emulator
             </h1>
-            <Button
-              onClick={handleExport}
-              icon={<FiDownload />}
-            >
-              Export Data
-            </Button>
+            <div className="flex space-x-3">
+              <Button
+                onClick={handleExport}
+                icon={<FiDownload />}
+              >
+                Export Data
+              </Button>
+              <Button
+                onClick={() => handleViewChange('documentation')}
+                variant="ghost"
+                icon={<FiBook />}
+              >
+                Documentation
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+
         {/* Controls */}
         <div className="flex-between mb-6">
           <YearTabs 

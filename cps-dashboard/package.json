@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "papaparse": "^5.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -10,6 +11,9 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
+    "extract-config": "node scripts/extract-config.js",
+    "prestart": "npm run extract-config",
+    "prebuild": "npm run extract-config",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "eject": "react-scripts eject"

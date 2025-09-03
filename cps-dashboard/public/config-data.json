@@ -1,0 +1,284 @@
+{
+  "variableMappings": [
+    {
+      "taxsim": "taxsimid",
+      "policyengine": "taxsimid",
+      "description": "Record ID",
+      "implemented": true,
+      "githubLink": null
+    },
+    {
+      "taxsim": "year",
+      "policyengine": "get_year",
+      "description": "Tax Year",
+      "implemented": true,
+      "githubLink": null
+    },
+    {
+      "taxsim": "state",
+      "policyengine": "get_state_code",
+      "description": "State Code",
+      "implemented": true,
+      "githubLink": null
+    },
+    {
+      "taxsim": "mstat",
+      "policyengine": "marital_status",
+      "description": "Marital Status",
+      "implemented": true,
+      "githubLink": null
+    },
+    {
+      "taxsim": "page",
+      "policyengine": "age",
+      "description": "Age (Txpyr/Spouse)",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/demographic/age.py"
+    },
+    {
+      "taxsim": "sage",
+      "policyengine": "age",
+      "description": "Spouse age",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/demographic/age.py"
+    },
+    {
+      "taxsim": "dependent_exemption",
+      "policyengine": "dependents",
+      "description": "Dependent Exemptions",
+      "implemented": true,
+      "githubLink": null
+    },
+    {
+      "taxsim": "depx",
+      "policyengine": "dependents",
+      "description": "#deps for CCC/CTC/EIC",
+      "implemented": true,
+      "githubLink": null
+    },
+    {
+      "taxsim": "pwages",
+      "policyengine": "employment_income",
+      "description": "Wages (Txpyr/Spouse)",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/employment_income.py"
+    },
+    {
+      "taxsim": "swages",
+      "policyengine": "employment_income",
+      "description": "Spouse wages",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/employment_income.py"
+    },
+    {
+      "taxsim": "psemp",
+      "policyengine": "self_employment_income",
+      "description": "Self-employment income",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+    },
+    {
+      "taxsim": "ssemp",
+      "policyengine": "self_employment_income",
+      "description": "Spouse self-employment income",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+    },
+    {
+      "taxsim": "dividends",
+      "policyengine": "qualified_dividend_income",
+      "description": "Dividend Income",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/dividends/qualified_dividend_income.py"
+    },
+    {
+      "taxsim": "intrec",
+      "policyengine": "taxable_interest_income",
+      "description": "Interest Received",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/interest/taxable_interest_income.py"
+    },
+    {
+      "taxsim": "stcg",
+      "policyengine": "short_term_capital_gains",
+      "description": "Short Term Gains",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/capital_gains/short_term_capital_gains.py"
+    },
+    {
+      "taxsim": "ltcg",
+      "policyengine": "long_term_capital_gains",
+      "description": "Long Term Gains",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/capital_gains/long_term_capital_gains.py"
+    },
+    {
+      "taxsim": "pensions",
+      "policyengine": "taxable_private_pension_income",
+      "description": "Taxable Pensions",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/retirement/taxable_private_pension_income.py"
+    },
+    {
+      "taxsim": "gssi",
+      "policyengine": "social_security_retirement",
+      "description": "Gross Social Security",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/ssa/ss/social_security_retirement.py"
+    },
+    {
+      "taxsim": "pui",
+      "policyengine": "unemployment_compensation",
+      "description": "Tot/Txpy/Spouse UI",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/states/unemployment_compensation.py"
+    },
+    {
+      "taxsim": "sui",
+      "policyengine": "unemployment_compensation",
+      "description": "Spouse unemployment compensation",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/states/unemployment_compensation.py"
+    },
+    {
+      "taxsim": "scorp",
+      "policyengine": "partnership_s_corp_income",
+      "description": "S-Corp profits",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/self_employment/partnership_s_corp_income.py"
+    },
+    {
+      "taxsim": "pbusinc",
+      "policyengine": "qualified_business_income",
+      "description": "Txpy/Spouse QBI w/o PO",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py"
+    },
+    {
+      "taxsim": "pprofinc",
+      "policyengine": "na_pe",
+      "description": "Txpy/Spouse SSTB w PO",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "rentpaid",
+      "policyengine": "rent",
+      "description": "Rent Paid",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/housing/rent.py"
+    },
+    {
+      "taxsim": "proptax",
+      "policyengine": "real_estate_taxes",
+      "description": "Property Taxes Paid",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/tax/real_estate_taxes.py"
+    },
+    {
+      "taxsim": "childcare",
+      "policyengine": "tax_unit_childcare_expenses",
+      "description": "Child Care Expenses",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/childcare/tax_unit_childcare_expenses.py"
+    },
+    {
+      "taxsim": "mortgage",
+      "policyengine": "deductible_mortgage_interest",
+      "description": "Mortgage Interest",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/person/deductible_mortgage_interest.py"
+    },
+    {
+      "taxsim": "otherprop",
+      "policyengine": "na_pe",
+      "description": "Other Property",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "nonprop",
+      "policyengine": "na_pe",
+      "description": "Other Non-Property",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "transfers",
+      "policyengine": "na_pe",
+      "description": "Non-taxable Transfers",
+      "implemented": false,
+      "githubLink": null
+    },
+    {
+      "taxsim": "otheritem",
+      "policyengine": "na_pe",
+      "description": "Other Itemized Deds",
+      "implemented": false,
+      "githubLink": null
+    }
+  ],
+  "incomeSplittingRules": {
+    "incomeTypesSplit": [
+      "taxable_interest_income",
+      "qualified_dividend_income",
+      "long_term_capital_gains",
+      "partnership_s_corp_income",
+      "taxable_private_pension_income",
+      "short_term_capital_gains",
+      "social_security_retirement"
+    ],
+    "incomeTypesNotSplit": [
+      "employment_income (uses separate pwages/swages fields)",
+      "self_employment_income (uses separate psemp/ssemp fields)",
+      "unemployment_compensation (uses separate pui/sui fields)"
+    ]
+  },
+  "systemAssumptions": {
+    "defaultAges": {
+      "primary": 40,
+      "spouse": 40,
+      "dependent": 10
+    },
+    "maritalStatusCodes": {
+      "single": 1,
+      "marriedFilingJointly": 2
+    },
+    "missingIncomeValue": 0
+  },
+  "implementationDetails": {
+    "outputTypes": [
+      {
+        "code": 0,
+        "name": "Standard",
+        "description": "Basic tax liability output"
+      },
+      {
+        "code": 2,
+        "name": "Full",
+        "description": "Detailed calculation breakdown"
+      },
+      {
+        "code": 5,
+        "name": "Full Text",
+        "description": "Complete variable descriptions and values"
+      }
+    ],
+    "knownLimitations": [
+      "Variables marked as \"N/A\" are currently not implemented in the Emulator but are supported by both models",
+      "Calculations may vary due to differences in the model coverage and know limitations",
+      "Marginal rate calculations are not currently supported"
+    ],
+    "multipleVariableHandling": [
+      {
+        "taxsim": "v28 (Income Tax Before Credits)",
+        "policyengine": "income_tax_main_rates + capital_gains_tax"
+      },
+      {
+        "taxsim": "v40 (Total Credits)",
+        "policyengine": "state_non_refundable_credits + state_refundable_credits"
+      }
+    ]
+  },
+  "lastUpdated": "2025-09-03T18:22:03.617Z"
+}

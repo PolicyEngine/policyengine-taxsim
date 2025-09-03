@@ -68,33 +68,92 @@ export const INPUT_VARIABLES = [
 ];
 
 // Output variables for household comparison
+// Based on TAXSIM documentation: https://taxsim.nber.org/taxsimtest/
+// Linked to PolicyEngine US variables: https://github.com/PolicyEngine/policyengine-us/tree/master/policyengine_us/variables
 export const OUTPUT_VARIABLES = [
-  { code: 'fiitax', name: 'Federal Income Tax' },
-  { code: 'siitax', name: 'State Income Tax' },
-  { code: 'tfica', name: 'Total FICA Tax' },
-  { code: 'v10', name: 'Federal AGI' },
-  { code: 'v11', name: 'UI in AGI' },
-  { code: 'v12', name: 'Social Security in AGI' },
-  { code: 'v14', name: 'Personal Exemptions' },
-  { code: 'v17', name: 'Itemized Deductions in taxable income' },
-  { code: 'v18', name: 'Federal Taxable Income' },
-  { code: 'v19', name: 'Tax on Taxable Income (excludes capital gains tax)' },
-  { code: 'v22', name: 'Child Tax Credit' },
-  { code: 'v24', name: 'Child Care Credit' },
-  { code: 'v25', name: 'Earned Income Credit' },
-  { code: 'v26', name: 'Income for the Alternative Minimum Tax' },
-  { code: 'v27', name: 'Alternative Minimum Tax' },
-  { code: 'v28', name: 'Federal Income Tax before Credits' },
-  { code: 'v32', name: 'State AGI' },
-  { code: 'v36', name: 'State Taxable Income' },
-  { code: 'v38', name: 'State Child Care Credit' },
-  { code: 'v39', name: 'State Earned Income Credit' },
-  { code: 'v40', name: 'State Total Credits' },
-  { code: 'v44', name: 'Medicare Tax on Earnings' },
-  { code: 'qbid', name: 'Qualified Business Income Deduction' },
-  { code: 'niit', name: 'Net Investment Income Tax' },
-  { code: 'sctc', name: 'State Child Tax Credit' },
-  { code: 'v46', name: 'Cares Rebate' },
+  // Basic Outputs
+  { code: 'taxsimid', name: 'Case ID', policyengine: 'taxsimid' },
+  { code: 'year', name: 'Year', policyengine: 'year' },
+  { code: 'state', name: 'State code', policyengine: 'state_code' },
+  
+  // Primary Tax Calculations
+  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
+  { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
+
+  // Federal AGI and Income Components (v10-v12)
+  { code: 'v10', name: 'Federal AGI', policyengine: 'adjusted_gross_income' },
+  { code: 'v11', name: 'UI in AGI', policyengine: 'unemployment_compensation' },
+  { code: 'v12', name: 'Social Security in AGI', policyengine: 'taxable_social_security' },
+
+  // Federal Deductions and Exemptions (v13-v17)
+  { code: 'v13', name: 'Zero Bracket Amount (zero for itemizers) / Standard Deduction', policyengine: 'standard_deduction' },
+  { code: 'v14', name: 'Personal Exemptions', policyengine: 'exemptions' },
+  { code: 'v15', name: 'Exemption Phaseout', policyengine: null },
+  { code: 'v16', name: 'Deduction Phaseout', policyengine: null },
+  { code: 'v17', name: 'Itemized Deductions in taxable income', policyengine: 'itemized_deductions' },
+  { code: 'qbid', name: 'Qualified business income deduction', policyengine: 'qualified_business_income_deduction' },
+
+  // Federal Taxable Income and Tax Calculations (v18-v21, v28)
+  { code: 'v18', name: 'Federal Taxable Income', policyengine: 'taxable_income' },
+  { code: 'v19', name: 'Tax on Taxable Income (no special capital gains rates)', policyengine: 'income_tax_before_credits' },
+  { code: 'v20', name: 'Exemption Surtax', policyengine: null },
+  { code: 'v21', name: 'General Tax Credit', policyengine: null },
+  { code: 'v28', name: 'Federal Income Tax Before Credits (includes special treatment of Capital gains, exemption surtax (1988-1996) and 15% rate phaseout (1988-1990) but not AMT)', policyengine: 'income_tax_before_credits' },
+
+  // Federal Tax Credits (v22-v25)
+  { code: 'v22', name: 'Child Tax Credit (as adjusted includes additional ctc)', policyengine: 'ctc' },
+  { code: 'v23', name: 'Reserved', policyengine: null },
+  { code: 'v24', name: 'Child Care Credit (including additional credit)', policyengine: 'cdcc' },
+  { code: 'v25', name: 'Earned Income Credit (total federal)', policyengine: 'eitc' },
+  { code: 'actc', name: 'Additional child tax credit', policyengine: 'additional_ctc' },
+  { code: 'cares', name: 'Cares rebate', policyengine: 'recovery_rebate_credit' },
+
+  // Federal AMT (v26-v27)
+  { code: 'v26', name: 'Income for the Alternative Minimum Tax', policyengine: 'amt_income' },
+  { code: 'v27', name: 'AMT Liability after credit for regular tax and other allowed credits', policyengine: 'amt' },
+
+  // State Income Calculations (v30-v36)
+  { code: 'v30', name: 'State Household Income (imputation for property tax credit)', policyengine: 'household_income' },
+  { code: 'v31', name: 'State Rent Expense (imputation for property tax credit)', policyengine: 'rent' },
+  { code: 'v32', name: 'State AGI', policyengine: 'state_agi' },
+  { code: 'v33', name: 'State Exemption amount', policyengine: 'state_exemptions' },
+  { code: 'v34', name: 'State Standard Deduction', policyengine: 'state_standard_deduction' },
+  { code: 'v35', name: 'State Itemized Deductions', policyengine: 'state_itemized_deductions' },
+  { code: 'v36', name: 'State Taxable Income', policyengine: 'state_taxable_income' },
+
+  // State Tax Credits (v37-v41)
+  { code: 'v37', name: 'State Property Tax Credit', policyengine: 'state_property_tax_credit' },
+  { code: 'v38', name: 'State Child Care Credit', policyengine: 'state_cdcc' },
+  { code: 'v39', name: 'State EIC', policyengine: 'state_eitc' },
+  { code: 'v40', name: 'State Total Credits', policyengine: 'state_tax_credits' },
+  { code: 'v41', name: 'State Bracket Rate', policyengine: 'state_income_tax_rate' },
+
+  // Additional State Results (moved to be with other state variables)
+  { code: 'staxbc', name: 'State tax before credits', policyengine: 'state_income_tax_before_credits' },
+  { code: 'srebate', name: 'State income tax rebates (shown only in year paid even if eligibility depends on prior year)', policyengine: 'state_rebates' },
+  { code: 'senergy', name: 'State energy/fuel tax credits', policyengine: 'state_energy_credits' },
+  { code: 'sctc', name: 'State child tax credit', policyengine: 'state_ctc' },
+  { code: 'sptcr', name: 'State property tax credit', policyengine: 'state_property_tax_credit' },
+  { code: 'samt', name: 'State alternative minimum tax', policyengine: 'state_amt' },
+  { code: 'srate', name: 'State marginal rate', policyengine: null },
+
+  // Additional Federal Results (v42-v46)
+  { code: 'v42', name: 'Earned Self-Employment Income for FICA', policyengine: 'self_employment_income' },
+  { code: 'v43', name: 'Medicare Tax on Unearned Income', policyengine: 'net_investment_income_tax' },
+  { code: 'v44', name: 'Medicare Tax on Earned Income', policyengine: 'medicare_tax' },
+  { code: 'v45', name: 'CARES act Recovery Rebates', policyengine: 'recovery_rebate_credit' },
+  { code: 'v46', name: 'Cares Rebate (duplicate)', policyengine: 'recovery_rebate_credit' },
+
+  // Additional Federal Results
+  { code: 'niit', name: 'Medicare Net Investment Income Tax', policyengine: 'net_investment_income_tax' },
+  { code: 'addmed', name: 'Medicare additional earnings Tax', policyengine: 'additional_medicare_tax' },
+  { code: 'cdate', name: 'Date this version of Taxsim was compiled', policyengine: null },
+
+  // Additional Outputs (moved to end for proper section ordering)
+  { code: 'fica', name: 'FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)', policyengine: null },
+  { code: 'tfica', name: 'Taxpayer liability for FICA', policyengine: 'taxsim_tfica' },
+  { code: 'frate', name: 'Federal marginal rate', policyengine: null },
+  { code: 'ficar', name: 'FICA rate', policyengine: null },
 ];
 
 // Input fields from TAXSIM
@@ -105,6 +164,98 @@ export const INPUT_FIELDS = [
   'childcare', 'mortgage', 'scorp', 'age1', 'age2', 'age3', 'age4', 'age5', 'age6',
   'age7', 'age8', 'age9', 'age10', 'age11', 'year'
 ];
+
+// Variable categorization for documentation display
+export const INPUT_VARIABLE_CATEGORIES = {
+  basicInputs: ['taxsimid', 'year', 'state', 'mstat', 'page', 'sage', 'dependent_exemption', 'depx'],
+  incomeInputs: ['pwages', 'swages', 'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui', 'sui'],
+  businessIncomeInputs: ['scorp', 'pbusinc', 'pprofinc'],
+  expenseInputs: ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem']
+};
+
+export const OUTPUT_VARIABLE_CATEGORIES = {
+  basicOutputs: ['taxsimid', 'year', 'state'],
+  taxOutputs: ['fiitax', 'siitax'],
+  agiOutputs: ['v10', 'v11', 'v12'],
+  deductionOutputs: ['v13', 'v14', 'v15', 'v16', 'v17', 'qbid'],
+  taxableIncomeOutputs: ['v18', 'v19', 'v20', 'v21', 'v28'],
+  creditOutputs: ['v22', 'v24', 'v25', 'actc', 'cares'],
+  amtOutputs: ['v26', 'v27'],
+  stateOutputs: ['v30', 'v31', 'v32', 'v33', 'v34', 'v35', 'v36', 'v37', 'v38', 'v39', 'v40', 'v41', 'staxbc', 'srebate', 'senergy', 'sctc', 'sptcr', 'samt', 'srate'],
+  additionalOutputs: ['v42', 'v43', 'v44', 'v45', 'niit', 'addmed', 'cdate', 'fica', 'tfica', 'frate', 'ficar']
+};
+
+// Multiple variable mappings from YAML config
+export const MULTIPLE_VARIABLE_MAPPINGS = {
+  'v28': ['income_tax_main_rates', 'capital_gains_tax'],
+  'v40': ['state_non_refundable_credits', 'state_refundable_credits'],
+  'v44': ['employee_medicare_tax', 'additional_medicare_tax']
+};
+
+// PolicyEngine variable GitHub file paths
+export const POLICYENGINE_VARIABLE_PATHS = {
+  // Federal tax variables
+  'income_tax': 'gov/irs/tax/federal_income/income_tax.py',
+  'adjusted_gross_income': 'gov/irs/income/taxable_income/adjusted_gross_income/adjusted_gross_income.py',
+  'taxable_income': 'gov/irs/income/taxable_income/taxable_income.py',
+  'standard_deduction': 'gov/irs/income/taxable_income/deductions/standard_deduction/standard_deduction.py',
+  'exemptions': 'gov/irs/income/taxable_income/exemptions/exemptions.py',
+  'itemized_taxable_income_deductions': 'gov/irs/income/taxable_income/deductions/itemizing/itemized_taxable_income_deductions.py',
+  'income_tax_main_rates': 'gov/irs/tax/federal_income/before_credits/income_tax_main_rates.py',
+  'capital_gains_tax': 'gov/irs/tax/federal_income/capital_gains/capital_gains_tax.py',
+  
+  // Federal tax credits
+  'ctc_value': 'gov/irs/credits/ctc/ctc_value.py',
+  'refundable_ctc': 'gov/irs/credits/ctc/refundable/refundable_ctc.py',
+  'cdcc': 'gov/irs/credits/cdcc/cdcc.py',
+  'eitc': 'gov/irs/credits/earned_income/eitc.py',
+  
+  // AMT
+  'amt_income': 'gov/irs/tax/federal_income/alternative_minimum_tax/income/amt_income.py',
+  'alternative_minimum_tax': 'gov/irs/tax/federal_income/alternative_minimum_tax/alternative_minimum_tax.py',
+  
+  // FICA and payroll
+  'taxsim_tfica': 'contrib/taxsim/taxsim_tfica.py',
+  'net_investment_income_tax': 'gov/irs/tax/federal_income/net_investment_income_tax.py',
+  'additional_medicare_tax': 'gov/irs/tax/federal_income/additional_medicare_tax.py',
+  'employee_medicare_tax': 'gov/irs/tax/payroll/medicare/employee_medicare_tax.py',
+  
+  // Income components
+  'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/unemployment_insurance/tax_unit_taxable_unemployment_compensation.py',
+  'tax_unit_taxable_social_security': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/social_security/tax_unit_taxable_social_security.py',
+  
+  // Geographic/demographic variables
+  'state_code': 'household/demographic/geographic/state_code.py',
+  
+  // State tax variables
+  'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
+  'state_agi': 'gov/states/tax/income/agi.py',
+  'state_standard_deduction': 'gov/states/tax/income/deductions/state_standard_deduction.py',
+  'state_itemized_deductions': 'gov/states/tax/income/deductions/state_itemized_deductions.py',
+  'state_taxable_income': 'gov/states/tax/income/state_taxable_income.py',
+  'state_property_tax_credit': 'gov/states/tax/credits/state_property_tax_credit.py',
+  'state_cdcc': 'gov/states/tax/credits/state_cdcc.py',
+  'state_eitc': 'gov/states/tax/credits/state_eitc.py',
+  'state_ctc': 'gov/states/tax/credits/state_ctc.py',
+  'state_non_refundable_credits': 'gov/states/tax/credits/state_non_refundable_credits.py',
+  'state_refundable_credits': 'gov/states/tax/credits/state_refundable_credits.py',
+  
+  // Business income
+  'qualified_business_income_deduction': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
+  
+  // Recovery rebate
+  'recovery_rebate_credit': 'gov/irs/credits/recovery_rebate_credit/recovery_rebate_credit.py'
+};
+
+// Helper function to get PolicyEngine variable GitHub path
+export const getVariablePath = (variableName) => {
+  return POLICYENGINE_VARIABLE_PATHS[variableName] || `search?q=${variableName}&type=code`;
+};
+
+// Helper function to get multiple variables for combined calculations
+export const getMultipleVariables = (taxsimCode) => {
+  return MULTIPLE_VARIABLE_MAPPINGS[taxsimCode] || null;
+};
 
 // Label colors for GitHub issues
 export const LABEL_COLORS = {

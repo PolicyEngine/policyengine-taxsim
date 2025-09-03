@@ -1,0 +1,4 @@
+- bump: major
+  changes:
+    added:
+    - Documentation for the dashboard.
