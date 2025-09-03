@@ -46,3 +46,8 @@
     added:
     - Documentation for the dashboard.
   date: 2025-09-03 18:41:32
+- bump: minor
+  changes:
+    added:
+    - Clean up the variable_mappings file.
+  date: 2025-09-03 19:32:49
