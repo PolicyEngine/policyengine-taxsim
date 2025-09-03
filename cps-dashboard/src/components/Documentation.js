@@ -24,6 +24,7 @@ const Documentation = ({ onBackToDashboard }) => {
       'exemptions': 'gov/irs/income/taxable_income/exemptions/exemptions.py',
       'itemized_taxable_income_deductions': 'gov/irs/income/taxable_income/deductions/itemizing/itemized_taxable_income_deductions.py',
       'income_tax_main_rates': 'gov/irs/tax/federal_income/before_credits/income_tax_main_rates.py',
+      'capital_gains_tax': 'gov/irs/tax/federal_income/capital_gains/capital_gains_tax.py',
       
       // Federal tax credits
       'ctc': 'gov/irs/credits/ctc/ctc/ctc_value.py',
@@ -39,6 +40,7 @@ const Documentation = ({ onBackToDashboard }) => {
       'taxsim_tfica': 'gov/federal/tax/payroll/fica.py',
       'net_investment_income_tax': 'gov/federal/tax/income/net_investment_income_tax.py',
       'additional_medicare_tax': 'gov/federal/tax/payroll/additional_medicare_tax.py',
+      'employee_medicare_tax': 'gov/federal/tax/payroll/medicare_tax.py',
       
       // Income components
       'tax_unit_taxable_unemployment_compensation': 'gov/irs/income/taxable_income/adjusted_gross_income/irs_gross_income/tax_unit_taxable_unemployment_compensation.py',
@@ -57,6 +59,8 @@ const Documentation = ({ onBackToDashboard }) => {
       'state_cdcc': 'gov/states/tax/credits/state_cdcc.py',
       'state_eitc': 'gov/states/tax/credits/state_eitc.py',
       'state_ctc': 'gov/states/tax/credits/state_ctc.py',
+      'state_non_refundable_credits': 'gov/states/tax/credits/state_non_refundable_credits.py',
+      'state_refundable_credits': 'gov/states/tax/credits/state_refundable_credits.py',
       
       // Business income
       'qualified_business_income_deduction': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
@@ -66,6 +70,17 @@ const Documentation = ({ onBackToDashboard }) => {
     };
     
     return variablePaths[variableName] || `search?q=${variableName}&type=code`;
+  };
+
+  // Function to get multiple variables for variables that combine several PolicyEngine variables
+  const getMultipleVariables = (taxsimCode) => {
+    const multipleVariableMappings = {
+      'v28': ['income_tax_main_rates', 'capital_gains_tax'],
+      'v40': ['state_non_refundable_credits', 'state_refundable_credits'],
+      'v44': ['employee_medicare_tax', 'additional_medicare_tax']
+    };
+    
+    return multipleVariableMappings[taxsimCode] || null;
   };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -513,28 +528,64 @@ const Documentation = ({ onBackToDashboard }) => {
                                 {mapping.taxsim}
                               </td>
                               <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-                              {mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
-                               mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year' ? (
-                                <a 
-                                  href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ 
-                                    color: 'var(--blue-primary)', 
-                                    textDecoration: 'none',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer'
-                                  }}
-                                  onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                                  onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                                >
-                                  {mapping.policyengine}
-                                  <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-                                </a>
-                              ) : (
-                                mapping.policyengine || 'N/A'
-                              )}
+                              {(() => {
+                                // Check if this is a multiple_variables case
+                                const multipleVars = getMultipleVariables(mapping.taxsim);
+                                
+                                if (multipleVars && mapping.implemented) {
+                                  // Display multiple variables with individual links
+                                  return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      {multipleVars.map((varName, index) => (
+                                        <a 
+                                          key={index}
+                                          href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(varName)}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{ 
+                                            color: 'var(--blue-primary)', 
+                                            textDecoration: 'none',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            cursor: 'pointer',
+                                            fontSize: '11px'
+                                          }}
+                                          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                                          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                                        >
+                                          {varName}
+                                          <FiExternalLink style={{ marginLeft: '4px', fontSize: '9px' }} />
+                                        </a>
+                                      ))}
+                                    </div>
+                                  );
+                                } else if (mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
+                                           mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year') {
+                                  // Single variable with link
+                                  return (
+                                    <a 
+                                      href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ 
+                                        color: 'var(--blue-primary)', 
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer'
+                                      }}
+                                      onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                                      onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                                    >
+                                      {mapping.policyengine}
+                                      <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
+                                    </a>
+                                  );
+                                } else {
+                                  // Not implemented or N/A
+                                  return mapping.policyengine || 'N/A';
+                                }
+                              })()}
                             </td>
                                                           <td style={{ 
                               fontSize: '14px', 
