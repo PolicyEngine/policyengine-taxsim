@@ -6,7 +6,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "1. Record ID"
+    text_description: "Record ID"
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
@@ -17,7 +17,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "2. Year"
+    text_description: "Year"
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
@@ -28,7 +28,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "3. State (SOI code)"
+    text_description: "State (SOI code)"
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
@@ -39,7 +39,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "4. Federal IIT Liability"
+    text_description: "Federal IIT Liability"
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
@@ -50,7 +50,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "5. State IIT Liability"
+    text_description: "State IIT Liability"
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
@@ -61,7 +61,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "6. SS Payroll Tax Liability"
+    text_description: "FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)"
     group_order: 1
     full_text_group: "Basic Output"
     group_column: 1
@@ -72,7 +72,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "7. Federal Marginal Rate"
+    text_description: "Federal Marginal Rate"
     group_order: 2
     full_text_group: "Marginal Rates wrt Weighted Average Earnings"
     group_column: 1
@@ -83,7 +83,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "8. State Marginal Rate"
+    text_description: "State Marginal Rate"
     group_order: 2
     full_text_group: "Marginal Rates wrt Weighted Average Earnings"
     group_column: 1
@@ -93,7 +93,7 @@ policyengine_to_taxsim:
     idtl:
       - standard: 0
       - full: 2
-    text_description: "Not available in taxsim full text description"
+    text_description: "FICA rate"
     group_order: 2
     full_text_group: "Marginal Rates wrt Weighted Average Earnings"
     group_column: 1
@@ -104,7 +104,7 @@ policyengine_to_taxsim:
       - standard: 0
       - full: 2
       - full_text: 5
-    text_description: "9. Weighted Payroll Tax Rate"
+    text_description: "Taxpayer liability for FICA"
     group_order: 2
     full_text_group: "Marginal Rates wrt Weighted Average Earnings"
     group_column: 1
@@ -114,7 +114,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "10. Federal AGI"
+    text_description: "Federal AGI"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -124,7 +124,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "11. UI in AGI 1979+"
+    text_description: "UI in AGI"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -134,7 +134,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "12. Social Security in AGI 84"
+    text_description: "Social Security in AGI"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -144,7 +144,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "13. Zero Bracket Amount / Standard Deduction"
+    text_description: "Zero Bracket Amount / Standard Deduction"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -154,7 +154,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "14. Personal Exemptions"
+    text_description: "Personal Exemptions"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -164,7 +164,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "15. Exemption Phaseout 1991+"
+    text_description: "Exemption Phaseout"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -174,7 +174,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "16. Deduction Phaseout 1991+"
+    text_description: "Deduction Phaseout"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -184,7 +184,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "17. Deductions allowed"
+    text_description: "Itemized Deductions in taxable income"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -214,7 +214,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "18. Federal Taxable Income"
+    text_description: "Federal Taxable Income"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -224,7 +224,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "19. Federal Regular Tax"
+    text_description: "Federal Regular Tax"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -234,7 +234,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "20. Exemption Surtax 1988-96"
+    text_description: "Exemption Surtax"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -244,7 +244,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "21. General Tax Credit 1975-8"
+    text_description: "General Tax Credit"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -254,17 +254,17 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "22. Child Tax Credit*17/22 98"
+    text_description: "Child Tax Credit"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v23:
-    variable: refundable_ctc
-    implemented: true
+    variable: na_pe
+    implemented: false
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "23. Refundable Part"
+    text_description: "Reserved"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -274,7 +274,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "24. Child Care Credit 1076+"
+    text_description: "Child Care Credit"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -284,7 +284,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "25. Earned Income Credit 1975"
+    text_description: "Earned Income Credit"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -298,7 +298,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "26. Alternative Min Income"
+    text_description: "Income for the Alternative Minimum Tax"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -308,7 +308,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "27. AMT"
+    text_description: "AMT Liability after credit for regular tax and other allowed credits"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -318,39 +318,20 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "28. Income Tax Before Credits"
+    text_description: "Federal Income Tax Before Credits"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
     variables:
       - income_tax_main_rates
       - capital_gains_tax
-  total_credits:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Total Credits"
-    group_order: 3
-    full_text_group: "Federal Tax Calculation"
-    group_column: 1
   v29:
     variable: taxsim_tfica
     implemented: true
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "29. FICA"
-    group_order: 3
-    full_text_group: "Federal Tax Calculation"
-    group_column: 1
-  tax_payer_share:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full: 2
-      - full_text: 5
-    text_description: "Taxpayer share of FICA"
+    text_description: "FICA"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
@@ -360,7 +341,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "30. Household Income"
+    text_description: "State Household Income"
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
@@ -370,7 +351,7 @@ policyengine_to_taxsim:
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "31. Imputed Rent"
+    text_description: "State Rent Expense (imputation for property tax credit)"
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
@@ -413,7 +394,7 @@ policyengine_to_taxsim:
           implemented: true
           variable: taxable_income
   v33:
-    variable: state_exemptions
+    variable: na_pe
     implemented: false
     idtl:
       - full: 2
@@ -475,7 +456,7 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-  tax_before_credits:
+  staxbc:
     variable: state_income_tax_before_non_refundable_credits
     implemented: true
     idtl:
@@ -489,7 +470,7 @@ policyengine_to_taxsim:
     implemented: false
     idtl:
       - full_text: 5
-    text_description: "Bracket Rate"
+    text_description: "State Bracket Rate"
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
@@ -507,16 +488,6 @@ policyengine_to_taxsim:
       - mn:
           implemented: false
           variable: na_pe
-  rent_credit:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full: 2
-      - full_text: 5
-    text_description: "Rent credit"
-    group_order: 4
-    full_text_group: "State Tax Calculation"
-    group_column: 1
   v38:
     variable: state_cdcc
     implemented: true
@@ -541,16 +512,7 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-  energy_fuel_credit:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Energy|Fuel Credit"
-    group_order: 4
-    full_text_group: "State Tax Calculation"
-    group_column: 1
-  ctc:
+  sctc:
     variable: state_ctc
     implemented: true
     idtl:
@@ -576,33 +538,6 @@ policyengine_to_taxsim:
     variables:
       - state_non_refundable_credits
       - state_refundable_credits
-  energy_fuel_credit2:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Energy|Fuel Credit"
-    group_order: 4
-    full_text_group: "State Tax Calculation"
-    group_column: 1
-  general_food_low_inc_credit:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "General/Food/Low Inc crd"
-    group_order: 4
-    full_text_group: "State Tax Calculation"
-    group_column: 1
-  amt:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "AMT"
-    group_order: 4
-    full_text_group: "State Tax Calculation"
-    group_column: 1
   v42:
     variable: na_pe
     implemented: true
@@ -635,147 +570,12 @@ policyengine_to_taxsim:
     variables:
       - employee_medicare_tax
       - additional_medicare_tax
-  bracket_rate_x_y_z:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Bracket rate from X,Y or Z"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  deduction_phaseout:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Deduction Phaseout"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  exemption_phaseout:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Exemption Phaseout"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  social_security_phasein:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Social Security Phasein"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  child_tax_credit:
-    variable: cdcc
-    implemented: true
-    idtl:
-      - full_text: 5
-    text_description: "Child Tax Credit"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  child_care_credit:
-    variable: cdcc
-    implemented: true
-    idtl:
-      - full_text: 5
-    text_description: "Child Care Credit"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
   actc:
     variable: refundable_ctc
     implemented: false
     idtl:
       - full_text: 5
     text_description: "Refundable Part of CTC"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  earned_income_credit:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Earned Income Credit"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  surtax_15:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Surtax on 15% bracket"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  exemption_surtax:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Exemption Surtax"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  unemp_insurance:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Unemployment Insurance"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  max_tax:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Max Tax on Earned Income"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  elderly_credit:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Elderly Credit"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  dep_care_credit:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Dependent Care Credit"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  percentage_std_deduction:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Percentage Std Deduction"
-    group_order: 7
-    full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
-    group_column: 1
-  medicare_tax:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Medicare tax on Unearned Income"
     group_order: 7
     full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
     group_column: 1
@@ -789,42 +589,7 @@ policyengine_to_taxsim:
     group_order: 7
     full_text_group: "Decomposition of Federal Marginal Rate \n (taxpayer earned income) \n Regular Income Tax"
     group_column: 1
-  amt_bracket_rate:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "AMT Bracket Rate"
-    group_order: 8
-    full_text_group: "Alternative Minimum Income Tax"
-    group_column: 1
-  amt_phaseout:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "AMT Phaseout"
-    group_order: 8
-    full_text_group: "Alternative Minimum Income Tax"
-    group_column: 1
-  total_marginal_rate:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "Total Marginal Rate"
-    group_order: 9
-    full_text_group: "Only Regular Tax Relevant"
-    group_column: 1
-  fica_w_medicare:
-    variable: na_pe
-    implemented: false
-    idtl:
-      - full_text: 5
-    text_description: "FICA w Medicare (t,s)"
-    group_order: 9
-    full_text_group: "Only Regular Tax Relevant"
-    group_column: 1
+
 
 taxsim_to_policyengine:
   household_situation:
@@ -905,17 +670,17 @@ taxsim_input_definition:
         - single: 1
         - joint: 2
   - page:
-      name: "5. Age (Txpyr/Spouse)"
+      name: "5. Age of primary taxpayer"
       pair: sage
   - dependent_exemption:
       name: "6. Dependent Exemptions"
   - depx:
-      name: "8. #deps for CCC/CTC/EIC"
+      name: "8. Number of Dependents"
   - pwages:
-      name: "9. Wages (Txpyr/Spouse)"
+      name: "9. Wage and salary income of primary taxpayer"
       pair: swages
   - psemp:
-      name: "10. Self-employment income"
+      name: "10. Self-employment income of primary taxpayer"
       pair: ssemp
   - dividends:
       name: "11. Dividend Income"
@@ -951,7 +716,6 @@ taxsim_input_definition:
   - scorp:
       name: "26. S-Corp profits"
   - pbusinc:
-      name: "27. Txpy/Spouse QBI w/o PO"
+      name: "27. Primary and secondary Taxpayer's active QBI"
   - pprofinc:
-      name: "28. Txpy/Spouse SSTB w PO"
-
+      name: "28. Primary and secondary taxpayer's Specialized Service Trade or Business service"

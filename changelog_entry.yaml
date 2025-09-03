@@ -1,0 +1,4 @@
+- bump: minor
+  changes:
+    added:
+    - Clean up the variable_mappings file.

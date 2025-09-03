@@ -18,7 +18,7 @@ class TaxsimRunner(BaseTaxRunner):
         "state",  # 3. State code
         "mstat",  # 4. Marital status
         "page",  # 5. Primary taxpayer age
-        "sage",  # 5. Spouse age
+        "sage",  # 5. Age of secondary taxpayer
         "depx",  # 6. Number of dependents
     ]
 
@@ -40,7 +40,7 @@ class TaxsimRunner(BaseTaxRunner):
     # Income and deduction columns
     INCOME_COLUMNS = [
         "pwages",  # Primary wages
-        "swages",  # Spouse wages
+        "swages",  # Wage and salary income of secondary taxpayer
         "psemp",  # Primary self-employment
         "ssemp",  # Spouse self-employment
         "dividends",  # Dividend income

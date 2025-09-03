@@ -466,7 +466,7 @@ class TaxsimMicrosimDataset(Dataset):
                         if value <= 0:
                             value = mapping["default"]["dependent"]
                     elif person_type == "spouse" and pe_var == "age":
-                        # Special handling for spouse age
+                        # Special handling for Age of secondary taxpayer
                         value = (
                             int(row[mapping["spouse"]])
                             if row[mapping["spouse"]] > 0
