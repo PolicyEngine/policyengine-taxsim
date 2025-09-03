@@ -377,8 +377,8 @@ const Documentation = ({ onBackToDashboard }) => {
                 <div className="mb-6">
                   <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '14px', lineHeight: '1.6' }}>
                     {activeTab === 'input' 
-                      ? 'This table shows how TAXSIM input variables are mapped to PolicyEngine variables in our implementation.'
-                      : 'This table shows the TAXSIM output variables that are calculated and returned by both systems.'
+                      ? 'This table shows how TAXSIM input variables are mapped to PolicyEngine variables in our implementation. '
+                      : 'This table shows the TAXSIM output variables that are calculated and returned by both systems. '
                     }
                     For complete TAXSIM variable documentation, refer to the official documentation:
                   </p>
