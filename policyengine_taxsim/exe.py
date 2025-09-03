@@ -58,6 +58,12 @@ def main(input_file, output, logs, disable_salt):
 
         for _, row in df.iterrows():
             taxsim_input = row.to_dict()
+            
+            # Apply defaults to ensure idtl has a value
+            year = int(float(taxsim_input.get("year", 2021)))
+            from policyengine_taxsim.core.input_mapper import set_taxsim_defaults
+            taxsim_input = set_taxsim_defaults(taxsim_input, year)
+            
             pe_situation = generate_household(taxsim_input)
 
             taxsim_output = export_household(

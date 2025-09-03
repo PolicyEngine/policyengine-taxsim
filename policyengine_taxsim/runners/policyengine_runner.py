@@ -115,6 +115,7 @@ class TaxsimMicrosimDataset(Dataset):
             "household_id",
             "household_weight",
             "state_fips",
+            "household_state_name",  # Critical for state tax calculations
             "tax_unit_id",
             "tax_unit_weight",
             "family_id",
@@ -129,6 +130,9 @@ class TaxsimMicrosimDataset(Dataset):
         essential_person_variables = {
             "employment_income",  # Core income variable used directly
             "charitable_cash_donations",  # Used in dataset creation
+            "is_tax_unit_dependent",  # Tax unit role flag
+            "is_tax_unit_head",  # Tax unit role flag
+            "is_tax_unit_spouse",  # Tax unit role flag
         }
 
         # Variables that can cause circular dependencies
@@ -422,6 +426,11 @@ class TaxsimMicrosimDataset(Dataset):
         # Initialize variable data collectors
         for pe_var in filtered_mapping.keys():
             person_data[pe_var] = []
+        
+        # Initialize tax unit role flags
+        person_data["is_tax_unit_dependent"] = []
+        person_data["is_tax_unit_head"] = []
+        person_data["is_tax_unit_spouse"] = []
 
         current_person_id = 0
 
@@ -456,6 +465,11 @@ class TaxsimMicrosimDataset(Dataset):
                 else:
                     person_type = "dependent"
                     dep_num = person_idx - (1 if has_spouse else 0)
+                
+                # Set tax unit role flags
+                person_data["is_tax_unit_head"].append(person_type == "primary")
+                person_data["is_tax_unit_spouse"].append(person_type == "spouse")
+                person_data["is_tax_unit_dependent"].append(person_type == "dependent")
 
                 # Process each variable
                 for pe_var, mapping in filtered_mapping.items():
@@ -639,12 +653,17 @@ class TaxsimMicrosimDataset(Dataset):
             data["household_id"][year_int] = year_household_ids
             data["household_weight"][year_int] = np.ones(n_year_records)
             # Convert SOI codes to FIPS codes for PolicyEngine
+            # Default to 48 (Texas) for invalid codes since TX has no state income tax
             data["state_fips"][year_int] = np.array(
                 [
-                    SOI_TO_FIPS_MAP.get(int(float(s)), 6)
+                    SOI_TO_FIPS_MAP.get(int(float(s)), 48)
                     for s in year_data["state"].values
                 ]
             )
+            # Set household state names - critical for state tax calculations
+            # PolicyEngine expects state names as object dtype for string storage
+            state_names = [get_state_code(int(float(s))) for s in year_data["state"].values]
+            data["household_state_name"][year_int] = np.array(state_names, dtype=object)
 
             # Tax unit data
             data["tax_unit_id"][year_int] = year_tax_unit_ids

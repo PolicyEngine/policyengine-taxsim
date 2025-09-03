@@ -64,7 +64,10 @@ export const INPUT_VARIABLES = [
   { code: 'proptax', name: 'Property Taxes' },
   { code: 'otheritem', name: 'Other Itemized Deductions' },
   { code: 'childcare', name: 'Child Care Expenses' },
-  { code: 'mortgage', name: 'Mortgage Interest' }
+  { code: 'mortgage', name: 'Mortgage Interest' },
+  { code: 'scorp', name: 'S-Corp Income' },
+  { code: 'pbusinc', name: 'Qualified Business Income' },
+  { code: 'pprofinc', name: 'Primary Professional Income' }
 ];
 
 // Output variables for household comparison

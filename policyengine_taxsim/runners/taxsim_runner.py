@@ -102,44 +102,60 @@ class TaxsimRunner(BaseTaxRunner):
         """Format DataFrame for TAXSIM input requirements"""
         formatted_df = df.copy()
 
-        # Ensure all columns exist with default values
+        # Apply TAXSIM defaults first, including idtl=2
+        from policyengine_taxsim.core.input_mapper import set_taxsim_defaults
+        
+        for idx, row in formatted_df.iterrows():
+            taxsim_vars = row.to_dict()
+            year = int(float(taxsim_vars.get("year", 2021)))
+            taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
+            for key, value in taxsim_vars.items():
+                formatted_df.loc[idx, key] = value
+
+        # Ensure all columns exist with default values (for any remaining columns)
         for col in self.ALL_COLUMNS:
             if col not in formatted_df.columns:
                 formatted_df[col] = 0
 
-        # Create dynamic column list based on number of dependents
-        result_rows = []
-
+        # Process each row to create properly formatted data
+        # TAXSIM expects each row to have age columns only up to its number of dependents
+        result_dfs = []
+        
         for _, row in formatted_df.iterrows():
             depx = int(row.get("depx", 0))
-
-            # Start with required columns
-            dynamic_columns = self.REQUIRED_COLUMNS.copy()
-
-            # Add only age columns for actual dependents (up to 11 max)
+            
+            # Create column list specific to this row's dependent count
+            row_columns = self.REQUIRED_COLUMNS.copy()
+            
+            # Add age columns only for the number of dependents this row has
             for i in range(min(depx, 11)):
                 age_col = f"age{i+1}"
-                dynamic_columns.append(age_col)
-
+                row_columns.append(age_col)
+            
             # Add income columns
-            dynamic_columns.extend(self.INCOME_COLUMNS)
-
-            # Create row data with only needed columns
+            row_columns.extend(self.INCOME_COLUMNS)
+            
+            # Create row data
             row_data = {}
-            for col in dynamic_columns:
+            for col in row_columns:
                 value = row.get(col, 0)
-
+                
                 # Convert dependent ages of 0 to 10 for TAXSIM compatibility
                 if col.startswith("age") and col[3:].isdigit() and value <= 0:
                     value = 10
-
+                
                 row_data[col] = value
-
-            result_rows.append(row_data)
-
-        # Convert to DataFrame and store dynamic columns
-        if result_rows:
-            result_df = pd.DataFrame(result_rows)
+            
+            # Create a single-row DataFrame with this row's columns
+            single_row_df = pd.DataFrame([row_data])
+            result_dfs.append(single_row_df)
+        
+        # Combine all rows, filling missing columns with 0
+        if result_dfs:
+            result_df = pd.concat(result_dfs, ignore_index=True, sort=False)
+            result_df = result_df.fillna(0)
+            
+            # Store the union of all columns for consistent output
             self._dynamic_columns = result_df.columns.tolist()
             return result_df
         else:
