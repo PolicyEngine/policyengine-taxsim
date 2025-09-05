@@ -72,8 +72,8 @@ export const INPUT_VARIABLES = [
 // Linked to PolicyEngine US variables: https://github.com/PolicyEngine/policyengine-us/tree/master/policyengine_us/variables
 export const OUTPUT_VARIABLES = [
   // Basic Outputs
-  { code: 'taxsimid', name: 'Case ID', policyengine: 'taxsimid' },
-  { code: 'year', name: 'Year', policyengine: 'year' },
+  { code: 'taxsimid', name: 'Record ID', policyengine: 'taxsimid' },
+  { code: 'year', name: 'Tax Year', policyengine: 'year' },
   { code: 'state', name: 'State code', policyengine: 'state_code' },
   
   // Primary Tax Calculations

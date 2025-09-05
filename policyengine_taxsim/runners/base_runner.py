@@ -30,10 +30,11 @@ class BaseTaxRunner(ABC):
 
     def _validate_input(self):
         """Validate that input data has required structure"""
-        # Check for taxsimid column (required for all operations)
+        # Auto-assign taxsimid if not present
         if "taxsimid" not in self.input_df.columns:
-            raise ValueError("Input data must contain 'taxsimid' column")
-
+            # Assign sequential IDs starting from 1
+            self.input_df["taxsimid"] = range(1, len(self.input_df) + 1)
+        
         # Check for duplicate taxsimids
         if self.input_df["taxsimid"].duplicated().any():
             raise ValueError("Input data contains duplicate taxsimid values")

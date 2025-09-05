@@ -56,7 +56,9 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
             )
 
             # Generate YAML file
-            yaml_filename = f"taxsim_record_{int(row['taxsimid'])}_{year}.yaml"
+            # Use taxsimid from row if available, otherwise use index + 1
+            taxsim_id = int(row['taxsimid']) if 'taxsimid' in row else idx + 1
+            yaml_filename = f"taxsim_record_{taxsim_id}_{year}.yaml"
             generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
 
         except Exception as e:
@@ -99,12 +101,15 @@ def policyengine(input_file, output, logs, disable_salt, sample):
         # Use the PolicyEngineRunner with microsimulation
         runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         results_df = runner.run(show_progress=True)
+        
+        # Use the runner's input_df which has taxsimid (auto-assigned if needed)
+        df_with_ids = runner.input_df
 
         # Generate YAML files if requested
         if logs:
             click.echo("Generating PolicyEngine YAML test files...")
-            _generate_yaml_files(df, results_df)
-            click.echo(f"Generated {len(df)} YAML test files")
+            _generate_yaml_files(df_with_ids, results_df)
+            click.echo(f"Generated {len(df_with_ids)} YAML test files")
 
         # Save results to output file
         results_df.to_csv(output, index=False)
@@ -196,16 +201,19 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         click.echo("Running PolicyEngine...")
         pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         pe_results = pe_runner.run()
+        
+        # Use the runner's input_df which has taxsimid (auto-assigned if needed)
+        df_with_ids = pe_runner.input_df
 
         # Generate YAML files if requested
         if logs:
             click.echo("Generating PolicyEngine YAML test files...")
-            _generate_yaml_files(df, pe_results)
-            click.echo(f"Generated {len(df)} YAML test files")
+            _generate_yaml_files(df_with_ids, pe_results)
+            click.echo(f"Generated {len(df_with_ids)} YAML test files")
 
         # Run TAXSIM
         click.echo("Running TAXSIM...")
-        taxsim_runner = TaxsimRunner(df)
+        taxsim_runner = TaxsimRunner(df_with_ids)
         taxsim_results = taxsim_runner.run()
 
         # Compare results
@@ -216,7 +224,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         comparison_results = comparator.compare()
 
         # Generate statistics
-        stats = ComparisonStatistics(comparison_results, df)
+        stats = ComparisonStatistics(comparison_results, df_with_ids)
         stats.print_summary()
 
         # Save outputs
@@ -224,7 +232,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         output_path.mkdir(exist_ok=True)
 
         # Save consolidated results (includes all matches and mismatches)
-        comparison_results.save_consolidated_results(output_path, df, year)
+        comparison_results.save_consolidated_results(output_path, df_with_ids, year)
 
         click.echo(f"\nComparison results saved to: {output_path}")
 
