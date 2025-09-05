@@ -13,7 +13,7 @@ class TaxsimRunner(BaseTaxRunner):
     # TAXSIM column definitions based on official NBER documentation
     # https://taxsim.nber.org/taxsimtest/
     REQUIRED_COLUMNS = [
-        "taxsimid",  # 1. Case ID
+        "taxsimid",  # 1. Record ID (auto-assigned if not present)
         "year",  # 2. Tax year
         "state",  # 3. State code
         "mstat",  # 4. Marital status
