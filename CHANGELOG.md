@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [2.1.2] - 2025-09-05 14:55:43
+
+### Fixed
+
+- Make taxsimid optional.
+
 ## [2.1.1] - 2025-09-05 14:28:53
 
 ### Fixed
@@ -76,6 +82,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[2.1.2]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.1...2.1.2
 [2.1.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.0...2.1.1
 [2.1.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.0.0...2.1.0
 [2.0.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/1.1.3...2.0.0

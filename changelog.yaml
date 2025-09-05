@@ -56,3 +56,8 @@
     fixed:
     - Export Data button.
   date: 2025-09-05 14:28:53
+- bump: patch
+  changes:
+    fixed:
+    - Make taxsimid optional.
+  date: 2025-09-05 14:55:43
