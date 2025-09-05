@@ -61,3 +61,8 @@
     fixed:
     - Make taxsimid optional.
   date: 2025-09-05 14:55:43
+- bump: patch
+  changes:
+    added:
+    - Initialize versioning.
+  date: 2025-09-05 18:12:04
