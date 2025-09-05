@@ -51,3 +51,8 @@
     added:
     - Clean up the variable_mappings file.
   date: 2025-09-03 19:32:49
+- bump: patch
+  changes:
+    fixed:
+    - Export Data button.
+  date: 2025-09-05 14:28:53
