@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "file-saver": "^2.0.5",
     "js-yaml": "^4.1.0",
+    "jszip": "^3.10.1",
     "papaparse": "^5.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
