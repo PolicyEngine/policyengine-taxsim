@@ -93,6 +93,99 @@ def to_roundedup_number(value):
         return round(value, 2)
 
 
+def convert_taxsim32_dependents(taxsim_vars):
+    """
+    Convert TAXSIM32 dependent count format (dep13, dep17, dep18) 
+    to individual age format (age1, age2, etc.).
+    
+    TAXSIM32 format uses cumulative counts:
+    - dep13: Number of dependents under 13
+    - dep17: Number of dependents under 17 (includes those under 13)
+    - dep18: Number of dependents under 18 (includes those under 17 and 13)
+    
+    This function infers individual ages based on these counts.
+    If depx exceeds dep18, additional dependents are assigned age 21.
+    
+    Args:
+        taxsim_vars (dict): Dictionary containing TAXSIM input variables
+        
+    Returns:
+        dict: Updated dictionary with age1, age2, etc. fields added
+    """
+    # Check if we have the TAXSIM32 format fields
+    has_dep13 = 'dep13' in taxsim_vars
+    has_dep17 = 'dep17' in taxsim_vars
+    has_dep18 = 'dep18' in taxsim_vars
+    has_taxsim32_fields = has_dep13 or has_dep17 or has_dep18
+    
+    # Check if we already have meaningful individual age fields (not just 0s from defaults)
+    has_meaningful_age_fields = any(
+        f'age{i}' in taxsim_vars and taxsim_vars[f'age{i}'] not in [None, 0, 0.0]
+        for i in range(1, 12)
+    )
+    
+    # Get depx value
+    depx = int(taxsim_vars.get('depx', 0) or 0)
+    
+    # Only convert if:
+    # 1. We have TAXSIM32 fields (dep13/17/18) AND don't have meaningful individual age fields
+    # 2. AND either have dependents OR the TAXSIM32 fields exist
+    # This ensures we only convert when TAXSIM32 format is actually being used
+    if has_taxsim32_fields and not has_meaningful_age_fields:
+        dep13 = int(taxsim_vars.get('dep13', 0) or 0)
+        dep17 = int(taxsim_vars.get('dep17', 0) or 0)
+        dep18 = int(taxsim_vars.get('dep18', 0) or 0)
+        depx = int(taxsim_vars.get('depx', 0) or 0)
+        
+        # Calculate the number of dependents in each age bracket
+        # Note: These are cumulative, so we need to subtract to get individual counts
+        num_under_13 = dep13
+        num_13_to_16 = dep17 - dep13  # Those under 17 but not under 13
+        num_17 = dep18 - dep17  # Those under 18 but not under 17 (i.e., exactly 17)
+        
+        # Calculate number of dependents 18 or older
+        num_18_or_older = 0
+        if depx > dep18:
+            num_18_or_older = depx - dep18  # These will be assigned age 21
+        
+        # Set depx to the total number of dependents if not already set
+        if 'depx' not in taxsim_vars or taxsim_vars['depx'] is None:
+            taxsim_vars['depx'] = max(depx, dep18)
+        else:
+            # Ensure depx is at least as large as dep18
+            taxsim_vars['depx'] = max(int(taxsim_vars['depx']), dep18)
+        
+        # Generate individual ages based on the counts
+        # We'll use typical ages for each bracket
+        dep_counter = 1
+        
+        # Add dependents under 13 (use age 10 as default)
+        for i in range(num_under_13):
+            if dep_counter <= 11:  # TAXSIM supports up to 11 dependents
+                taxsim_vars[f'age{dep_counter}'] = 10
+                dep_counter += 1
+        
+        # Add dependents aged 13-16 (use age 15 as default)
+        for i in range(num_13_to_16):
+            if dep_counter <= 11:
+                taxsim_vars[f'age{dep_counter}'] = 15
+                dep_counter += 1
+        
+        # Add dependents aged 17 (use age 17)
+        for i in range(num_17):
+            if dep_counter <= 11:
+                taxsim_vars[f'age{dep_counter}'] = 17
+                dep_counter += 1
+        
+        # Add dependents aged 18 or older (use age 21 as default for adult dependents)
+        for i in range(num_18_or_older):
+            if dep_counter <= 11:
+                taxsim_vars[f'age{dep_counter}'] = 21
+                dep_counter += 1
+    
+    return taxsim_vars
+
+
 def get_ordinal(n):
     ordinals = {
         1: "first",

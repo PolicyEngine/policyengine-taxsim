@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 import pandas as pd
 from .base_runner import BaseTaxRunner
+from ..core.utils import convert_taxsim32_dependents
 
 
 class TaxsimRunner(BaseTaxRunner):
@@ -36,6 +37,13 @@ class TaxsimRunner(BaseTaxRunner):
         "age10",
         "age11",
     ]
+    
+    # TAXSIM32 format columns for dependent counts by age bracket
+    TAXSIM32_COLUMNS = [
+        "dep13",  # Number of dependents under 13
+        "dep17",  # Number of dependents under 17 (includes under 13)
+        "dep18",  # Number of dependents under 18 (includes under 17 and 13)
+    ]
 
     # Income and deduction columns
     INCOME_COLUMNS = [
@@ -63,7 +71,7 @@ class TaxsimRunner(BaseTaxRunner):
         "idtl",  # Output control
     ]
 
-    ALL_COLUMNS = REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + INCOME_COLUMNS
+    ALL_COLUMNS = REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + TAXSIM32_COLUMNS + INCOME_COLUMNS
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
         super().__init__(input_df)
@@ -102,6 +110,13 @@ class TaxsimRunner(BaseTaxRunner):
         """Format DataFrame for TAXSIM input requirements"""
         formatted_df = df.copy()
 
+        # Convert TAXSIM32 format to individual ages for each row
+        for idx, row in formatted_df.iterrows():
+            row_dict = row.to_dict()
+            converted_row = convert_taxsim32_dependents(row_dict)
+            for key, value in converted_row.items():
+                formatted_df.loc[idx, key] = value
+
         # Ensure all columns exist with default values
         for col in self.ALL_COLUMNS:
             if col not in formatted_df.columns:
@@ -121,7 +136,7 @@ class TaxsimRunner(BaseTaxRunner):
                 age_col = f"age{i+1}"
                 dynamic_columns.append(age_col)
 
-            # Add income columns
+            # Add income columns (but exclude TAXSIM32 columns since TAXSIM-35 uses individual ages)
             dynamic_columns.extend(self.INCOME_COLUMNS)
 
             # Create row data with only needed columns

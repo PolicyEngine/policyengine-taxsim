@@ -13,6 +13,7 @@ from policyengine_taxsim.core.utils import (
     get_state_code,
     get_state_number,
     to_roundedup_number,
+    convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.input_mapper import (
     set_taxsim_defaults,
@@ -542,13 +543,17 @@ class TaxsimMicrosimDataset(Dataset):
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
-        # Set defaults for all records
+        # Set defaults for all records and convert TAXSIM32 format if present
         print("Setting defaults for TAXSIM records...")
         for idx, row in tqdm(
             self.input_df.iterrows(), total=n_records, desc="Processing defaults"
         ):
             taxsim_vars = row.to_dict()
             year = int(float(taxsim_vars.get("year", 2021)))
+            
+            # Convert TAXSIM32 dependent format (dep13, dep17, dep18) to age1, age2, etc.
+            taxsim_vars = convert_taxsim32_dependents(taxsim_vars)
+            
             taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
             for key, value in taxsim_vars.items():
                 self.input_df.loc[idx, key] = value
