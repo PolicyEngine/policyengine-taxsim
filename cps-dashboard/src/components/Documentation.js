@@ -646,6 +646,93 @@ const Documentation = ({ onBackToDashboard }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Dependent Age Structures */}
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Dependent Age Structures</h3>
+                  <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '14px', lineHeight: '1.6' }}>
+                    Our implementation supports both TAXSIM and TAXSIM32 dependent age input formats, with automatic conversion between formats as needed.
+                  </p>
+                  
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Individual Ages (TAXSIM):</h4>
+                      <div style={{ backgroundColor: 'var(--blue-98)', padding: '16px', borderRadius: '8px', border: '1px solid var(--blue-95)' }}>
+                        <p style={{ color: 'var(--dark-gray)', fontSize: '14px', marginBottom: '12px', lineHeight: '1.6' }}>
+                          Traditional format using individual age fields:
+                        </p>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                          <li style={{ marginBottom: '8px' }}>
+                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>age1, age2, age3...</code>
+                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>up to age11</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginTop: '8px' }}>
+                      <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Cumulative Counts (TAXSIM32):</h4>
+                      <div style={{ backgroundColor: 'var(--teal-light)', padding: '16px', borderRadius: '8px', border: '1px solid var(--teal-accent)' }}>
+                        <p style={{ color: 'var(--dark-gray)', fontSize: '14px', marginBottom: '12px', lineHeight: '1.6' }}>
+                          Cumulative dependent counts by age bracket:
+                        </p>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                          <li style={{ marginBottom: '8px' }}>
+                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>dep13</code>
+                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>dependents under 13</span>
+                          </li>
+                          <li style={{ marginBottom: '8px' }}>
+                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>dep17</code>
+                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>dependents under 17</span>
+                          </li>
+                          <li style={{ marginBottom: '0' }}>
+                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>dep18</code>
+                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>dependents under 18</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '20px' }}>
+                    <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Conversion Logic:</h4>
+                    <div style={{ backgroundColor: 'rgba(44, 100, 150, 0.04)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(44, 100, 150, 0.2)' }}>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
+                          <span style={{ fontWeight: '600' }}>Under 13:</span> Assigned age 10
+                        </li>
+                        <li style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
+                          <span style={{ fontWeight: '600' }}>Ages 13-16:</span> Assigned age 15
+                        </li>
+                        <li style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
+                          <span style={{ fontWeight: '600' }}>Age 17:</span> Assigned age 17
+                        </li>
+                        <li style={{ marginBottom: '0', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
+                          <span style={{ fontWeight: '600' }}>18 and older:</span> Assigned age 21
+                        </li>
+                      </ul>
+                    </div>
+                    <p style={{ color: 'var(--dark-gray)', marginTop: '16px', fontSize: '14px', lineHeight: '1.6' }}>
+                      For complete documentation on TAXSIM32 dependent age formats, see: 
+                      <a 
+                        href="https://taxsim.nber.org/taxsim32/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ 
+                          color: 'var(--blue-primary)', 
+                          fontWeight: '600',
+                          textDecoration: 'none',
+                          marginLeft: '4px'
+                        }}
+                        onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                      >
+                        TAXSIM32 Documentation
+                        <FiExternalLink style={{ marginLeft: '4px', fontSize: '12px', display: 'inline' }} />
+                      </a>
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </section>

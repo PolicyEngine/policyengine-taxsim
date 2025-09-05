@@ -10,7 +10,7 @@ try:
     from .comparison.statistics import ComparisonStatistics
     from .core.yaml_generator import generate_pe_tests_yaml
     from .core.input_mapper import form_household_situation
-    from .core.utils import get_state_code
+    from .core.utils import get_state_code, convert_taxsim32_dependents
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
@@ -21,7 +21,7 @@ except ImportError:
     from policyengine_taxsim.comparison.statistics import ComparisonStatistics
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
     from policyengine_taxsim.core.input_mapper import form_household_situation
-    from policyengine_taxsim.core.utils import get_state_code
+    from policyengine_taxsim.core.utils import get_state_code, convert_taxsim32_dependents
 
 
 def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
@@ -37,6 +37,9 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
             for key, value in taxsim_data.items():
                 if isinstance(value, float) and value.is_integer():
                     taxsim_data[key] = int(value)
+
+            # Convert TAXSIM32 dependent format if present
+            taxsim_data = convert_taxsim32_dependents(taxsim_data)
 
             household = form_household_situation(year, state, taxsim_data)
 
