@@ -9,6 +9,7 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorMessage from './components/common/ErrorMessage';
 import Button from './components/common/Button';
 import { useYearData } from './hooks/useYearData';
+import { exportAllData } from './utils/exportData';
 
 function App() {
   const [selectedState, setSelectedState] = useState(null);
@@ -32,10 +33,14 @@ function App() {
     setSelectedState(state);
   }, []);
 
-  const handleExport = useCallback(() => {
-    // TODO: Implement export functionality
-    alert(`Export functionality coming soon!\nYear: ${selectedYear}, State: ${selectedState || 'All'}`);
-  }, [selectedYear, selectedState]);
+  const handleExport = useCallback(async () => {
+    try {
+      await exportAllData();
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export data. Please try again.');
+    }
+  }, []);
 
   const handleViewChange = useCallback((view) => {
     setCurrentView(view);
