@@ -130,6 +130,9 @@ class TaxsimMicrosimDataset(Dataset):
         essential_person_variables = {
             "employment_income",  # Core income variable used directly
             "charitable_cash_donations",  # Used in dataset creation
+            "is_tax_unit_head",  # Tax unit role - must be explicit to avoid misclassification
+            "is_tax_unit_spouse",  # Tax unit role - must be explicit to avoid misclassification
+            "is_tax_unit_dependent",  # Tax unit role - must be explicit to avoid misclassification
         }
 
         # Variables that can cause circular dependencies
@@ -423,6 +426,11 @@ class TaxsimMicrosimDataset(Dataset):
         # Initialize variable data collectors
         for pe_var in filtered_mapping.keys():
             person_data[pe_var] = []
+        
+        # Initialize tax unit role variables explicitly
+        person_data["is_tax_unit_head"] = []
+        person_data["is_tax_unit_spouse"] = []
+        person_data["is_tax_unit_dependent"] = []
 
         current_person_id = 0
 
@@ -493,6 +501,14 @@ class TaxsimMicrosimDataset(Dataset):
                             value = source  # Direct value (like 0.0)
 
                     person_data[pe_var].append(value)
+                
+                # Set tax unit roles explicitly based on person type
+                if "is_tax_unit_head" in person_data:
+                    person_data["is_tax_unit_head"].append(person_type == "primary")
+                if "is_tax_unit_spouse" in person_data:
+                    person_data["is_tax_unit_spouse"].append(person_type == "spouse")
+                if "is_tax_unit_dependent" in person_data:
+                    person_data["is_tax_unit_dependent"].append(person_type == "dependent")
 
                 current_person_id += 1
 
