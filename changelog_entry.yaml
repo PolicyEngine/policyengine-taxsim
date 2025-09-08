@@ -1,4 +1,0 @@
-- bump: patch
-  changes:
-    fixed:
-    - Add head, spouse and dependent tags in the PolicyEngine runner.

@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [2.1.4] - 2025-09-08 23:22:54
+
+### Fixed
+
+- Add head, spouse and dependent tags in the PolicyEngine runner.
+
 ## [2.1.3] - 2025-09-05 18:12:04
 
 ### Added
@@ -88,6 +94,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[2.1.4]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.3...2.1.4
 [2.1.3]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.2...2.1.3
 [2.1.2]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.1...2.1.2
 [2.1.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.0...2.1.1

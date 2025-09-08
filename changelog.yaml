@@ -66,3 +66,8 @@
     added:
     - Initialize versioning.
   date: 2025-09-05 18:12:04
+- bump: patch
+  changes:
+    fixed:
+    - Add head, spouse and dependent tags in the PolicyEngine runner.
+  date: 2025-09-08 23:22:54
