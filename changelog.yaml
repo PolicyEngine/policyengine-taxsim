@@ -71,3 +71,8 @@
     fixed:
     - Add head, spouse and dependent tags in the PolicyEngine runner.
   date: 2025-09-08 23:22:54
+- bump: patch
+  changes:
+    fixed:
+    - Fix dependent age default.
+  date: 2025-09-09 13:55:29
