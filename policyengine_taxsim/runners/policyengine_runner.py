@@ -146,6 +146,8 @@ class TaxsimMicrosimDataset(Dataset):
             "id_grocery_credit_qualified_months",
             "ak_energy_relief",
             "ak_permanent_fund_dividend",
+            "ssi",  # SSI should be 0 to match TAXSIM (which doesn't model SSI)
+            "wic",  # WIC should be 0 to match TAXSIM (which doesn't model WIC)
         }
 
         # Combine all variables
@@ -464,7 +466,7 @@ class TaxsimMicrosimDataset(Dataset):
                     person_type = "spouse"
                 else:
                     person_type = "dependent"
-                    dep_num = person_idx - (1 if has_spouse else 0)
+                    dep_num = person_idx - (2 if has_spouse else 1) + 1  # +1 because deps are 1-indexed
 
                 # Process each variable
                 for pe_var, mapping in filtered_mapping.items():
@@ -655,6 +657,12 @@ class TaxsimMicrosimDataset(Dataset):
                 data["id_grocery_credit_qualified_months"][year_int] = np.full(
                     total_people_for_year, 12
                 )  # Set qualified months to 12 for full year eligibility
+                data["ssi"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set SSI to 0 to match TAXSIM (which doesn't model SSI)
+                data["wic"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set WIC to 0 to match TAXSIM (which doesn't model WIC)
 
             # Household data
             data["household_id"][year_int] = year_household_ids

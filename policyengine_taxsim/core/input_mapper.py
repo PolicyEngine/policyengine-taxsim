@@ -195,6 +195,11 @@ def form_household_situation(year, state, taxsim_vars):
     household_situation = add_additional_units(
         state.lower(), year, household_situation, taxsim_vars
     )
+    
+    # Explicitly set SSI to 0 for all people to prevent PolicyEngine from imputing SSI benefits
+    # TAXSIM does not model SSI, so we need to ensure it's not automatically calculated
+    for person_name in household_situation["people"]:
+        household_situation["people"][person_name]["ssi"] = {str(year): 0}
 
     return household_situation
 
