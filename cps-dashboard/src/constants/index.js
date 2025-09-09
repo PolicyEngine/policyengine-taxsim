@@ -105,7 +105,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'v23', name: 'Reserved', policyengine: null },
   { code: 'v24', name: 'Child Care Credit (including additional credit)', policyengine: 'cdcc' },
   { code: 'v25', name: 'Earned Income Credit (total federal)', policyengine: 'eitc' },
-  { code: 'actc', name: 'Additional child tax credit', policyengine: 'additional_ctc' },
+  { code: 'actc', name: 'Additional child tax credit', policyengine: 'refundable_ctc' },
   { code: 'cares', name: 'Cares rebate', policyengine: 'recovery_rebate_credit' },
 
   // Federal AMT (v26-v27)
