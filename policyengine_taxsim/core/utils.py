@@ -112,15 +112,14 @@ def convert_taxsim32_dependents(taxsim_vars):
     Returns:
         dict: Updated dictionary with age1, age2, etc. fields added
     """
-    # Check if we have the TAXSIM32 format fields
-    has_dep13 = 'dep13' in taxsim_vars
-    has_dep17 = 'dep17' in taxsim_vars
-    has_dep18 = 'dep18' in taxsim_vars
-    has_taxsim32_fields = has_dep13 or has_dep17 or has_dep18
+    # Check if we have the TAXSIM32 format fields present
+    # Just check for presence, not values, since all three could be 0 with depx > 0 (all dependents 18+)
+    has_taxsim32_fields = 'dep13' in taxsim_vars or 'dep17' in taxsim_vars or 'dep18' in taxsim_vars
     
-    # Check if we already have meaningful individual age fields (not just 0s from defaults)
-    has_meaningful_age_fields = any(
-        f'age{i}' in taxsim_vars and taxsim_vars[f'age{i}'] not in [None, 0, 0.0]
+    # Check if we already have individual age fields explicitly set (including 0 for newborns)
+    # We consider age fields as explicitly set if they exist in the input
+    has_individual_age_fields = any(
+        f'age{i}' in taxsim_vars and taxsim_vars[f'age{i}'] is not None
         for i in range(1, 12)
     )
     
@@ -128,10 +127,10 @@ def convert_taxsim32_dependents(taxsim_vars):
     depx = int(taxsim_vars.get('depx', 0) or 0)
     
     # Only convert if:
-    # 1. We have TAXSIM32 fields (dep13/17/18) AND don't have meaningful individual age fields
-    # 2. AND either have dependents OR the TAXSIM32 fields exist
+    # 1. We have TAXSIM32 fields (dep13/17/18) with meaningful values
+    # 2. AND we don't already have individual age fields set
     # This ensures we only convert when TAXSIM32 format is actually being used
-    if has_taxsim32_fields and not has_meaningful_age_fields:
+    if has_taxsim32_fields and not has_individual_age_fields:
         dep13 = int(taxsim_vars.get('dep13', 0) or 0)
         dep17 = int(taxsim_vars.get('dep17', 0) or 0)
         dep18 = int(taxsim_vars.get('dep18', 0) or 0)
@@ -160,28 +159,47 @@ def convert_taxsim32_dependents(taxsim_vars):
         dep_counter = 1
         
         # Add dependents under 13 (use age 10 as default)
-        for i in range(num_under_13):
+        for _ in range(num_under_13):
             if dep_counter <= 11:  # TAXSIM supports up to 11 dependents
                 taxsim_vars[f'age{dep_counter}'] = 10
                 dep_counter += 1
         
         # Add dependents aged 13-16 (use age 15 as default)
-        for i in range(num_13_to_16):
+        for _ in range(num_13_to_16):
             if dep_counter <= 11:
                 taxsim_vars[f'age{dep_counter}'] = 15
                 dep_counter += 1
         
         # Add dependents aged 17 (use age 17)
-        for i in range(num_17):
+        for _ in range(num_17):
             if dep_counter <= 11:
                 taxsim_vars[f'age{dep_counter}'] = 17
                 dep_counter += 1
         
         # Add dependents aged 18 or older (use age 21 as default for adult dependents)
-        for i in range(num_18_or_older):
+        for _ in range(num_18_or_older):
             if dep_counter <= 11:
                 taxsim_vars[f'age{dep_counter}'] = 21
                 dep_counter += 1
+    
+    # Handle NaN and age 0 inputs - default them to age 10
+    # Check all age fields up to age11
+    for i in range(1, 12):
+        age_field = f'age{i}'
+        if age_field in taxsim_vars:
+            age_value = taxsim_vars[age_field]
+            # Check for NaN (using numpy's isnan if it's a numpy type, or math.isnan for regular floats)
+            is_nan = False
+            try:
+                import math
+                if isinstance(age_value, (float, np.floating)):
+                    is_nan = math.isnan(age_value) if not isinstance(age_value, np.ndarray) else np.isnan(age_value)
+            except (TypeError, ValueError):
+                pass
+            
+            # If age is NaN or 0, default to 10
+            if is_nan or age_value == 0 or age_value == 0.0:
+                taxsim_vars[age_field] = 10
     
     return taxsim_vars
 
