@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [2.2.0] - 2025-09-09 23:40:23
+
+### Added
+
+- Set benefit program values to 0 in the PolicyEngine runner.
+
 ## [2.1.5] - 2025-09-09 13:55:29
 
 ### Fixed
@@ -100,6 +106,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[2.2.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.5...2.2.0
 [2.1.5]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.4...2.1.5
 [2.1.4]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.3...2.1.4
 [2.1.3]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.2...2.1.3
