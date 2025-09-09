@@ -121,7 +121,15 @@ class PETestsYAMLGenerator:
                         "state_sales_tax": 0,
                     }
                 },
-                "spm_units": {"spm_unit": {"members": members, "snap": 0, "tanf": 0}},
+                "spm_units": {
+                    "spm_unit": {
+                        "members": members,
+                        "snap": 0,
+                        "tanf": 0,
+                        "free_school_meals": 0,
+                        "reduced_price_school_meals": 0,
+                    }
+                },
                 "households": {
                     "household": {
                         "members": members,
@@ -148,16 +156,20 @@ class PETestsYAMLGenerator:
         for old_id, person_data in household_data["people"].items():
             new_id = old_to_new_ids[old_id]
 
-            # Start with required fields
+            # Start with required fields and benefit programs set to 0 by default
             person_output = {
                 "age": person_data["age"].get(year_str, 0),
                 "employment_income": person_data["employment_income"].get(year_str, 0),
+                # Set benefit programs to 0 by default to match TAXSIM (which doesn't model these)
+                "ssi": person_data.get("ssi", {}).get(year_str, 0),
+                "wic": person_data.get("wic", {}).get(year_str, 0),
+                "head_start": person_data.get("head_start", {}).get(year_str, 0),
+                "early_head_start": person_data.get("early_head_start", {}).get(year_str, 0),
+                "commodity_supplemental_food_program": person_data.get("commodity_supplemental_food_program", {}).get(year_str, 0),
             }
 
             # Add optional fields only if they have non-zero values
             optional_fields = [
-                "ssi",
-                "wic",
                 "deductible_mortgage_interest",
                 "self_employment_income",
                 "unemployment_compensation",

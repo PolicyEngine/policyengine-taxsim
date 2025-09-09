@@ -146,6 +146,15 @@ class TaxsimMicrosimDataset(Dataset):
             "id_grocery_credit_qualified_months",
             "ak_energy_relief",
             "ak_permanent_fund_dividend",
+            "ssi",  # SSI should be 0 to match TAXSIM (which doesn't model SSI)
+            "wic",  # WIC should be 0 to match TAXSIM (which doesn't model WIC)
+            "snap",  # SNAP should be 0 to match TAXSIM (which doesn't model SNAP)
+            "tanf",  # TANF should be 0 to match TAXSIM (which doesn't model TANF)
+            "free_school_meals",  # Free school meals should be 0 to match TAXSIM (which doesn't model free school meals)
+            "reduced_price_school_meals",  # Reduced price school meals should be 0 to match TAXSIM (which doesn't model reduced price school meals)
+            "head_start",  # Head Start should be 0 to match TAXSIM (which doesn't model Head Start)
+            "early_head_start",  # Early Head Start should be 0 to match TAXSIM (which doesn't model Early Head Start)
+            "commodity_supplemental_food_program",  # Commodity supplemental food program should be 0 to match TAXSIM (which doesn't model this program)
         }
 
         # Combine all variables
@@ -464,7 +473,7 @@ class TaxsimMicrosimDataset(Dataset):
                     person_type = "spouse"
                 else:
                     person_type = "dependent"
-                    dep_num = person_idx - (1 if has_spouse else 0)
+                    dep_num = person_idx - (2 if has_spouse else 1) + 1  # +1 because deps are 1-indexed
 
                 # Process each variable
                 for pe_var, mapping in filtered_mapping.items():
@@ -655,6 +664,21 @@ class TaxsimMicrosimDataset(Dataset):
                 data["id_grocery_credit_qualified_months"][year_int] = np.full(
                     total_people_for_year, 12
                 )  # Set qualified months to 12 for full year eligibility
+                data["ssi"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set SSI to 0 to match TAXSIM (which doesn't model SSI)
+                data["wic"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set WIC to 0 to match TAXSIM (which doesn't model WIC)
+                data["head_start"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set Head Start to 0 to match TAXSIM (which doesn't model Head Start)
+                data["early_head_start"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set Early Head Start to 0 to match TAXSIM (which doesn't model Early Head Start)
+                data["commodity_supplemental_food_program"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set commodity supplemental food program to 0 to match TAXSIM (which doesn't model this program)
 
             # Household data
             data["household_id"][year_int] = year_household_ids
@@ -684,6 +708,10 @@ class TaxsimMicrosimDataset(Dataset):
             # SPM unit data
             data["spm_unit_id"][year_int] = year_spm_unit_ids
             data["spm_unit_weight"][year_int] = np.ones(n_year_records)
+            data["snap"][year_int] = np.zeros(n_year_records)  # Set SNAP to 0 to match TAXSIM (which doesn't model SNAP)
+            data["tanf"][year_int] = np.zeros(n_year_records)  # Set TANF to 0 to match TAXSIM (which doesn't model TANF)
+            data["free_school_meals"][year_int] = np.zeros(n_year_records)  # Set free school meals to 0 to match TAXSIM (which doesn't model free school meals)
+            data["reduced_price_school_meals"][year_int] = np.zeros(n_year_records)  # Set reduced price school meals to 0 to match TAXSIM (which doesn't model reduced price school meals)
 
             # Marital unit data
             data["marital_unit_id"][year_int] = year_marital_unit_ids
