@@ -88,12 +88,23 @@ def test_import_single_household(sample_taxsim_input):
         "people": {
             "you": {
                 "age": {"2021": 35},
-                "employment_income": {"2021": 50000},
+                "employment_income": {"2021": 50000.0},
                 "is_tax_unit_head": {"2021": True},
-                
+                "ssi": {"2021": 0},
+                "head_start": {"2021": 0},
+                "early_head_start": {"2021": 0},
+                "commodity_supplemental_food_program": {"2021": 0},
             }
         },
-        "spm_units": {"your household": {"members": ["you"]}},
+        "spm_units": {
+            "your household": {
+                "members": ["you"],
+                "snap": {"2021": 0},
+                "tanf": {"2021": 0},
+                "free_school_meals": {"2021": 0},
+                "reduced_price_school_meals": {"2021": 0},
+            }
+        },
         "tax_units": {"your tax unit": {"members": ["you"]}},
     }
 
@@ -111,12 +122,23 @@ def test_import_single_household_without_state(sample_taxsim_input_without_state
         "people": {
             "you": {
                 "age": {"2021": 35},
-                "employment_income": {"2021": 50000},
+                "employment_income": {"2021": 50000.0},
                 "is_tax_unit_head": {"2021": True},
-                
+                "ssi": {"2021": 0},
+                "head_start": {"2021": 0},
+                "early_head_start": {"2021": 0},
+                "commodity_supplemental_food_program": {"2021": 0},
             }
         },
-        "spm_units": {"your household": {"members": ["you"]}},
+        "spm_units": {
+            "your household": {
+                "members": ["you"],
+                "snap": {"2021": 0},
+                "tanf": {"2021": 0},
+                "free_school_meals": {"2021": 0},
+                "reduced_price_school_meals": {"2021": 0},
+            }
+        },
         "tax_units": {"your tax unit": {"members": ["you"]}},
     }
 
@@ -134,12 +156,23 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
         "people": {
             "you": {
                 "age": {"2021": 35},
-                "employment_income": {"2021": 50000},
+                "employment_income": {"2021": 50000.0},
                 "is_tax_unit_head": {"2021": True},
-                
+                "ssi": {"2021": 0},
+                "head_start": {"2021": 0},
+                "early_head_start": {"2021": 0},
+                "commodity_supplemental_food_program": {"2021": 0},
             }
         },
-        "spm_units": {"your household": {"members": ["you"]}},
+        "spm_units": {
+            "your household": {
+                "members": ["you"],
+                "snap": {"2021": 0},
+                "tanf": {"2021": 0},
+                "free_school_meals": {"2021": 0},
+                "reduced_price_school_meals": {"2021": 0},
+            }
+        },
         "tax_units": {"your tax unit": {"members": ["you"]}},
     }
 
@@ -214,13 +247,19 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "age": {"2023": 40},
                 "employment_income": {"2023": 45000.0},
                 "is_tax_unit_head": {"2023": True},
-                
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your partner": {
                 "age": {"2023": 40},
                 "employment_income": {"2023": 30000.0},
                 "is_tax_unit_spouse": {"2023": True},
-                
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your first dependent": {
                 "age": {"2023": 10},
@@ -228,6 +267,10 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "is_tax_unit_dependent": {"2023": True},
                 "is_tax_unit_spouse": {"2023": False},
                 "is_tax_unit_head": {"2023": False},
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your second dependent": {
                 "age": {"2023": 10},
@@ -235,6 +278,10 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "is_tax_unit_dependent": {"2023": True},
                 "is_tax_unit_spouse": {"2023": False},
                 "is_tax_unit_head": {"2023": False},
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
         },
         "spm_units": {
@@ -244,7 +291,11 @@ def test_joint_household(sample_taxsim_input_for_joint):
                     "your partner",
                     "your first dependent",
                     "your second dependent",
-                ]
+                ],
+                "snap": {"2023": 0},
+                "tanf": {"2023": 0},
+                "free_school_meals": {"2023": 0},
+                "reduced_price_school_meals": {"2023": 0},
             }
         },
         "tax_units": {
@@ -302,13 +353,19 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "age": {"2023": 40},
                 "employment_income": {"2023": 81000.001},
                 "is_tax_unit_head": {"2023": True},
-                
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your partner": {
                 "age": {"2023": 40},
                 "employment_income": {"2023": 0.0},
                 "is_tax_unit_spouse": {"2023": True},
-                
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your first dependent": {
                 "age": {"2023": 4},
@@ -316,6 +373,10 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "is_tax_unit_dependent": {"2023": True},
                 "is_tax_unit_spouse": {"2023": False},
                 "is_tax_unit_head": {"2023": False},
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your second dependent": {
                 "age": {"2023": 10},
@@ -323,6 +384,10 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "is_tax_unit_dependent": {"2023": True},
                 "is_tax_unit_spouse": {"2023": False},
                 "is_tax_unit_head": {"2023": False},
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
         },
         "spm_units": {
@@ -332,7 +397,11 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                     "your partner",
                     "your first dependent",
                     "your second dependent",
-                ]
+                ],
+                "snap": {"2023": 0},
+                "tanf": {"2023": 0},
+                "free_school_meals": {"2023": 0},
+                "reduced_price_school_meals": {"2023": 0},
             }
         },
         "tax_units": {
@@ -383,7 +452,10 @@ def test_household_with_dependent_single_parent(
                 "age": {"2023": 40},
                 "employment_income": {"2023": 81000.001},
                 "is_tax_unit_head": {"2023": True},
-                
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your first dependent": {
                 "age": {"2023": 4},
@@ -391,6 +463,10 @@ def test_household_with_dependent_single_parent(
                 "is_tax_unit_dependent": {"2023": True},
                 "is_tax_unit_spouse": {"2023": False},
                 "is_tax_unit_head": {"2023": False},
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
             "your second dependent": {
                 "age": {"2023": 10},
@@ -398,11 +474,19 @@ def test_household_with_dependent_single_parent(
                 "is_tax_unit_dependent": {"2023": True},
                 "is_tax_unit_spouse": {"2023": False},
                 "is_tax_unit_head": {"2023": False},
+                "ssi": {"2023": 0},
+                "head_start": {"2023": 0},
+                "early_head_start": {"2023": 0},
+                "commodity_supplemental_food_program": {"2023": 0},
             },
         },
         "spm_units": {
             "your household": {
-                "members": ["you", "your first dependent", "your second dependent"]
+                "members": ["you", "your first dependent", "your second dependent"],
+                "snap": {"2023": 0},
+                "tanf": {"2023": 0},
+                "free_school_meals": {"2023": 0},
+                "reduced_price_school_meals": {"2023": 0},
             }
         },
         "tax_units": {
