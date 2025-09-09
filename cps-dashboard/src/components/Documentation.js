@@ -509,7 +509,7 @@ const Documentation = ({ onBackToDashboard }) => {
                   <div style={{ backgroundColor: 'var(--blue-98)', padding: '20px', borderRadius: '8px', border: '1px solid var(--blue-95)' }}>
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                       <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Primary/Age of secondary taxpayer:</strong> {configData.systemAssumptions.defaultAges?.primary || 40} years (when not specified)</li>
-                      <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Dependent Age:</strong> {configData.systemAssumptions.defaultAges?.dependent || 10} years (when not specified)</li>
+                      <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Dependent Age:</strong> {configData.systemAssumptions.defaultAges?.dependent || 10} years (when not specified or age is 0)</li>
                       <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Missing Income Values:</strong> ${configData.systemAssumptions.missingIncomeValue || 0}</li>
                       <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Single Taxpayer:</strong> mstat = {configData.systemAssumptions.maritalStatusCodes?.single || 1}</li>
                       <li style={{ marginBottom: '0', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Married Filing Jointly:</strong> mstat = {configData.systemAssumptions.maritalStatusCodes?.marriedFilingJointly || 2}</li>
