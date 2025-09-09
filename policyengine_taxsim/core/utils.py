@@ -112,15 +112,16 @@ def convert_taxsim32_dependents(taxsim_vars):
     Returns:
         dict: Updated dictionary with age1, age2, etc. fields added
     """
-    # Check if we have the TAXSIM32 format fields
-    has_dep13 = 'dep13' in taxsim_vars
-    has_dep17 = 'dep17' in taxsim_vars
-    has_dep18 = 'dep18' in taxsim_vars
+    # Check if we have the TAXSIM32 format fields with meaningful values
+    has_dep13 = 'dep13' in taxsim_vars and taxsim_vars.get('dep13', 0) not in [None, 0, 0.0]
+    has_dep17 = 'dep17' in taxsim_vars and taxsim_vars.get('dep17', 0) not in [None, 0, 0.0]
+    has_dep18 = 'dep18' in taxsim_vars and taxsim_vars.get('dep18', 0) not in [None, 0, 0.0]
     has_taxsim32_fields = has_dep13 or has_dep17 or has_dep18
     
-    # Check if we already have meaningful individual age fields (not just 0s from defaults)
-    has_meaningful_age_fields = any(
-        f'age{i}' in taxsim_vars and taxsim_vars[f'age{i}'] not in [None, 0, 0.0]
+    # Check if we already have individual age fields explicitly set (including 0 for newborns)
+    # We consider age fields as explicitly set if they exist in the input
+    has_individual_age_fields = any(
+        f'age{i}' in taxsim_vars and taxsim_vars[f'age{i}'] is not None
         for i in range(1, 12)
     )
     
@@ -128,10 +129,10 @@ def convert_taxsim32_dependents(taxsim_vars):
     depx = int(taxsim_vars.get('depx', 0) or 0)
     
     # Only convert if:
-    # 1. We have TAXSIM32 fields (dep13/17/18) AND don't have meaningful individual age fields
-    # 2. AND either have dependents OR the TAXSIM32 fields exist
+    # 1. We have TAXSIM32 fields (dep13/17/18) with meaningful values
+    # 2. AND we don't already have individual age fields set
     # This ensures we only convert when TAXSIM32 format is actually being used
-    if has_taxsim32_fields and not has_meaningful_age_fields:
+    if has_taxsim32_fields and not has_individual_age_fields:
         dep13 = int(taxsim_vars.get('dep13', 0) or 0)
         dep17 = int(taxsim_vars.get('dep17', 0) or 0)
         dep18 = int(taxsim_vars.get('dep18', 0) or 0)

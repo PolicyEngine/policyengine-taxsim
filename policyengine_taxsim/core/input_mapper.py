@@ -185,7 +185,7 @@ def form_household_situation(year, state, taxsim_vars):
     for i in range(1, depx + 1):
         dep_name = f"your {get_ordinal(i)} dependent"
         people[dep_name] = {
-            "age": {str(year): int(taxsim_vars.get(f"age{i}", 10))},
+            "age": {str(year): int(taxsim_vars.get(f"age{i}", 10)) if taxsim_vars.get(f"age{i}") is not None else 10},
             "employment_income": {str(year): 0},
             "is_tax_unit_dependent": {str(year): True},
             "is_tax_unit_spouse": {str(year): False},

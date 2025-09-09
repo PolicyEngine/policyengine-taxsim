@@ -238,6 +238,8 @@ const Documentation = ({ onBackToDashboard }) => {
     'sctc': { implemented: true, variable: 'state_ctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
+    'staxbc': { implemented: true, variable: 'state_income_tax_before_non_refundable_credits' }, 
+
     
     // ❌ NOT IMPLEMENTED variables - ALL HAVE 'na_pe' (NOT AVAILABLE IN POLICYENGINE)
     // IF variable = 'na_pe' --> IT IS NOT IMPLEMENTED
@@ -257,7 +259,6 @@ const Documentation = ({ onBackToDashboard }) => {
     'v42': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v43': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'v45': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'staxbc': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'srebate': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'senergy': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
     'sptcr': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
