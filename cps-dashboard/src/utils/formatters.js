@@ -11,7 +11,10 @@ export const formatCurrency = (value) => {
 // Format difference with sign
 export const formatDifference = (diff) => {
   const sign = diff > 0 ? '+' : '';
-  return `${sign}${formatCurrency(diff)}`;
+  return `${sign}${new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(diff)}`;
 };
 
 // Format date to readable string
