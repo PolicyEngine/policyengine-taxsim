@@ -10,8 +10,15 @@ export const formatCurrency = (value) => {
 
 // Format difference with sign
 export const formatDifference = (diff) => {
+  // Don't show sign for zero values
+  if (diff === 0 || Math.abs(diff) < 0.1) {
+    return '0';
+  }
   const sign = diff > 0 ? '+' : '';
-  return `${sign}${formatCurrency(diff)}`;
+  return `${sign}${new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(diff)}`;
 };
 
 // Format date to readable string

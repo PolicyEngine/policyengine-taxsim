@@ -60,7 +60,7 @@ const HouseholdCard = ({ household, inputVariables, outputVariables }) => {
                 Household ID: {String(household.taxsimid).replace('.0', '')}
               </div>
               <div className="household-meta">
-                Year: {household.year} • State: {household.state}
+                Year: {String(household.year).replace('.0', '')}
                 {household.hasMismatches && (
                   <span className="household-difference">
                     Total Difference: {formatCurrency(household.totalMismatchAmount)}
@@ -166,9 +166,18 @@ const HouseholdCard = ({ household, inputVariables, outputVariables }) => {
                 </thead>
                 <tbody>
                   {outputVariables.map((variable) => {
+                    // Variables to exclude from display
+                    const excludedVariables = [
+                      'taxsimid', 'year', 'state', 'v15', 'v16', 'v20', 'v21', 'v23', 'v30', 'v31', 'v33',
+                      'v41', 'srebate', 'senergy', 'sptcr', 'samt', 'srate', 'v42', 'v43', 'v45',
+                      'v46', 'addmed', 'cdate', 'fica', 'frate', 'ficar'
+                    ];
+
+                    if (excludedVariables.includes(variable.code)) return null;
+
                     const diff = household.differences[variable.code];
                     if (!diff) return null;
-                    
+
                     return (
                       <tr key={variable.code} className={diff.hasMismatch ? 'variable-mismatch' : 'variable-match'}>
                         <td className="variable-info">
