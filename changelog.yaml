@@ -81,3 +81,8 @@
     added:
     - Set benefit program values to 0 in the PolicyEngine runner.
   date: 2025-09-09 23:40:23
+- bump: minor
+  changes:
+    added:
+    - Remove not mapped output Variables from the household breakdown.
+  date: 2025-09-24 13:28:56

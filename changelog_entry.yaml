@@ -1,4 +1,0 @@
-- bump: minor
-  changes:
-    added:
-    - Remove not mapped output Variables from the household breakdown.
