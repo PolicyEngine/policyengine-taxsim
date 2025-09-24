@@ -288,10 +288,6 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
-    special_cases:
-      - mn:
-          implemented: false
-          variable: na_pe
   v26:
     variable: amt_income
     implemented: true
@@ -365,34 +361,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - co:
-          implemented: true
-          variable: taxable_income
-      - id:
-          implemented: true
-          variable: taxable_income
-      - mi:
-          implemented: true
-          variable: adjusted_gross_income
-      - mn:
-          implemented: true
-          variable: adjusted_gross_income
-      - nc:
-          implemented: true
-          variable: adjusted_gross_income
-      - nd:
-          implemented: true
-          variable: taxable_income
-      - nm:
-          implemented: true
-          variable: adjusted_gross_income
-      - ut:
-          implemented: true
-          variable: ut_total_income
-      - sc:
-          implemented: true
-          variable: taxable_income
   v33:
     variable: na_pe
     implemented: false
@@ -413,25 +381,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - ms:
-          implemented: false
-          variable: na_pe
-      - ar:
-          implemented: false
-          variable: na_pe
-      - mt:
-          implemented: false
-          variable: na_pe
-      - de:
-          implemented: false
-          variable: na_pe
-      - ia:
-          implemented: false
-          variable: na_pe
-      - ky:
-          implemented: false
-          variable: na_pe
   v35:
     variable: state_itemized_deductions
     implemented: true
@@ -442,10 +391,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - il:
-          implemented: false
-          variable: na_pe
   v36:
     variable: state_taxable_income
     implemented: true
@@ -484,10 +429,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - mn:
-          implemented: false
-          variable: na_pe
   v38:
     variable: state_cdcc
     implemented: true
@@ -498,10 +439,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - il:
-          implemented: false
-          variable: na_pe
   v39:
     variable: state_eitc
     implemented: true
@@ -521,10 +458,6 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
-    special_cases:
-      - mn:
-          implemented: false
-          variable: na_pe
   v40:
     variable: multiple_variables
     implemented: true

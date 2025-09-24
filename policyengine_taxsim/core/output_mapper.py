@@ -33,27 +33,6 @@ def generate_non_description_output(
 
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
-
-                        if "special_cases" in each_item:
-                            found_state = next(
-                                (
-                                    each
-                                    for each in each_item["special_cases"]
-                                    if state_initial in each
-                                ),
-                                None,
-                            )
-                            if (
-                                found_state
-                                and found_state[state_initial]["implemented"]
-                            ):
-                                pe_variable = (
-                                    found_state[state_initial]["variable"].replace(
-                                        "state", state_initial
-                                    )
-                                    if "state" in found_state[state_initial]["variable"]
-                                    else found_state[state_initial]["variable"]
-                                )
                         taxsim_output[key] = simulate(simulation, pe_variable, year)
                         outputs.append(
                             {"variable": pe_variable, "value": taxsim_output[key]}
@@ -122,23 +101,6 @@ def generate_text_description_output(
                 elif "variables" in each_item and len(each_item["variables"]) > 0:
                     value = simulate_multiple(simulation, each_item["variables"], year)
                 else:
-                    if "special_cases" in each_item:
-                        found_state = next(
-                            (
-                                each
-                                for each in each_item["special_cases"]
-                                if state_initial in each
-                            ),
-                            None,
-                        )
-                        if found_state and found_state[state_initial]["implemented"]:
-                            variable = (
-                                found_state[state_initial]["variable"].replace(
-                                    "state", state_initial
-                                )
-                                if "state" in found_state[state_initial]["variable"]
-                                else found_state[state_initial]["variable"]
-                            )
                     value = simulate(simulation, variable, year)
                     outputs.append({"variable": variable, "value": value})
 
