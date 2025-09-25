@@ -86,3 +86,8 @@
     added:
     - Remove not mapped output Variables from the household breakdown.
   date: 2025-09-24 13:28:56
+- bump: minor
+  changes:
+    added:
+    - Remove special cases from the variable mappings.
+  date: 2025-09-25 20:34:26

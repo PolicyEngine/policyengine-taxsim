@@ -1,4 +1,0 @@
-- bump: minor
-  changes:
-    added:
-    - Remove special cases from the variable mappings.

@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [2.4.0] - 2025-09-25 20:34:26
+
+### Added
+
+- Remove special cases from the variable mappings.
+
 ## [2.3.0] - 2025-09-24 13:28:56
 
 ### Added
@@ -112,6 +118,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[2.4.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.3.0...2.4.0
 [2.3.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.2.0...2.3.0
 [2.2.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.5...2.2.0
 [2.1.5]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.1.4...2.1.5
