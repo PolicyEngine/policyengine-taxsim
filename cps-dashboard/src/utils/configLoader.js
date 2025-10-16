@@ -4,7 +4,7 @@
  */
 export const loadConfigurationData = async () => {
   try {
-    const response = await fetch('/config-data.json');
+    const response = await fetch(`${process.env.PUBLIC_URL}/config-data.json`);
     if (!response.ok) {
       throw new Error(`Failed to load configuration data: ${response.status}`);
     }
