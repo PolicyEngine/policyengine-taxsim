@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiExternalLink, FiChevronDown, FiChevronRight, FiSearch, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
+import { FiExternalLink, FiChevronDown, FiChevronRight, FiCheck, FiX } from 'react-icons/fi';
 import { loadConfigurationData } from '../utils/configLoader';
 import LoadingSpinner from './common/LoadingSpinner';
 import { 
