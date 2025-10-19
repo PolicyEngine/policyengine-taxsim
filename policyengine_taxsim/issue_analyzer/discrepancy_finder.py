@@ -16,9 +16,10 @@ class DiscrepancyFinder:
         'child_tax_credit': ['child_tax_credit'],
         'earned_income_credit': ['earned_income_credit', 'eitc'],
 
-        # State
+        # State - Minnesota specific
         'mn_taxable_income': ['state_taxable_income'],
-        'marriage_credit': ['state_total_credits'],  # May need refinement
+        'marriage_credit': ['state_total_credits', 'mn_marriage_credit'],
+        'total_credits': ['state_total_credits'],
     }
 
     def __init__(self, tolerance: float = 15.0):
@@ -88,13 +89,13 @@ class DiscrepancyFinder:
             taxact_var = None
             pe_var = None
 
-            # Find TaxAct variant
-            for variant in variant_names:
-                if variant in taxact_values:
-                    taxact_var = variant
+            # Check if canonical name or any variant matches TaxAct
+            for ta_var in taxact_values.keys():
+                if ta_var == canonical_name or ta_var in variant_names:
+                    taxact_var = ta_var
                     break
 
-            # Find PE variant
+            # Check if canonical name or any variant matches PE
             for variant in variant_names:
                 if variant in pe_values:
                     pe_var = variant

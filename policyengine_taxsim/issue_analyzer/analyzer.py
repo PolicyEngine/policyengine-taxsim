@@ -11,6 +11,8 @@ try:
     from .discrepancy_finder import DiscrepancyFinder
     from .claude_analyzer import ClaudeAnalyzer
     from .github_fetcher import GitHubIssueFetcher
+    from .issue_text_parser import IssueTextParser
+    from .calculation_verifier import CalculationVerifier
 except ImportError:
     from policyengine_taxsim.issue_analyzer.taxsim_fetcher import TaxsimNberOrgFetcher, extract_taxsim_url_from_issue
     from policyengine_taxsim.issue_analyzer.pdf_parser import TaxActPDFBatchParser
@@ -18,6 +20,8 @@ except ImportError:
     from policyengine_taxsim.issue_analyzer.discrepancy_finder import DiscrepancyFinder
     from policyengine_taxsim.issue_analyzer.claude_analyzer import ClaudeAnalyzer
     from policyengine_taxsim.issue_analyzer.github_fetcher import GitHubIssueFetcher
+    from policyengine_taxsim.issue_analyzer.issue_text_parser import IssueTextParser
+    from policyengine_taxsim.issue_analyzer.calculation_verifier import CalculationVerifier
 
 
 class IssueAnalyzer:
@@ -54,6 +58,17 @@ class IssueAnalyzer:
         # Step 3: Parse TaxAct PDFs
         print("\n🔍 Step 3: Parsing TaxAct PDFs...")
         taxact_values = self._parse_taxact_pdfs(taxsim_files)
+
+        # Fallback: Parse issue text if PDFs yielded no values
+        if not taxact_values:
+            print("   💡 Attempting to extract TaxAct values from issue description...")
+            text_parser = IssueTextParser(issue_data['body'])
+            taxact_values = text_parser.parse_all()
+            if taxact_values:
+                print(f"   ✓ Extracted {len(taxact_values)} values from issue text")
+            else:
+                print("   ⚠️  No TaxAct values found in issue text either")
+
         results['taxact_values'] = taxact_values
 
         # Step 4: Parse PolicyEngine output
@@ -78,23 +93,50 @@ class IssueAnalyzer:
             print(f"   PolicyEngine: ${disc['pe_value']:,.2f}")
             print(f"   Difference:   ${disc['difference']:,.2f}\n")
 
-        # Step 6: LLM Analysis (if enabled)
-        if self.use_llm:
-            print("🤖 Step 6: Running AI analysis...")
-            analyses = self._run_llm_analysis(discrepancies, issue_data)
-            results['analyses'] = analyses
+        # Step 6: Find PolicyEngine code and parameters
+        print("🔍 Step 6: Finding PolicyEngine code...")
+        input_data = self._extract_input_data(taxsim_files)
+        code_findings = self._find_code_for_discrepancies(discrepancies, input_data, pe_values, issue_data)
+        results['code_findings'] = code_findings
 
-            # Print verdicts
-            print("\n📊 Analysis Results:\n")
-            for analysis in analyses:
-                print(f"Variable: {analysis['variable']}")
-                print(f"Verdict: {analysis['verdict']}")
-                if analysis.get('suggested_fix'):
-                    print(f"✓ Fix suggested")
-                print()
+        # Print what we found
+        for finding in code_findings:
+            if finding.get('code_found'):
+                print(f"\n✓ Found code: {finding['variable']}")
+                print(f"   Location: {finding['code_location']}")
+                print(f"   Parameters: {len(finding.get('parameters', {}))} files")
+            else:
+                print(f"\n⚠️  Code not found: {finding['variable']}")
 
-        # Step 7: Save results
-        print("💾 Step 7: Saving results...")
+        # Step 7: LLM Analysis (only if --use-llm flag or API key is set)
+        import os
+        has_api_key = bool(os.environ.get('ANTHROPIC_API_KEY'))
+
+        if self.use_llm or has_api_key:
+            print("🤖 Step 7: Running AI analysis with PolicyEngine code...")
+            try:
+                analyses = self._run_llm_analysis(discrepancies, issue_data, code_findings, input_data)
+                results['analyses'] = analyses
+
+                # Print verdicts
+                print("\n📊 Analysis Results:\n")
+                for analysis in analyses:
+                    print(f"Variable: {analysis['variable']}")
+                    print(f"Verdict: {analysis['verdict']}")
+                    if analysis.get('suggested_fix'):
+                        print(f"✓ Fix suggested")
+                    print()
+            except ValueError as e:
+                if "ANTHROPIC_API_KEY" in str(e):
+                    print(f"\n⚠️  Skipping AI analysis: {e}")
+                    print("   Set ANTHROPIC_API_KEY or use --use-llm to enable AI analysis")
+                else:
+                    raise
+        else:
+            print("\n💡 Tip: Use --use-llm flag to run AI-powered analysis")
+
+        # Step 8: Save results
+        print("💾 Step 8: Saving results...")
         self._save_results(results)
 
         print(f"\n{'='*60}")
@@ -147,7 +189,10 @@ class IssueAnalyzer:
         parser = TaxActPDFBatchParser(files['pdfs'])
         values = parser.get_consolidated_values()
 
-        print(f"   ✓ Extracted {len(values)} values from {len(files['pdfs'])} PDFs")
+        if values:
+            print(f"   ✓ Extracted {len(values)} values from {len(files['pdfs'])} PDFs")
+        else:
+            print(f"   ⚠️  PDFs have no extractable form fields (may be flattened/images)")
 
         return values
 
@@ -184,8 +229,14 @@ class IssueAnalyzer:
 
         return discrepancies
 
-    def _run_llm_analysis(self, discrepancies: list, issue_data: Dict) -> list:
-        """Run LLM analysis on discrepancies."""
+    def _run_llm_analysis(
+        self,
+        discrepancies: list,
+        issue_data: Dict,
+        code_findings: list,
+        input_data: Dict
+    ) -> list:
+        """Run LLM analysis on discrepancies with PolicyEngine code."""
         analyzer = ClaudeAnalyzer()
 
         issue_context = f"""
@@ -195,12 +246,76 @@ Author: @{issue_data['author']}
 {issue_data['body']}
 """
 
+        # Build code map from findings
+        pe_code_map = {}
+        for finding in code_findings:
+            if finding.get('code_found'):
+                var = finding['variable']
+                pe_code_map[var] = finding.get('code', '')
+                # Also include parameters in context
+                if finding.get('parameters'):
+                    pe_code_map[var] += "\n\n# Parameters:\n"
+                    for param_name, param_info in finding['parameters'].items():
+                        pe_code_map[var] += f"\n## {param_name}\n```yaml\n{param_info['content']}\n```\n"
+
         analyses = analyzer.analyze_multiple_discrepancies(
             discrepancies,
-            issue_context
+            issue_context,
+            pe_code_map=pe_code_map
         )
 
         return analyses
+
+    def _extract_input_data(self, files: Dict) -> Dict:
+        """Extract input data from CSV file."""
+        input_data = {}
+
+        # Find CSV file
+        csv_file = None
+        for csv in files.get('csv', []):
+            csv_file = csv
+            break
+
+        if csv_file:
+            import csv as csv_module
+            with open(csv_file, 'r') as f:
+                reader = csv_module.DictReader(f)
+                for row in reader:
+                    # Convert all values to floats where possible
+                    for key, value in row.items():
+                        try:
+                            input_data[key] = float(value)
+                        except (ValueError, TypeError):
+                            input_data[key] = value
+                    break  # Only get first row
+
+        return input_data
+
+    def _find_code_for_discrepancies(
+        self,
+        discrepancies: list,
+        input_data: Dict,
+        pe_values: Dict,
+        issue_data: Dict
+    ) -> list:
+        """Find PolicyEngine code and parameters for each discrepancy."""
+        verifier = CalculationVerifier()
+        findings = []
+
+        for disc in discrepancies:
+            # Merge input data with PE values for calculations
+            combined_data = {**input_data, **pe_values}
+
+            finding = verifier.verify_discrepancy(
+                disc,
+                combined_data,
+                issue_data.get('body', '')
+            )
+            finding['variable'] = disc['variable']
+            finding['discrepancy'] = disc
+            findings.append(finding)
+
+        return findings
 
     def _save_results(self, results: Dict):
         """Save analysis results to files."""
@@ -209,18 +324,36 @@ Author: @{issue_data['author']}
         # Save main results as JSON
         results_file = self.results_dir / 'analysis_results.json'
 
-        # Prepare JSON-serializable version
+        # Prepare JSON-serializable version (exclude code content to keep file size small)
+        code_findings = results.get('code_findings', [])
+        code_findings_summary = []
+        for finding in code_findings:
+            summary = {
+                'variable': finding.get('variable'),
+                'code_found': finding.get('code_found', False),
+                'code_location': finding.get('code_location'),
+                'parameters_count': len(finding.get('parameters', {}))
+            }
+            code_findings_summary.append(summary)
+
         json_results = {
             'issue_number': self.issue_number,
             'issue_data': results.get('issue_data', {}),
             'taxact_values': results.get('taxact_values', {}),
             'pe_values': results.get('pe_values', {}),
             'discrepancies': results.get('discrepancies', []),
+            'code_findings': code_findings_summary,
             'analyses': results.get('analyses', [])
         }
 
+        # Convert datetime objects to strings for JSON serialization
+        def json_serializer(obj):
+            if hasattr(obj, 'isoformat'):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+
         with open(results_file, 'w') as f:
-            json.dump(json_results, f, indent=2)
+            json.dump(json_results, f, indent=2, default=json_serializer)
 
         # Save a simple markdown summary
         summary_file = self.results_dir / 'SUMMARY.md'
@@ -247,7 +380,14 @@ Author: @{issue_data['author']}
                 md += f"- **PolicyEngine:** ${disc['pe_value']:,.2f}\n"
                 md += f"- **Difference:** ${disc['difference']:,.2f}\n\n"
 
-                # Add analysis if available
+                # Add code location if found
+                code_findings = results.get('code_findings', [])
+                for finding in code_findings:
+                    if finding.get('variable') == disc['variable'] and finding.get('code_found'):
+                        md += f"**📁 PolicyEngine Code:** `{finding['code_location']}`\n\n"
+                        break
+
+                # Add AI analysis if available
                 analyses = results.get('analyses', [])
                 for analysis in analyses:
                     if analysis['variable'] == disc['variable']:
