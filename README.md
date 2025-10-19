@@ -13,6 +13,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
   - [TAXSIM Calculations](#taxsim-calculations)
   - [Comparison Analysis](#comparison-analysis)
   - [Data Sampling](#data-sampling)
+  - [Issue Analyzer](#issue-analyzer)
 - [Dashboard](#dashboard)
   - [Setup](#dashboard-setup)
   - [Features](#dashboard-features)
@@ -199,6 +200,34 @@ python policyengine_taxsim/cli.py sample-data input.csv --sample 1000
 |--------|-------------|
 | `--sample N` | Number of records to sample |
 | `--output`, `-o` | Output file (auto-generated if not specified) |
+
+### Issue Analyzer
+
+**NEW**: Automated analysis of tax discrepancies from GitHub issues.
+
+Automates comparison of TaxAct (from filled PDF forms) vs PolicyEngine outputs:
+
+```bash
+# Basic: Find discrepancies
+python policyengine_taxsim/cli.py analyze-issue 596
+
+# Advanced: AI analysis with fix suggestions
+python policyengine_taxsim/cli.py analyze-issue 596 --use-llm
+```
+
+**What it does:**
+1. Downloads TaxAct PDFs and PolicyEngine outputs from taxsim.nber.org
+2. Extracts values from PDF forms and output.txt
+3. Finds discrepancies between the two systems
+4. (Optional) Uses Claude AI to determine which is correct and suggest fixes
+
+**Requirements:**
+- Basic: No setup needed
+- AI analysis: `export ANTHROPIC_API_KEY="your-key"`
+
+**Time saved:** 1-2 hours → 15-20 minutes per issue
+
+See [docs/ISSUE_ANALYZER_README.md](docs/ISSUE_ANALYZER_README.md) for quick guide.
 
 ## Dashboard
 
