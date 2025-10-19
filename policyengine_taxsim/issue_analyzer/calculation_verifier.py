@@ -141,15 +141,16 @@ class CalculationVerifier:
                     'content': full_path.read_text()
                 }
             else:
-                # Try as directory
+                # Try as directory - recursively read YAML files
                 dir_path = self.parameters_path / param_path
                 if dir_path.exists() and dir_path.is_dir():
-                    # Read all YAML files in directory
-                    for yaml_file in dir_path.glob('*.yaml'):
-                        key = f"{match}.{yaml_file.stem}"
+                    # Recursively read all YAML files
+                    for yaml_file in dir_path.rglob('*.yaml'):
+                        rel_path = yaml_file.relative_to(self.parameters_path)
+                        key = str(rel_path).replace('/', '.').replace('.yaml', '')
                         parameters[key] = {
                             'path': str(yaml_file),
-                            'content': yaml_file.read_text()
+                            'note': f'Parameter found via {match}'
                         }
 
         return parameters

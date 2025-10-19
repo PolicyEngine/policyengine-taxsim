@@ -53,7 +53,7 @@ class IssueAnalyzer:
         # Step 2: Download from taxsim.nber.org
         print("\n📥 Step 2: Downloading from taxsim.nber.org...")
         taxsim_files = self._download_taxsim_files()
-        results['taxsim_files'] = taxsim_files
+        results['taxsim_files_paths'] = taxsim_files  # Store for later use
 
         # Step 3: Parse TaxAct PDFs
         print("\n🔍 Step 3: Parsing TaxAct PDFs...")
@@ -138,6 +138,10 @@ class IssueAnalyzer:
         # Step 8: Save results
         print("💾 Step 8: Saving results...")
         self._save_results(results)
+
+        # Step 9: Generate Claude Code analysis prompt
+        print("📋 Step 9: Generating analysis prompt for Claude Code...")
+        self._generate_claude_code_prompt(results)
 
         print(f"\n{'='*60}")
         print(f"✅ Analysis complete!")
@@ -399,3 +403,137 @@ Author: @{issue_data['author']}
                         break
 
         return md
+
+    def _generate_claude_code_prompt(self, results: Dict):
+        """Generate a comprehensive prompt file for Claude Code analysis."""
+
+        prompt_file = self.results_dir / 'CLAUDE_CODE_ANALYSIS.txt'
+
+        issue_data = results.get('issue_data', {})
+        discrepancies = results.get('discrepancies', [])
+        code_findings = results.get('code_findings', [])
+        taxact_values = results.get('taxact_values', {})
+        pe_values = results.get('pe_values', {})
+
+        # Extract input data
+        input_data = {}
+        taxsim_files_paths = results.get('taxsim_files_paths', {})
+        for csv_file in taxsim_files_paths.get('csv', []):
+            import csv as csv_module
+            try:
+                with open(csv_file, 'r') as f:
+                    reader = csv_module.DictReader(f)
+                    for row in reader:
+                        input_data = {k: v for k, v in row.items()}
+                        break
+            except:
+                pass
+
+        content = f"""# ANALYSIS REQUEST FOR CLAUDE CODE
+# Issue #{issue_data.get('number')}: {issue_data.get('title')}
+
+## TASK
+Please analyze the tax calculation discrepancy below and determine which system is correct:
+TaxAct (commercial tax software) or PolicyEngine (open-source calculator).
+
+## ISSUE CONTEXT
+Author: @{issue_data.get('author')}
+URL: {issue_data.get('url')}
+
+{issue_data.get('body', '')}
+
+## DISCREPANCIES FOUND
+"""
+
+        for i, disc in enumerate(discrepancies, 1):
+            content += f"""
+### Discrepancy {i}: {disc['variable']}
+- TaxAct Value:       ${disc['taxact_value']:,.2f}
+- PolicyEngine Value: ${disc['pe_value']:,.2f}
+- Difference:         ${disc['difference']:,.2f}
+"""
+
+        content += f"""
+## INPUT DATA (from CSV)
+"""
+        for key, value in input_data.items():
+            content += f"- {key}: {value}\n"
+
+        content += f"""
+## ALL TAXACT VALUES EXTRACTED
+"""
+        for key, value in taxact_values.items():
+            content += f"- {key}: ${value:,.2f}\n"
+
+        content += f"""
+## ALL POLICYENGINE VALUES
+"""
+        for key, value in pe_values.items():
+            if isinstance(value, (int, float)):
+                content += f"- {key}: ${value:,.2f}\n"
+            else:
+                content += f"- {key}: {value}\n"
+
+        # Add PolicyEngine code and parameters
+        for finding in code_findings:
+            if finding.get('code_found'):
+                var = finding['variable']
+                content += f"""
+## POLICYENGINE CODE FOR: {var}
+File: {finding['code_location']}
+
+```python
+{finding.get('code', 'Code not available')}
+```
+"""
+
+                # Add parameters note
+                if finding.get('parameters'):
+                    content += f"""
+## PARAMETERS USED BY {var}
+
+The code references parameters from: `parameters(period).gov.states.mn.tax.income`
+
+Found {len(finding['parameters'])} parameter files in the policyengine-us repository.
+Parameter files are located in subdirectories of the referenced path.
+
+**Note for Claude Code:** When analyzing, read the necessary parameter files from:
+`/Users/pavelmakarchuk/policyengine-us/policyengine_us/parameters/gov/states/mn/tax/income/`
+
+Key parameters to read:
+- `credits/marriage/` - Marriage credit parameters
+- `rates/single.yaml` - Single filer tax rates
+- `rates/joint.yaml` - Joint filer tax rates
+- `deductions/standard/base.yaml` - Standard deduction amounts
+"""
+
+        content += """
+## YOUR TASK
+
+Please:
+1. Read the PolicyEngine code above
+2. Read the parameter values
+3. Manually calculate what the value SHOULD be based on the input data
+4. Compare your calculation to both TaxAct and PolicyEngine values
+5. Determine which is correct
+
+Provide:
+- **Verdict:** [TaxAct is correct | PolicyEngine is correct | Both are incorrect]
+- **Calculated Value:** $X.XX
+- **Explanation:** Step-by-step calculation showing your work
+- **Root Cause:** Why the incorrect system is wrong
+
+## HOW TO USE THIS FILE
+
+In Claude Code, simply say:
+"Please analyze the discrepancy described in {self.results_dir / 'CLAUDE_CODE_ANALYSIS.txt'}"
+
+Or drag and drop this file into the chat.
+"""
+
+        with open(prompt_file, 'w') as f:
+            f.write(content)
+
+        print(f"   ✓ Analysis prompt saved to: {prompt_file}")
+        print(f"\n💡 To analyze with Claude Code, say:")
+        print(f'   "Analyze {prompt_file}"')
