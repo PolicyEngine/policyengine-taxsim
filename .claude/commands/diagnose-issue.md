@@ -19,9 +19,24 @@ Each issue at https://github.com/PolicyEngine/policyengine-taxsim/issues contain
 2. **Description/Comments** - Often contains diagnostic hints, suspected root cause, or specific observations from the filer (READ THIS CAREFULLY - it often points to the problem)
 3. **YAML test file** - PolicyEngine situation and expected outputs (attached)
 4. **TaxAct PDF** - The ground truth tax forms (attached)
-5. **TAXSIM URL** - Reference at `taxsim.nber.org/out2psl/{issue_number}`
+5. **TAXSIM reference files** - Available at `taxsim.nber.org/out2psl/{issue_number}/`
 
 **IMPORTANT**: The issue description often contains the filer's analysis of what's wrong (e.g., "PE is not applying the retirement income exclusion", "extra credits TA doesn't find"). Start by reading the description carefully before diving into code.
+
+### TAXSIM Reference Files
+
+Always check the TAXSIM output directory at `https://taxsim.nber.org/out2psl/{issue_number}/`:
+- `{number}.yaml` - YAML test with PE situation and TaxAct output values
+- `{number}.txt` - Text summary of calculations
+- `output.txt` - Detailed output breakdown
+- `txpydata.csv` - Input data in CSV format
+- `*.pdf` - **Filled-out TaxAct forms** (the ground truth)
+
+**ALWAYS review the TaxAct PDF forms** to see exactly how TaxAct filled out the tax forms. This shows:
+- Specific line item values
+- How deductions/exemptions were allocated
+- Credits claimed
+- The actual numbers that produce the expected result
 
 ## Diagnostic Steps
 
@@ -82,13 +97,61 @@ print("State AGI:", sim.calculate("{state}_agi", 2024))
 print("Exclusion:", sim.calculate("{state}_retirement_exclusion", 2024))
 ```
 
-### Step 6: Research Legal Documentation
+### Step 6: Extract and Analyze TaxAct PDF Forms (MANDATORY)
+
+**THIS STEP IS CRITICAL AND MUST NOT BE SKIPPED.**
+
+The TaxAct PDF contains the actual filled-out tax forms - this is the ground truth. The YAML expected values may be incorrect, so always verify against the actual PDF.
+
+#### How to Extract PDF Form Data:
+
+```bash
+# 1. Download the PDF
+cd /tmp && curl -s -o "form_{issue_number}.pdf" "https://taxsim.nber.org/out2psl/{issue_number}/{pdf_filename}.pdf"
+
+# 2. Extract text using PyMuPDF
+python3 -c "
+import fitz
+doc = fitz.open('/tmp/form_{issue_number}.pdf')
+for page_num in range(len(doc)):
+    page = doc[page_num]
+    print(f'=== Page {page_num + 1} ===')
+    print(page.get_text())
+"
+```
+
+#### What to Look For in the PDF:
+
+1. **Filing Status** - Which box is checked?
+2. **Exemptions** - Total amount and how allocated between spouses
+3. **Standard/Itemized Deductions** - Amount and allocation
+4. **Income by Line** - Wages, interest, dividends, etc. for each spouse
+5. **Taxable Income** - Final taxable income for each spouse
+6. **Tax Due** - The actual tax calculated on the form
+7. **Credits** - Which credits were claimed and amounts
+
+#### Compare PDF vs YAML:
+
+| Item | YAML Expected | PDF Actual |
+|------|---------------|------------|
+| State Tax | $X | $Y |
+
+**If they differ, the PDF is correct.** The YAML may have been generated incorrectly.
+
+#### Example from Issue #657:
+The YAML showed $147.97 MS tax, but the actual Form 80-105 showed:
+- Optimal exemption allocation: $11,549 / $3,451
+- Optimal std ded allocation: $4,600 / $0
+- Both taxable incomes under $10,000
+- **Actual tax: $0** (not $147.97)
+
+### Step 7: Research Legal Documentation
 If PE logic appears wrong, verify against official sources:
 - State tax form instructions (primary source)
 - State tax code/statutes
 - Tax Foundation / Tax Policy Center summaries
 
-### Step 7: Check policyengine-us Implementation
+### Step 8: Check policyengine-us Implementation
 ```bash
 # Find state variables
 ls /Users/pavelmakarchuk/policyengine-us/policyengine_us/variables/gov/states/{state}/tax/
@@ -97,7 +160,7 @@ ls /Users/pavelmakarchuk/policyengine-us/policyengine_us/variables/gov/states/{s
 grep -r "variable_name" /Users/pavelmakarchuk/policyengine-us/policyengine_us/
 ```
 
-### Step 8: Document Finding
+### Step 9: Document Finding
 Record in `issue_analysis/issues/{number}_{description}.md` and update `issue_analysis/README.md`
 
 ---
@@ -160,19 +223,29 @@ print(get_state_code(34))  # Should print "NC"
 - Missing or incorrect age (breaks age-based provisions)
 - Wrong filing status
 
-### 2. Missing State Provisions in PE
+### 2. YAML Expected Value Incorrect
+- YAML expected value doesn't match actual TaxAct PDF form
+- Always verify by extracting and reading the PDF
+- Example: Issue #657 YAML said $147.97 but PDF showed $0
+
+### 3. Missing State Provisions in PE
 - State credit/deduction not implemented
 - Year-specific parameter not updated
 
-### 3. Input Mapping Issues (policyengine-taxsim)
+### 4. Missing Optimization in PE
+- PE uses fixed 50/50 splits for exemptions/deductions
+- Some states (e.g., MS) allow optimal allocation between spouses
+- TaxAct optimizes these allocations automatically
+
+### 5. Input Mapping Issues (policyengine-taxsim)
 - Income not being split correctly between spouses
 - Variable not mapped from TAXSIM input to PE situation
 
-### 4. Output Mapping Issues (policyengine-taxsim)
+### 6. Output Mapping Issues (policyengine-taxsim)
 - State variable name not being substituted correctly
 - Variable exists but not in output mapping
 
-### 5. Calculation Logic Issues (policyengine-us)
+### 7. Calculation Logic Issues (policyengine-us)
 - Eligibility criteria wrong
 - Formula doesn't match tax form worksheet
 - Parameter values outdated
@@ -189,6 +262,8 @@ When an issue doesn't reproduce as expected:
 - [ ] **Income assigned to right person?** (Joint filers: check both)
 - [ ] **Test with Simulation directly?** (Bypasses taxsim mapping)
 - [ ] **Check existing tests in policyengine-us?** (May show expected behavior)
+- [ ] **PDF form extracted and analyzed?** (YAML expected values may be wrong!)
+- [ ] **PDF tax matches YAML expected?** (If not, use PDF as ground truth)
 
 ---
 
