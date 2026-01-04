@@ -30,6 +30,10 @@ dependencies = [
     "numpy",
     "taxcalc",
     "tqdm",
+    "requests",
+    "anthropic",
+    "beautifulsoup4",
+    "pypdf",
 ]
 
 [tool.hatch.metadata]
