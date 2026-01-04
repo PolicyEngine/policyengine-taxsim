@@ -80,6 +80,8 @@ class TaxsimRunner(BaseTaxRunner):
 
     def _detect_taxsim_executable(self) -> Path:
         """Detect correct TAXSIM executable based on OS"""
+        import sys
+
         system = platform.system().lower()
 
         if system == "darwin":
@@ -91,9 +93,28 @@ class TaxsimRunner(BaseTaxRunner):
         else:
             raise OSError(f"Unsupported operating system: {system}")
 
-        # Look for executable in resources directory
-        taxsim_path = Path("resources") / "taxsimtest" / exe_name
-        return taxsim_path
+        # Try multiple locations in order of preference:
+        search_paths = [
+            # 1. Relative path (for running from repo during development)
+            Path("resources") / "taxsimtest" / exe_name,
+            # 2. Shared data location (for pip-installed packages)
+            Path(sys.prefix) / "share" / "policyengine_taxsim" / "taxsimtest" / exe_name,
+            # 3. User site-packages shared data
+            Path(sys.base_prefix) / "share" / "policyengine_taxsim" / "taxsimtest" / exe_name,
+        ]
+
+        # Also check virtualenv locations
+        if hasattr(sys, "real_prefix"):  # virtualenv
+            search_paths.append(
+                Path(sys.real_prefix) / "share" / "policyengine_taxsim" / "taxsimtest" / exe_name
+            )
+
+        for taxsim_path in search_paths:
+            if taxsim_path.exists():
+                return taxsim_path
+
+        # If not found, return the first path (will fail in _validate_executable with clear error)
+        return search_paths[0]
 
     def _validate_executable(self):
         """Validate TAXSIM executable exists and is executable"""

@@ -1,0 +1,4 @@
+- bump: minor
+  changes:
+    added:
+      - Add R package wrapper (policyenginetaxsim) for running the emulator from R
