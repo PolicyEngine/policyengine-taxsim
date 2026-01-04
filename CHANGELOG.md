@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [2.5.0] - 2026-01-04 20:50:20
+
+### Added
+
+- Add R package wrapper (policyenginetaxsim) for running the emulator from R
+
 ## [2.4.1] - 2025-12-02 01:09:47
 
 ### Fixed
@@ -124,6 +130,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[2.5.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.4.1...2.5.0
 [2.4.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.4.0...2.4.1
 [2.4.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.3.0...2.4.0
 [2.3.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.2.0...2.3.0
