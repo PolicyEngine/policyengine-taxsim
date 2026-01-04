@@ -133,15 +133,13 @@ Full variable list: [TAXSIM 35 documentation](https://taxsim.nber.org/taxsim35/)
 
 ## Compare with TAXSIM
 
-Compare PolicyEngine results with NBER's TAXSIM (requires `usincometaxes` package):
+Compare PolicyEngine results with the embedded TAXSIM executable:
 
 ```r
-install.packages("usincometaxes")
-
 comparison <- compare_with_taxsim(my_data)
 print(comparison)
 #>   taxsimid year state fiitax_taxsim fiitax_pe fiitax_diff fiitax_match ...
-#> 1        1 2023     5          4115      4118          -3         TRUE ...
+#> 1        1 2023     5          4118      4118           0         TRUE ...
 
 # Check match rates
 mean(comparison$fiitax_match)  # Federal match rate
