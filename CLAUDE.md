@@ -23,27 +23,55 @@ Issues at https://github.com/PolicyEngine/policyengine-taxsim/issues contain tes
 ### Workflow Steps:
 1. **Read issue description first** - The filer often identifies the root cause or provides key hints
 2. **Verify input parameters** - Check state code, ages, filing status are correct
-3. **Test with PE directly** - Run the test case and check output
-4. **Check v32 (State AGI)** - If 0 for state tax issues, the state setup is wrong
-5. **EXTRACT AND READ THE TAXACT PDF** - This is the ground truth (see below)
-6. Trace computation tree to find first diverging variable
-7. Research legal documentation (state form instructions, tax code)
-8. Check policyengine-us implementation against legal requirements
-9. Document finding in `issue_analysis/issues/{number}_{state}_{description}.md`
-10. Update tracker in `issue_analysis/README.md`
+3. **Fetch ALL TAXSIM data in one request** - Use the batch download pattern below
+4. **EXTRACT AND READ THE TAXACT PDF** - This is the ground truth (see below)
+5. **Test with PE directly** - Run the test case and check output
+6. **Check v32 (State AGI)** - If 0 for state tax issues, the state setup is wrong
+7. Trace computation tree to find first diverging variable
+8. Research legal documentation (state form instructions, tax code)
+9. Check policyengine-us implementation against legal requirements
+10. Document finding in `issue_analysis/issues/{number}_{state}_{description}.md`
+11. Update tracker in `issue_analysis/README.md`
+12. **If PE needs fix**: File issue in policyengine-us with integration test (see below)
+
+### CRITICAL: Fetch TAXSIM Data ONCE
+
+**Do NOT make multiple requests to taxsim.nber.org** - the server is unreliable. Fetch everything in ONE batch:
+
+```bash
+# Create local directory and batch download ALL files
+ISSUE=664
+mkdir -p /tmp/taxsim_$ISSUE
+cd /tmp/taxsim_$ISSUE
+
+# Single directory listing
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/" -o index.html
+
+# Batch download all files (run in parallel)
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$ISSUE.yaml" -o $ISSUE.yaml &
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$ISSUE.txt" -o $ISSUE.txt &
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/output.txt" -o output.txt &
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/txpydata.csv" -o txpydata.csv &
+wait
+
+# Download any PDFs listed in index.html
+grep -oP 'href="\K[^"]+\.pdf' index.html | while read pdf; do
+  curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$pdf" -o "$pdf" &
+done
+wait
+```
+
+Then work ENTIRELY from local files - no more network calls to TAXSIM.
 
 ### CRITICAL: Always Extract TaxAct PDF Forms
 
 **The YAML expected values may be WRONG.** Always download and extract the actual TaxAct PDF:
 
 ```bash
-# Download PDF from TAXSIM
-curl -s -o /tmp/form.pdf "https://taxsim.nber.org/out2psl/{issue_number}/{filename}.pdf"
-
-# Extract text with PyMuPDF
+# Extract text with PyMuPDF (from local file)
 python3 -c "
 import fitz
-doc = fitz.open('/tmp/form.pdf')
+doc = fitz.open('/tmp/taxsim_$ISSUE/form.pdf')
 for page in doc:
     print(page.get_text())
 "
@@ -90,6 +118,48 @@ cat /tmp/out.csv
 - v32: State AGI (**if 0, check state code!**)
 - v36: State taxable income
 
+## Filing Issues in policyengine-us
+
+When a bug is found in PolicyEngine, file an issue in policyengine-us with:
+
+1. **Summary** of the problem
+2. **Root cause** analysis with code references
+3. **Files to fix** - list all affected files
+4. **Suggested fix** - show the code change needed
+5. **Integration test** - YAML test case with **correct expected values** (not PE's current buggy output)
+
+Example integration test format:
+```yaml
+- name: Descriptive test name
+  absolute_error_margin: 0.01
+  period: 2024
+  input:
+    people:
+      person1:
+        is_tax_unit_head: true
+        age: 40
+        # ... income variables
+    tax_units:
+      tax_unit:
+        members: [person1]
+    spm_units:
+      spm_unit:
+        members: [person1]
+    households:
+      household:
+        members: [person1]
+        state_fips: XX  # or state_code: XX
+  output:
+    variable_name: expected_value  # Correct value from TaxAct PDF
+```
+
+Use `gh issue create --repo PolicyEngine/policyengine-us` to file issues.
+
+After creating the issue, add a follow-up comment to trigger the automated PR bot:
+```bash
+gh issue comment {issue_number} --repo PolicyEngine/policyengine-us --body "@PolicyEngine review the issue and implement option 3."
+```
+
 ## Common Root Causes
 
 1. **YAML expected value wrong** - Always verify against PDF (e.g., #657: YAML=$147.97, PDF=$0)
@@ -101,3 +171,4 @@ cat /tmp/out.csv
 7. **Age-based provisions** - Retirement income exclusions, elderly credits
 8. **Parameter values outdated** - Thresholds/amounts not updated for current year
 9. **Input/output mapping** - Variable not correctly mapped between TAXSIM and PE
+10. **Negative income edge cases** - Credits/taxes not handling negative AGI or capital losses correctly
