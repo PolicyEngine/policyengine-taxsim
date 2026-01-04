@@ -1,7 +1,7 @@
 #' Compare PolicyEngine results with TAXSIM
 #'
-#' Runs both PolicyEngine (via this package) and TAXSIM (via usincometaxes)
-#' on the same input data and returns a side-by-side comparison.
+#' Runs both PolicyEngine and the embedded TAXSIM executable on the same
+#' input data and returns a side-by-side comparison.
 #'
 #' @param .data A data frame containing tax unit information in TAXSIM format.
 #' @param tolerance Numeric. Maximum dollar difference to consider a "match".
@@ -11,7 +11,7 @@
 #' @return A tibble with columns for both calculations and comparison metrics:
 #'   \describe{
 #'     \item{taxsimid}{Record identifier}
-#'     \item{year, state, mstat}{Input parameters}
+#'     \item{year, state}{Input parameters}
 #'     \item{fiitax_taxsim}{Federal tax from TAXSIM}
 #'     \item{fiitax_pe}{Federal tax from PolicyEngine}
 #'     \item{fiitax_diff}{Difference (PolicyEngine - TAXSIM)}
@@ -21,13 +21,6 @@
 #'     \item{siitax_diff}{Difference (PolicyEngine - TAXSIM)}
 #'     \item{siitax_match}{TRUE if difference <= tolerance}
 #'   }
-#'
-#' @details
-#' This function requires the `usincometaxes` package to be installed.
-#' Install it with: `install.packages("usincometaxes")`
-#'
-#' The comparison uses a tolerance (default $15) to account for minor
-#' rounding differences between the two calculators.
 #'
 #' @examples
 #' \dontrun{
@@ -49,13 +42,11 @@
 #' @export
 compare_with_taxsim <- function(.data, tolerance = 15, show_progress = TRUE) {
 
-
-  # Check if usincometaxes is installed
-
-if (!requireNamespace("usincometaxes", quietly = TRUE)) {
+  # Check setup
+  if (!check_policyengine_setup(quiet = TRUE)) {
     stop(
-      "The 'usincometaxes' package is required for comparison.\n",
-      "Install it with: install.packages(\"usincometaxes\")",
+      "PolicyEngine Python environment is not set up.\n",
+      "Run setup_policyengine() first.",
       call. = FALSE
     )
   }
@@ -69,30 +60,45 @@ if (!requireNamespace("usincometaxes", quietly = TRUE)) {
     stop("`.data` cannot be empty.", call. = FALSE)
   }
 
-  # Ensure taxsimid exists
+  # Prepare input
   input_df <- as.data.frame(.data)
   if (!"taxsimid" %in% names(input_df)) {
     input_df$taxsimid <- seq_len(nrow(input_df))
   }
 
-  # Run TAXSIM via usincometaxes
-  if (show_progress) message("Running TAXSIM (via usincometaxes)...")
-  taxsim_results <- usincometaxes::taxsim_calculate_taxes(input_df)
+  # Convert state codes
+  input_df <- .convert_state_codes(input_df)
 
-  # Run PolicyEngine via our package
+  # Set idtl for basic output
+  if (!"idtl" %in% names(input_df)) {
+    input_df$idtl <- 0L
+  }
+
+  # Activate Python environment
+  reticulate::use_virtualenv("policyengine-taxsim", required = TRUE)
+
+  # Import runners
+  runners <- reticulate::import("policyengine_taxsim.runners")
+  pd <- reticulate::import("pandas")
+
+  # Convert to Python DataFrame
+  py_df <- pd$DataFrame(input_df)
+
+  # Run TAXSIM
+  if (show_progress) message("Running TAXSIM...")
+  taxsim_runner <- runners$TaxsimRunner(py_df)
+  taxsim_results <- reticulate::py_to_r(taxsim_runner$run(show_progress = FALSE))
+
+  # Run PolicyEngine
   if (show_progress) message("Running PolicyEngine...")
-  pe_results <- policyengine_calculate_taxes(
-    input_df,
-    show_progress = show_progress
-  )
+  pe_runner <- runners$PolicyEngineRunner(py_df)
+  pe_results <- reticulate::py_to_r(pe_runner$run(show_progress = FALSE))
 
   # Merge results
   if (show_progress) message("Comparing results...")
 
-  # usincometaxes only returns tax columns, not input columns
-  # So we merge both results with the input data
   comparison <- merge(
-    input_df[, c("taxsimid", "year", "state", "mstat")],
+    input_df[, c("taxsimid", "year", "state")],
     taxsim_results[, c("taxsimid", "fiitax", "siitax")],
     by = "taxsimid"
   )
