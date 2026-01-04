@@ -101,35 +101,11 @@ results <- policyengine_calculate_taxes(my_data, return_all_information = TRUE)
 # Returns 30+ variables: AGI, deductions, credits, etc.
 ```
 
-## Input Variables
+## Input/Output Variables
 
-| Variable | Description |
-|----------|-------------|
-| `year` | Tax year (2021-2024) |
-| `state` | State code (1-51) or abbreviation ("CA", "NY") |
-| `mstat` | 1 = Single, 2 = Married filing jointly |
-| `pwages` | Primary taxpayer wages |
-| `swages` | Spouse wages |
-| `depx` | Number of dependents |
-| `age1`-`age11` | Ages of dependents |
-| `dividends` | Dividend income |
-| `intrec` | Interest income |
-| `ltcg` | Long-term capital gains |
-| `stcg` | Short-term capital gains |
-| `pensions` | Pension income |
-| `gssi` | Social Security benefits |
-| `psemp` | Primary self-employment income |
+This package uses the standard TAXSIM 35 input and output format. See the [TAXSIM 35 documentation](https://taxsim.nber.org/taxsim35/) for the full list of supported variables.
 
-Full variable list: [TAXSIM 35 documentation](https://taxsim.nber.org/taxsim35/)
-
-## Output Variables
-
-| Variable | Description |
-|----------|-------------|
-| `taxsimid` | Record identifier |
-| `fiitax` | Federal income tax |
-| `siitax` | State income tax |
-| `tfica` | Total FICA (Social Security + Medicare) |
+**Note:** State codes can be specified as numbers (1-51) or abbreviations ("CA", "NY", etc.).
 
 ## Compare with TAXSIM
 
