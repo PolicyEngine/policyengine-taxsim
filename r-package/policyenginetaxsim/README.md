@@ -81,6 +81,19 @@ print(results)
 #> 3        3 2023    33  14260   3865   7650
 ```
 
+### From CSV File
+
+```r
+# Load data from CSV
+my_data <- read.csv("tax_units.csv")
+
+# Calculate taxes
+results <- policyengine_calculate_taxes(my_data)
+
+# Save results
+write.csv(results, "tax_results.csv", row.names = FALSE)
+```
+
 ### Detailed Output
 
 ```r
