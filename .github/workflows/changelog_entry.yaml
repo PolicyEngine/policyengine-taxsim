@@ -2,28 +2,47 @@ name: Versioning
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  check-changelog-entry:
-    name: Changelog entry check
+  check-changelog-fragments:
+    name: Changelog fragment check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Check for changelog entry
+      - name: Check for changelog fragments
         run: |
-          if [ ! -f "changelog_entry.yaml" ]; then
-            echo "Error: changelog_entry.yaml file is missing."
-            echo "Please add a changelog_entry.yaml file at the root of the repository."
+          # Get list of added/modified files in this PR vs base branch
+          FRAGMENTS=$(find changelog.d -type f ! -name '.gitkeep' 2>/dev/null | head -20)
+
+          if [ -z "$FRAGMENTS" ]; then
+            echo "Error: No changelog fragments found in changelog.d/"
+            echo ""
+            echo "Please add a changelog fragment. Example:"
+            echo "  echo 'Description of change.' > changelog.d/$(echo $GITHUB_HEAD_REF | tr '/' '-').added.md"
+            echo ""
+            echo "Fragment types: added, changed, fixed, removed, breaking"
+            echo "Format: changelog.d/<name>.<type>.md"
             exit 1
           fi
-          
-          # Check if the file is empty
-          if [ ! -s "changelog_entry.yaml" ]; then
-            echo "Error: changelog_entry.yaml file is empty."
-            echo "Please add content to the changelog_entry.yaml file."
-            exit 1
-          fi
-          
-          echo "Changelog entry found and is not empty."
+
+          echo "Found changelog fragments:"
+          echo "$FRAGMENTS"
+
+          # Validate fragment types
+          for f in $FRAGMENTS; do
+            TYPE=$(echo "$f" | rev | cut -d. -f2 | rev)
+            case "$TYPE" in
+              added|changed|fixed|removed|breaking)
+                echo "  OK: $f ($TYPE)"
+                ;;
+              *)
+                echo "  ERROR: $f has invalid type '$TYPE'"
+                echo "  Valid types: added, changed, fixed, removed, breaking"
+                exit 1
+                ;;
+            esac
+          done
