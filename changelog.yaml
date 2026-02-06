@@ -101,3 +101,12 @@
     added:
     - Add R package wrapper (policyenginetaxsim) for running the emulator from R
   date: 2026-01-04 20:50:20
+- bump: minor
+  changes:
+    added:
+    - Vectorize PolicyEngineRunner for ~100x speedup on large inputs.
+    - Add performance regression tests.
+    - Cache load_variable_mappings() with lru_cache.
+    removed:
+    - Remove unused taxcalc dependency.
+  date: 2026-02-06 21:00:00
