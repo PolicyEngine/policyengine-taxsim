@@ -319,7 +319,7 @@ class TaxsimMicrosimDataset(Dataset):
         self, year_data: pd.DataFrame, year: int
     ) -> dict:
         """
-        Process tax unit level data for a specific year.
+        Process tax unit level data for a specific year (vectorized).
 
         Args:
             year_data: DataFrame containing TAXSIM data for one year
@@ -328,208 +328,158 @@ class TaxsimMicrosimDataset(Dataset):
         Returns:
             dict: Processed tax unit level data arrays
         """
-        n_year_records = len(year_data)
-
-        # Get tax unit variable mapping
         tax_unit_mapping = self._get_tax_unit_variable_mapping()
 
-        # Filter mapping to only include variables where source data exists
-        filtered_mapping = {}
+        result = {}
         for pe_var, taxsim_var in tax_unit_mapping.items():
             if taxsim_var in year_data.columns:
-                filtered_mapping[pe_var] = taxsim_var
-
-        # Initialize data collectors
-        tax_unit_data = {}
-
-        # Initialize variable data collectors
-        for pe_var in filtered_mapping.keys():
-            tax_unit_data[pe_var] = []
-
-        # Process each tax unit (one per record in TAXSIM)
-        for _, row in tqdm(
-            year_data.iterrows(),
-            total=len(year_data),
-            desc=f"Processing tax units ({year})",
-            leave=False,
-        ):
-            # Process each tax unit variable
-            for pe_var, taxsim_var in filtered_mapping.items():
-                if taxsim_var in row and pd.notna(row[taxsim_var]):
-                    value = float(row[taxsim_var])
-                else:
-                    value = 0.0
-
-                tax_unit_data[pe_var].append(value)
-
-        # Convert to numpy arrays
-        result = {}
-        for var, values in tax_unit_data.items():
-            result[var] = np.array(values)
+                result[pe_var] = year_data[taxsim_var].fillna(0).astype(float).values
 
         return result
 
     def _process_person_data_for_year(self, year_data: pd.DataFrame, year: int) -> dict:
         """
-        Process person-level data for a specific year using consolidated mapping approach.
+        Process person-level data for a specific year (vectorized).
 
-        Args:
-            year_data: DataFrame containing TAXSIM data for one year
-            year: The year being processed
-
-        Returns:
-            dict: Processed person-level data arrays
+        Expands household-level rows into person-level arrays using
+        np.repeat and boolean masks instead of iterrows.
         """
-        n_year_records = len(year_data)
+        n = len(year_data)
 
-        # Calculate household structure
-        total_people = 0
-        people_per_household = []
+        # Vectorized household structure
+        mstat = year_data["mstat"].values.astype(int)
+        depx = year_data["depx"].values.astype(int)
+        has_spouse = np.isin(mstat, [2, 6])
+        people_per_hh = 1 + has_spouse.astype(int) + depx
+        total_people = int(people_per_hh.sum())
 
-        for _, row in year_data.iterrows():
-            mstat = int(row["mstat"])
-            depx = int(row["depx"])
-            has_spouse = mstat in [2, 6]
-            n_people = 1 + (1 if has_spouse else 0) + depx
-            people_per_household.append(n_people)
-            total_people += n_people
+        # Entity IDs: each person maps to their household index
+        household_ids = np.repeat(np.arange(n), people_per_hh)
+
+        # Person IDs: sequential
+        person_ids = np.arange(total_people)
+
+        # Determine person type for each person in the expanded array
+        # Build position_in_household: 0-based index within each household
+        position_in_hh = np.zeros(total_people, dtype=int)
+        offsets = np.cumsum(people_per_hh)
+        starts = np.concatenate([[0], offsets[:-1]])
+        for i in range(n):
+            s, e = starts[i], offsets[i]
+            position_in_hh[s:e] = np.arange(e - s)
+
+        # Expand has_spouse to person level
+        has_spouse_expanded = np.repeat(has_spouse, people_per_hh)
+
+        is_primary = position_in_hh == 0
+        is_spouse = (position_in_hh == 1) & has_spouse_expanded
+        is_dependent = ~is_primary & ~is_spouse
 
         # Get variable mapping
         var_mapping = self._get_taxsim_to_pe_variable_mapping()
 
-        # Filter mapping to only include variables where source data exists
+        # Filter mapping
         filtered_mapping = {}
         for pe_var, mapping in var_mapping.items():
             if pe_var == "age":
-                # Always include age
                 filtered_mapping[pe_var] = mapping
                 continue
-
-            # Check if any of the source variables exist in the data
-            source_exists = False
             for person_type in ["primary", "spouse"]:
                 source = mapping.get(person_type)
                 if isinstance(source, str) and source in year_data.columns:
-                    source_exists = True
+                    filtered_mapping[pe_var] = mapping
                     break
                 elif callable(source):
-                    # For callable sources, check if the variables they reference exist
-                    # This is a bit more complex, but for now assume they exist
-                    source_exists = True
+                    filtered_mapping[pe_var] = mapping
                     break
 
-            if source_exists:
-                filtered_mapping[pe_var] = mapping
-
-        # Initialize data collectors
-        person_data = {}
-        entity_data = {
-            "person_id": [],
-            "person_household_id": [],
-            "person_tax_unit_id": [],
-            "person_family_id": [],
-            "person_spm_unit_id": [],
-            "person_marital_unit_id": [],
+        result = {
+            "person_id": person_ids,
+            "person_household_id": household_ids,
+            "person_tax_unit_id": household_ids,
+            "person_family_id": household_ids,
+            "person_spm_unit_id": household_ids,
+            "person_marital_unit_id": household_ids,
+            "is_tax_unit_head": is_primary,
+            "is_tax_unit_spouse": is_spouse,
+            "is_tax_unit_dependent": is_dependent,
+            "person_weight": np.ones(total_people),
         }
 
-        # Initialize variable data collectors
-        for pe_var in filtered_mapping.keys():
-            person_data[pe_var] = []
-        
-        # Initialize tax unit role variables explicitly
-        person_data["is_tax_unit_head"] = []
-        person_data["is_tax_unit_spouse"] = []
-        person_data["is_tax_unit_dependent"] = []
+        # Process each variable
+        for pe_var, mapping in filtered_mapping.items():
+            values = np.zeros(total_people, dtype=float)
 
-        current_person_id = 0
+            if pe_var == "age":
+                # Primary ages
+                primary_ages = year_data["page"].values.astype(float)
+                primary_ages = np.where(primary_ages > 0, primary_ages, 40)
+                values[is_primary] = np.repeat(primary_ages, people_per_hh)[is_primary]
 
-        # Process each household
-        for household_idx, (_, row) in enumerate(
-            tqdm(
-                year_data.iterrows(),
-                total=len(year_data),
-                desc=f"Processing households ({year})",
-                leave=False,
-            )
-        ):
-            mstat = int(row["mstat"])
-            depx = int(row["depx"])
-            has_spouse = mstat in [2, 6]
-            n_people = people_per_household[household_idx]
+                # Spouse ages: use sage if > 0, else use page
+                sage_vals = year_data["sage"].values.astype(float)
+                spouse_ages = np.where(sage_vals > 0, sage_vals, primary_ages)
+                values[is_spouse] = np.repeat(spouse_ages, people_per_hh)[is_spouse]
 
-            # Process each person in the household
-            for person_idx in range(n_people):
-                # Entity structure data
-                for entity_var in entity_data.keys():
-                    if entity_var == "person_id":
-                        entity_data[entity_var].append(current_person_id)
-                    else:
-                        entity_data[entity_var].append(household_idx)
+                # Dependent ages: need to map position → age column
+                dep_mask_indices = np.where(is_dependent)[0]
+                if len(dep_mask_indices) > 0:
+                    # For each dependent, figure out which dep number they are
+                    dep_position = position_in_hh[dep_mask_indices]
+                    dep_has_spouse = has_spouse_expanded[dep_mask_indices]
+                    dep_num = dep_position - np.where(dep_has_spouse, 2, 1) + 1  # 1-indexed
 
-                # Determine person type
-                if person_idx == 0:
-                    person_type = "primary"
-                elif person_idx == 1 and has_spouse:
-                    person_type = "spouse"
-                else:
-                    person_type = "dependent"
-                    dep_num = person_idx - (2 if has_spouse else 1) + 1  # +1 because deps are 1-indexed
+                    dep_hh_idx = household_ids[dep_mask_indices]
+                    for dep_slot in range(1, 12):
+                        age_col = f"age{dep_slot}"
+                        if age_col in year_data.columns:
+                            age_vals = year_data[age_col].values.astype(float)
+                            slot_mask = dep_num == dep_slot
+                            if slot_mask.any():
+                                ages = age_vals[dep_hh_idx[slot_mask]]
+                                ages = np.where(ages > 0, ages, 10)
+                                values[dep_mask_indices[slot_mask]] = ages
 
-                # Process each variable
-                for pe_var, mapping in filtered_mapping.items():
-                    if person_type == "dependent" and pe_var == "age":
-                        # Special handling for dependent age
-                        age_col = mapping["dependent"](dep_num)
-                        value = int(row.get(age_col, mapping["default"]["dependent"]))
-                        if value <= 0:
-                            value = mapping["default"]["dependent"]
-                    elif person_type == "spouse" and pe_var == "age":
-                        # Special handling for Age of secondary taxpayer
-                        value = (
-                            int(row[mapping["spouse"]])
-                            if row[mapping["spouse"]] > 0
-                            else int(row[mapping["primary"]])
-                        )
-                    else:
-                        # Standard mapping
-                        source = mapping.get(person_type)
-                        if callable(source):
-                            value = source(row)
-                        elif isinstance(source, str):
-                            # Only set if the source column exists in the data
-                            if source in row and pd.notna(row[source]):
-                                value = (
-                                    float(row[source])
-                                    if pe_var != "age"
-                                    else int(row[source])
-                                )
-                            else:
-                                # Skip this variable if source data is not available
-                                continue
-                        else:
-                            value = source  # Direct value (like 0.0)
+                result[pe_var] = values.astype(int)
+            else:
+                # Standard variable mapping
+                primary_source = mapping.get("primary")
+                spouse_source = mapping.get("spouse")
+                default_val = mapping.get("default", 0.0)
 
-                    person_data[pe_var].append(value)
-                
-                # Set tax unit roles explicitly based on person type
-                if "is_tax_unit_head" in person_data:
-                    person_data["is_tax_unit_head"].append(person_type == "primary")
-                if "is_tax_unit_spouse" in person_data:
-                    person_data["is_tax_unit_spouse"].append(person_type == "spouse")
-                if "is_tax_unit_dependent" in person_data:
-                    person_data["is_tax_unit_dependent"].append(person_type == "dependent")
+                # Primary values
+                if isinstance(primary_source, str) and primary_source in year_data.columns:
+                    prim_vals = year_data[primary_source].fillna(0).values.astype(float)
+                    values[is_primary] = np.repeat(prim_vals, people_per_hh)[is_primary]
+                elif callable(primary_source):
+                    # Callable sources need per-row evaluation (rare)
+                    prim_vals = np.array(
+                        [primary_source(row) for _, row in year_data.iterrows()],
+                        dtype=float,
+                    )
+                    values[is_primary] = np.repeat(prim_vals, people_per_hh)[is_primary]
+                elif isinstance(primary_source, (int, float)):
+                    values[is_primary] = primary_source
 
-                current_person_id += 1
+                # Spouse values
+                if isinstance(spouse_source, str) and spouse_source in year_data.columns:
+                    sp_vals = year_data[spouse_source].fillna(0).values.astype(float)
+                    values[is_spouse] = np.repeat(sp_vals, people_per_hh)[is_spouse]
+                elif callable(spouse_source):
+                    sp_vals = np.array(
+                        [spouse_source(row) for _, row in year_data.iterrows()],
+                        dtype=float,
+                    )
+                    values[is_spouse] = np.repeat(sp_vals, people_per_hh)[is_spouse]
+                elif isinstance(spouse_source, (int, float)):
+                    values[is_spouse] = spouse_source
 
-        # Convert to numpy arrays and combine entity + person data
-        result = {}
-        for var, values in entity_data.items():
-            result[var] = np.array(values)
-        for var, values in person_data.items():
-            result[var] = np.array(values)
+                # Dependents get default value (already 0 from initialization)
+                dep_default = mapping.get("dependent", 0.0)
+                if isinstance(dep_default, (int, float)) and dep_default != 0.0:
+                    values[is_dependent] = dep_default
 
-        # Add person weight
-        result["person_weight"] = np.ones(total_people)
+                result[pe_var] = values
 
         return result
 
@@ -561,6 +511,90 @@ class TaxsimMicrosimDataset(Dataset):
 
         return df
 
+    def _apply_defaults_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized."""
+        # Vectorized set_taxsim_defaults: fill falsy values with defaults
+        defaults = {
+            "state": 44,
+            "depx": 0,
+            "mstat": 1,
+            "taxsimid": 0,
+            "idtl": 0,
+            "page": 40,
+            "sage": 40,
+        }
+        for col, default_val in defaults.items():
+            if col in df.columns:
+                df[col] = df[col].fillna(default_val)
+                df[col] = df[col].where(df[col] != 0, default_val).astype(int)
+            else:
+                df[col] = default_val
+
+        if "year" in df.columns:
+            df["year"] = df["year"].fillna(2021).astype(int)
+        else:
+            df["year"] = 2021
+
+        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 → age1..age11)
+        has_dep13 = "dep13" in df.columns
+        has_dep17 = "dep17" in df.columns
+        has_dep18 = "dep18" in df.columns
+        has_taxsim32 = has_dep13 or has_dep17 or has_dep18
+
+        # Check if individual age fields already exist
+        has_individual_ages = any(
+            f"age{i}" in df.columns and df[f"age{i}"].notna().any()
+            for i in range(1, 12)
+        )
+
+        if has_taxsim32 and not has_individual_ages:
+            dep13 = df.get("dep13", pd.Series(0, index=df.index)).fillna(0).astype(int)
+            dep17 = df.get("dep17", pd.Series(0, index=df.index)).fillna(0).astype(int)
+            dep18 = df.get("dep18", pd.Series(0, index=df.index)).fillna(0).astype(int)
+            depx = df["depx"].astype(int)
+
+            # Ensure depx >= dep18
+            df["depx"] = np.maximum(depx, dep18)
+
+            num_under_13 = dep13
+            num_13_to_16 = dep17 - dep13
+            num_17 = dep18 - dep17
+            num_18_plus = np.maximum(depx - dep18, 0)
+
+            # Assign ages vectorized: iterate over dependent slots 1-11
+            dep_counter = np.ones(len(df), dtype=int)  # starts at 1
+
+            age_cols = {}
+            for age_val, count_series in [
+                (10, num_under_13),
+                (15, num_13_to_16),
+                (17, num_17),
+                (21, num_18_plus),
+            ]:
+                for _ in range(count_series.max() if len(count_series) > 0 else 0):
+                    for dep_slot in range(1, 12):
+                        col = f"age{dep_slot}"
+                        if col not in age_cols:
+                            age_cols[col] = np.zeros(len(df), dtype=int)
+                        mask = (dep_counter == dep_slot) & (count_series > 0)
+                        age_cols[col] = np.where(mask, age_val, age_cols[col])
+                    dep_counter = np.where(count_series > 0, dep_counter + 1, dep_counter)
+                    count_series = np.where(count_series > 0, count_series - 1, count_series)
+
+            for col, vals in age_cols.items():
+                if col not in df.columns:
+                    df[col] = 0
+                df[col] = np.where(df[col] == 0, vals, df[col])
+
+        # Normalize ages: NaN or 0 → 10 for dependent age fields
+        for i in range(1, 12):
+            col = f"age{i}"
+            if col in df.columns:
+                df[col] = df[col].fillna(10)
+                df[col] = df[col].where(df[col] != 0, 10)
+
+        return df
+
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
         n_records = len(self.input_df)
@@ -568,20 +602,9 @@ class TaxsimMicrosimDataset(Dataset):
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
-        # Set defaults for all records and convert TAXSIM32 format if present
+        # Set defaults and convert TAXSIM32 format (vectorized)
         print("Setting defaults for TAXSIM records...")
-        for idx, row in tqdm(
-            self.input_df.iterrows(), total=n_records, desc="Processing defaults"
-        ):
-            taxsim_vars = row.to_dict()
-            year = int(float(taxsim_vars.get("year", 2021)))
-            
-            # Convert TAXSIM32 dependent format (dep13, dep17, dep18) to age1, age2, etc.
-            taxsim_vars = convert_taxsim32_dependents(taxsim_vars)
-            
-            taxsim_vars = set_taxsim_defaults(taxsim_vars, year)
-            for key, value in taxsim_vars.items():
-                self.input_df.loc[idx, key] = value
+        self.input_df = self._apply_defaults_vectorized(self.input_df)
 
         # Extract years (assuming all records might have different years)
         # Years should already be converted to integers in the run() method
@@ -859,138 +882,221 @@ class PolicyEngineRunner(BaseTaxRunner):
             and year < year_restricted_variables[variable_name]
         )
 
+    def _calc_tax_unit(self, sim, var_name, period):
+        """Calculate a variable and ensure result is at tax_unit level.
+
+        Person-level variables are summed to tax_unit via map_result.
+        Tax_unit level variables are returned directly.
+        """
+        var_obj = sim.tax_benefit_system.variables.get(var_name)
+        if var_obj is None:
+            raise ValueError(f"Variable {var_name} does not exist")
+        values = np.array(sim.calculate(var_name, period=period))
+        entity_key = var_obj.entity.key
+        if entity_key == "person":
+            return np.array(
+                sim.map_result(values, "person", "tax_unit", how="sum")
+            )
+        elif entity_key != "tax_unit":
+            # For household/spm_unit etc., project to person then sum to tax_unit
+            return np.array(
+                sim.map_result(values, entity_key, "tax_unit")
+            )
+        return values
+
     def _extract_vectorized_results(
         self, sim: Microsimulation, input_df: pd.DataFrame
     ) -> pd.DataFrame:
-        """Extract results from Microsimulation and format as TAXSIM output"""
-        results = []
+        """Extract results from Microsimulation and format as TAXSIM output.
 
-        # Ensure input_df has all required columns
+        Uses vectorized sim.calculate() calls (one per variable, not per row)
+        and builds the output DataFrame from arrays directly.
+        """
         input_df = self._ensure_required_columns(input_df)
-
-        # Process each unique year
+        pe_to_taxsim = self.mappings["policyengine_to_taxsim"]
         years = sorted(set(input_df["year"].unique()))
+        year_frames = []
 
         for year in tqdm(years, desc="Processing years"):
             year_str = str(year)
+            year_int = int(year)
             year_mask = input_df["year"] == year
             year_data = input_df[year_mask]
+            n = len(year_data)
 
-            if len(year_data) == 0:
+            if n == 0:
                 continue
 
-            # Get results for this year
-            try:
-                federal_taxes_main = sim.calculate("income_tax", period=year_str)
-                medicare = sim.calculate("additional_medicare_tax", period=year_str)
-                state_taxes = sim.calculate("state_income_tax", period=year_str)
-                federal_taxes = federal_taxes_main + medicare
+            # Pre-compute state codes for all rows in this year (vectorized)
+            state_numbers = year_data["state"].values
+            state_codes = np.array([get_state_code(s) for s in state_numbers])
+            state_initials = np.char.lower(state_codes)
+            output_state_numbers = np.array(
+                [get_state_number(sc) for sc in state_codes]
+            )
 
-                # Create results for this year
-                for idx, (_, row) in enumerate(
-                    tqdm(
-                        year_data.iterrows(),
-                        total=len(year_data),
-                        desc=f"Extracting results ({year})",
-                        leave=False,
-                    )
-                ):
-                    result = {
-                        "taxsimid": row["taxsimid"],
-                        "year": year,
-                        "state": get_state_number(get_state_code(row["state"])),
-                        "fiitax": to_roundedup_number(federal_taxes[idx]),
-                        "siitax": to_roundedup_number(state_taxes[idx]),
-                    }
+            # Start building the result columns
+            columns: Dict[str, np.ndarray] = {
+                "taxsimid": year_data["taxsimid"].values,
+                "year": np.full(n, year_int),
+                "state": output_state_numbers,
+            }
 
-                    # Add other variables based on idtl
-                    pe_to_taxsim = self.mappings["policyengine_to_taxsim"]
-                    output_type = row["idtl"]
+            # Determine which taxsim vars to compute based on idtl values
+            idtl_values = year_data["idtl"].values
+            unique_idtls = set(idtl_values)
 
-                    for taxsim_var, mapping in pe_to_taxsim.items():
-                        if not mapping.get("implemented", False):
-                            continue
+            # Pre-compute which taxsim vars are needed for any row in this year
+            vars_to_compute = {}
+            for taxsim_var, mapping in pe_to_taxsim.items():
+                if not mapping.get("implemented", False):
+                    continue
+                if taxsim_var in ["taxsimid", "year", "state"]:
+                    continue
 
-                        if taxsim_var in [
-                            "taxsimid",
-                            "year",
-                            "state",
-                            "fiitax",
-                            "siitax",
-                        ]:
-                            continue  # Already handled
+                pe_var = mapping.get("variable", "")
+                if pe_var in ["taxsimid", "get_year", "get_state_code"]:
+                    continue
 
-                        # Check if this variable should be included based on idtl
-                        should_include = any(
-                            output_type in entry.values()
-                            for entry in mapping.get("idtl", [])
-                        )
+                # Check if any idtl level in this year needs this variable
+                idtl_entries = mapping.get("idtl", [])
+                needed_for_idtls = set()
+                for entry in idtl_entries:
+                    for idtl_val in entry.values():
+                        if idtl_val in unique_idtls:
+                            needed_for_idtls.add(idtl_val)
 
-                        if not should_include:
-                            continue
+                if not needed_for_idtls:
+                    continue
 
-                        # Get PolicyEngine variable name
-                        pe_var = mapping.get("variable")
-                        if not pe_var or pe_var in [
-                            "taxsimid",
-                            "get_year",
-                            "get_state_code",
-                            "na_pe",
-                        ]:
-                            continue
+                vars_to_compute[taxsim_var] = {
+                    "mapping": mapping,
+                    "needed_for_idtls": needed_for_idtls,
+                }
 
-                        # Handle state-specific variables and special cases
-                        state_name = get_state_code(row["state"])
-                        state_initial = state_name.lower()
+            # Compute all needed variables vectorized
+            for taxsim_var, info in vars_to_compute.items():
+                mapping = info["mapping"]
+                pe_var = mapping.get("variable", "")
+                variables_list = mapping.get("variables", [])
+                has_state = "state" in pe_var or any(
+                    "state" in v for v in variables_list
+                )
 
-                        # Apply standard state replacement
-                        if "state" in pe_var:
-                            pe_var = pe_var.replace("state", state_initial)
+                if pe_var == "na_pe":
+                    # na_pe variables get 0
+                    columns[taxsim_var] = np.zeros(n)
+                    continue
 
-                        # Check for year-restricted state programs before calculation
-                        if self._is_year_restricted_variable(pe_var, year):
-                            if self.logs:
-                                print(
-                                    f"Variable {pe_var} not available in {year}, setting to 0"
-                                )
-                            result[taxsim_var] = 0.0
-                            continue
+                try:
+                    if has_state:
+                        # State-specific variable: compute per unique state
+                        result_array = np.zeros(n)
+                        unique_states = np.unique(state_initials)
 
-                        # Calculate value
-                        try:
-                            if "variables" in mapping and len(mapping["variables"]) > 0:
-                                # Sum multiple variables
-                                value = 0
-                                for var in mapping["variables"]:
-                                    if "state" in var:
-                                        var = var.replace("state", state_name.lower())
-                                    var_values = sim.calculate(var, period=year_str)
-                                    value += var_values[idx]
+                        for st in unique_states:
+                            state_mask = state_initials == st
+
+                            if variables_list:
+                                # Multi-variable sum with state replacement
+                                var_sum = np.zeros(n)
+                                for var_template in variables_list:
+                                    resolved = var_template.replace("state", st)
+                                    if self._is_year_restricted_variable(
+                                        resolved, year_int
+                                    ):
+                                        continue
+                                    try:
+                                        arr = self._calc_tax_unit(sim, resolved, year_str)
+                                        var_sum += arr
+                                    except Exception as e:
+                                        if "does not exist" in str(e):
+                                            if self.logs:
+                                                print(
+                                                    f"Variable {resolved} not implemented, setting to 0"
+                                                )
+                                        else:
+                                            raise
+                                result_array[state_mask] = var_sum[state_mask]
                             else:
-                                # Single variable
-                                var_values = sim.calculate(pe_var, period=year_str)
-                                value = var_values[idx]
+                                # Single state variable
+                                resolved = pe_var.replace("state", st)
+                                if self._is_year_restricted_variable(
+                                    resolved, year_int
+                                ):
+                                    continue
+                                try:
+                                    arr = self._calc_tax_unit(sim, resolved, year_str)
+                                    result_array[state_mask] = arr[state_mask]
+                                except Exception as e:
+                                    if "does not exist" in str(e):
+                                        if self.logs:
+                                            print(
+                                                f"Variable {resolved} not implemented, setting to 0"
+                                            )
+                                    else:
+                                        raise
 
-                            result[taxsim_var] = to_roundedup_number(value)
-                        except Exception as e:
-                            # Only catch specific "variable does not exist" errors for unimplemented state variables
-                            # All other errors should bubble up to reveal real problems
-                            if "does not exist" in str(e):
-                                if self.logs:
-                                    print(
-                                        f"Variable {pe_var} not implemented in PolicyEngine, setting to 0"
-                                    )
-                                result[taxsim_var] = 0.0
-                            else:
-                                # Real error - don't mask it
-                                raise RuntimeError(
-                                    f"Error calculating {pe_var} for {taxsim_var}: {e}"
-                                ) from e
+                        columns[taxsim_var] = np.round(result_array, 2)
 
-                    results.append(result)
+                    elif variables_list:
+                        # Multi-variable sum (non-state)
+                        var_sum = np.zeros(n)
+                        for var in variables_list:
+                            arr = self._calc_tax_unit(sim, var, year_str)
+                            var_sum += arr
+                        columns[taxsim_var] = np.round(var_sum, 2)
 
-            except Exception as e:
-                # Don't mask errors with fallback results - let them bubble up
-                raise RuntimeError(f"Error processing year {year}: {e}") from e
+                    else:
+                        # Single non-state variable
+                        arr = self._calc_tax_unit(sim, pe_var, year_str)
+                        columns[taxsim_var] = np.round(arr, 2)
 
-        return pd.DataFrame(results)
+                except Exception as e:
+                    if "does not exist" in str(e):
+                        if self.logs:
+                            print(
+                                f"Variable {pe_var} not implemented, setting to 0"
+                            )
+                        columns[taxsim_var] = np.zeros(n)
+                    else:
+                        raise RuntimeError(
+                            f"Error calculating {pe_var} for {taxsim_var}: {e}"
+                        ) from e
+
+            # Apply fiitax special calculation (income_tax + additional_medicare_tax)
+            if "fiitax" in columns:
+                pass  # Already computed above
+            else:
+                fiitax_arr = self._calc_tax_unit(
+                    sim, "income_tax", year_str
+                ) + self._calc_tax_unit(
+                    sim, "additional_medicare_tax", year_str
+                )
+                columns["fiitax"] = np.round(fiitax_arr, 2)
+
+            # Apply idtl filtering: mask out columns not requested by each row's idtl
+            if len(unique_idtls) > 1 or 0 in unique_idtls:
+                for taxsim_var, info in vars_to_compute.items():
+                    if taxsim_var in columns:
+                        needed_for_idtls = info["needed_for_idtls"]
+                        # Zero out values for rows whose idtl doesn't need this var
+                        mask = np.zeros(n, dtype=bool)
+                        for idtl_val in needed_for_idtls:
+                            mask |= idtl_values == idtl_val
+                        if not mask.all():
+                            columns[taxsim_var] = np.where(
+                                mask, columns[taxsim_var], np.nan
+                            )
+
+            year_frames.append(pd.DataFrame(columns))
+
+        if not year_frames:
+            return pd.DataFrame()
+
+        result_df = pd.concat(year_frames, ignore_index=True)
+
+        # Drop columns that are all NaN (not needed for any row)
+        result_df = result_df.dropna(axis=1, how="all")
+
+        return result_df
