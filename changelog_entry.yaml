@@ -1,8 +1,0 @@
-- bump: minor
-  changes:
-    added:
-      - Vectorize PolicyEngineRunner for ~100x speedup on large inputs.
-      - Add performance regression tests.
-      - Cache load_variable_mappings() with lru_cache.
-    removed:
-      - Remove unused taxcalc dependency.
