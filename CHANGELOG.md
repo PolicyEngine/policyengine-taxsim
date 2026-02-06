@@ -3,18 +3,6 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [2.6.0] - 2026-02-06 21:00:00
-
-### Added
-
-- Vectorize PolicyEngineRunner for ~100x speedup on large inputs.
-- Add performance regression tests.
-- Cache load_variable_mappings() with lru_cache.
-
-### Removed
-
-- Remove unused taxcalc dependency.
-
 ## [2.5.0] - 2026-01-04 20:50:20
 
 ### Added
