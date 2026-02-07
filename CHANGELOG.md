@@ -1,3 +1,10 @@
+## [2.7.1] - 2026-02-07
+
+### Fixed
+
+- Relax generate phase scaling test threshold from 3x to 5x to avoid flaky failures on slow CI runners.
+
+
 ## [2.7.0] - 2026-02-07
 
 ### Added
