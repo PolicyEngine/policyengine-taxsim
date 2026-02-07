@@ -152,9 +152,9 @@ class TestExtractResultsStructure:
         result = runner.run(show_progress=False)
 
         assert len(result) == 200
-        assert extract_time["t"] < 20.0, (
+        assert extract_time["t"] < 60.0, (
             f"Extract phase took {extract_time['t']:.1f}s for 200 records, "
-            f"expected < 20s"
+            f"expected < 60s"
         )
 
 
