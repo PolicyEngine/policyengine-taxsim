@@ -1,3 +1,10 @@
+## [2.6.1] - 2026-02-07
+
+### Changed
+
+- Replace yaml-changelog with towncrier for changelog generation. Fragments in `changelog.d/` replace `changelog_entry.yaml`.
+
+
 Changelog
 All notable changes to this project will be documented in this file.
 
