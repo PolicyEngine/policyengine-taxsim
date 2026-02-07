@@ -990,25 +990,76 @@ class PolicyEngineRunner(BaseTaxRunner):
 
                 try:
                     if has_state:
-                        # State-specific variable: compute per unique state
-                        result_array = np.zeros(n)
-                        unique_states = np.unique(state_initials)
+                        # Check if unified PE variable exists (e.g., state_agi,
+                        # state_eitc). These use defined_for internally so a
+                        # single calculate() call returns correct per-state
+                        # values without iterating over states.
+                        unified_var = (
+                            sim.tax_benefit_system.variables.get(pe_var)
+                            if pe_var and not variables_list
+                            else None
+                        )
+                        unified_vars_list = (
+                            all(
+                                sim.tax_benefit_system.variables.get(v)
+                                is not None
+                                for v in variables_list
+                            )
+                            if variables_list
+                            else False
+                        )
 
-                        for st in unique_states:
-                            state_mask = state_initials == st
+                        if unified_var and not variables_list:
+                            # Single unified state variable — one call
+                            arr = self._calc_tax_unit(sim, pe_var, year_str)
+                            columns[taxsim_var] = np.round(arr, 2)
 
-                            if variables_list:
-                                # Multi-variable sum with state replacement
-                                var_sum = np.zeros(n)
-                                for var_template in variables_list:
-                                    resolved = var_template.replace("state", st)
+                        elif unified_vars_list:
+                            # Multi-variable sum with unified state vars
+                            var_sum = np.zeros(n)
+                            for var in variables_list:
+                                arr = self._calc_tax_unit(sim, var, year_str)
+                                var_sum += arr
+                            columns[taxsim_var] = np.round(var_sum, 2)
+
+                        else:
+                            # Fallback: per-state iteration for vars without
+                            # a unified PE equivalent
+                            result_array = np.zeros(n)
+                            unique_states = np.unique(state_initials)
+
+                            for st in unique_states:
+                                state_mask = state_initials == st
+
+                                if variables_list:
+                                    var_sum = np.zeros(n)
+                                    for var_template in variables_list:
+                                        resolved = var_template.replace("state", st)
+                                        if self._is_year_restricted_variable(
+                                            resolved, year_int
+                                        ):
+                                            continue
+                                        try:
+                                            arr = self._calc_tax_unit(sim, resolved, year_str)
+                                            var_sum += arr
+                                        except Exception as e:
+                                            if "does not exist" in str(e):
+                                                if self.logs:
+                                                    print(
+                                                        f"Variable {resolved} not implemented, setting to 0"
+                                                    )
+                                            else:
+                                                raise
+                                    result_array[state_mask] = var_sum[state_mask]
+                                else:
+                                    resolved = pe_var.replace("state", st)
                                     if self._is_year_restricted_variable(
                                         resolved, year_int
                                     ):
                                         continue
                                     try:
                                         arr = self._calc_tax_unit(sim, resolved, year_str)
-                                        var_sum += arr
+                                        result_array[state_mask] = arr[state_mask]
                                     except Exception as e:
                                         if "does not exist" in str(e):
                                             if self.logs:
@@ -1017,27 +1068,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                                                 )
                                         else:
                                             raise
-                                result_array[state_mask] = var_sum[state_mask]
-                            else:
-                                # Single state variable
-                                resolved = pe_var.replace("state", st)
-                                if self._is_year_restricted_variable(
-                                    resolved, year_int
-                                ):
-                                    continue
-                                try:
-                                    arr = self._calc_tax_unit(sim, resolved, year_str)
-                                    result_array[state_mask] = arr[state_mask]
-                                except Exception as e:
-                                    if "does not exist" in str(e):
-                                        if self.logs:
-                                            print(
-                                                f"Variable {resolved} not implemented, setting to 0"
-                                            )
-                                    else:
-                                        raise
 
-                        columns[taxsim_var] = np.round(result_array, 2)
+                            columns[taxsim_var] = np.round(result_array, 2)
 
                     elif variables_list:
                         # Multi-variable sum (non-state)
