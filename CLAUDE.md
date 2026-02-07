@@ -4,16 +4,25 @@ See [PolicyEngine/CLAUDE.md](../CLAUDE.md) for org-wide conventions.
 
 ## Changelog
 
-**Never manually edit `CHANGELOG.md` or `changelog.yaml`.** These are auto-generated on merge.
+**Never manually edit `CHANGELOG.md`.** It is auto-generated on merge by towncrier.
 
-Instead, create or update `changelog_entry.yaml` at the repo root:
+Instead, add a fragment file in `changelog.d/`:
 
-```yaml
-- bump: patch|minor|major
-  changes:
-    added|changed|removed|fixed:
-    - Description of change
+```bash
+echo "Description of change." > changelog.d/<branch-name>.<type>.md
 ```
+
+Fragment types and their semver bumps:
+- `breaking` → **major** (reserved for breaking API changes)
+- `added` → **minor**
+- `removed` → **minor**
+- `changed` → **patch**
+- `fixed` → **patch**
+
+Fragment names can be anything (branch name, issue number, short description). Examples:
+- `changelog.d/add-new-endpoint.added.md`
+- `changelog.d/fix-age-default.fixed.md`
+- `changelog.d/123.fixed.md`
 
 ## Running tests
 

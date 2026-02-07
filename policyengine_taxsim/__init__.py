@@ -4,4 +4,4 @@ from .cli import cli
 
 __all__ = ["generate_household", "export_household", "cli"]
 
-__version__ = "0.1.0"  # Make sure this matches the version in pyproject.toml
+__version__ = "2.6.0"
