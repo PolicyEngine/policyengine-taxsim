@@ -1,3 +1,10 @@
+## [2.7.0] - 2026-02-07
+
+### Added
+
+- Use unified state variables instead of per-state iteration for ~10x fewer calculation calls. Add CPS-like benchmark (2000 records, all states, full output).
+
+
 ## [2.6.1] - 2026-02-07
 
 ### Changed
