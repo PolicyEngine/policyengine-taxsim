@@ -1,0 +1,1 @@
+Require policyengine-us >= 1.552.0 to ensure deterministic results (no random takeup draws in the country package).
