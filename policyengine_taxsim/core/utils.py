@@ -1,10 +1,12 @@
+import functools
 import numpy as np
 import yaml
 from pathlib import Path
 
 
+@functools.lru_cache(maxsize=1)
 def load_variable_mappings():
-    """Load variable mappings from YAML file."""
+    """Load variable mappings from YAML file (cached after first call)."""
     config_path = Path(__file__).parent.parent / "config" / "variable_mappings.yaml"
     with open(config_path, "r") as f:
         return yaml.safe_load(f)

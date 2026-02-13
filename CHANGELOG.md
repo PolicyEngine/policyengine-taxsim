@@ -1,7 +1,42 @@
+## [2.7.1] - 2026-02-07
+
+### Fixed
+
+- Relax generate phase scaling test threshold from 3x to 5x to avoid flaky failures on slow CI runners.
+
+
+## [2.7.0] - 2026-02-07
+
+### Added
+
+- Use unified state variables instead of per-state iteration for ~10x fewer calculation calls. Add CPS-like benchmark (2000 records, all states, full output).
+
+
+## [2.6.1] - 2026-02-07
+
+### Changed
+
+- Replace yaml-changelog with towncrier for changelog generation. Fragments in `changelog.d/` replace `changelog_entry.yaml`.
+
+
 Changelog
 All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
+
+## [2.6.0] - 2026-02-06 23:00:28
+
+### Added
+
+- Vectorize PolicyEngineRunner for ~100x speedup on large inputs.
+- Add performance regression tests.
+- Cache load_variable_mappings() with lru_cache.
+
+## [2.5.0] - 2026-01-04 20:50:20
+
+### Added
+
+- Add R package wrapper (policyenginetaxsim) for running the emulator from R
 
 ## [2.4.1] - 2025-12-02 01:09:47
 
@@ -124,6 +159,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 
 
+[2.6.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.5.0...2.6.0
+[2.5.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.4.1...2.5.0
 [2.4.1]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.4.0...2.4.1
 [2.4.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.3.0...2.4.0
 [2.3.0]: https://github.com/PolicyEngine/policyengine-taxsim/compare/2.2.0...2.3.0

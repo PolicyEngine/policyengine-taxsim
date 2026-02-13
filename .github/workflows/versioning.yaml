@@ -1,34 +1,47 @@
-# Workflow that runs on versioning metadata updates.
-
+# Build changelog from towncrier fragments and bump version on merge to main.
 name: Versioning updates
+
 on:
   push:
-      branches:
-        - main
-
-      paths:
-        - changelog_entry.yaml
+    branches:
+      - main
+    paths:
+      - "changelog.d/**"
 
 jobs:
-    Versioning:
-        runs-on: ubuntu-latest
-        if: |
-          (!(github.event.head_commit.message == 'Update package version'))
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
-              with:
-                token: ${{ secrets.POLICYENGINE_GITHUB }}
-            - name: Setup Python
-              uses: actions/setup-python@v5
-              with:
-                python-version: 3.11
-            - name: Build changelog
-              run: pip install yaml-changelog && make changelog
-            - name: Preview changelog update
-              run: ".github/get-changelog-diff.sh"
-            - name: Update changelog
-              uses: EndBug/add-and-commit@v9
-              with:
-                add: "."
-                message: Update package version
+  Versioning:
+    runs-on: ubuntu-latest
+    if: |
+      (!(github.event.head_commit.message == 'Update package version'))
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.POLICYENGINE_GITHUB }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install towncrier
+        run: pip install towncrier
+
+      - name: Infer version bump and update version
+        run: python .github/bump_version.py
+
+      - name: Get new version
+        id: version
+        run: |
+          VERSION=$(python -c "import re; print(re.search(r'version = \"(.+?)\"', open('pyproject.toml').read()).group(1))")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build changelog
+        run: towncrier build --yes --version ${{ steps.version.outputs.version }}
+
+      - name: Update changelog
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "."
+          message: Update package version

@@ -1,0 +1,20 @@
+# R package ignores
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Build artifacts
+*.tar.gz
+*.zip
+src/*.o
+src/*.so
+src/*.dll
+
+# Documentation
+docs/
+pkgdown/
+
+# Test artifacts
+tests/testthat/_snaps
