@@ -11,6 +11,7 @@ try:
     from .core.yaml_generator import generate_pe_tests_yaml
     from .core.input_mapper import form_household_situation
     from .core.utils import get_state_code, convert_taxsim32_dependents
+    from .issue_analyzer.analyzer import IssueAnalyzer
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
@@ -22,6 +23,7 @@ except ImportError:
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
     from policyengine_taxsim.core.input_mapper import form_household_situation
     from policyengine_taxsim.core.utils import get_state_code, convert_taxsim32_dependents
+    from policyengine_taxsim.issue_analyzer.analyzer import IssueAnalyzer
 
 
 def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
@@ -285,6 +287,75 @@ def sample_data(input_file, sample, output):
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
+        raise click.Abort()
+
+
+@cli.command()
+@click.argument("issue_number", type=int)
+@click.option(
+    "--output-dir",
+    "-o",
+    help="Output directory for analysis results (default: issue_analysis_{issue_number})",
+)
+@click.option(
+    "--use-llm",
+    is_flag=True,
+    help="Enable LLM-powered code analysis to determine correct implementation",
+)
+def analyze_issue(issue_number, output_dir, use_llm):
+    """
+    Automated analysis of GitHub issues with tax form comparisons.
+
+    Downloads issue attachments, runs PolicyEngine vs TAXSIM comparison,
+    generates YAML tests, and optionally uses LLM to analyze code discrepancies.
+
+    Example:
+        python policyengine_taxsim/cli.py analyze-issue 537
+        python policyengine_taxsim/cli.py analyze-issue 537 --use-llm
+
+    Requires GITHUB_TOKEN environment variable for downloading attachments.
+    For LLM analysis, optionally set POLICYENGINE_US_PATH and TAXSIM_SOURCE_PATH.
+    """
+    try:
+        import os
+
+        # Security check: Verify token is set
+        if not os.environ.get('GITHUB_TOKEN') and not os.environ.get('GH_TOKEN'):
+            click.echo("⚠️  WARNING: GITHUB_TOKEN not set. You may hit rate limits.", err=True)
+            click.echo("   Set token: export GITHUB_TOKEN='your_token'", err=True)
+            click.echo("")
+
+        # Security reminder
+        click.echo("🔒 Security reminder: Output will be saved to issue_analysis_* directory")
+        click.echo("   This directory is in .gitignore and should NOT be committed")
+        click.echo("")
+
+        # Create analyzer
+        analyzer = IssueAnalyzer(
+            issue_number=issue_number,
+            output_dir=Path(output_dir) if output_dir else None,
+            use_llm=use_llm
+        )
+
+        # Run analysis
+        results = analyzer.analyze()
+
+        # Display summary
+        if 'report_path' in results:
+            click.echo(f"\n📖 Read the full report:")
+            click.echo(f"   cat {results['report_path']}")
+
+        if use_llm and 'llm_analysis' in results:
+            prompts_file = results['llm_analysis'].get('prompts_file')
+            if prompts_file:
+                click.echo(f"\n🤖 LLM Analysis prompts generated:")
+                click.echo(f"   {prompts_file}")
+                click.echo(f"\n   Copy these prompts to Claude Code or your preferred LLM for detailed analysis.")
+
+    except Exception as e:
+        click.echo(f"Error during analysis: {str(e)}", err=True)
+        import traceback
+        traceback.print_exc()
         raise click.Abort()
 
 

@@ -1,5 +1,13 @@
-# Secrets
+# Secrets and Tokens
 .secrets/
+*.token
+*.key
+.github_token
+
+# Issue Analyzer Output (may contain sensitive data from issues)
+issue_analysis_*/
+llm_analysis_prompts.md
+llm_analysis.json
 
 # VSCode files
 .vscode/
