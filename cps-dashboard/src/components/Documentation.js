@@ -149,61 +149,27 @@ comparison <- compare_with_taxsim(my_data)`
   );
 
   // Shared function to create section dividers
-  const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
-    <tr>
-      <td colSpan="4" style={{ 
-        padding: '12px 20px',
-        backgroundColor: bgColor,
-        borderTop: `2px solid ${color}`,
-        borderBottom: `2px solid ${color}`,
-        textAlign: 'center',
-        fontWeight: '600',
-        fontSize: '14px',
-        color: color === 'var(--blue-primary)' ? 'var(--darkest-blue)' : 'var(--teal-pressed)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }}>
-        {title}
-      </td>
-    </tr>
+  const createDivider = (title, color = 'var(--blue-primary)') => (
+    <div className="doc-var-divider" style={{ borderLeftColor: color }}>
+      {title}
+    </div>
   );
 
   // Shared function to render variable rows
-  const renderVariableRow = (mapping, index, categoryClass = '') => (
-    <tr key={`var-${index}`} style={{ 
-      ...(categoryClass ? { backgroundColor: categoryClass } : {}),
-      cursor: 'default'
-    }}>
-      <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
-        {mapping.taxsim}
-      </td>
-      <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-        {activeTab === 'output' ? renderOutputPolicyEngineCell(mapping) : renderInputPolicyEngineCell(mapping)}
-      </td>
-      <td style={{ 
-        fontSize: '14px', 
-        color: 'var(--dark-gray)',
-        whiteSpace: 'normal',
-        wordWrap: 'break-word',
-        maxWidth: '300px',
-        lineHeight: '1.4'
-      }}>
-        {mapping.description}
-      </td>
-      <td style={{ textAlign: 'center' }}>
-        {mapping.implemented ? (
-          <span className="status-badge status-badge-match">
-            <FiCheck className="w-3 h-3 mr-1" />
-            Implemented
-          </span>
-        ) : (
-          <span className="status-badge status-badge-mismatch">
-            <FiX className="w-3 h-3 mr-1" />
-            Not Implemented
-          </span>
-        )}
-      </td>
-    </tr>
+  const renderVariableRow = (mapping, index) => (
+    <div key={`var-${index}`} className="doc-var-row">
+      <div className="doc-var-names">
+        <code className="doc-var-taxsim">{mapping.taxsim}</code>
+        <span className="doc-var-arrow">→</span>
+        <span className="doc-var-pe">
+          {activeTab === 'output' ? renderOutputPolicyEngineCell(mapping) : renderInputPolicyEngineCell(mapping)}
+        </span>
+      </div>
+      <p className="doc-var-description">{mapping.description}</p>
+      <span className={`doc-var-status ${mapping.implemented ? 'doc-var-status-yes' : 'doc-var-status-no'}`}>
+        {mapping.implemented ? <><FiCheck size={12} /> Implemented</> : <><FiX size={12} /> Not Implemented</>}
+      </span>
+    </div>
   );
 
   // Function to render PolicyEngine cell for output variables (with multiple variables support)
@@ -506,7 +472,7 @@ comparison <- compare_with_taxsim(my_data)`
           </div>
         </section>
 
-        {/* Advanced Options Section */}
+        {/* All Runners Section */}
         <section className="landing-section landing-section-alt">
           <div className="landing-section-inner">
             <div
@@ -514,18 +480,51 @@ comparison <- compare_with_taxsim(my_data)`
               onClick={() => toggleSection('options')}
             >
               {expandedSections.options ? <FiChevronDown size={20} /> : <FiChevronRight size={20} />}
-              <h2 className="landing-section-title" style={{ marginBottom: 0 }}>Advanced Options</h2>
+              <h2 className="landing-section-title" style={{ marginBottom: 0 }}>All Runners & CLI</h2>
             </div>
 
             {expandedSections.options && (
               <div className="doc-section-body">
-                <p style={{ color: 'var(--dark-gray)', marginBottom: '24px', fontSize: '15px', lineHeight: '1.7' }}>
-                  The Python <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>PolicyEngineRunner</code> accepts
-                  additional options beyond the input data for policy simulations and debugging.
+
+                {/* TaxsimRunner */}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+                  TaxsimRunner
+                </h3>
+                <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                  Runs the official TAXSIM-35 executable locally. Requires the TAXSIM binary
+                  (auto-detected on macOS, Linux, and Windows). Useful for generating reference
+                  outputs to compare against PolicyEngine.
+                </p>
+                <div className="doc-option-card">
+                  <div className="doc-option-header">
+                    <code className="doc-option-name">TaxsimRunner</code>
+                    <span className="doc-option-type">input_df, taxsim_path=None</span>
+                  </div>
+                  <p className="doc-option-description">
+                    Takes a TAXSIM-formatted DataFrame and an optional path to the TAXSIM executable.
+                    If <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim_path</code> is
+                    not provided, the runner auto-detects the bundled executable for your OS.
+                  </p>
+                  {renderCodeBlock({
+                    id: 'taxsim-runner',
+                    label: 'Python',
+                    code: `from policyengine_taxsim.runners import TaxsimRunner
+
+runner = TaxsimRunner(df)
+taxsim_results = runner.run()`
+                  })}
+                </div>
+
+                {/* PolicyEngineRunner advanced options */}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', margin: '32px 0 12px' }}>
+                  PolicyEngineRunner — Advanced Options
+                </h3>
+                <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                  Beyond the basic usage shown above, <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>PolicyEngineRunner</code> accepts
+                  additional options for policy simulations and debugging.
                   These options are currently available in the Python API only.
                 </p>
 
-                {/* disable_salt */}
                 <div className="doc-option-card">
                   <div className="doc-option-header">
                     <code className="doc-option-name">disable_salt</code>
@@ -533,10 +532,8 @@ comparison <- compare_with_taxsim(my_data)`
                   </div>
                   <p className="doc-option-description">
                     Sets the State and Local Tax (SALT) deduction to zero for all records.
-                    This is useful for modeling the impact of SALT cap policies — for example,
-                    the $10,000 SALT deduction cap introduced by the 2017 Tax Cuts and Jobs Act
-                    and its potential expiration. Researchers studying SALT reform can toggle
-                    this to compare outcomes with and without the deduction.
+                    Useful for modeling the impact of SALT cap policies — for example,
+                    the $10,000 SALT deduction cap introduced by the 2017 Tax Cuts and Jobs Act.
                   </p>
                   {renderCodeBlock({
                     id: 'option-salt',
@@ -546,7 +543,6 @@ results = runner.run()`
                   })}
                 </div>
 
-                {/* logs */}
                 <div className="doc-option-card">
                   <div className="doc-option-header">
                     <code className="doc-option-name">logs</code>
@@ -555,8 +551,7 @@ results = runner.run()`
                   <p className="doc-option-description">
                     Generates detailed YAML log files for each household calculation.
                     Useful for debugging discrepancies or auditing how PolicyEngine
-                    maps TAXSIM inputs to its internal variables and computes each
-                    output value step by step.
+                    maps TAXSIM inputs to its internal variables.
                   </p>
                   {renderCodeBlock({
                     id: 'option-logs',
@@ -566,7 +561,6 @@ results = runner.run()`
                   })}
                 </div>
 
-                {/* show_progress */}
                 <div className="doc-option-card">
                   <div className="doc-option-header">
                     <code className="doc-option-name">show_progress</code>
@@ -575,14 +569,86 @@ results = runner.run()`
                   <p className="doc-option-description">
                     Controls whether progress bars are displayed during calculation.
                     Set to <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>False</code> for
-                    batch jobs or when running inside automated pipelines where
-                    console output should be suppressed.
+                    batch jobs or automated pipelines.
                   </p>
                   {renderCodeBlock({
                     id: 'option-progress',
                     label: 'Example',
                     code: `runner = PolicyEngineRunner(df)
 results = runner.run(show_progress=False)`
+                  })}
+                </div>
+
+                {/* CLI */}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', margin: '32px 0 12px' }}>
+                  Command-Line Interface
+                </h3>
+                <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                  All runners are also available via the <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code> CLI.
+                  Each command accepts a TAXSIM-formatted CSV file as input.
+                </p>
+
+                <div className="doc-option-card">
+                  <div className="doc-option-header">
+                    <code className="doc-option-name">policyengine-taxsim policyengine</code>
+                  </div>
+                  <p className="doc-option-description">
+                    Run PolicyEngine tax calculations on a TAXSIM input file.
+                    Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
+                    <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
+                    <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
+                  </p>
+                  {renderCodeBlock({
+                    id: 'cli-pe',
+                    label: 'Terminal',
+                    code: `policyengine-taxsim policyengine input.csv -o output.csv
+policyengine-taxsim policyengine input.csv --disable-salt --logs`
+                  })}
+                </div>
+
+                <div className="doc-option-card">
+                  <div className="doc-option-header">
+                    <code className="doc-option-name">policyengine-taxsim taxsim</code>
+                  </div>
+                  <p className="doc-option-description">
+                    Run the official TAXSIM-35 executable on a TAXSIM input file.
+                    Optionally specify a custom path to the TAXSIM binary with{' '}
+                    <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--taxsim-path</code>.
+                  </p>
+                  {renderCodeBlock({
+                    id: 'cli-taxsim',
+                    label: 'Terminal',
+                    code: `policyengine-taxsim taxsim input.csv -o taxsim_output.csv`
+                  })}
+                </div>
+
+                <div className="doc-option-card">
+                  <div className="doc-option-header">
+                    <code className="doc-option-name">policyengine-taxsim compare</code>
+                  </div>
+                  <p className="doc-option-description">
+                    Run both PolicyEngine and TAXSIM-35 on the same input, then compare the
+                    results. Outputs a comparison report with match rates and differences.
+                  </p>
+                  {renderCodeBlock({
+                    id: 'cli-compare',
+                    label: 'Terminal',
+                    code: `policyengine-taxsim compare input.csv --output-dir comparison_output`
+                  })}
+                </div>
+
+                <div className="doc-option-card">
+                  <div className="doc-option-header">
+                    <code className="doc-option-name">policyengine-taxsim sample-data</code>
+                  </div>
+                  <p className="doc-option-description">
+                    Sample N records from a large dataset. Useful for testing on a subset
+                    before running on the full file.
+                  </p>
+                  {renderCodeBlock({
+                    id: 'cli-sample',
+                    label: 'Terminal',
+                    code: `policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
                   })}
                 </div>
               </div>
@@ -648,21 +714,9 @@ results = runner.run(show_progress=False)`
                   />
                 </div>
 
-                {/* Variable Mappings Table */}
-                <div className="overflow-x-auto">
-                  <table className="state-table">
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left' }}>TAXSIM Variable</th>
-                        <th style={{ textAlign: 'left' }}>PolicyEngine Variable</th>
-                        <th style={{ textAlign: 'left' }}>Description</th>
-                        <th style={{ textAlign: 'center' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
-                    </tbody>
-                  </table>
+                {/* Variable Mappings */}
+                <div className="doc-var-list">
+                  {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
                 </div>
               </div>
             )}
@@ -743,34 +797,21 @@ results = runner.run(show_progress=False)`
     let hasAddedExpense = false;
 
     filteredMappings.forEach((mapping, index) => {
-      // Add section dividers
       if (basicInputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(React.cloneElement(createDivider('Basic Inputs'), { key: `divider-basic` }));
+        results.push(<React.Fragment key="divider-basic">{createDivider('Basic Inputs')}</React.Fragment>);
         hasAddedBasic = true;
       } else if (incomeInputs.includes(mapping.taxsim) && !hasAddedIncome) {
-        results.push(React.cloneElement(createDivider('Income Inputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-income` }));
+        results.push(<React.Fragment key="divider-income">{createDivider('Income Inputs', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedIncome = true;
       } else if (businessIncomeInputs.includes(mapping.taxsim) && !hasAddedBusiness) {
-        results.push(React.cloneElement(createDivider('Business Income', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-business` }));
+        results.push(<React.Fragment key="divider-business">{createDivider('Business Income', 'var(--dark-gray)')}</React.Fragment>);
         hasAddedBusiness = true;
       } else if (expenseInputs.includes(mapping.taxsim) && !hasAddedExpense) {
-        results.push(React.cloneElement(createDivider('Expense & Deduction Inputs', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-expense` }));
+        results.push(<React.Fragment key="divider-expense">{createDivider('Expense & Deduction Inputs')}</React.Fragment>);
         hasAddedExpense = true;
       }
 
-      // Add the variable row with appropriate styling
-      let categoryClass = '';
-      if (basicInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (incomeInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      } else if (businessIncomeInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(97, 97, 97, 0.02)';
-      } else if (expenseInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      }
-
-      results.push(renderVariableRow(mapping, index, categoryClass));
+      results.push(renderVariableRow(mapping, index));
     });
 
     return results;
@@ -792,60 +833,36 @@ results = runner.run(show_progress=False)`
     let hasAddedAdditional = false;
 
     filteredMappings.forEach((mapping, index) => {
-      // Add section dividers for outputs
       if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(React.cloneElement(createDivider('Basic Outputs'), { key: `divider-basic` }));
+        results.push(<React.Fragment key="divider-basic">{createDivider('Basic Outputs')}</React.Fragment>);
         hasAddedBasic = true;
       } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
-        results.push(React.cloneElement(createDivider('Primary Tax Calculations'), { key: `divider-tax` }));
+        results.push(<React.Fragment key="divider-tax">{createDivider('Primary Tax Calculations')}</React.Fragment>);
         hasAddedTax = true;
       } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
-        results.push(React.cloneElement(createDivider('Adjusted Gross Income', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-agi` }));
+        results.push(<React.Fragment key="divider-agi">{createDivider('Adjusted Gross Income', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedAGI = true;
       } else if (deductionOutputs.includes(mapping.taxsim) && !hasAddedDeduction) {
-        results.push(React.cloneElement(createDivider('Deductions & Exemptions', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-deduction` }));
+        results.push(<React.Fragment key="divider-deduction">{createDivider('Deductions & Exemptions', 'var(--dark-gray)')}</React.Fragment>);
         hasAddedDeduction = true;
       } else if (taxableIncomeOutputs.includes(mapping.taxsim) && !hasAddedTaxableIncome) {
-        results.push(React.cloneElement(createDivider('Taxable Income & Tax Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-taxable` }));
+        results.push(<React.Fragment key="divider-taxable">{createDivider('Taxable Income & Tax Calculations')}</React.Fragment>);
         hasAddedTaxableIncome = true;
       } else if (creditOutputs.includes(mapping.taxsim) && !hasAddedCredit) {
-        results.push(React.cloneElement(createDivider('Tax Credits', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-credit` }));
+        results.push(<React.Fragment key="divider-credit">{createDivider('Tax Credits', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedCredit = true;
       } else if (amtOutputs.includes(mapping.taxsim) && !hasAddedAMT) {
-        // AMT section now only contains v26, v27 (v28 moved to taxable income)
-        results.push(React.cloneElement(createDivider('Alternative Minimum Tax', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-amt` }));
+        results.push(<React.Fragment key="divider-amt">{createDivider('Alternative Minimum Tax', 'var(--dark-gray)')}</React.Fragment>);
         hasAddedAMT = true;
       } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
-        results.push(React.cloneElement(createDivider('State-Specific Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-state` }));
+        results.push(<React.Fragment key="divider-state">{createDivider('State-Specific Calculations')}</React.Fragment>);
         hasAddedState = true;
       } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
-        results.push(React.cloneElement(createDivider('Additional Outputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
+        results.push(<React.Fragment key="divider-additional">{createDivider('Additional Outputs', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedAdditional = true;
       }
 
-      // Add the variable row with appropriate styling
-      let categoryClass = '';
-      if (basicOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (taxOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (agiOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      } else if (deductionOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(97, 97, 97, 0.02)';
-      } else if (taxableIncomeOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (creditOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      } else if (amtOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(97, 97, 97, 0.02)';
-      } else if (stateOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (additionalOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      }
-
-      results.push(renderVariableRow(mapping, index, categoryClass));
+      results.push(renderVariableRow(mapping, index));
     });
 
     return results;

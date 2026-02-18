@@ -2198,3 +2198,119 @@ body {
   border-color: var(--blue-primary);
   box-shadow: 0 0 0 3px rgba(44, 100, 150, 0.1);
 }
+
+/* Variable mapping list */
+.doc-var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doc-var-divider {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--darkest-blue);
+  border-left: 4px solid var(--blue-primary);
+  background: var(--blue-98);
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+.doc-var-divider:first-child {
+  margin-top: 0;
+}
+
+.doc-var-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 12px 20px;
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  transition: border-color 0.15s;
+}
+
+.doc-var-row:hover {
+  border-color: var(--blue-95);
+}
+
+.doc-var-names {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.doc-var-taxsim {
+  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-primary);
+  background: var(--blue-98);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.doc-var-arrow {
+  color: var(--medium-light-gray);
+  font-size: 14px;
+}
+
+.doc-var-pe {
+  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--darkest-blue);
+}
+
+.doc-var-pe a {
+  color: var(--blue-primary);
+  text-decoration: none;
+}
+
+.doc-var-pe a:hover {
+  text-decoration: underline;
+}
+
+.doc-var-description {
+  flex: 1;
+  min-width: 200px;
+  font-size: 14px;
+  color: var(--dark-gray);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.doc-var-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.doc-var-status-yes {
+  color: var(--green);
+  background: rgba(57, 198, 192, 0.08);
+}
+
+.doc-var-status-no {
+  color: var(--medium-dark-gray);
+  background: var(--light-gray);
+}
+
+/* Dashboard content area */
+.dashboard-content {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 24px 2rem;
+}

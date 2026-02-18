@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { FiDownload, FiBook, FiHome } from 'react-icons/fi';
+import { FiDownload, FiBook, FiHome, FiBarChart2, FiGithub } from 'react-icons/fi';
 import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
@@ -8,7 +8,6 @@ import Documentation from './components/Documentation';
 import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorMessage from './components/common/ErrorMessage';
-import Button from './components/common/Button';
 import { useYearData } from './hooks/useYearData';
 import { exportAllData } from './utils/exportData';
 
@@ -99,47 +98,45 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="main-header shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex-between py-6">
-            <h1 className="text-3xl main-title">
-              PolicyEngine-Taxsim Emulator
-            </h1>
-            <div className="flex space-x-3">
-              <Button
-                onClick={() => handleViewChange('landing')}
-                variant="ghost"
-                icon={<FiHome />}
-              >
-                Home
-              </Button>
-              <Button
-                onClick={handleExport}
-                icon={<FiDownload />}
-              >
-                Export Data
-              </Button>
-              <Button
-                onClick={() => handleViewChange('documentation')}
-                variant="ghost"
-                icon={<FiBook />}
-              >
-                Documentation
-              </Button>
-            </div>
+    <div className="landing-page">
+      {/* Navigation — matches landing page */}
+      <nav className="landing-nav">
+        <div className="landing-nav-inner">
+          <div className="landing-nav-brand">
+            <FiBarChart2 style={{ marginRight: '8px' }} />
+            Comparison Dashboard
+          </div>
+          <div className="landing-nav-links">
+            <button onClick={() => handleViewChange('landing')} className="landing-nav-link">
+              <FiHome style={{ marginRight: '6px' }} />
+              Home
+            </button>
+            <button onClick={() => handleViewChange('documentation')} className="landing-nav-link">
+              <FiBook style={{ marginRight: '6px' }} />
+              Documentation
+            </button>
+            <button onClick={handleExport} className="landing-nav-link">
+              <FiDownload style={{ marginRight: '6px' }} />
+              Export Data
+            </button>
+            <a
+              href="https://github.com/PolicyEngine/policyengine-taxsim"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-nav-link"
+            >
+              <FiGithub style={{ marginRight: '6px' }} />
+              GitHub
+            </a>
           </div>
         </div>
-      </header>
+      </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-
+      <main className="dashboard-content">
         {/* Controls */}
         <div className="flex-between mb-6">
-          <YearTabs 
+          <YearTabs
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
             availableYears={availableYears}
@@ -155,7 +152,7 @@ function App() {
           {/* Performance Overview */}
           <section>
             <h2 className="section-title">Performance Overview</h2>
-            <MetricsRow 
+            <MetricsRow
               data={currentYearData}
               selectedState={selectedState}
             />

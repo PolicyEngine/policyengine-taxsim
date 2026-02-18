@@ -39,7 +39,7 @@ Homepage = "https://github.com/PolicyEngine/policyengine-taxsim"
 "Bug Tracker" = "https://github.com/PolicyEngine/policyengine-taxsim/issues"
 
 [project.scripts]
-policyengine-taxsim = "policyengine_taxsim.cli:main"
+policyengine-taxsim = "policyengine_taxsim.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["policyengine_taxsim"]
