@@ -1,3 +1,10 @@
+## [2.7.2] - 2026-02-18
+
+### Changed
+
+- Require policyengine-us >= 1.552.0 to ensure deterministic results (no random takeup draws in the country package).
+
+
 ## [2.7.1] - 2026-02-07
 
 ### Fixed
