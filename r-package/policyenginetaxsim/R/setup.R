@@ -29,13 +29,17 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE) {
     return(invisible(TRUE))
   }
 
-  # Step 1: Ensure Python is available
+  # Step 1: Ensure Python is available (without initializing reticulate,
+  # since we need to activate the virtualenv before Python is initialized)
   message("Checking for Python installation...")
 
-  if (!reticulate::py_available(initialize = FALSE)) {
+  python_found <- nzchar(Sys.which("python3")) || nzchar(Sys.which("python"))
+  miniconda_dir <- tryCatch(reticulate::miniconda_path(), error = function(e) NULL)
+  miniconda_exists <- !is.null(miniconda_dir) && file.exists(miniconda_dir)
+
+  if (!python_found && !miniconda_exists) {
     message("Python not found. Installing Miniconda...")
     message("This may take a few minutes...")
-
     tryCatch({
       reticulate::install_miniconda()
       message("Miniconda installed successfully.")

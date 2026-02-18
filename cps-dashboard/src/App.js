@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { FiDownload, FiBook } from 'react-icons/fi';
+import { FiDownload, FiBook, FiHome } from 'react-icons/fi';
 import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
 import StateTable from './components/StateTable';
 import Documentation from './components/Documentation';
+import LandingPage from './components/LandingPage';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorMessage from './components/common/ErrorMessage';
 import Button from './components/common/Button';
@@ -13,7 +14,7 @@ import { exportAllData } from './utils/exportData';
 
 function App() {
   const [selectedState, setSelectedState] = useState(null);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'documentation'
+  const [currentView, setCurrentView] = useState('landing'); // 'landing', 'dashboard', or 'documentation'
   const {
     selectedYear,
     setSelectedYear,
@@ -45,6 +46,16 @@ function App() {
   const handleViewChange = useCallback((view) => {
     setCurrentView(view);
   }, []);
+
+  // Show Landing page (before loading checks so it renders instantly)
+  if (currentView === 'landing') {
+    return (
+      <LandingPage
+        onNavigateToDashboard={() => handleViewChange('dashboard')}
+        onNavigateToDocumentation={() => handleViewChange('documentation')}
+      />
+    );
+  }
 
   // Loading state
   if (loading) {
@@ -79,7 +90,12 @@ function App() {
 
   // Show Documentation view
   if (currentView === 'documentation') {
-    return <Documentation onBackToDashboard={() => handleViewChange('dashboard')} />;
+    return (
+      <Documentation
+        onBackToDashboard={() => handleViewChange('dashboard')}
+        onNavigateHome={() => handleViewChange('landing')}
+      />
+    );
   }
 
   return (
@@ -92,6 +108,13 @@ function App() {
               PolicyEngine-Taxsim Emulator
             </h1>
             <div className="flex space-x-3">
+              <Button
+                onClick={() => handleViewChange('landing')}
+                variant="ghost"
+                icon={<FiHome />}
+              >
+                Home
+              </Button>
               <Button
                 onClick={handleExport}
                 icon={<FiDownload />}
