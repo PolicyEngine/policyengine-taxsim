@@ -1,8 +1,3 @@
-# Python version constraint matching policyengine-us requirements.
-# policyengine-us requires Python >=3.10,<3.14 (as of Feb 2026).
-# Without this, setup_policyengine() fails on machines with only Python 3.14+.
-.PE_PYTHON_VERSION <- ">=3.10,<3.14"
-
 #' Set up PolicyEngine Python environment
 #'
 #' Installs Python (via Miniconda if needed) and the required Python packages
@@ -13,9 +8,6 @@
 #'   "policyengine-taxsim".
 #' @param force If TRUE, will reinstall even if environment already exists.
 #'   Default is FALSE.
-#' @param policyengine_us_version Optional. Pin policyengine-us to a specific
-#'   version (e.g., "1.555.0"). If NULL (default), uses whatever version pip
-#'   resolves. Use this for reproducible results across model runs.
 #'
 #' @return Invisibly returns TRUE if setup was successful.
 #'
@@ -26,14 +18,10 @@
 #'
 #' # Force reinstall if something went wrong
 #' setup_policyengine(force = TRUE)
-#'
-#' # Pin to a specific policyengine-us version for reproducibility
-#' setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
 #' }
 #'
 #' @export
-setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
-                               policyengine_us_version = NULL) {
+setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE) {
 
   # Check if already set up (unless forcing)
   if (!force && check_policyengine_setup(quiet = TRUE)) {
@@ -41,37 +29,32 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
     return(invisible(TRUE))
   }
 
-  # Step 1: Ensure a compatible Python is available
-  # policyengine-us requires Python >=3.10,<3.14
-  message("Checking for compatible Python installation (requires ", .PE_PYTHON_VERSION, ")...")
+  # Step 1: Ensure Python is available (without initializing reticulate,
+  # since we need to activate the virtualenv before Python is initialized)
+  message("Checking for Python installation...")
 
-  # Check if a compatible Python exists among available starters
-  compatible_python <- tryCatch(
-    reticulate::virtualenv_starter(version = .PE_PYTHON_VERSION, all = FALSE),
-    error = function(e) NULL
-  )
+  python_found <- nzchar(Sys.which("python3")) || nzchar(Sys.which("python"))
+  miniconda_dir <- tryCatch(reticulate::miniconda_path(), error = function(e) NULL)
+  miniconda_exists <- !is.null(miniconda_dir) && file.exists(miniconda_dir)
 
-  if (is.null(compatible_python) || length(compatible_python) == 0) {
-    message("No compatible Python found. Installing Miniconda with Python 3.12...")
+  if (!python_found && !miniconda_exists) {
+    message("Python not found. Installing Miniconda...")
     message("This may take a few minutes...")
-
     tryCatch({
       reticulate::install_miniconda()
       message("Miniconda installed successfully.")
     }, error = function(e) {
       stop(
         "Failed to install Miniconda. Error: ", e$message, "\n",
-        "policyengine-us requires Python ", .PE_PYTHON_VERSION, ".\n",
-        "Please install Python 3.12 from https://www.python.org/downloads/\n",
-        "or via Homebrew: brew install python@3.12",
+        "You may need to install Python manually from https://www.python.org/",
         call. = FALSE
       )
     })
   } else {
-    message("Compatible Python found.")
+    message("Python found.")
   }
 
-  # Step 2: Create virtual environment with compatible Python version
+  # Step 2: Create virtual environment
   message("Creating virtual environment '", envname, "'...")
 
   # Check if virtualenv exists
@@ -91,14 +74,11 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
 
   if (!(envname %in% existing_envs) || force) {
     tryCatch({
-      reticulate::virtualenv_create(envname, version = .PE_PYTHON_VERSION)
+      reticulate::virtualenv_create(envname)
       message("Virtual environment created.")
     }, error = function(e) {
       stop(
-        "Failed to create virtual environment. Error: ", e$message, "\n",
-        "policyengine-us requires Python ", .PE_PYTHON_VERSION, ".\n",
-        "Please install Python 3.12 from https://www.python.org/downloads/\n",
-        "or via Homebrew: brew install python@3.12",
+        "Failed to create virtual environment. Error: ", e$message,
         call. = FALSE
       )
     })
@@ -116,16 +96,6 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
       packages = c("policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git"),
       pip_options = "--upgrade"
     )
-
-    # Pin policyengine-us to a specific version if requested
-    if (!is.null(policyengine_us_version)) {
-      message("  - Pinning policyengine-us to version ", policyengine_us_version, "...")
-      reticulate::virtualenv_install(
-        envname = envname,
-        packages = c(paste0("policyengine-us==", policyengine_us_version))
-      )
-    }
-
     message("Python packages installed successfully.")
   }, error = function(e) {
     stop(
@@ -212,56 +182,4 @@ check_policyengine_setup <- function(quiet = FALSE, envname = "policyengine-taxs
 #' @keywords internal
 .get_pe_envname <- function() {
   getOption("policyenginetaxsim.envname", default = "policyengine-taxsim")
-}
-
-
-#' Show installed PolicyEngine package versions
-#'
-#' Reports the versions of policyengine-taxsim and policyengine-us installed
-#' in the Python virtual environment. Useful for debugging and ensuring
-#' reproducibility.
-#'
-#' @param envname Name of the virtual environment. Default is
-#'   "policyengine-taxsim".
-#'
-#' @return A named list with version strings, returned invisibly.
-#'
-#' @examples
-#' \dontrun{
-#' policyengine_versions()
-#' }
-#'
-#' @export
-policyengine_versions <- function(envname = "policyengine-taxsim") {
-  if (!check_policyengine_setup(quiet = TRUE, envname = envname)) {
-    stop("PolicyEngine is not set up. Run setup_policyengine() first.",
-         call. = FALSE)
-  }
-
-  reticulate::use_virtualenv(envname, required = TRUE)
-
-  taxsim_ver <- tryCatch({
-    pkg <- reticulate::import("importlib.metadata")
-    pkg$version("policyengine-taxsim")
-  }, error = function(e) "unknown")
-
-  us_ver <- tryCatch({
-    pkg <- reticulate::import("importlib.metadata")
-    pkg$version("policyengine-us")
-  }, error = function(e) "unknown")
-
-  core_ver <- tryCatch({
-    pkg <- reticulate::import("importlib.metadata")
-    pkg$version("policyengine-core")
-  }, error = function(e) "unknown")
-
-  message("policyengine-taxsim: ", taxsim_ver)
-  message("policyengine-us:     ", us_ver)
-  message("policyengine-core:   ", core_ver)
-
-  invisible(list(
-    policyengine_taxsim = taxsim_ver,
-    policyengine_us = us_ver,
-    policyengine_core = core_ver
-  ))
 }
