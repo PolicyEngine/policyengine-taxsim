@@ -46,7 +46,7 @@ function App() {
     setCurrentView(view);
   }, []);
 
-  // Show Landing page (before loading checks so it renders instantly)
+  // Landing and Documentation render before loading checks (no dashboard data needed)
   if (currentView === 'landing') {
     return (
       <LandingPage
@@ -56,11 +56,20 @@ function App() {
     );
   }
 
-  // Loading state
+  if (currentView === 'documentation') {
+    return (
+      <Documentation
+        onBackToDashboard={() => handleViewChange('dashboard')}
+        onNavigateHome={() => handleViewChange('landing')}
+      />
+    );
+  }
+
+  // Loading state (only blocks the dashboard, which needs data)
   if (loading) {
     return (
-      <LoadingSpinner 
-        message="Loading data for all years..." 
+      <LoadingSpinner
+        message="Loading data for all years..."
         subMessage="This may take a moment on first load"
       />
     );
@@ -84,16 +93,6 @@ function App() {
           </div>
         </div>
       </div>
-    );
-  }
-
-  // Show Documentation view
-  if (currentView === 'documentation') {
-    return (
-      <Documentation
-        onBackToDashboard={() => handleViewChange('dashboard')}
-        onNavigateHome={() => handleViewChange('landing')}
-      />
     );
   }
 
