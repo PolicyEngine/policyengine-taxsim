@@ -7,7 +7,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
 - [Quick Start](#quick-start)
 - [Installation](#installation)
   - [From Source](#from-source)
-  - [From PyPI](#from-pypi)
+  - [From GitHub](#from-github)
 - [Usage](#usage)
   - [PolicyEngine Calculations](#policyengine-calculations)
   - [TAXSIM Calculations](#taxsim-calculations)
@@ -42,16 +42,11 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 ## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/PolicyEngine/policyengine-taxsim.git
-cd policyengine-taxsim
-pip install -e .
+# Install (requires uv: https://docs.astral.sh/uv/getting-started/installation/)
+uv pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
 
 # Run a comparison analysis on sample data
-python policyengine_taxsim/cli.py compare your_data.csv --sample 1000 --year 2021
-
-# Start the interactive dashboard
-cd cps-dashboard && npm install && npm start
+policyengine-taxsim compare your_data.csv --sample 1000 --year 2021
 ```
 
 ## Installation
@@ -63,35 +58,26 @@ cd cps-dashboard && npm install && npm start
    git clone https://github.com/PolicyEngine/policyengine-taxsim.git
    cd policyengine-taxsim
    ```
-2. Create a virtual environment:
+2. Create a virtual environment and install:
    ```bash
-   # For Windows
-   python -m venv venv
-   venv\Scripts\activate
-
-   # For macOS/Linux
-   python3 -m venv venv
-   source venv/bin/activate
+   uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   uv pip install -e .
    ```
 
-3. Install the package:
-   ```bash
-   pip install -e .
-   ```
-4. To update the project codebase (for existing project)
+3. To update the project codebase (for existing project):
     ```bash
    git pull origin main
    ```
 
-5. To update dependencies used by the project (for existing project):
+4. To update dependencies used by the project (for existing project):
    ```bash
-   pip install -e . --upgrade
+   uv pip install -e . --upgrade
    ```
 
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
+uv pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
 ```
 
 ## Usage
@@ -99,7 +85,7 @@ pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
 The CLI provides several commands for different use cases. All commands are accessed through the main CLI interface:
 
 ```bash
-python policyengine_taxsim/cli.py [COMMAND] [OPTIONS]
+policyengine-taxsim [COMMAND] [OPTIONS]
 ```
 
 ### PolicyEngine Calculations
@@ -107,7 +93,7 @@ python policyengine_taxsim/cli.py [COMMAND] [OPTIONS]
 Calculate taxes using PolicyEngine:
 
 ```bash
-python policyengine_taxsim/cli.py policyengine your_input_file.csv
+policyengine-taxsim policyengine your_input_file.csv
 ```
 
 **Options:**
@@ -120,7 +106,7 @@ python policyengine_taxsim/cli.py policyengine your_input_file.csv
 
 **Example:**
 ```bash
-python policyengine_taxsim/cli.py policyengine input.csv --output results.csv --logs --sample 1000
+policyengine-taxsim policyengine input.csv --output results.csv --logs --sample 1000
 ```
 
 ### TAXSIM Calculations
@@ -128,7 +114,7 @@ python policyengine_taxsim/cli.py policyengine input.csv --output results.csv --
 Run native TAXSIM-35 calculations:
 
 ```bash
-python policyengine_taxsim/cli.py taxsim your_input_file.csv
+policyengine-taxsim taxsim your_input_file.csv
 ```
 
 **Options:**
@@ -140,7 +126,7 @@ python policyengine_taxsim/cli.py taxsim your_input_file.csv
 
 **Example:**
 ```bash
-python policyengine_taxsim/cli.py taxsim input.csv --output taxsim_results.csv
+policyengine-taxsim taxsim input.csv --output taxsim_results.csv
 ```
 
 ### Comparison Analysis
@@ -148,7 +134,7 @@ python policyengine_taxsim/cli.py taxsim input.csv --output taxsim_results.csv
 Run comprehensive side-by-side comparisons between PolicyEngine and TAXSIM:
 
 ```bash
-python policyengine_taxsim/cli.py compare your_input_file.csv
+policyengine-taxsim compare your_input_file.csv
 ```
 
 **Options:**
@@ -166,12 +152,12 @@ The comparison uses a $15 tolerance for both federal and state tax comparisons, 
 
 Basic comparison:
 ```bash
-python policyengine_taxsim/cli.py compare cps_households.csv --sample 1000
+policyengine-taxsim compare cps_households.csv --sample 1000
 ```
 
 Year-specific analysis with detailed logging:
 ```bash
-python policyengine_taxsim/cli.py compare input.csv --year 2023 --logs --sample 5000
+policyengine-taxsim compare input.csv --year 2023 --logs --sample 5000
 ```
 
 **Output Files:**
@@ -191,7 +177,7 @@ The consolidated output includes (by default):
 Extract a sample from large datasets:
 
 ```bash
-python policyengine_taxsim/cli.py sample-data input.csv --sample 1000
+policyengine-taxsim sample-data input.csv --sample 1000
 ```
 
 **Options:**
@@ -243,7 +229,7 @@ The dashboard loads comparison data from `public/data/YYYY/comparison_results_YY
 
 1. **Generate new comparison data:**
    ```bash
-   python policyengine_taxsim/cli.py compare your_data.csv --year 2024
+   policyengine-taxsim compare your_data.csv --year 2024
    ```
 
 2. **Copy results to dashboard:**
