@@ -8,6 +8,9 @@
 #'   "policyengine-taxsim".
 #' @param force If TRUE, will reinstall even if environment already exists.
 #'   Default is FALSE.
+#' @param policyengine_us_version Optional. Pin policyengine-us to a specific
+#'   version (e.g., "1.555.0"). If NULL (default), uses whatever version pip
+#'   resolves. Use this for reproducible results across model runs.
 #'
 #' @return Invisibly returns TRUE if setup was successful.
 #'
@@ -18,10 +21,14 @@
 #'
 #' # Force reinstall if something went wrong
 #' setup_policyengine(force = TRUE)
+#'
+#' # Pin to a specific policyengine-us version for reproducibility
+#' setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
 #' }
 #'
 #' @export
-setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE) {
+setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
+                               policyengine_us_version = NULL) {
 
   # Check if already set up (unless forcing)
   if (!force && check_policyengine_setup(quiet = TRUE)) {
@@ -92,6 +99,16 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE) {
       packages = c("policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git"),
       pip_options = "--upgrade"
     )
+
+    # Pin policyengine-us to a specific version if requested
+    if (!is.null(policyengine_us_version)) {
+      message("  - Pinning policyengine-us to version ", policyengine_us_version, "...")
+      reticulate::virtualenv_install(
+        envname = envname,
+        packages = c(paste0("policyengine-us==", policyengine_us_version))
+      )
+    }
+
     message("Python packages installed successfully.")
   }, error = function(e) {
     stop(
@@ -178,4 +195,56 @@ check_policyengine_setup <- function(quiet = FALSE, envname = "policyengine-taxs
 #' @keywords internal
 .get_pe_envname <- function() {
   getOption("policyenginetaxsim.envname", default = "policyengine-taxsim")
+}
+
+
+#' Show installed PolicyEngine package versions
+#'
+#' Reports the versions of policyengine-taxsim and policyengine-us installed
+#' in the Python virtual environment. Useful for debugging and ensuring
+#' reproducibility.
+#'
+#' @param envname Name of the virtual environment. Default is
+#'   "policyengine-taxsim".
+#'
+#' @return A named list with version strings, returned invisibly.
+#'
+#' @examples
+#' \dontrun{
+#' policyengine_versions()
+#' }
+#'
+#' @export
+policyengine_versions <- function(envname = "policyengine-taxsim") {
+  if (!check_policyengine_setup(quiet = TRUE, envname = envname)) {
+    stop("PolicyEngine is not set up. Run setup_policyengine() first.",
+         call. = FALSE)
+  }
+
+  reticulate::use_virtualenv(envname, required = TRUE)
+
+  taxsim_ver <- tryCatch({
+    pkg <- reticulate::import("importlib.metadata")
+    pkg$version("policyengine-taxsim")
+  }, error = function(e) "unknown")
+
+  us_ver <- tryCatch({
+    pkg <- reticulate::import("importlib.metadata")
+    pkg$version("policyengine-us")
+  }, error = function(e) "unknown")
+
+  core_ver <- tryCatch({
+    pkg <- reticulate::import("importlib.metadata")
+    pkg$version("policyengine-core")
+  }, error = function(e) "unknown")
+
+  message("policyengine-taxsim: ", taxsim_ver)
+  message("policyengine-us:     ", us_ver)
+  message("policyengine-core:   ", core_ver)
+
+  invisible(list(
+    policyengine_taxsim = taxsim_ver,
+    policyengine_us = us_ver,
+    policyengine_core = core_ver
+  ))
 }
