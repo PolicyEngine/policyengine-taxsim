@@ -2094,46 +2094,6 @@ body {
   font-size: 15px;
 }
 
-.doc-section-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  padding: 16px 24px;
-  color: var(--darkest-blue) !important;
-  user-select: none;
-  background: linear-gradient(135deg, var(--blue-98) 0%, var(--blue-95) 100%);
-  border-radius: 12px;
-  border: 1px solid var(--blue-95);
-  transition: all 0.2s ease;
-}
-
-.doc-section-header:hover {
-  background: linear-gradient(135deg, var(--blue-95) 0%, rgba(44, 100, 150, 0.12) 100%);
-  border-color: var(--blue-primary);
-}
-
-.doc-section-header svg {
-  color: var(--blue-primary);
-  flex-shrink: 0;
-}
-
-.doc-section-header h2 {
-  color: var(--darkest-blue) !important;
-  text-align: left;
-  font-size: 1.25rem;
-  margin: 0;
-  padding: 0;
-}
-
-.doc-section-header h2::after {
-  display: none;
-}
-
-.doc-section-body {
-  margin-top: 1.5rem;
-}
-
 /* Tighter section spacing for documentation page */
 .doc-content .landing-section {
   padding: 20px 2rem;
