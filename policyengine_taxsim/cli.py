@@ -204,7 +204,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         click.echo("Running PolicyEngine...")
         pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         pe_results = pe_runner.run()
-        
+
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
         df_with_ids = pe_runner.input_df
 
@@ -214,9 +214,13 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
             _generate_yaml_files(df_with_ids, pe_results)
             click.echo(f"Generated {len(df_with_ids)} YAML test files")
 
-        # Run TAXSIM
+        # Run TAXSIM with original input (not PE-modified df which adds
+        # defaults like sage=40 for single filers that TAXSIM rejects).
+        # Sync taxsimid from PE runner in case it was auto-assigned.
         click.echo("Running TAXSIM...")
-        taxsim_runner = TaxsimRunner(df_with_ids)
+        taxsim_input = df.copy()
+        taxsim_input["taxsimid"] = df_with_ids["taxsimid"].values
+        taxsim_runner = TaxsimRunner(taxsim_input)
         taxsim_results = taxsim_runner.run()
 
         # Compare results
