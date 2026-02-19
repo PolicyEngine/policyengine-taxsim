@@ -110,13 +110,13 @@ function App() {
               <FiHome style={{ marginRight: '6px' }} />
               Home
             </button>
+            <button className="landing-nav-link landing-nav-link-active">
+              <FiBarChart2 style={{ marginRight: '6px' }} />
+              Dashboard
+            </button>
             <button onClick={() => handleViewChange('documentation')} className="landing-nav-link">
               <FiBook style={{ marginRight: '6px' }} />
               Documentation
-            </button>
-            <button onClick={handleExport} className="landing-nav-link">
-              <FiDownload style={{ marginRight: '6px' }} />
-              Export Data
             </button>
             <a
               href="https://github.com/PolicyEngine/policyengine-taxsim"
@@ -140,10 +140,16 @@ function App() {
             onYearChange={handleYearChange}
             availableYears={availableYears}
           />
-          <StateFilter
-            selectedState={selectedState}
-            onStateChange={handleStateChange}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <StateFilter
+              selectedState={selectedState}
+              onStateChange={handleStateChange}
+            />
+            <button onClick={handleExport} className="dashboard-export-button">
+              <FiDownload style={{ marginRight: '6px' }} />
+              Export Data
+            </button>
+          </div>
         </div>
 
         {/* Dashboard Sections */}

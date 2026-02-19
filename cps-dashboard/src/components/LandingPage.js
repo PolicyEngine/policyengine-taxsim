@@ -13,6 +13,10 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
             PolicyEngine TAXSIM
           </div>
           <div className="landing-nav-links">
+            <button className="landing-nav-link landing-nav-link-active">
+              <FiHome style={{ marginRight: '6px' }} />
+              Home
+            </button>
             <button
               onClick={onNavigateToDashboard}
               className="landing-nav-link"

@@ -356,6 +356,10 @@ comparison <- compare_with_taxsim(my_data)`
               Dashboard
             </button>
           )}
+          <button className="landing-nav-link landing-nav-link-active">
+            <FiBook style={{ marginRight: '6px' }} />
+            Documentation
+          </button>
           <a
             href="https://github.com/PolicyEngine/policyengine-taxsim"
             target="_blank"
