@@ -1043,7 +1043,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                                             arr = self._calc_tax_unit(sim, resolved, year_str)
                                             var_sum += arr
                                         except Exception as e:
-                                            if "does not exist" in str(e):
+                                            if "does not exist" in str(e) or "was not found" in str(e):
                                                 if self.logs:
                                                     print(
                                                         f"Variable {resolved} not implemented, setting to 0"
@@ -1061,7 +1061,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                                         arr = self._calc_tax_unit(sim, resolved, year_str)
                                         result_array[state_mask] = arr[state_mask]
                                     except Exception as e:
-                                        if "does not exist" in str(e):
+                                        if "does not exist" in str(e) or "was not found" in str(e):
                                             if self.logs:
                                                 print(
                                                     f"Variable {resolved} not implemented, setting to 0"
@@ -1085,7 +1085,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                         columns[taxsim_var] = np.round(arr, 2)
 
                 except Exception as e:
-                    if "does not exist" in str(e):
+                    err_msg = str(e)
+                    if "does not exist" in err_msg or "was not found" in err_msg:
                         if self.logs:
                             print(
                                 f"Variable {pe_var} not implemented, setting to 0"
