@@ -1,3 +1,8 @@
+# Python version constraint matching policyengine-us requirements.
+# policyengine-us requires Python >=3.10,<3.14 (as of Feb 2026).
+# Without this, setup_policyengine() fails on machines with only Python 3.14+.
+.PE_PYTHON_VERSION <- ">=3.10,<3.14"
+
 #' Set up PolicyEngine Python environment
 #'
 #' Installs Python (via Miniconda if needed) and the required Python packages
@@ -36,11 +41,18 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
     return(invisible(TRUE))
   }
 
-  # Step 1: Ensure Python is available
-  message("Checking for Python installation...")
+  # Step 1: Ensure a compatible Python is available
+  # policyengine-us requires Python >=3.10,<3.14
+  message("Checking for compatible Python installation (requires ", .PE_PYTHON_VERSION, ")...")
 
-  if (!reticulate::py_available(initialize = FALSE)) {
-    message("Python not found. Installing Miniconda...")
+  # Check if a compatible Python exists among available starters
+  compatible_python <- tryCatch(
+    reticulate::virtualenv_starter(version = .PE_PYTHON_VERSION, all = FALSE),
+    error = function(e) NULL
+  )
+
+  if (is.null(compatible_python) || length(compatible_python) == 0) {
+    message("No compatible Python found. Installing Miniconda with Python 3.12...")
     message("This may take a few minutes...")
 
     tryCatch({
@@ -49,15 +61,17 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
     }, error = function(e) {
       stop(
         "Failed to install Miniconda. Error: ", e$message, "\n",
-        "You may need to install Python manually from https://www.python.org/",
+        "policyengine-us requires Python ", .PE_PYTHON_VERSION, ".\n",
+        "Please install Python 3.12 from https://www.python.org/downloads/\n",
+        "or via Homebrew: brew install python@3.12",
         call. = FALSE
       )
     })
   } else {
-    message("Python found.")
+    message("Compatible Python found.")
   }
 
-  # Step 2: Create virtual environment
+  # Step 2: Create virtual environment with compatible Python version
   message("Creating virtual environment '", envname, "'...")
 
   # Check if virtualenv exists
@@ -77,11 +91,14 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
 
   if (!(envname %in% existing_envs) || force) {
     tryCatch({
-      reticulate::virtualenv_create(envname)
+      reticulate::virtualenv_create(envname, version = .PE_PYTHON_VERSION)
       message("Virtual environment created.")
     }, error = function(e) {
       stop(
-        "Failed to create virtual environment. Error: ", e$message,
+        "Failed to create virtual environment. Error: ", e$message, "\n",
+        "policyengine-us requires Python ", .PE_PYTHON_VERSION, ".\n",
+        "Please install Python 3.12 from https://www.python.org/downloads/\n",
+        "or via Homebrew: brew install python@3.12",
         call. = FALSE
       )
     })
