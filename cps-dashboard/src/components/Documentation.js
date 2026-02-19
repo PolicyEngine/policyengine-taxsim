@@ -62,7 +62,8 @@ const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
       {
         id: 'python-install',
         label: 'Install',
-        code: `pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
+        code: `# Requires Python 3.10-3.13 (3.14 is not yet supported)
+pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
       },
       {
         id: 'python-api',
@@ -101,6 +102,7 @@ devtools::install_github(
         code: `library(policyenginetaxsim)
 
 # One-time setup (creates venv & installs Python package)
+# Requires Python 3.10-3.13 on your system (3.14 is not yet supported)
 setup_policyengine()
 
 # Calculate taxes with PolicyEngine
@@ -129,7 +131,8 @@ policyengine_versions()
       {
         id: 'cli-install',
         label: 'Install',
-        code: `pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
+        code: `# Requires Python 3.10-3.13 (3.14 is not yet supported)
+pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
       },
       {
         id: 'cli-usage',
