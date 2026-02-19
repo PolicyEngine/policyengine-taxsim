@@ -3,6 +3,7 @@
 export(policyengine_calculate_taxes)
 export(setup_policyengine)
 export(check_policyengine_setup)
+export(policyengine_versions)
 export(compare_with_taxsim)
 export(summary_comparison)
 importFrom(reticulate, import)
