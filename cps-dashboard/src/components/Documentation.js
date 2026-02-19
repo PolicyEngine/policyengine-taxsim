@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { FiExternalLink, FiChevronDown, FiChevronRight, FiCheck, FiX } from 'react-icons/fi';
+import { FiExternalLink, FiCheck, FiX, FiCopy, FiHome, FiBarChart2, FiGithub, FiBook } from 'react-icons/fi';
 import { loadConfigurationData } from '../utils/configLoader';
 import LoadingSpinner from './common/LoadingSpinner';
-import { 
-  OUTPUT_VARIABLES, 
+import {
+  OUTPUT_VARIABLES,
   INPUT_VARIABLE_CATEGORIES,
   OUTPUT_VARIABLE_CATEGORIES,
   getVariablePath,
   getMultipleVariables
 } from '../constants';
 
-const Documentation = ({ onBackToDashboard }) => {
+const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('input'); // 'input' or 'output'
-  const [expandedSections, setExpandedSections] = useState({
-    mappings: true,
-    assumptions: false,
-    implementation: false
-  });
+  const [activeInstallTab, setActiveInstallTab] = useState('python');
+  const [copiedBlock, setCopiedBlock] = useState(null);
+  const [activeSection, setActiveSection] = useState('installation');
 
 
   const [loading, setLoading] = useState(true);
@@ -49,69 +47,161 @@ const Documentation = ({ onBackToDashboard }) => {
     loadConfigData();
   }, []);
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
+  const handleCopy = async (text, blockId) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedBlock(blockId);
+      setTimeout(() => setCopiedBlock(null), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
   };
 
+  const codeExamples = {
+    python: [
+      {
+        id: 'python-install',
+        label: 'Install',
+        code: `# Requires Python 3.10-3.13 (3.14 is not yet supported)
+pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
+      },
+      {
+        id: 'python-api',
+        label: 'Python API',
+        code: `import pandas as pd
+from policyengine_taxsim.runners import PolicyEngineRunner
+
+# Load TAXSIM-formatted input (same CSV format as TAXSIM-35)
+df = pd.read_csv("input.csv")
+
+# Run all TAXSIM output variables
+runner = PolicyEngineRunner(df)
+results = runner.run(show_progress=True)
+results.to_csv("output.csv", index=False)`
+      },
+      {
+        id: 'python-pin',
+        label: 'Pin policyengine-us version (optional)',
+        code: `# For reproducible results, pin the underlying tax model version
+pip install policyengine-us==1.555.0`
+      },
+    ],
+    r: [
+      {
+        id: 'r-install',
+        label: 'Install',
+        code: `# Install from GitHub (R package is in the r-package/ subdirectory)
+devtools::install_github(
+  "PolicyEngine/policyengine-taxsim",
+  subdir = "r-package/policyenginetaxsim"
+)`
+      },
+      {
+        id: 'r-setup',
+        label: 'Setup & Usage',
+        code: `library(policyenginetaxsim)
+
+# One-time setup (creates venv & installs Python package)
+# Requires Python 3.10-3.13 on your system (3.14 is not yet supported)
+setup_policyengine()
+
+# Calculate taxes with PolicyEngine
+my_data <- data.frame(
+  year = 2023, state = 6, mstat = 1, pwages = 50000
+)
+result <- policyengine_calculate_taxes(my_data)
+
+# Compare PolicyEngine vs TAXSIM-35
+comparison <- compare_with_taxsim(my_data)`
+      },
+      {
+        id: 'r-version-pin',
+        label: 'Pin version & check versions',
+        code: `# Pin policyengine-us to a specific version for reproducible results
+setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
+
+# Check installed package versions
+policyengine_versions()
+#> policyengine-taxsim: 2.8.0
+#> policyengine-us:     1.555.0
+#> policyengine-core:   3.30.2`
+      }
+    ],
+    cli: [
+      {
+        id: 'cli-install',
+        label: 'Install',
+        code: `# Requires Python 3.10-3.13 (3.14 is not yet supported)
+pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
+      },
+      {
+        id: 'cli-usage',
+        label: 'Run calculations',
+        code: `# Run PolicyEngine on a TAXSIM input file
+policyengine-taxsim policyengine input.csv -o output.csv
+
+# Compare PolicyEngine vs TAXSIM-35
+policyengine-taxsim compare input.csv --output-dir comparison_output
+
+# Run official TAXSIM-35 locally
+policyengine-taxsim taxsim input.csv -o taxsim_output.csv
+
+# Sample records from a large dataset
+policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
+      },
+    ],
+  };
+
+  const renderCodeBlock = (block) => (
+    <div key={block.id} className="landing-code-block" style={{ marginBottom: '12px' }}>
+      <div className="landing-code-header">
+        <span className="landing-code-label">{block.label}</span>
+        <button
+          onClick={() => handleCopy(block.code, block.id)}
+          className="landing-copy-button"
+          title="Copy to clipboard"
+        >
+          {copiedBlock === block.id ? (
+            <>
+              <FiCheck size={14} />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <FiCopy size={14} />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="landing-code-content">
+        <code>{block.code}</code>
+      </pre>
+    </div>
+  );
+
   // Shared function to create section dividers
-  const createDivider = (title, color = 'var(--blue-primary)', bgColor = 'var(--blue-98)') => (
-    <tr>
-      <td colSpan="4" style={{ 
-        padding: '12px 20px',
-        backgroundColor: bgColor,
-        borderTop: `2px solid ${color}`,
-        borderBottom: `2px solid ${color}`,
-        textAlign: 'center',
-        fontWeight: '600',
-        fontSize: '14px',
-        color: color === 'var(--blue-primary)' ? 'var(--darkest-blue)' : 'var(--teal-pressed)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }}>
-        {title}
-      </td>
-    </tr>
+  const createDivider = (title, color = 'var(--blue-primary)') => (
+    <div className="doc-var-divider" style={{ borderLeftColor: color }}>
+      {title}
+    </div>
   );
 
   // Shared function to render variable rows
-  const renderVariableRow = (mapping, index, categoryClass = '') => (
-    <tr key={`var-${index}`} style={{ 
-      ...(categoryClass ? { backgroundColor: categoryClass } : {}),
-      cursor: 'default'
-    }}>
-      <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--blue-primary)' }}>
-        {mapping.taxsim}
-      </td>
-      <td style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '600', color: 'var(--darkest-blue)' }}>
-        {activeTab === 'output' ? renderOutputPolicyEngineCell(mapping) : renderInputPolicyEngineCell(mapping)}
-      </td>
-      <td style={{ 
-        fontSize: '14px', 
-        color: 'var(--dark-gray)',
-        whiteSpace: 'normal',
-        wordWrap: 'break-word',
-        maxWidth: '300px',
-        lineHeight: '1.4'
-      }}>
-        {mapping.description}
-      </td>
-      <td style={{ textAlign: 'center' }}>
-        {mapping.implemented ? (
-          <span className="status-badge status-badge-match">
-            <FiCheck className="w-3 h-3 mr-1" />
-            Implemented
-          </span>
-        ) : (
-          <span className="status-badge status-badge-mismatch">
-            <FiX className="w-3 h-3 mr-1" />
-            Not Implemented
-          </span>
-        )}
-      </td>
-    </tr>
+  const renderVariableRow = (mapping, index) => (
+    <div key={`var-${index}`} className="doc-var-row">
+      <div className="doc-var-names">
+        <code className="doc-var-taxsim">{mapping.taxsim}</code>
+        <span className="doc-var-arrow">→</span>
+        <span className="doc-var-pe">
+          {activeTab === 'output' ? renderOutputPolicyEngineCell(mapping) : renderInputPolicyEngineCell(mapping)}
+        </span>
+      </div>
+      <p className="doc-var-description">{mapping.description}</p>
+      <span className={`doc-var-status ${mapping.implemented ? 'doc-var-status-yes' : 'doc-var-status-no'}`}>
+        {mapping.implemented ? <><FiCheck size={12} /> Implemented</> : <><FiX size={12} /> Not Implemented</>}
+      </span>
+    </div>
   );
 
   // Function to render PolicyEngine cell for output variables (with multiple variables support)
@@ -289,22 +379,52 @@ const Documentation = ({ onBackToDashboard }) => {
     mapping.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const renderNav = () => (
+    <nav className="landing-nav">
+      <div className="landing-nav-inner">
+        <div className="landing-nav-brand">
+          <FiBook style={{ marginRight: '8px' }} />
+          Documentation
+        </div>
+        <div className="landing-nav-links">
+          {onNavigateHome && (
+            <button onClick={onNavigateHome} className="landing-nav-link">
+              <FiHome style={{ marginRight: '6px' }} />
+              Home
+            </button>
+          )}
+          <button className="landing-nav-link landing-nav-link-active">
+            <FiBook style={{ marginRight: '6px' }} />
+            Documentation
+          </button>
+          {onBackToDashboard && (
+            <button onClick={onBackToDashboard} className="landing-nav-link">
+              <FiBarChart2 style={{ marginRight: '6px' }} />
+              Dashboard
+            </button>
+          )}
+          <a
+            href="https://github.com/PolicyEngine/policyengine-taxsim"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="landing-nav-link"
+          >
+            <FiGithub style={{ marginRight: '6px' }} />
+            GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+
   // Show loading spinner while data is being loaded
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <header className="main-header shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex-between py-6">
-              <h1 className="text-3xl main-title">
-                Emulator Documentation
-              </h1>
-            </div>
-          </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <LoadingSpinner 
-            message="Loading configuration data..." 
+      <div className="landing-page">
+        {renderNav()}
+        <main className="landing-section-inner" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+          <LoadingSpinner
+            message="Loading configuration data..."
             subMessage="Please wait while we load the variable mappings"
           />
         </main>
@@ -315,17 +435,9 @@ const Documentation = ({ onBackToDashboard }) => {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <header className="main-header shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex-between py-6">
-              <h1 className="text-3xl main-title">
-                Emulator Documentation
-              </h1>
-            </div>
-          </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="landing-page">
+        {renderNav()}
+        <main className="landing-section-inner" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
           <div className="error-card">
             <div className="error-icon">⚠️</div>
             <h2 style={{ color: 'var(--dark-red)', marginBottom: '12px' }}>Configuration Load Error</h2>
@@ -337,408 +449,368 @@ const Documentation = ({ onBackToDashboard }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="main-header shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex-between py-6">
-            <h1 className="text-3xl main-title">
-              Emulator Documentation
-            </h1>
-            {onBackToDashboard && (
-              <button
-                onClick={onBackToDashboard}
-                className="btn-ghost"
-              >
-                Back to Dashboard
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="landing-page">
+      {renderNav()}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-8">
-          
-          {/* TAXSIM to PolicyEngine Mappings Section */}
-          <section className="card-container">
-            <div 
-              className="card-header cursor-pointer"
-              onClick={() => toggleSection('mappings')}
-            >
-              <h2 className="section-title flex items-center">
-                {expandedSections.mappings ? <FiChevronDown className="mr-2" /> : <FiChevronRight className="mr-2" />}
-                TAXSIM to PolicyEngine Variable Mappings
-              </h2>
+      <main className="doc-content">
+        {/* Intro blurb */}
+        <section className="landing-section" style={{ paddingTop: '2rem', paddingBottom: '0' }}>
+          <div className="landing-section-inner">
+            <div className="doc-intro-blurb">
+              The PolicyEngine TAXSIM Emulator supports <strong>all input and output variables</strong> provided
+              by TAXSIM-35. Unlike traditional TAXSIM, which requires sending data to NBER's servers,
+              this emulator <strong>runs entirely on your machine</strong> — making it suitable for
+              confidential microdata (CPS, ACS, SCF, administrative records) behind institutional
+              firewalls. Use the same CSV format you already know: provide household demographics,
+              income, and deductions as inputs, and receive federal and state tax calculations as outputs.
             </div>
-            
-            {expandedSections.mappings && (
-              <div style={{ padding: '24px 32px', background: 'var(--white)' }}>
-                <div className="mb-6">
-                  <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '14px', lineHeight: '1.6' }}>
-                    {activeTab === 'input' 
-                      ? 'This table shows how TAXSIM input variables are mapped to PolicyEngine variables in our implementation. '
-                      : 'This table shows the TAXSIM output variables that are calculated and returned by both systems. '
-                    }
-                    For complete TAXSIM variable documentation, refer to the official documentation:
-                  </p>
-                  <a 
-                    href="https://taxsim.nber.org/taxsimtest/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      color: 'var(--blue-primary)', 
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                      fontSize: '14px'
-                    }}
-                    onMouseOver={(e) => e.target.style.color = 'var(--dark-blue-hover)'}
-                    onMouseOut={(e) => e.target.style.color = 'var(--blue-primary)'}
-                  >
-                    TAXSIM Official Documentation
-                    <FiExternalLink className="ml-1 w-4 h-4" />
-                  </a>
-                </div>
+          </div>
+        </section>
 
-                {/* Tab Navigation */}
-                <div className="tab-navigation">
+        {/* Section Tabs */}
+        <section className="landing-section" style={{ paddingBottom: 0 }}>
+          <div className="landing-section-inner">
+            <div className="landing-tab-bar">
+              <button
+                onClick={() => setActiveSection('installation')}
+                className={`landing-tab-button ${activeSection === 'installation' ? 'landing-tab-active' : ''}`}
+              >
+                Installation & Usage
+              </button>
+              <button
+                onClick={() => setActiveSection('options')}
+                className={`landing-tab-button ${activeSection === 'options' ? 'landing-tab-active' : ''}`}
+              >
+                All Runners & CLI
+              </button>
+              <button
+                onClick={() => setActiveSection('mappings')}
+                className={`landing-tab-button ${activeSection === 'mappings' ? 'landing-tab-active' : ''}`}
+              >
+                Variable Mappings
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Installation & Usage */}
+        {activeSection === 'installation' && (
+          <section className="landing-section">
+            <div className="landing-section-inner">
+              <p style={{ color: 'var(--dark-gray)', marginBottom: '20px', fontSize: '15px', lineHeight: '1.7' }}>
+                Install and run the emulator using Python, R, or the command line. The emulator accepts the standard
+                TAXSIM-35 CSV input format and returns matching output variables.
+              </p>
+
+              {/* Language Tabs */}
+              <div className="landing-tab-bar">
+                {['python', 'r', 'cli'].map((tab) => (
                   <button
-                    onClick={() => setActiveTab('input')}
-                    className={`tab-button ${activeTab === 'input' ? 'tab-button-active' : ''}`}
+                    key={tab}
+                    onClick={() => setActiveInstallTab(tab)}
+                    className={`landing-tab-button ${activeInstallTab === tab ? 'landing-tab-active' : ''}`}
                   >
-                    Input Variables
+                    {tab === 'python' ? 'Python' : tab === 'r' ? 'R' : 'CLI'}
                   </button>
-                  <button
-                    onClick={() => setActiveTab('output')}
-                    className={`tab-button ${activeTab === 'output' ? 'tab-button-active' : ''}`}
-                  >
-                    Output Variables
-                  </button>
-                </div>
-
-                {/* Search Bar */}
-                <div className="mb-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search variables..."
-                      className="select"
-                      style={{ paddingLeft: '16px', width: '100%', maxWidth: '400px' }}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Variable Mappings Table */}
-                <div className="overflow-x-auto">
-                  <table className="state-table">
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left' }}>TAXSIM Variable</th>
-                        <th style={{ textAlign: 'left' }}>PolicyEngine Variable</th>
-                        <th style={{ textAlign: 'left' }}>Description</th>
-                        <th style={{ textAlign: 'center' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
-                    </tbody>
-                  </table>
-                </div>
+                ))}
               </div>
-            )}
-          </section>
 
-          {/* System Assumptions Section */}
-          <section className="card-container">
-            <div 
-              className="card-header cursor-pointer"
-              onClick={() => toggleSection('assumptions')}
-            >
-              <h2 className="section-title flex items-center">
-                {expandedSections.assumptions ? <FiChevronDown className="mr-2" /> : <FiChevronRight className="mr-2" />}
-                System Assumptions
-              </h2>
+              {/* Code Blocks */}
+              <div style={{ marginTop: '16px' }}>
+                {codeExamples[activeInstallTab].map(renderCodeBlock)}
+              </div>
             </div>
-            
-            {expandedSections.assumptions && (
-              <div style={{ padding: '24px 32px', background: 'var(--white)' }} className="space-y-6">
-                
-                {/* Income Splitting Rules */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Income Splitting Rules (Married Filing Jointly)</h3>
-                  <p style={{ color: 'var(--dark-gray)', marginBottom: '20px', fontSize: '14px', lineHeight: '1.6' }}>
-                    When processing married filing jointly households (mstat = 2), certain income types are automatically 
-                    split evenly (50/50) between the primary taxpayer and spouse, while others use separate input fields.
-                  </p>
-                  
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Income Types Split 50/50:</h4>
-                      <ul style={{ listStyle: 'none', padding: 0 }}>
-                        {configData.incomeSplittingRules.incomeTypesSplit?.map((type, index) => (
-                          <li key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                            <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--blue-primary)', borderRadius: '50%', marginRight: '12px' }}></span>
-                            <code style={{ backgroundColor: 'var(--blue-98)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>{type}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    <div>
-                      <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Income Types with Separate Fields:</h4>
-                      <ul style={{ listStyle: 'none', padding: 0 }}>
-                        {configData.incomeSplittingRules.incomeTypesNotSplit?.map((type, index) => (
-                          <li key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
-                            <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--teal-accent)', borderRadius: '50%', marginRight: '12px', marginTop: '6px', flexShrink: 0 }}></span>
-                            <code style={{ backgroundColor: 'var(--teal-light)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>{type}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Default Values */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Default Values</h3>
-                  <div style={{ backgroundColor: 'var(--blue-98)', padding: '20px', borderRadius: '8px', border: '1px solid var(--blue-95)' }}>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                      <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Primary/Age of secondary taxpayer:</strong> {configData.systemAssumptions.defaultAges?.primary || 40} years (when not specified)</li>
-                      <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Dependent Age:</strong> {configData.systemAssumptions.defaultAges?.dependent || 10} years (when not specified or age is 0)</li>
-                      <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Missing Income Values:</strong> ${configData.systemAssumptions.missingIncomeValue || 0}</li>
-                      <li style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Single Taxpayer:</strong> mstat = {configData.systemAssumptions.maritalStatusCodes?.single || 1}</li>
-                      <li style={{ marginBottom: '0', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}><strong>Married Filing Jointly:</strong> mstat = {configData.systemAssumptions.maritalStatusCodes?.marriedFilingJointly || 2}</li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Household Structure Logic */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Household Structure Logic</h3>
-                  <div className="space-y-3">
-                    <div style={{ borderLeft: '4px solid var(--blue-primary)', paddingLeft: '16px', marginBottom: '16px' }}>
-                      <strong style={{ color: 'var(--darkest-blue)', fontSize: '14px' }}>Single Taxpayer (mstat = 1):</strong>
-                      <p style={{ color: 'var(--dark-gray)', fontSize: '14px', margin: '4px 0 0 0', lineHeight: '1.6' }}>Creates household with "you" only, plus any dependents specified by depx</p>
-                    </div>
-                    <div style={{ borderLeft: '4px solid var(--teal-accent)', paddingLeft: '16px', marginBottom: '16px' }}>
-                      <strong style={{ color: 'var(--darkest-blue)', fontSize: '14px' }}>Married Filing Jointly (mstat = 2):</strong>
-                      <p style={{ color: 'var(--dark-gray)', fontSize: '14px', margin: '4px 0 0 0', lineHeight: '1.6' }}>Creates household with "you" and "your partner", plus any dependents specified by depx</p>
-                    </div>
-                    <div style={{ borderLeft: '4px solid var(--dark-gray)', paddingLeft: '16px', marginBottom: '0' }}>
-                      <strong style={{ color: 'var(--darkest-blue)', fontSize: '14px' }}>Dependents:</strong>
-                      <p style={{ color: 'var(--dark-gray)', fontSize: '14px', margin: '4px 0 0 0', lineHeight: '1.6' }}>Named as "your first dependent", "your second dependent", etc., based on depx value</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </section>
+        )}
 
-          {/* Implementation Details Section */}
-          <section className="card-container">
-            <div 
-              className="card-header cursor-pointer"
-              onClick={() => toggleSection('implementation')}
-            >
-              <h2 className="section-title flex items-center">
-                {expandedSections.implementation ? <FiChevronDown className="mr-2" /> : <FiChevronRight className="mr-2" />}
-                Implementation Details
-              </h2>
+        {/* All Runners & CLI */}
+        {activeSection === 'options' && (
+          <section className="landing-section">
+            <div className="landing-section-inner">
+
+              {/* TaxsimRunner */}
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+                TaxsimRunner
+              </h3>
+              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                Runs the official TAXSIM-35 executable locally. Requires the TAXSIM binary
+                (auto-detected on macOS, Linux, and Windows). Useful for generating reference
+                outputs to compare against PolicyEngine.
+              </p>
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">TaxsimRunner</code>
+                  <span className="doc-option-type">input_df, taxsim_path=None</span>
+                </div>
+                <p className="doc-option-description">
+                  Takes a TAXSIM-formatted DataFrame and an optional path to the TAXSIM executable.
+                  If <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim_path</code> is
+                  not provided, the runner auto-detects the bundled executable for your OS.
+                </p>
+                {renderCodeBlock({
+                  id: 'taxsim-runner',
+                  label: 'Python',
+                  code: `from policyengine_taxsim.runners import TaxsimRunner
+
+runner = TaxsimRunner(df)
+taxsim_results = runner.run()`
+                })}
+              </div>
+
+              {/* PolicyEngineRunner advanced options */}
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', margin: '32px 0 12px' }}>
+                PolicyEngineRunner — Advanced Options
+              </h3>
+              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                Beyond the basic usage shown in Installation & Usage, <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>PolicyEngineRunner</code> accepts
+                additional options for policy simulations and debugging.
+                These options are currently available in the Python API only.
+              </p>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">disable_salt</code>
+                  <span className="doc-option-type">bool, default False</span>
+                </div>
+                <p className="doc-option-description">
+                  Sets the State and Local Tax (SALT) deduction to zero for all records.
+                  Useful for modeling the impact of SALT cap policies — for example,
+                  the $10,000 SALT deduction cap introduced by the 2017 Tax Cuts and Jobs Act.
+                </p>
+                {renderCodeBlock({
+                  id: 'option-salt',
+                  label: 'Example',
+                  code: `runner = PolicyEngineRunner(df, disable_salt=True)
+results = runner.run()`
+                })}
+              </div>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">logs</code>
+                  <span className="doc-option-type">bool, default False</span>
+                </div>
+                <p className="doc-option-description">
+                  Generates detailed YAML log files for each household calculation.
+                  Useful for debugging discrepancies or auditing how PolicyEngine
+                  maps TAXSIM inputs to its internal variables.
+                </p>
+                {renderCodeBlock({
+                  id: 'option-logs',
+                  label: 'Example',
+                  code: `runner = PolicyEngineRunner(df, logs=True)
+results = runner.run()`
+                })}
+              </div>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">show_progress</code>
+                  <span className="doc-option-type">bool, default True (passed to .run())</span>
+                </div>
+                <p className="doc-option-description">
+                  Controls whether progress bars are displayed during calculation.
+                  Set to <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>False</code> for
+                  batch jobs or automated pipelines.
+                </p>
+                {renderCodeBlock({
+                  id: 'option-progress',
+                  label: 'Example',
+                  code: `runner = PolicyEngineRunner(df)
+results = runner.run(show_progress=False)`
+                })}
+              </div>
+
+              {/* CLI */}
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', margin: '32px 0 12px' }}>
+                Command-Line Interface
+              </h3>
+              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                All runners are also available via the <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code> CLI.
+                Each command accepts a TAXSIM-formatted CSV file as input.
+              </p>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">policyengine-taxsim policyengine</code>
+                </div>
+                <p className="doc-option-description">
+                  Run PolicyEngine tax calculations on a TAXSIM input file.
+                  Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
+                </p>
+                {renderCodeBlock({
+                  id: 'cli-pe',
+                  label: 'Terminal',
+                  code: `policyengine-taxsim policyengine input.csv -o output.csv
+policyengine-taxsim policyengine input.csv --disable-salt --logs`
+                })}
+              </div>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">policyengine-taxsim taxsim</code>
+                </div>
+                <p className="doc-option-description">
+                  Run the official TAXSIM-35 executable on a TAXSIM input file.
+                  Optionally specify a custom path to the TAXSIM binary with{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--taxsim-path</code>.
+                </p>
+                {renderCodeBlock({
+                  id: 'cli-taxsim',
+                  label: 'Terminal',
+                  code: `policyengine-taxsim taxsim input.csv -o taxsim_output.csv`
+                })}
+              </div>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">policyengine-taxsim compare</code>
+                </div>
+                <p className="doc-option-description">
+                  Run both PolicyEngine and TAXSIM-35 on the same input, then compare the
+                  results. Outputs a comparison report with match rates and differences.
+                </p>
+                {renderCodeBlock({
+                  id: 'cli-compare',
+                  label: 'Terminal',
+                  code: `policyengine-taxsim compare input.csv --output-dir comparison_output`
+                })}
+              </div>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">policyengine-taxsim sample-data</code>
+                </div>
+                <p className="doc-option-description">
+                  Sample N records from a large dataset. Useful for testing on a subset
+                  before running on the full file.
+                </p>
+                {renderCodeBlock({
+                  id: 'cli-sample',
+                  label: 'Terminal',
+                  code: `policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
+                })}
+              </div>
             </div>
-            
-            {expandedSections.implementation && (
-              <div style={{ padding: '24px 32px', background: 'var(--white)' }} className="space-y-6">
-                
-                {/* Output Types */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Output Types (idtl)</h3>
-                  <div className="space-y-3">
-                    {configData.implementationDetails.outputTypes?.map((outputType, index) => (
-                      <div key={index} className={`metric-card ${index === 0 ? 'federal' : index === 1 ? 'state' : 'total'}`}>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                          <span className={`status-badge ${index === 0 ? 'status-badge-match' : ''}`} 
-                                style={{ 
-                                  marginRight: '16px',
-                                  ...(index === 1 ? { backgroundColor: 'var(--teal-light)', color: 'var(--teal-pressed)', border: '1px solid var(--teal-accent)' } : {}),
-                                  ...(index === 2 ? { backgroundColor: 'var(--light-gray)', color: 'var(--dark-gray)', border: '1px solid var(--medium-dark-gray)' } : {})
-                                }}>
-                            {outputType.name} ({outputType.code})
-                          </span>
-                          <span style={{ color: 'var(--dark-gray)', fontSize: '14px' }}>{outputType.description}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Known Limitations */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Known Limitations</h3>
-                  <div style={{ backgroundColor: 'rgba(181, 13, 13, 0.04)', border: '1px solid rgba(181, 13, 13, 0.2)', borderRadius: '8px', padding: '20px' }}>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                      {configData.implementationDetails.knownLimitations?.map((limitation, index) => (
-                        <li key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: index === configData.implementationDetails.knownLimitations.length - 1 ? '0' : '12px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
-                          <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--dark-red)', borderRadius: '50%', marginRight: '12px', marginTop: '8px', flexShrink: 0 }}></span>
-                          {limitation}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Multiple Variable Handling */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Multiple Variable Handling</h3>
-                  <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '14px', lineHeight: '1.6' }}>
-                    Some TAXSIM output variables combine multiple PolicyEngine variables for accurate calculations:
-                  </p>
-                  <div style={{ backgroundColor: 'var(--blue-98)', padding: '20px', borderRadius: '8px', border: '1px solid var(--blue-95)' }}>
-                    <div className="space-y-4">
-                      {Object.entries(getMultipleVariables ? {
-                        'v28': getMultipleVariables('v28'),
-                        'v40': getMultipleVariables('v40'),
-                        'v44': getMultipleVariables('v44')
-                      } : {}).filter(([_, variables]) => variables).map(([taxsimCode, variables], index) => (
-                        <div key={index} style={{ borderLeft: '3px solid var(--blue-primary)', paddingLeft: '16px', marginBottom: '16px' }}>
-                          <div style={{ marginBottom: '8px' }}>
-                            <code style={{ backgroundColor: 'var(--white)', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace', color: 'var(--blue-primary)', fontWeight: '700' }}>
-                              {taxsimCode}
-                            </code>
-                            <span style={{ color: 'var(--darkest-blue)', marginLeft: '12px', fontSize: '14px', fontWeight: '600' }}>
-                              {taxsimCode === 'v28' ? 'Federal Income Tax Before Credits' : 
-                               taxsimCode === 'v40' ? 'State Total Credits' : 
-                               taxsimCode === 'v44' ? 'Medicare Tax on Earned Income' : taxsimCode}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: '12px' }}>
-                            {variables.map((variable, varIndex) => (
-                              <div key={varIndex} style={{ display: 'flex', alignItems: 'center' }}>
-                                <span style={{ color: 'var(--dark-gray)', marginRight: '8px', fontSize: '14px' }}>→</span>
-                                <a 
-                                  href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(variable)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ 
-                                    color: 'var(--blue-primary)', 
-                                    textDecoration: 'none',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    fontSize: '12px',
-                                    fontFamily: 'monospace',
-                                    fontWeight: '600'
-                                  }}
-                                  onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                                  onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                                >
-                                  {variable}
-                                  <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-                                </a>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dependent Age Structures */}
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '16px' }}>Dependent Age Structures</h3>
-                  <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '14px', lineHeight: '1.6' }}>
-                    Our implementation supports both TAXSIM and TAXSIM32 dependent age input formats, with automatic conversion between formats as needed.
-                  </p>
-                  
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Individual Ages (TAXSIM):</h4>
-                      <div style={{ backgroundColor: 'var(--blue-98)', padding: '16px', borderRadius: '8px', border: '1px solid var(--blue-95)' }}>
-                        <p style={{ color: 'var(--dark-gray)', fontSize: '14px', marginBottom: '12px', lineHeight: '1.6' }}>
-                          Traditional format using individual age fields:
-                        </p>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                          <li style={{ marginBottom: '8px' }}>
-                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>age1, age2, age3...</code>
-                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>up to age11</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    
-                    <div style={{ marginTop: '8px' }}>
-                      <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Cumulative Counts (TAXSIM32):</h4>
-                      <div style={{ backgroundColor: 'var(--teal-light)', padding: '16px', borderRadius: '8px', border: '1px solid var(--teal-accent)' }}>
-                        <p style={{ color: 'var(--dark-gray)', fontSize: '14px', marginBottom: '12px', lineHeight: '1.6' }}>
-                          Cumulative dependent counts by age bracket:
-                        </p>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                          <li style={{ marginBottom: '8px' }}>
-                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>dep13</code>
-                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>dependents under 13</span>
-                          </li>
-                          <li style={{ marginBottom: '8px' }}>
-                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>dep17</code>
-                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>dependents under 17</span>
-                          </li>
-                          <li style={{ marginBottom: '0' }}>
-                            <code style={{ backgroundColor: 'var(--white)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace', color: 'var(--darkest-blue)' }}>dep18</code>
-                            <span style={{ color: 'var(--dark-gray)', marginLeft: '8px', fontSize: '13px' }}>dependents under 18</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: '20px' }}>
-                    <h4 style={{ fontWeight: '600', color: 'var(--darkest-blue)', marginBottom: '12px', fontSize: '16px' }}>Conversion Logic:</h4>
-                    <div style={{ backgroundColor: 'rgba(44, 100, 150, 0.04)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(44, 100, 150, 0.2)' }}>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        <li style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
-                          <span style={{ fontWeight: '600' }}>Under 13:</span> Assigned age 10
-                        </li>
-                        <li style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
-                          <span style={{ fontWeight: '600' }}>Ages 13-16:</span> Assigned age 15
-                        </li>
-                        <li style={{ marginBottom: '8px', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
-                          <span style={{ fontWeight: '600' }}>Age 17:</span> Assigned age 17
-                        </li>
-                        <li style={{ marginBottom: '0', fontSize: '14px', color: 'var(--darkest-blue)', lineHeight: '1.6' }}>
-                          <span style={{ fontWeight: '600' }}>18 and older:</span> Assigned age 21
-                        </li>
-                      </ul>
-                    </div>
-                    <p style={{ color: 'var(--dark-gray)', marginTop: '16px', fontSize: '14px', lineHeight: '1.6' }}>
-                      For complete documentation on TAXSIM32 dependent age formats, see: 
-                      <a 
-                        href="https://taxsim.nber.org/taxsim32/" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ 
-                          color: 'var(--blue-primary)', 
-                          fontWeight: '600',
-                          textDecoration: 'none',
-                          marginLeft: '4px'
-                        }}
-                        onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                        onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                      >
-                        TAXSIM32 Documentation
-                        <FiExternalLink style={{ marginLeft: '4px', fontSize: '12px', display: 'inline' }} />
-                      </a>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </section>
-        </div>
+        )}
+
+        {/* Variable Mappings */}
+        {activeSection === 'mappings' && (
+          <section className="landing-section">
+            <div className="landing-section-inner">
+              <div className="mb-6">
+                <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                  {activeTab === 'input'
+                    ? 'This table shows how TAXSIM input variables are mapped to PolicyEngine variables in our implementation. '
+                    : 'This table shows the TAXSIM output variables that are calculated and returned by both systems. '
+                  }
+                  For complete TAXSIM variable documentation, refer to the official documentation:
+                </p>
+                <a
+                  href="https://taxsim.nber.org/taxsimtest/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="landing-validation-link"
+                >
+                  TAXSIM Official Documentation <FiExternalLink size={14} />
+                </a>
+              </div>
+
+              <div className="doc-intro-blurb" style={{ marginBottom: '24px' }}>
+                <strong>Note on extended coverage:</strong> Because this emulator is powered by
+                PolicyEngine's microsimulation model, it can calculate variables beyond what
+                TAXSIM-35 provides. The mappings below show the standard TAXSIM
+                inputs and outputs, but PolicyEngine supports hundreds of additional tax and
+                benefit variables. See the{' '}
+                <a
+                  href="https://policyengine.org/us/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--blue-primary)', fontWeight: 600 }}
+                >
+                  PolicyEngine API documentation
+                </a>{' '}
+                for the full list.
+              </div>
+
+              {/* Tab Navigation */}
+              <div className="landing-tab-bar" style={{ marginBottom: '16px' }}>
+                <button
+                  onClick={() => setActiveTab('input')}
+                  className={`landing-tab-button ${activeTab === 'input' ? 'landing-tab-active' : ''}`}
+                >
+                  Input Variables
+                </button>
+                <button
+                  onClick={() => setActiveTab('output')}
+                  className={`landing-tab-button ${activeTab === 'output' ? 'landing-tab-active' : ''}`}
+                >
+                  Output Variables
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search variables..."
+                  className="doc-search-input"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {/* Variable Mappings */}
+              <div className="doc-var-list">
+                {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
+              </div>
+            </div>
+          </section>
+        )}
+
       </main>
+
+      {/* Footer — matches landing page */}
+      <footer className="landing-footer">
+        <div className="landing-footer-inner">
+          <div className="landing-footer-grid">
+            <a
+              href="https://github.com/PolicyEngine/policyengine-taxsim"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-footer-card"
+            >
+              <FiGithub size={20} />
+              <span>GitHub Repository</span>
+              <FiExternalLink size={14} className="landing-footer-external" />
+            </a>
+            {onBackToDashboard && (
+              <button onClick={onBackToDashboard} className="landing-footer-card">
+                <FiBarChart2 size={20} />
+                <span>Comparison Dashboard</span>
+                <FiExternalLink size={14} className="landing-footer-external" />
+              </button>
+            )}
+            <a
+              href="https://taxsim.nber.org/taxsim35/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-footer-card"
+            >
+              <FiExternalLink size={20} />
+              <span>TAXSIM-35 Official Docs</span>
+              <FiExternalLink size={14} className="landing-footer-external" />
+            </a>
+          </div>
+          <div className="landing-footer-copyright">
+            Built by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 
@@ -753,34 +825,21 @@ const Documentation = ({ onBackToDashboard }) => {
     let hasAddedExpense = false;
 
     filteredMappings.forEach((mapping, index) => {
-      // Add section dividers
       if (basicInputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(React.cloneElement(createDivider('Basic Inputs'), { key: `divider-basic` }));
+        results.push(<React.Fragment key="divider-basic">{createDivider('Basic Inputs')}</React.Fragment>);
         hasAddedBasic = true;
       } else if (incomeInputs.includes(mapping.taxsim) && !hasAddedIncome) {
-        results.push(React.cloneElement(createDivider('Income Inputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-income` }));
+        results.push(<React.Fragment key="divider-income">{createDivider('Income Inputs', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedIncome = true;
       } else if (businessIncomeInputs.includes(mapping.taxsim) && !hasAddedBusiness) {
-        results.push(React.cloneElement(createDivider('Business Income', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-business` }));
+        results.push(<React.Fragment key="divider-business">{createDivider('Business Income', 'var(--dark-gray)')}</React.Fragment>);
         hasAddedBusiness = true;
       } else if (expenseInputs.includes(mapping.taxsim) && !hasAddedExpense) {
-        results.push(React.cloneElement(createDivider('Expense & Deduction Inputs', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-expense` }));
+        results.push(<React.Fragment key="divider-expense">{createDivider('Expense & Deduction Inputs')}</React.Fragment>);
         hasAddedExpense = true;
       }
 
-      // Add the variable row with appropriate styling
-      let categoryClass = '';
-      if (basicInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (incomeInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      } else if (businessIncomeInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(97, 97, 97, 0.02)';
-      } else if (expenseInputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      }
-
-      results.push(renderVariableRow(mapping, index, categoryClass));
+      results.push(renderVariableRow(mapping, index));
     });
 
     return results;
@@ -802,60 +861,36 @@ const Documentation = ({ onBackToDashboard }) => {
     let hasAddedAdditional = false;
 
     filteredMappings.forEach((mapping, index) => {
-      // Add section dividers for outputs
       if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(React.cloneElement(createDivider('Basic Outputs'), { key: `divider-basic` }));
+        results.push(<React.Fragment key="divider-basic">{createDivider('Basic Outputs')}</React.Fragment>);
         hasAddedBasic = true;
       } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
-        results.push(React.cloneElement(createDivider('Primary Tax Calculations'), { key: `divider-tax` }));
+        results.push(<React.Fragment key="divider-tax">{createDivider('Primary Tax Calculations')}</React.Fragment>);
         hasAddedTax = true;
       } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
-        results.push(React.cloneElement(createDivider('Adjusted Gross Income', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-agi` }));
+        results.push(<React.Fragment key="divider-agi">{createDivider('Adjusted Gross Income', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedAGI = true;
       } else if (deductionOutputs.includes(mapping.taxsim) && !hasAddedDeduction) {
-        results.push(React.cloneElement(createDivider('Deductions & Exemptions', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-deduction` }));
+        results.push(<React.Fragment key="divider-deduction">{createDivider('Deductions & Exemptions', 'var(--dark-gray)')}</React.Fragment>);
         hasAddedDeduction = true;
       } else if (taxableIncomeOutputs.includes(mapping.taxsim) && !hasAddedTaxableIncome) {
-        results.push(React.cloneElement(createDivider('Taxable Income & Tax Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-taxable` }));
+        results.push(<React.Fragment key="divider-taxable">{createDivider('Taxable Income & Tax Calculations')}</React.Fragment>);
         hasAddedTaxableIncome = true;
       } else if (creditOutputs.includes(mapping.taxsim) && !hasAddedCredit) {
-        results.push(React.cloneElement(createDivider('Tax Credits', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-credit` }));
+        results.push(<React.Fragment key="divider-credit">{createDivider('Tax Credits', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedCredit = true;
       } else if (amtOutputs.includes(mapping.taxsim) && !hasAddedAMT) {
-        // AMT section now only contains v26, v27 (v28 moved to taxable income)
-        results.push(React.cloneElement(createDivider('Alternative Minimum Tax', 'var(--dark-gray)', 'var(--light-gray)'), { key: `divider-amt` }));
+        results.push(<React.Fragment key="divider-amt">{createDivider('Alternative Minimum Tax', 'var(--dark-gray)')}</React.Fragment>);
         hasAddedAMT = true;
       } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
-        results.push(React.cloneElement(createDivider('State-Specific Calculations', 'var(--blue-primary)', 'var(--blue-98)'), { key: `divider-state` }));
+        results.push(<React.Fragment key="divider-state">{createDivider('State-Specific Calculations')}</React.Fragment>);
         hasAddedState = true;
       } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
-        results.push(React.cloneElement(createDivider('Additional Outputs', 'var(--teal-accent)', 'var(--teal-light)'), { key: `divider-additional` }));
+        results.push(<React.Fragment key="divider-additional">{createDivider('Additional Outputs', 'var(--teal-accent)')}</React.Fragment>);
         hasAddedAdditional = true;
       }
 
-      // Add the variable row with appropriate styling
-      let categoryClass = '';
-      if (basicOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (taxOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (agiOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      } else if (deductionOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(97, 97, 97, 0.02)';
-      } else if (taxableIncomeOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (creditOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      } else if (amtOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(97, 97, 97, 0.02)';
-      } else if (stateOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(44, 100, 150, 0.02)';
-      } else if (additionalOutputs.includes(mapping.taxsim)) {
-        categoryClass = 'rgba(57, 198, 192, 0.02)';
-      }
-
-      results.push(renderVariableRow(mapping, index, categoryClass));
+      results.push(renderVariableRow(mapping, index));
     });
 
     return results;
