@@ -1,3 +1,10 @@
+## [2.8.0] - 2026-02-19
+
+### Added
+
+- Add policyengine-us version pinning and version reporting to R wrapper.
+
+
 ## [2.7.3] - 2026-02-19
 
 ### Changed
