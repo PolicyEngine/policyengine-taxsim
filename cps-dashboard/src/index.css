@@ -1463,6 +1463,16 @@ body {
   color: var(--blue-primary);
 }
 
+.landing-nav-link-active {
+  background: var(--blue-primary);
+  color: var(--white);
+}
+
+.landing-nav-link-active:hover {
+  background: var(--dark-blue-hover);
+  color: var(--white);
+}
+
 /* Hero Section */
 .landing-hero {
   background: linear-gradient(135deg, var(--darkest-blue) 0%, var(--blue-primary) 60%, var(--dark-blue-hover) 100%);
@@ -2273,4 +2283,24 @@ body {
   max-width: 80rem;
   margin: 0 auto;
   padding: 24px 2rem;
+}
+
+.dashboard-export-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid var(--blue-95);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--blue-primary);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.dashboard-export-button:hover {
+  background: var(--blue-98);
+  border-color: var(--blue-primary);
 }
