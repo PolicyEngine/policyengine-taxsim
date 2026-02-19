@@ -233,11 +233,18 @@ policyengine_versions <- function(envname = "policyengine-taxsim") {
     pkg$version("policyengine-us")
   }, error = function(e) "unknown")
 
+  core_ver <- tryCatch({
+    pkg <- reticulate::import("importlib.metadata")
+    pkg$version("policyengine-core")
+  }, error = function(e) "unknown")
+
   message("policyengine-taxsim: ", taxsim_ver)
   message("policyengine-us:     ", us_ver)
+  message("policyengine-core:   ", core_ver)
 
   invisible(list(
     policyengine_taxsim = taxsim_ver,
-    policyengine_us = us_ver
+    policyengine_us = us_ver,
+    policyengine_core = core_ver
   ))
 }
