@@ -18,18 +18,18 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
               Home
             </button>
             <button
-              onClick={onNavigateToDashboard}
-              className="landing-nav-link"
-            >
-              <FiBarChart2 style={{ marginRight: '6px' }} />
-              Dashboard
-            </button>
-            <button
               onClick={onNavigateToDocumentation}
               className="landing-nav-link"
             >
               <FiBook style={{ marginRight: '6px' }} />
               Documentation
+            </button>
+            <button
+              onClick={onNavigateToDashboard}
+              className="landing-nav-link"
+            >
+              <FiBarChart2 style={{ marginRight: '6px' }} />
+              Dashboard
             </button>
             <a
               href="https://github.com/PolicyEngine/policyengine-taxsim"

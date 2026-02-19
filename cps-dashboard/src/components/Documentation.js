@@ -350,16 +350,16 @@ comparison <- compare_with_taxsim(my_data)`
               Home
             </button>
           )}
+          <button className="landing-nav-link landing-nav-link-active">
+            <FiBook style={{ marginRight: '6px' }} />
+            Documentation
+          </button>
           {onBackToDashboard && (
             <button onClick={onBackToDashboard} className="landing-nav-link">
               <FiBarChart2 style={{ marginRight: '6px' }} />
               Dashboard
             </button>
           )}
-          <button className="landing-nav-link landing-nav-link-active">
-            <FiBook style={{ marginRight: '6px' }} />
-            Documentation
-          </button>
           <a
             href="https://github.com/PolicyEngine/policyengine-taxsim"
             target="_blank"

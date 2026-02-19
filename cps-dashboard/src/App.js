@@ -110,13 +110,13 @@ function App() {
               <FiHome style={{ marginRight: '6px' }} />
               Home
             </button>
-            <button className="landing-nav-link landing-nav-link-active">
-              <FiBarChart2 style={{ marginRight: '6px' }} />
-              Dashboard
-            </button>
             <button onClick={() => handleViewChange('documentation')} className="landing-nav-link">
               <FiBook style={{ marginRight: '6px' }} />
               Documentation
+            </button>
+            <button className="landing-nav-link landing-nav-link-active">
+              <FiBarChart2 style={{ marginRight: '6px' }} />
+              Dashboard
             </button>
             <a
               href="https://github.com/PolicyEngine/policyengine-taxsim"
