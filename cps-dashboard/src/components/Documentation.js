@@ -673,6 +673,23 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
                 </a>
               </div>
 
+              <div className="doc-intro-blurb" style={{ marginBottom: '24px' }}>
+                <strong>Note on extended coverage:</strong> Because this emulator is powered by
+                PolicyEngine's microsimulation model, it can calculate variables beyond what
+                TAXSIM-35 provides. The mappings below show the standard TAXSIM
+                inputs and outputs, but PolicyEngine supports hundreds of additional tax and
+                benefit variables. See the{' '}
+                <a
+                  href="https://policyengine.org/us/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--blue-primary)', fontWeight: 600 }}
+                >
+                  PolicyEngine API documentation
+                </a>{' '}
+                for the full list.
+              </div>
+
               {/* Tab Navigation */}
               <div className="landing-tab-bar" style={{ marginBottom: '16px' }}>
                 <button
@@ -708,27 +725,6 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
           </section>
         )}
 
-        {/* Notes Section */}
-        <section className="landing-section">
-          <div className="landing-section-inner">
-            <div className="doc-intro-blurb">
-              <strong>Note on extended coverage:</strong> Because this emulator is powered by
-              PolicyEngine's microsimulation model, it can calculate variables beyond what
-              TAXSIM-35 provides. The variable mappings above show the standard TAXSIM
-              inputs and outputs, but PolicyEngine supports hundreds of additional tax and
-              benefit variables. See the{' '}
-              <a
-                href="https://policyengine.org/us/api"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'var(--blue-primary)', fontWeight: 600 }}
-              >
-                PolicyEngine API documentation
-              </a>{' '}
-              for the full list.
-            </div>
-          </div>
-        </section>
       </main>
 
       {/* Footer — matches landing page */}
