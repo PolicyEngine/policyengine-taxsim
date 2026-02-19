@@ -78,6 +78,12 @@ runner = PolicyEngineRunner(df)
 results = runner.run(show_progress=True)
 results.to_csv("output.csv", index=False)`
       },
+      {
+        id: 'python-pin',
+        label: 'Pin policyengine-us version (optional)',
+        code: `# For reproducible results, pin the underlying tax model version
+pip install policyengine-us==1.555.0`
+      },
     ],
     r: [
       {
@@ -105,7 +111,41 @@ result <- policyengine_calculate_taxes(my_data)
 
 # Compare PolicyEngine vs TAXSIM-35
 comparison <- compare_with_taxsim(my_data)`
+      },
+      {
+        id: 'r-version-pin',
+        label: 'Pin version & check versions',
+        code: `# Pin policyengine-us to a specific version for reproducible results
+setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
+
+# Check installed package versions
+policyengine_versions()
+#> policyengine-taxsim: 2.8.0
+#> policyengine-us:     1.555.0
+#> policyengine-core:   3.30.2`
       }
+    ],
+    cli: [
+      {
+        id: 'cli-install',
+        label: 'Install',
+        code: `pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
+      },
+      {
+        id: 'cli-usage',
+        label: 'Run calculations',
+        code: `# Run PolicyEngine on a TAXSIM input file
+policyengine-taxsim policyengine input.csv -o output.csv
+
+# Compare PolicyEngine vs TAXSIM-35
+policyengine-taxsim compare input.csv --output-dir comparison_output
+
+# Run official TAXSIM-35 locally
+policyengine-taxsim taxsim input.csv -o taxsim_output.csv
+
+# Sample records from a large dataset
+policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
+      },
     ],
   };
 
@@ -456,19 +496,19 @@ comparison <- compare_with_taxsim(my_data)`
           <section className="landing-section">
             <div className="landing-section-inner">
               <p style={{ color: 'var(--dark-gray)', marginBottom: '20px', fontSize: '15px', lineHeight: '1.7' }}>
-                Install and run the emulator using Python or R. The emulator accepts the standard
+                Install and run the emulator using Python, R, or the command line. The emulator accepts the standard
                 TAXSIM-35 CSV input format and returns matching output variables.
               </p>
 
               {/* Language Tabs */}
               <div className="landing-tab-bar">
-                {['python', 'r'].map((tab) => (
+                {['python', 'r', 'cli'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveInstallTab(tab)}
                     className={`landing-tab-button ${activeInstallTab === tab ? 'landing-tab-active' : ''}`}
                   >
-                    {tab === 'python' ? 'Python' : 'R'}
+                    {tab === 'python' ? 'Python' : tab === 'r' ? 'R' : 'CLI'}
                   </button>
                 ))}
               </div>
