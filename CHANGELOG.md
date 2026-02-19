@@ -1,3 +1,10 @@
+## [2.8.1] - 2026-02-19
+
+### Fixed
+
+- Fix CLI entry point: `policyengine-taxsim` command now works after click group refactor.
+
+
 ## [2.8.0] - 2026-02-19
 
 ### Added
