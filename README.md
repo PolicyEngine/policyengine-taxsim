@@ -45,7 +45,8 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 # Clone and install
 git clone https://github.com/PolicyEngine/policyengine-taxsim.git
 cd policyengine-taxsim
-pip install -e .
+uv venv && source .venv/bin/activate
+uv pip install -e .
 
 # Run a comparison analysis on sample data
 python policyengine_taxsim/cli.py compare your_data.csv --sample 1000 --year 2021
@@ -63,35 +64,26 @@ cd cps-dashboard && npm install && npm start
    git clone https://github.com/PolicyEngine/policyengine-taxsim.git
    cd policyengine-taxsim
    ```
-2. Create a virtual environment:
+2. Create a virtual environment and install:
    ```bash
-   # For Windows
-   python -m venv venv
-   venv\Scripts\activate
-
-   # For macOS/Linux
-   python3 -m venv venv
-   source venv/bin/activate
+   uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   uv pip install -e .
    ```
 
-3. Install the package:
-   ```bash
-   pip install -e .
-   ```
-4. To update the project codebase (for existing project)
+3. To update the project codebase (for existing project):
     ```bash
    git pull origin main
    ```
 
-5. To update dependencies used by the project (for existing project):
+4. To update dependencies used by the project (for existing project):
    ```bash
-   pip install -e . --upgrade
+   uv pip install -e . --upgrade
    ```
 
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
+uv pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
 ```
 
 ## Usage
