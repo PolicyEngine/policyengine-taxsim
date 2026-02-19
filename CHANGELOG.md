@@ -1,3 +1,10 @@
+## [2.7.3] - 2026-02-19
+
+### Changed
+
+- Updated README Quick Start and installation instructions to use uv and virtual environments.
+
+
 ## [2.7.2] - 2026-02-18
 
 ### Changed
