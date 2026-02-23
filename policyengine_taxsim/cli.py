@@ -144,8 +144,11 @@ def cli(ctx, logs, disable_salt, sample):
 @click.option(
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
+@click.option(
+    "--assume-w2-wages", is_flag=True, default=False, help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)"
+)
 @click.option("--sample", type=int, help="Sample N records from input")
-def policyengine(input_file, output, logs, disable_salt, sample):
+def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
 
@@ -162,7 +165,7 @@ def policyengine(input_file, output, logs, disable_salt, sample):
             df = df.sample(n=sample, random_state=42)
 
         # Use the PolicyEngineRunner with microsimulation
-        runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
+        runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages)
         results_df = runner.run(show_progress=True)
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
@@ -231,7 +234,10 @@ def taxsim(input_file, output, sample, taxsim_path):
     help="Disable SALT deduction in PolicyEngine",
 )
 @click.option("--logs", is_flag=True, help="Generate PolicyEngine YAML logs")
-def compare(input_file, sample, output_dir, year, disable_salt, logs):
+@click.option(
+    "--assume-w2-wages", is_flag=True, default=False, help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)"
+)
+def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_wages):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
@@ -262,7 +268,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
 
         # Run PolicyEngine
         click.echo("Running PolicyEngine...")
-        pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
+        pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages)
         pe_results = pe_runner.run()
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
