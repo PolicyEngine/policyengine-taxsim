@@ -1097,14 +1097,20 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ) from e
 
             # Apply fiitax special calculation (income_tax + additional_medicare_tax)
+            # TAXSIM includes Additional Medicare Tax (0.9% on wages above
+            # $200K/$250K) in fiitax. PE's income_tax does not include it,
+            # so we add it here.
+            addl_med = self._calc_tax_unit(
+                sim, "additional_medicare_tax", year_str
+            )
             if "fiitax" in columns:
-                pass  # Already computed above
+                columns["fiitax"] = np.round(
+                    columns["fiitax"] + addl_med, 2
+                )
             else:
                 fiitax_arr = self._calc_tax_unit(
                     sim, "income_tax", year_str
-                ) + self._calc_tax_unit(
-                    sim, "additional_medicare_tax", year_str
-                )
+                ) + addl_med
                 columns["fiitax"] = np.round(fiitax_arr, 2)
 
             # Apply idtl filtering: mask out columns not requested by each row's idtl
