@@ -846,14 +846,17 @@ class PolicyEngineRunner(BaseTaxRunner):
             # TAXSIM skips the W-2/UBIA wage cap for S-Corp income, so to align
             # we set w2_wages_from_qualified_business high enough that the cap
             # never binds, matching TAXSIM's simplified 20%-of-QBI calculation.
+            # Note: this is a person-level variable, so we use the person
+            # population count (not the number of tax-unit records).
             if self.assume_w2_wages:
+                n_persons = sim.get_variable_population(
+                    "w2_wages_from_qualified_business"
+                ).count
                 years = sorted(set(self.input_df["year"].unique()))
                 for year in years:
-                    year_mask = self.input_df["year"] == year
-                    n_year_records = year_mask.sum()
                     sim.set_input(
                         variable_name="w2_wages_from_qualified_business",
-                        value=np.full(n_year_records, 1e9),
+                        value=np.full(n_persons, 1e9),
                         period=str(
                             int(year)
                             if isinstance(year, (float, np.floating))
