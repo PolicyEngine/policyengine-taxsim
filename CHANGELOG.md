@@ -1,3 +1,10 @@
+## [2.9.0] - 2026-02-24
+
+### Added
+
+- Add /diagnose-issue slash command and issue analysis tracker.
+
+
 ## [2.8.1] - 2026-02-19
 
 ### Fixed
