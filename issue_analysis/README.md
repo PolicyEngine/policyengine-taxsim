@@ -9,7 +9,9 @@ This directory tracks the diagnosis of discrepancies between PolicyEngine and TA
 - `pe_correct` - PolicyEngine is correct, TAXSIM/TaxAct differs
 - `pe_fix_needed` - PolicyEngine needs update (issue filed in policyengine-us)
 - `taxsim_fix_needed` - policyengine-taxsim needs update (input/output mapping bug)
+- `taxsim_bug` - Bug in NBER TAXSIM-35 (not our emulator)
 - `ambiguous` - Needs further research
+- `closed` - Resolved/closed
 
 ## Issue Tracker
 
@@ -30,13 +32,27 @@ This directory tracks the diagnosis of discrepancies between PolicyEngine and TA
 | #595 | MS | 2024 | pe_correct | PE=$54 matches YAML. PE correctly optimizes between joint/separate filing, choosing joint (lower tax). MS 2024 rate: 4.7% on income > $10K. | N/A |
 | #668 | MO | 2024 | pe_correct | PE=$0 matches YAML. TaxAct shows $80 because it failed to complete MO-A Section B (Private Pension). PE correctly claims $6,000 pension exemption for age 75 filer with $14,313 private pension. | N/A |
 | #667 | MO | 2024 | pe_correct | PE=$54 matches YAML. TaxAct shows $245 because it failed to complete MO-A Section B (same error as #668). PE correctly claims $12,960 combined pension+SS exemption. | N/A |
-| #666 | NJ | 2024 | pe_fix_needed | PE=$230 but TaxAct=$552. Bug: subtractions.yaml includes taxable_social_security but SS already excluded from gross_income_sources. Double-excludes SS. | [#6979](https://github.com/PolicyEngine/policyengine-us/issues/6979) |
+| #666 | NJ | 2024 | closed | PE=$230 but TaxAct=$552. Bug: subtractions.yaml double-excludes SS income. Fixed upstream. | [#6979](https://github.com/PolicyEngine/policyengine-us/issues/6979) |
 | #669 | IA | 2024 | taxsim_fix_needed | PE=$147,228 but TaxAct=$119,218. Bug in input_mapper.py: splits pension 50/50 between spouses. Iowa excludes pension for age 55+ only, so spouse (age 40) portion isn't excluded. | N/A (taxsim fix) |
+| #619 | AZ | 2024 | diagnosed | PE $6 low (spurious $250 rebate), TAXSIM $90 high (DTC phaseout bug). Both wrong for different reasons. | [#7481](https://github.com/PolicyEngine/policyengine-us/issues/7481) |
+| #664 | VA | 2024 | pe_fix_needed | VA Spouse Tax Adjustment not implemented. PE missing spousal exemption for joint filers. | [#6958](https://github.com/PolicyEngine/policyengine-us/issues/6958) |
+| #671 | CT | 2024 | closed | Resolved. | N/A |
+| #683 | DC | 2024 | diagnosed | DC discrepancy diagnosed in prior session. | N/A |
+| #684 | DC | 2024 | closed | SE loss fix resolved the discrepancy. | N/A |
+| #686 | DC | 2024 | diagnosed | DC discrepancy diagnosed in prior session. | N/A |
+| #711 | - | 2021 | taxsim_bug | Does TAXSIM-35 incorrectly exclude 17-year-olds from 2021 expanded CTC? PE correctly includes them per ARPA. | N/A |
+| #712 | - | 2024 | taxsim_bug | Does TAXSIM-35 incorrectly calculate OASDI on self-employment income? PE correctly applies 92.35% factor. | N/A |
+| #714 | - | 2024 | taxsim_bug | Does TAXSIM-35 incorrectly apply EITC age limits? PE correctly follows current law (no upper age limit post-2021). | N/A |
+| #715 | - | 2024 | closed | Additional Medicare Tax discrepancy. Known diff, backburnered. | N/A |
+| #716 | GA | 2024 | pe_correct | GA surplus rebate timing convention question. PE assigns to eligibility year. Fixed upstream (commit 2c5d32e). | N/A |
+| #717 | CA | 2024 | taxsim_bug | TAXSIM SALT add-back bug confirmed: 05ca.for includes state income tax in SALT excess, inflating CA itemized deductions. PE is correct. | N/A |
+| #718 | VA | 2024 | pe_correct | VA rebate timing convention question. Similar to GA (#716). | N/A |
+| #719 | AZ | 2024 | taxsim_bug | Does TAXSIM-35 use wrong phaseout rate for AZ Dependent Tax Credit? PE correctly phases out at statutory rate. | N/A |
 | #655 | VT | 2024 | pending | | |
 | #654 | AZ | 2024 | pending | | |
 | #653 | DC | 2024 | pending | | |
 | #652 | - | 2024 | ambiguous | HOH + 19yo dependent: TaxAct assumes HOH, PE uses Single (19yo non-student doesn't qualify per IRS). See #651. | N/A |
-| #636 | DC | 2024 | pe_correct | YAML wrong: expects $28,444 (tax on full AGI). PE correctly applies $21,900 std ded → $26,418 (matches TaxAct $26,419). | N/A |
+| #636 | DC | 2024 | pe_correct | YAML wrong: expects $28,444 (tax on full AGI). PE correctly applies $21,900 std ded -> $26,418 (matches TaxAct $26,419). | N/A |
 | #651 | CT | 2024 | ambiguous | TaxAct: $905 (HOH), PE: $1,568 (Single). 19yo non-student doesn't qualify as child dependent for HOH per IRS rules. TaxAct may be incorrectly assuming HOH eligibility. | N/A |
 | #650 | NJ | 2024 | pending | | |
 | #649 | AR | 2024 | pending | | |
@@ -51,16 +67,3 @@ This directory tracks the diagnosis of discrepancies between PolicyEngine and TA
 | #546 | MT | 2024 | pe_fix_needed | TaxAct: $0, PE: $277. Two bugs: (1) subtracting negative capital gains creates phantom income; (2) capital gains tax on negative gains produces negative tax. | [#6947](https://github.com/PolicyEngine/policyengine-us/issues/6947) |
 | #545 | HI | 2024 | pe_fix_needed | TaxAct: -$440 refund (food/excise credit). PE: $0. Parameter threshold starts at 0, not -inf, so negative AGI gets $0 credit. | [#6946](https://github.com/PolicyEngine/policyengine-us/issues/6946) |
 | #544 | DC | 2024 | pe_fix_needed | TaxAct: $0, PE: -$90 refund. Bug: dc_ptc creates phantom $90 credit when AGI is negative (ptax_offset becomes negative, making 0 - (-90) = $90). | [#6945](https://github.com/PolicyEngine/policyengine-us/issues/6945) |
-
-## Directory Structure
-
-```
-issue_analysis/
-├── README.md              # This file - tracks all issues
-├── templates/
-│   └── finding.md         # Template for documenting findings
-└── issues/
-    ├── 660_nj_joint_elderly.md
-    ├── 659_co_hoh.md
-    └── ...
-```

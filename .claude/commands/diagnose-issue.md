@@ -2,6 +2,12 @@
 
 You are helping diagnose discrepancies between PolicyEngine and TAXSIM tax calculations.
 
+## Critical Rules
+
+1. **Always compare ALL THREE systems**: PolicyEngine, TAXSIM, and TaxAct. Never conclude based on just two.
+2. **NEVER post GitHub issues, comments, or PRs without explicit user confirmation.** Always show draft content first and wait for approval.
+3. **Phrase TAXSIM issues as questions** (e.g., "Does TAXSIM-35 incorrectly apply...?" not "TAXSIM-35 incorrectly applies...").
+
 ## Repositories
 
 You have access to two local repositories:
@@ -21,27 +27,37 @@ Each issue at https://github.com/PolicyEngine/policyengine-taxsim/issues contain
 4. **TaxAct PDF** - The ground truth tax forms (attached)
 5. **TAXSIM reference files** - Available at `taxsim.nber.org/out2psl/{issue_number}/`
 
-**IMPORTANT**: The issue description often contains the filer's analysis of what's wrong (e.g., "PE is not applying the retirement income exclusion", "extra credits TA doesn't find"). Start by reading the description carefully before diving into code.
+**IMPORTANT**: The issue description often contains the filer's analysis of what's wrong. Start by reading the description carefully before diving into code.
 
 ### TAXSIM Reference Files
 
-Always check the TAXSIM output directory at `https://taxsim.nber.org/out2psl/{issue_number}/`:
-- `{number}.yaml` - YAML test with PE situation and TaxAct output values
-- `{number}.txt` - Text summary of calculations
-- `output.txt` - Detailed output breakdown
-- `txpydata.csv` - Input data in CSV format
-- `*.pdf` - **Filled-out TaxAct forms** (the ground truth)
+Fetch all TAXSIM data in ONE batch (the server is unreliable, minimize requests):
 
-**ALWAYS review the TaxAct PDF forms** to see exactly how TaxAct filled out the tax forms. This shows:
-- Specific line item values
-- How deductions/exemptions were allocated
-- Credits claimed
-- The actual numbers that produce the expected result
+```bash
+ISSUE={issue_number}
+mkdir -p /tmp/taxsim_$ISSUE && cd /tmp/taxsim_$ISSUE
+
+# Batch download all files
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/" -o index.html
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$ISSUE.yaml" -o $ISSUE.yaml &
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$ISSUE.txt" -o $ISSUE.txt &
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/output.txt" -o output.txt &
+curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/txpydata.csv" -o txpydata.csv &
+wait
+
+# Download any PDFs
+grep -oP 'href="\K[^"]+\.pdf' index.html | while read pdf; do
+  curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$pdf" -o "$pdf" &
+done
+wait
+```
+
+Then work ENTIRELY from local files - no more network calls to TAXSIM.
 
 ## Diagnostic Steps
 
 ### Step 1: Read the Issue
-- Fetch the issue from GitHub
+- Fetch the issue from GitHub (`gh issue view {number} --repo PolicyEngine/policyengine-taxsim`)
 - Read the description carefully for diagnostic hints
 - Note any specific numbers mentioned (PE vs TaxAct values)
 
@@ -66,16 +82,50 @@ python policyengine_taxsim/cli.py policyengine /tmp/test.csv -o /tmp/output.csv
 cat /tmp/output.csv
 ```
 
-### Step 4: Compare Output Variables
-Check key output variables (when idtl=2):
-- `v32` = State AGI (should be non-zero for state tax issues)
-- `v36` = State Taxable Income
-- `siitax` = State Income Tax
-- `fiitax` = Federal Income Tax
+### Step 4: Three-Way Comparison
+Compare ALL THREE values for each key variable:
+
+| Variable | PolicyEngine | TAXSIM | TaxAct (PDF) | Who's Right? |
+|----------|-------------|--------|--------------|--------------|
+| siitax   |             |        |              |              |
+| fiitax   |             |        |              |              |
+| v10      |             |        |              |              |
+| v32      |             |        |              |              |
+| v36      |             |        |              |              |
 
 **If v32=0 for a state tax issue**: The state isn't being set correctly. Check the state code!
 
-### Step 5: Deep Dive if Needed
+### Step 5: Extract and Analyze TaxAct PDF Forms (MANDATORY)
+
+**THIS STEP IS CRITICAL AND MUST NOT BE SKIPPED.**
+
+The TaxAct PDF contains the actual filled-out tax forms - this is the ground truth. The YAML expected values may be incorrect, so always verify against the actual PDF.
+
+```bash
+# Extract text using PyMuPDF (from local downloaded file)
+python3 -c "
+import fitz
+doc = fitz.open('/tmp/taxsim_$ISSUE/form.pdf')
+for page_num in range(len(doc)):
+    page = doc[page_num]
+    print(f'=== Page {page_num + 1} ===')
+    print(page.get_text())
+"
+```
+
+#### What to Look For in the PDF:
+
+1. **Filing Status** - Which box is checked?
+2. **Exemptions** - Total amount and how allocated between spouses
+3. **Standard/Itemized Deductions** - Amount and allocation
+4. **Income by Line** - Wages, interest, dividends, etc. for each spouse
+5. **Taxable Income** - Final taxable income for each spouse
+6. **Tax Due** - The actual tax calculated on the form
+7. **Credits** - Which credits were claimed and amounts
+
+**If YAML expected and PDF differ, the PDF is correct.** The YAML may have been generated incorrectly.
+
+### Step 6: Deep Dive if Needed
 If the basic test shows incorrect values:
 
 ```python
@@ -97,54 +147,6 @@ print("State AGI:", sim.calculate("{state}_agi", 2024))
 print("Exclusion:", sim.calculate("{state}_retirement_exclusion", 2024))
 ```
 
-### Step 6: Extract and Analyze TaxAct PDF Forms (MANDATORY)
-
-**THIS STEP IS CRITICAL AND MUST NOT BE SKIPPED.**
-
-The TaxAct PDF contains the actual filled-out tax forms - this is the ground truth. The YAML expected values may be incorrect, so always verify against the actual PDF.
-
-#### How to Extract PDF Form Data:
-
-```bash
-# 1. Download the PDF
-cd /tmp && curl -s -o "form_{issue_number}.pdf" "https://taxsim.nber.org/out2psl/{issue_number}/{pdf_filename}.pdf"
-
-# 2. Extract text using PyMuPDF
-python3 -c "
-import fitz
-doc = fitz.open('/tmp/form_{issue_number}.pdf')
-for page_num in range(len(doc)):
-    page = doc[page_num]
-    print(f'=== Page {page_num + 1} ===')
-    print(page.get_text())
-"
-```
-
-#### What to Look For in the PDF:
-
-1. **Filing Status** - Which box is checked?
-2. **Exemptions** - Total amount and how allocated between spouses
-3. **Standard/Itemized Deductions** - Amount and allocation
-4. **Income by Line** - Wages, interest, dividends, etc. for each spouse
-5. **Taxable Income** - Final taxable income for each spouse
-6. **Tax Due** - The actual tax calculated on the form
-7. **Credits** - Which credits were claimed and amounts
-
-#### Compare PDF vs YAML:
-
-| Item | YAML Expected | PDF Actual |
-|------|---------------|------------|
-| State Tax | $X | $Y |
-
-**If they differ, the PDF is correct.** The YAML may have been generated incorrectly.
-
-#### Example from Issue #657:
-The YAML showed $147.97 MS tax, but the actual Form 80-105 showed:
-- Optimal exemption allocation: $11,549 / $3,451
-- Optimal std ded allocation: $4,600 / $0
-- Both taxable incomes under $10,000
-- **Actual tax: $0** (not $147.97)
-
 ### Step 7: Research Legal Documentation
 If PE logic appears wrong, verify against official sources:
 - State tax form instructions (primary source)
@@ -161,7 +163,15 @@ grep -r "variable_name" /Users/pavelmakarchuk/policyengine-us/policyengine_us/
 ```
 
 ### Step 9: Document Finding
-Record in `issue_analysis/issues/{number}_{description}.md` and update `issue_analysis/README.md`
+Update the tracker in `issue_analysis/README.md`.
+
+If PE needs a fix, **draft** an issue for policyengine-us with:
+1. Summary of the problem
+2. Root cause analysis with code references
+3. Suggested fix
+4. Integration test with correct expected values (from TaxAct PDF, not PE's buggy output)
+
+**Show the draft to the user and wait for approval before posting.**
 
 ---
 
@@ -218,37 +228,45 @@ print(get_state_code(34))  # Should print "NC"
 
 ## Common Root Causes
 
-### 1. Data Entry Errors in Issue
-- Wrong state code (FIPS vs TAXSIM alphabetical)
-- Missing or incorrect age (breaks age-based provisions)
-- Wrong filing status
-
-### 2. YAML Expected Value Incorrect
+### 1. YAML Expected Value Incorrect
 - YAML expected value doesn't match actual TaxAct PDF form
 - Always verify by extracting and reading the PDF
 - Example: Issue #657 YAML said $147.97 but PDF showed $0
 
-### 3. Missing State Provisions in PE
+### 2. Data Entry Errors in Issue
+- Wrong state code (FIPS vs TAXSIM alphabetical)
+- Missing or incorrect age (breaks age-based provisions)
+- Wrong filing status
+
+### 3. TAXSIM Bug
+- TAXSIM source code has known bugs (SALT add-back, DTC phaseout, EITC age limits)
+- Compare all three systems to identify
+
+### 4. Missing State Provisions in PE
 - State credit/deduction not implemented
 - Year-specific parameter not updated
 
-### 4. Missing Optimization in PE
+### 5. Missing Optimization in PE
 - PE uses fixed 50/50 splits for exemptions/deductions
 - Some states (e.g., MS) allow optimal allocation between spouses
 - TaxAct optimizes these allocations automatically
 
-### 5. Input Mapping Issues (policyengine-taxsim)
+### 6. Input Mapping Issues (policyengine-taxsim)
 - Income not being split correctly between spouses
 - Variable not mapped from TAXSIM input to PE situation
 
-### 6. Output Mapping Issues (policyengine-taxsim)
+### 7. Output Mapping Issues (policyengine-taxsim)
 - State variable name not being substituted correctly
 - Variable exists but not in output mapping
 
-### 7. Calculation Logic Issues (policyengine-us)
+### 8. Calculation Logic Issues (policyengine-us)
 - Eligibility criteria wrong
 - Formula doesn't match tax form worksheet
 - Parameter values outdated
+
+### 9. Negative Income Edge Cases
+- Credits/taxes not handling negative AGI or capital losses correctly
+- Phantom credits when income is negative
 
 ---
 
@@ -264,6 +282,7 @@ When an issue doesn't reproduce as expected:
 - [ ] **Check existing tests in policyengine-us?** (May show expected behavior)
 - [ ] **PDF form extracted and analyzed?** (YAML expected values may be wrong!)
 - [ ] **PDF tax matches YAML expected?** (If not, use PDF as ground truth)
+- [ ] **All three systems compared?** (PE, TAXSIM, and TaxAct)
 
 ---
 
@@ -287,12 +306,25 @@ When an issue doesn't reproduce as expected:
 
 - AZ: azdor.gov
 - AR: dfa.arkansas.gov
+- CA: ftb.ca.gov
 - CO: tax.colorado.gov
 - CT: portal.ct.gov/DRS
 - DC: otr.cfo.dc.gov
+- GA: dor.georgia.gov
+- HI: tax.hawaii.gov
+- IA: tax.iowa.gov
+- KY: revenue.ky.gov
+- MN: revenue.state.mn.us
+- MO: dor.mo.gov
 - MS: dor.ms.gov
+- MT: mtrevenue.gov
+- NE: revenue.nebraska.gov
 - NJ: nj.gov/treasury/taxation
+- NM: tax.newmexico.gov
+- OK: oklahoma.gov/tax
+- VA: tax.virginia.gov
 - VT: tax.vermont.gov
+- WV: tax.wv.gov
 
 ---
 
