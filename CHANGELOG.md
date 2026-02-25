@@ -1,3 +1,10 @@
+## [2.9.1] - 2026-02-25
+
+### Fixed
+
+- Pin Python version constraint in R wrapper setup_policyengine() to avoid failure on Python 3.14+ machines.
+
+
 ## [2.9.0] - 2026-02-24
 
 ### Added
