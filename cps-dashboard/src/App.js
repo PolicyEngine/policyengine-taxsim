@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { FiDownload, FiBook, FiHome, FiBarChart2, FiGithub } from 'react-icons/fi';
+import { FiDownload, FiBook, FiHome, FiBarChart2, FiGithub, FiExternalLink, FiArrowRight } from 'react-icons/fi';
 import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
@@ -131,50 +131,98 @@ function App() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="dashboard-content">
-        {/* Controls */}
-        <div className="flex-between mb-6">
-          <YearTabs
-            selectedYear={selectedYear}
-            onYearChange={handleYearChange}
-            availableYears={availableYears}
-          />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <StateFilter
-              selectedState={selectedState}
-              onStateChange={handleStateChange}
+      {/* Dashboard Header */}
+      <div className="dash-header">
+        <div className="dash-header-inner">
+          <div className="dash-header-text">
+            <h1 className="dash-header-title">
+              {selectedYear} Comparison
+              {selectedState && <span className="dash-header-state"> — {selectedState}</span>}
+            </h1>
+            <p className="dash-header-desc">
+              PolicyEngine vs TAXSIM-35 on CPS microdata. Records match when federal and state tax differ by less than $15.
+            </p>
+          </div>
+          <div className="dash-header-controls">
+            <YearTabs
+              selectedYear={selectedYear}
+              onYearChange={handleYearChange}
+              availableYears={availableYears}
             />
-            <button onClick={handleExport} className="dashboard-export-button">
-              <FiDownload style={{ marginRight: '6px' }} />
-              Export Data
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <StateFilter
+                selectedState={selectedState}
+                onStateChange={handleStateChange}
+              />
+              <button onClick={handleExport} className="dashboard-export-button">
+                <FiDownload style={{ marginRight: '6px' }} />
+                Export
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Dashboard Sections */}
-        <div className="space-y-8">
-          {/* Performance Overview */}
-          <section>
-            <h2 className="section-title">Performance Overview</h2>
-            <MetricsRow
-              data={currentYearData}
-              selectedState={selectedState}
-            />
-          </section>
+      {/* Main Content */}
+      <main className="dashboard-content">
+        {/* Performance Overview */}
+        <section style={{ marginBottom: '2rem' }}>
+          <MetricsRow
+            data={currentYearData}
+            selectedState={selectedState}
+          />
+        </section>
 
-          {/* State Analysis */}
-          <section>
-            <h2 className="section-title">State-by-State Analysis</h2>
-            <StateTable
-              data={currentYearData}
-              selectedState={selectedState}
-              selectedYear={selectedYear}
-              onStateSelect={handleStateChange}
-            />
-          </section>
-        </div>
+        {/* State Analysis */}
+        <section>
+          <h2 className="section-title">State-by-State Analysis</h2>
+          <StateTable
+            data={currentYearData}
+            selectedState={selectedState}
+            selectedYear={selectedYear}
+            onStateSelect={handleStateChange}
+          />
+        </section>
       </main>
+
+      {/* Footer — matches landing page */}
+      <footer className="landing-footer">
+        <div className="landing-footer-inner">
+          <div className="landing-footer-grid">
+            <a
+              href="https://github.com/PolicyEngine/policyengine-taxsim"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-footer-card"
+            >
+              <FiGithub size={20} />
+              <span>GitHub Repository</span>
+              <FiExternalLink size={14} className="landing-footer-external" />
+            </a>
+            <button
+              onClick={() => handleViewChange('landing')}
+              className="landing-footer-card"
+            >
+              <FiHome size={20} />
+              <span>Home</span>
+              <FiArrowRight size={14} className="landing-footer-external" />
+            </button>
+            <a
+              href="https://taxsim.nber.org/taxsim35/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-footer-card"
+            >
+              <FiExternalLink size={20} />
+              <span>TAXSIM-35 Official Docs</span>
+              <FiExternalLink size={14} className="landing-footer-external" />
+            </a>
+          </div>
+          <div className="landing-footer-copyright">
+            Built by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

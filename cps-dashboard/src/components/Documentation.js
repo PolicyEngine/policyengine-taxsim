@@ -85,6 +85,21 @@ results.to_csv("output.csv", index=False)`
         code: `# For reproducible results, pin the underlying tax model version
 pip install policyengine-us==1.555.0`
       },
+      {
+        id: 'python-cli',
+        label: 'CLI usage',
+        code: `# Run PolicyEngine on a TAXSIM input file
+policyengine-taxsim policyengine input.csv -o output.csv
+
+# Compare PolicyEngine vs TAXSIM-35
+policyengine-taxsim compare input.csv --output-dir comparison_output
+
+# Run official TAXSIM-35 locally
+policyengine-taxsim taxsim input.csv -o taxsim_output.csv
+
+# Sample records from a large dataset
+policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
+      },
     ],
     r: [
       {
@@ -126,29 +141,6 @@ policyengine_versions()
 #> policyengine-us:     1.555.0
 #> policyengine-core:   3.30.2`
       }
-    ],
-    cli: [
-      {
-        id: 'cli-install',
-        label: 'Install',
-        code: `# Requires Python 3.10-3.13 (3.14 is not yet supported)
-pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
-      },
-      {
-        id: 'cli-usage',
-        label: 'Run calculations',
-        code: `# Run PolicyEngine on a TAXSIM input file
-policyengine-taxsim policyengine input.csv -o output.csv
-
-# Compare PolicyEngine vs TAXSIM-35
-policyengine-taxsim compare input.csv --output-dir comparison_output
-
-# Run official TAXSIM-35 locally
-policyengine-taxsim taxsim input.csv -o taxsim_output.csv
-
-# Sample records from a large dataset
-policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
-      },
     ],
   };
 
@@ -505,13 +497,13 @@ policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
 
               {/* Language Tabs */}
               <div className="landing-tab-bar">
-                {['python', 'r', 'cli'].map((tab) => (
+                {['python', 'r'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveInstallTab(tab)}
                     className={`landing-tab-button ${activeInstallTab === tab ? 'landing-tab-active' : ''}`}
                   >
-                    {tab === 'python' ? 'Python' : tab === 'r' ? 'R' : 'CLI'}
+                    {tab === 'python' ? 'Python' : 'R'}
                   </button>
                 ))}
               </div>

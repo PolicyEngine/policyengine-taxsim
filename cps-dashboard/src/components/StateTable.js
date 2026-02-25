@@ -137,26 +137,46 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
 });
 
 // Memoized State Row Component
-const StateRow = React.memo(({ 
-  item, 
-  isSelected, 
-  showHouseholds, 
-  onSelect, 
-  onInspect 
+const PctCell = ({ value }) => {
+  const getColor = (pct) => {
+    if (pct >= 90) return 'var(--green)';
+    if (pct >= 70) return 'var(--teal-accent)';
+    return 'var(--dark-red)';
+  };
+  const getBg = (pct) => {
+    if (pct >= 90) return 'rgba(34, 197, 94, 0.08)';
+    if (pct >= 70) return 'rgba(56, 178, 172, 0.08)';
+    return 'rgba(239, 68, 68, 0.08)';
+  };
+  const color = getColor(value);
+  return (
+    <td>
+      <div className="dash-pct-cell">
+        <span className="dash-pct-value" style={{ color }}>{value.toFixed(1)}%</span>
+        <div className="dash-pct-bar-track" style={{ background: getBg(value) }}>
+          <div className="dash-pct-bar-fill" style={{ width: `${Math.min(value, 100)}%`, background: color }} />
+        </div>
+      </div>
+    </td>
+  );
+};
+
+const StateRow = React.memo(({
+  item,
+  isSelected,
+  showHouseholds,
+  onSelect,
+  onInspect
 }) => {
   return (
-    <tr 
+    <tr
       onClick={() => onSelect(item.state)}
       className={`hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}
     >
       <td className="font-medium">{item.state}</td>
       <td>{item.households}</td>
-      <td className={getPercentageClass(item.federalPct)}>
-        {item.federalPct.toFixed(1)}%
-      </td>
-      <td className={getPercentageClass(item.statePct)}>
-        {item.statePct.toFixed(1)}%
-      </td>
+      <PctCell value={item.federalPct} />
+      <PctCell value={item.statePct} />
       <td className="text-sm text-gray-600">
         {getProblemAreas(item)}
       </td>

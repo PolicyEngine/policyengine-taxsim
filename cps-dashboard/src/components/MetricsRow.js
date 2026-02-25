@@ -1,22 +1,39 @@
 import React from 'react';
-import { getPercentageClass } from '../utils/formatters';
 
 const MetricCard = React.memo(({ title, value, type, description }) => {
+  const numericValue = parseFloat(value);
+  const isPercentage = type !== 'total';
+
+  const getBarColor = (pct) => {
+    if (pct >= 90) return 'var(--green)';
+    if (pct >= 70) return 'var(--teal-accent)';
+    return 'var(--dark-red)';
+  };
+
+  const getBarBg = (pct) => {
+    if (pct >= 90) return 'rgba(34, 197, 94, 0.1)';
+    if (pct >= 70) return 'rgba(56, 178, 172, 0.1)';
+    return 'rgba(239, 68, 68, 0.1)';
+  };
+
   return (
-    <div className={`metric-card ${type}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className={`text-2xl font-bold ${
-            type !== 'total' ? getPercentageClass(parseFloat(value)) : 'text-gray-900'
-          }`}>
-            {value}{type !== 'total' ? '%' : ''}
-          </p>
-          {description && (
-            <p className="text-xs text-gray-500 mt-1">{description}</p>
-          )}
-        </div>
+    <div className="dash-metric-card">
+      <div className="dash-metric-label">{title}</div>
+      <div className="dash-metric-value" style={isPercentage ? { color: getBarColor(numericValue) } : {}}>
+        {isPercentage ? `${value}%` : Number(value).toLocaleString()}
       </div>
+      {isPercentage && (
+        <div className="dash-metric-bar-track" style={{ background: getBarBg(numericValue) }}>
+          <div
+            className="dash-metric-bar-fill"
+            style={{
+              width: `${Math.min(numericValue, 100)}%`,
+              background: getBarColor(numericValue),
+            }}
+          />
+        </div>
+      )}
+      {description && <div className="dash-metric-desc">{description}</div>}
     </div>
   );
 });
@@ -26,11 +43,11 @@ MetricCard.displayName = 'MetricCard';
 const MetricsRow = React.memo(({ data, selectedState }) => {
   if (!data || !data.summary) {
     return (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="dash-metrics-row">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="metric-card total animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+          <div key={i} className="dash-metric-card animate-pulse">
+            <div style={{ height: 14, background: 'var(--blue-95)', borderRadius: 4, width: '60%', marginBottom: 12 }} />
+            <div style={{ height: 32, background: 'var(--blue-95)', borderRadius: 4, width: '40%' }} />
           </div>
         ))}
       </div>
@@ -40,12 +57,10 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
   const { summary } = data;
   let displayData = summary;
 
-  // Filter data by state if selected
   if (selectedState && summary.stateBreakdown) {
     const stateData = summary.stateBreakdown.find(
       (state) => state.state === selectedState
     );
-    
     if (stateData) {
       displayData = {
         totalRecords: stateData.households,
@@ -56,7 +71,7 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+    <div className="dash-metrics-row">
       <MetricCard
         title="Total Records"
         value={displayData.totalRecords}

@@ -1,7 +1,8 @@
-import React from 'react';
-import { FiGithub, FiExternalLink, FiArrowRight, FiBook, FiBarChart2, FiHome, FiShield, FiCode, FiMap, FiLock } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiGithub, FiExternalLink, FiArrowRight, FiBook, FiBarChart2, FiHome, FiShield, FiCode, FiMap } from 'react-icons/fi';
 
 const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
+  const [lang, setLang] = useState('python');
 
   return (
     <div className="landing-page">
@@ -48,92 +49,124 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
       <section className="landing-hero">
         <div className="landing-hero-content">
           <h1 className="landing-hero-title">
-            PolicyEngine TAXSIM Emulator
+            The next chapter of TAXSIM
           </h1>
           <p className="landing-hero-tagline">
-            An open-source, local replacement for NBER's TAXSIM-35. Run the same tax
-            calculations on your own machine — no data leaves your environment. Powered
-            by PolicyEngine's microsimulation model. Same inputs, same outputs.
+            PolicyEngine continues the TAXSIM legacy with an open-source tax
+            calculator. Same inputs, same outputs — now powered by
+            PolicyEngine's microsimulation engine.
           </p>
           <div className="landing-hero-ctas">
             <button
               onClick={onNavigateToDocumentation}
               className="landing-cta-primary"
             >
-              Get Started
+              Read the documentation
               <FiArrowRight style={{ marginLeft: '8px' }} />
             </button>
             <button
               onClick={onNavigateToDashboard}
               className="landing-cta-secondary"
             >
-              View Dashboard
+              View comparison dashboard
               <FiBarChart2 style={{ marginLeft: '8px' }} />
             </button>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Get Started */}
       <section className="landing-section">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">Why PolicyEngine TAXSIM?</h2>
-          <div className="landing-features-grid">
-            <div className="landing-feature-card">
-              <div className="landing-feature-icon" style={{ background: 'var(--blue-primary)' }}>
-                <FiLock color="white" size={24} />
+          <h2 className="landing-section-title">Get started</h2>
+          <div className="landing-lang-toggle">
+            <button
+              className={`landing-lang-btn${lang === 'python' ? ' landing-lang-btn-active' : ''}`}
+              onClick={() => setLang('python')}
+            >
+              Python
+            </button>
+            <button
+              className={`landing-lang-btn${lang === 'r' ? ' landing-lang-btn-active' : ''}`}
+              onClick={() => setLang('r')}
+            >
+              R
+            </button>
+          </div>
+          <div className="landing-get-started-code">
+            <div className="landing-code-block">
+              <div className="landing-code-header">
+                <span className="landing-code-label">{lang === 'python' ? 'Python' : 'R'}</span>
               </div>
-              <h3 className="landing-feature-title">Runs Locally</h3>
-              <p className="landing-feature-description">
-                Traditional TAXSIM requires sending data to NBER's servers. This emulator
-                runs entirely on your machine — critical for researchers working with
-                confidential microdata (CPS, ACS, SCF, administrative records) behind
-                institutional firewalls.
-              </p>
+              <pre className="landing-code-content"><code>{lang === 'python'
+? `pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git
+
+import pandas as pd
+from policyengine_taxsim.runners import PolicyEngineRunner
+
+df = pd.read_csv("input.csv")
+runner = PolicyEngineRunner(df)
+output = runner.run()`
+: `devtools::install_github(
+  "PolicyEngine/policyengine-taxsim",
+  subdir = "r-package/policyenginetaxsim"
+)
+
+library(policyenginetaxsim)
+setup_policyengine()
+input <- read.csv("input.csv")
+output <- policyengine_calculate_taxes(input)`}</code></pre>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="landing-section landing-section-alt">
+        <div className="landing-section-inner">
+          <h2 className="landing-section-title">Powered by PolicyEngine</h2>
+          <p className="landing-section-subtitle">
+            PolicyEngine and TAXSIM have been cross-validated against each other since 2021,
+            comparing results across thousands of CPS households. That work led to a formal
+            partnership with NBER.
+          </p>
+          <div className="landing-features-grid">
             <div className="landing-feature-card">
               <div className="landing-feature-icon" style={{ background: 'var(--teal-accent)' }}>
                 <FiCode color="white" size={24} />
               </div>
-              <h3 className="landing-feature-title">Open Source</h3>
+              <h3 className="landing-feature-title">Fully open source</h3>
               <p className="landing-feature-description">
-                Fully transparent tax calculations you can inspect and audit.
-                Built on PolicyEngine's open-source microsimulation model
-                on <a href="https://github.com/PolicyEngine/policyengine-taxsim" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue-primary)', fontWeight: 600 }}>GitHub</a>.
+                All code — the TAXSIM emulator and the PolicyEngine engine it
+                runs on — is open source on GitHub. Inspect every calculation.
               </p>
             </div>
             <div className="landing-feature-card">
               <div className="landing-feature-icon" style={{ background: 'var(--darkest-blue)' }}>
                 <FiMap color="white" size={24} />
               </div>
-              <h3 className="landing-feature-title">Drop-in Compatible</h3>
+              <h3 className="landing-feature-title">Drop-in compatible</h3>
               <p className="landing-feature-description">
-                Accepts the same TAXSIM-35 input variables and returns the same output
-                format. If you already have a TAXSIM workflow, switch to
-                local computation with minimal code changes.
+                Same TAXSIM-35 input variables, same output format. Minimal code
+                changes to switch.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Validation & Partnerships Section */}
-      <section className="landing-section landing-section-alt">
+      {/* Social Proof — NBER + Atlanta Fed */}
+      <section className="landing-section">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">Validated by Leading Institutions</h2>
-          <p className="landing-validation-intro">
-            PolicyEngine has been rigorously validating its tax calculations against TAXSIM
-            for over three years. This work is formalized through memoranda of understanding
-            with two major research institutions.
-          </p>
-          <div className="landing-validation-grid">
-            <div className="landing-validation-card">
-              <div className="landing-validation-card-header">
+          <h2 className="landing-section-title">Validated by leading institutions</h2>
+          <div className="landing-social-proof">
+            <div className="landing-social-proof-card">
+              <div className="landing-social-proof-header">
                 <FiShield size={20} color="var(--blue-primary)" />
                 <h3>NBER Partnership</h3>
               </div>
               <p>
-                PolicyEngine signed a{' '}
+                Built under a{' '}
                 <a
                   href="https://drive.google.com/file/d/1V5TJk7C01CLYP_FXUZTmHEdLk-WCV4WN/view?usp=sharing"
                   target="_blank"
@@ -141,10 +174,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
                 >
                   memorandum of understanding
                 </a>
-                {' '}with the National Bureau of Economic Research (NBER) to build this
-                open-source emulator of TAXSIM. We work directly with Daniel Feenberg,
-                creator of TAXSIM, and NBER President James Poterba to ensure accuracy
-                and continuity for the research community.
+                {' '}with the National Bureau of Economic Research and TAXSIM creator Daniel Feenberg.
               </p>
               <a
                 href="https://policyengine.org/us/research/policyengine-nber-mou-taxsim"
@@ -152,26 +182,24 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
                 rel="noopener noreferrer"
                 className="landing-validation-link"
               >
-                Read the announcement <FiExternalLink size={14} />
+                Read more <FiArrowRight size={14} />
               </a>
             </div>
-            <div className="landing-validation-card">
-              <div className="landing-validation-card-header">
+            <div className="landing-social-proof-card">
+              <div className="landing-social-proof-header">
                 <FiShield size={20} color="var(--teal-accent)" />
                 <h3>Federal Reserve Bank of Atlanta</h3>
               </div>
               <p>
-                PolicyEngine signed a{' '}
+                Three-way validation with the Atlanta Fed's{' '}
                 <a
                   href="https://drive.google.com/file/d/1ye8BQo6gXVWl50F1ht6UzB9HsdrfpeOQ/view"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  memorandum of understanding
+                  Policy Rules Database
                 </a>
-                {' '}with the Federal Reserve Bank of Atlanta to integrate their Policy
-                Rules Database into our validation infrastructure, creating a three-way
-                validation system across PolicyEngine, TAXSIM, and the Atlanta Fed's models.
+                {' '}— cross-checking PolicyEngine, TAXSIM, and the Fed's models.
               </p>
               <a
                 href="https://policyengine.org/us/research/policyengine-atlanta-fed-mou-prd"
@@ -179,52 +207,9 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
                 rel="noopener noreferrer"
                 className="landing-validation-link"
               >
-                Read the announcement <FiExternalLink size={14} />
+                Read more <FiArrowRight size={14} />
               </a>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="landing-section">
-        <div className="landing-section-inner">
-          <h2 className="landing-section-title">How It Works</h2>
-          <p className="landing-validation-intro">
-            If you've used TAXSIM before, the workflow is the same — except everything
-            runs locally. No data is sent to external servers.
-          </p>
-          <div className="landing-how-steps">
-            <div className="landing-how-step">
-              <div className="landing-how-step-number">1</div>
-              <h3>Prepare Input</h3>
-              <p>Use the standard TAXSIM-35 CSV format with your survey microdata (CPS, ACS, SCF, etc.).</p>
-            </div>
-            <div className="landing-how-step-arrow">
-              <FiArrowRight size={24} color="var(--medium-light-gray)" />
-            </div>
-            <div className="landing-how-step">
-              <div className="landing-how-step-number">2</div>
-              <h3>Run Locally</h3>
-              <p>Call PolicyEngineRunner from Python or R. All computation happens on your machine.</p>
-            </div>
-            <div className="landing-how-step-arrow">
-              <FiArrowRight size={24} color="var(--medium-light-gray)" />
-            </div>
-            <div className="landing-how-step">
-              <div className="landing-how-step-number">3</div>
-              <h3>Get Results</h3>
-              <p>Receive federal and state tax calculations in the standard TAXSIM output format.</p>
-            </div>
-          </div>
-          <div className="landing-io-cta">
-            <button
-              onClick={onNavigateToDocumentation}
-              className="landing-cta-primary"
-            >
-              View Installation & Full Documentation
-              <FiBook style={{ marginLeft: '8px' }} />
-            </button>
           </div>
         </div>
       </section>
