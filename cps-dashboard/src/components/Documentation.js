@@ -719,12 +719,12 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
                 inputs and outputs, but PolicyEngine supports hundreds of additional tax and
                 benefit variables. See the{' '}
                 <a
-                  href="https://policyengine.org/us/api"
+                  href="https://github.com/PolicyEngine/policyengine-us"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--blue-primary)', fontWeight: 600 }}
                 >
-                  PolicyEngine API documentation
+                  PolicyEngine US variable definitions
                 </a>{' '}
                 for the full list.
               </div>
