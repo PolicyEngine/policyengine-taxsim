@@ -1,3 +1,10 @@
+## [2.10.0] - 2026-02-26
+
+### Added
+
+- Added landing page to the CPS dashboard explaining what policyengine-taxsim is and how to install/use it from Python, R, and Stata.
+
+
 ## [2.9.1] - 2026-02-25
 
 ### Fixed
