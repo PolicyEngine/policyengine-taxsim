@@ -1,3 +1,9 @@
+## [2.11.1] - 2026-02-26
+
+### Added
+
+- Added GA4 analytics (shared `G-2YHG89FY0N` property) and Vercel Analytics script to the dashboard.
+
 ## [2.11.0] - 2026-02-26
 
 ### Added
