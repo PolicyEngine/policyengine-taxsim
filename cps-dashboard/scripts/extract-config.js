@@ -311,13 +311,22 @@ function extractImplementationDetails() {
   };
 }
 
+// Skip extraction if the YAML source is unavailable (e.g. Vercel deployment
+// where the root directory is cps-dashboard and the parent repo isn't present).
+// The committed public/config-data.json will be used instead.
+if (!fs.existsSync(yamlPath)) {
+  console.log(`⏭️  YAML source not found at ${yamlPath}`);
+  console.log('   Using committed config-data.json (this is expected on Vercel)');
+  process.exit(0);
+}
+
 try {
   console.log('Reading YAML configuration from:', yamlPath);
-  
+
   // Read and parse the original YAML file
   const yamlContent = fs.readFileSync(yamlPath, 'utf8');
   const config = yaml.load(yamlContent);
-  
+
   // Extract all the data
   const extractedData = {
     variableMappings: extractTaxsimToPolicyEngineMappings(config),
@@ -326,15 +335,15 @@ try {
     implementationDetails: extractImplementationDetails(),
     lastUpdated: new Date().toISOString()
   };
-  
+
   // Write the extracted data to a JSON file
   fs.writeFileSync(outputPath, JSON.stringify(extractedData, null, 2));
-  
+
   console.log(`✅ Configuration data extracted successfully!`);
   console.log(`📁 Output file: ${outputPath}`);
   console.log(`📊 Variable mappings: ${extractedData.variableMappings.length}`);
   console.log(`🔄 Income types split: ${extractedData.incomeSplittingRules.incomeTypesSplit.length}`);
-  
+
 } catch (error) {
   console.error('❌ Error extracting configuration:', error);
   process.exit(1);
