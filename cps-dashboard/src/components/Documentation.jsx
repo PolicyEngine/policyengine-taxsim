@@ -13,7 +13,6 @@ import {
 const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('input'); // 'input' or 'output'
-  const [activeInstallTab, setActiveInstallTab] = useState('python');
   const [copiedBlock, setCopiedBlock] = useState(null);
   const [activeSection, setActiveSection] = useState('installation');
 
@@ -57,28 +56,60 @@ const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
     }
   };
 
-  const codeExamples = {
-    python: [
-      {
-        id: 'python-install',
-        label: 'Install',
-        code: `# Requires Python 3.10-3.13 (3.14 is not yet supported)
-pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git`
-      },
-      {
-        id: 'python-api',
-        label: 'Python API',
-        code: `import pandas as pd
-from policyengine_taxsim.runners import PolicyEngineRunner
+  const [activeUsageLang, setActiveUsageLang] = useState('cli');
 
-# Load TAXSIM-formatted input (same CSV format as TAXSIM-35)
+  const usageExamples = {
+    cli: {
+      code: `policyengine-taxsim < input.csv > output.csv`,
+      language: 'cli',
+      label: 'Shell',
+    },
+    python: {
+      code: `from policyengine_taxsim.runners import PolicyEngineRunner
+import pandas as pd
+
 df = pd.read_csv("input.csv")
+result = PolicyEngineRunner(df).run()
+result.to_csv("output.csv", index=False)`,
+      language: 'cli',
+      label: 'Python',
+    },
+    r: {
+      code: `library(policyenginetaxsim)
 
-# Run all TAXSIM output variables
-runner = PolicyEngineRunner(df)
-results = runner.run(show_progress=True)
-results.to_csv("output.csv", index=False)`
-      },
+my_data <- data.frame(
+  year = 2023, state = 6, mstat = 1, pwages = 50000
+)
+result <- policyengine_calculate_taxes(my_data)`,
+      language: 'cli',
+      label: 'R',
+    },
+    stata: {
+      code: `export delimited using "input.csv", replace
+shell policyengine-taxsim < input.csv > output.csv
+import delimited using "output.csv", clear`,
+      language: 'cli',
+      label: 'Stata',
+    },
+    sas: {
+      code: `%let rc = %sysfunc(system(
+  policyengine-taxsim < input.csv > output.csv
+));`,
+      language: 'cli',
+      label: 'SAS',
+    },
+    julia: {
+      code: `run(pipeline(\`policyengine-taxsim\`,
+  stdin="input.csv",
+  stdout="output.csv"
+))`,
+      language: 'cli',
+      label: 'Julia',
+    },
+  };
+
+  const advancedExamples = {
+    python: [
       {
         id: 'python-pin',
         label: 'Pin policyengine-us version (optional)',
@@ -86,9 +117,9 @@ results.to_csv("output.csv", index=False)`
 pip install policyengine-us==1.555.0`
       },
       {
-        id: 'python-cli',
-        label: 'CLI usage',
-        code: `# Run PolicyEngine on a TAXSIM input file
+        id: 'python-cli-advanced',
+        label: 'CLI advanced commands',
+        code: `# Run PolicyEngine on a TAXSIM input file (with output flag)
 policyengine-taxsim policyengine input.csv -o output.csv
 
 # Compare PolicyEngine vs TAXSIM-35
@@ -104,30 +135,13 @@ policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
     r: [
       {
         id: 'r-install',
-        label: 'Install',
-        code: `# Install from GitHub (R package is in the r-package/ subdirectory)
+        label: 'R package installation',
+        code: `# Install R package from GitHub
 devtools::install_github(
   "PolicyEngine/policyengine-taxsim",
   subdir = "r-package/policyenginetaxsim"
-)`
-      },
-      {
-        id: 'r-setup',
-        label: 'Setup & Usage',
-        code: `library(policyenginetaxsim)
-
-# One-time setup (creates venv & installs Python package)
-# Requires Python 3.10-3.13 on your system (3.14 is not yet supported)
-setup_policyengine()
-
-# Calculate taxes with PolicyEngine
-my_data <- data.frame(
-  year = 2023, state = 6, mstat = 1, pwages = 50000
 )
-result <- policyengine_calculate_taxes(my_data)
-
-# Compare PolicyEngine vs TAXSIM-35
-comparison <- compare_with_taxsim(my_data)`
+# Python dependencies install automatically on first use`
       },
       {
         id: 'r-version-pin',
@@ -409,36 +423,11 @@ policyengine_versions()
     </nav>
   );
 
-  // Show loading spinner while data is being loaded
-  if (loading) {
-    return (
-      <div className="landing-page">
-        {renderNav()}
-        <main className="landing-section-inner" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
-          <LoadingSpinner
-            message="Loading configuration data..."
-            subMessage="Please wait while we load the variable mappings"
-          />
-        </main>
-      </div>
-    );
-  }
+  // Note: loading state is handled inline in Variable Mappings tab only,
+  // so Installation & Usage and All Runners sections load immediately.
 
-  // Show error state
-  if (error) {
-    return (
-      <div className="landing-page">
-        {renderNav()}
-        <main className="landing-section-inner" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
-          <div className="error-card">
-            <div className="error-icon">⚠️</div>
-            <h2 style={{ color: 'var(--dark-red)', marginBottom: '12px' }}>Configuration Load Error</h2>
-            <p style={{ color: 'var(--dark-gray)' }}>{error}</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  // Note: error state is handled inline in Variable Mappings tab only,
+  // so Installation & Usage and All Runners sections remain accessible.
 
   return (
     <div className="landing-page">
@@ -451,7 +440,10 @@ policyengine_versions()
           <div className="landing-section-inner">
             <div className="doc-intro-blurb">
               The PolicyEngine TAXSIM Emulator supports <strong>all input and output variables</strong> provided
-              by TAXSIM-35. Unlike traditional TAXSIM, which requires sending data to NBER's servers,
+              by TAXSIM-35. It's a <strong>drop-in replacement</strong> — install
+              with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>pip install policyengine-taxsim</code> and
+              swap <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code> for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code>.
+              Unlike traditional TAXSIM, which requires sending data to NBER's servers,
               this emulator <strong>runs entirely on your machine</strong> — making it suitable for
               confidential microdata (CPS, ACS, SCF, administrative records) behind institutional
               firewalls. Use the same CSV format you already know: provide household demographics,
@@ -490,28 +482,55 @@ policyengine_versions()
         {activeSection === 'installation' && (
           <section className="landing-section">
             <div className="landing-section-inner">
-              <p style={{ color: 'var(--dark-gray)', marginBottom: '20px', fontSize: '15px', lineHeight: '1.7' }}>
-                Install and run the emulator using Python, R, or the command line. The emulator accepts the standard
-                TAXSIM-35 CSV input format and returns matching output variables.
-              </p>
+              {/* Installation */}
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+                Installation
+              </h3>
+              <div style={{ maxWidth: '640px', marginBottom: '2rem' }}>
+                {renderCodeBlock({
+                  id: 'install-pip',
+                  label: 'Terminal',
+                  code: `pip install policyengine-taxsim`,
+                })}
+              </div>
 
-              {/* Language Tabs */}
-              <div className="landing-tab-bar">
-                {['python', 'r'].map((tab) => (
+              {/* Usage with language tabs */}
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+                Usage
+              </h3>
+              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+                Same input format, same output variables. Just swap the command.
+              </p>
+              <div className="landing-lang-toggle">
+                {['cli', 'python', 'r', 'stata', 'sas', 'julia'].map((lang) => (
                   <button
-                    key={tab}
-                    onClick={() => setActiveInstallTab(tab)}
-                    className={`landing-tab-button ${activeInstallTab === tab ? 'landing-tab-active' : ''}`}
+                    key={lang}
+                    className={`landing-lang-btn${activeUsageLang === lang ? ' landing-lang-btn-active' : ''}`}
+                    onClick={() => setActiveUsageLang(lang)}
                   >
-                    {tab === 'python' ? 'Python' : 'R'}
+                    {lang === 'cli' ? 'CLI' : lang === 'python' ? 'Python' : lang === 'r' ? 'R' : lang === 'stata' ? 'Stata' : lang === 'sas' ? 'SAS' : 'Julia'}
                   </button>
                 ))}
               </div>
-
-              {/* Code Blocks */}
               <div style={{ marginTop: '16px' }}>
-                {codeExamples[activeInstallTab].map(renderCodeBlock)}
+                {renderCodeBlock({
+                  id: `usage-${activeUsageLang}`,
+                  label: usageExamples[activeUsageLang].label,
+                  code: usageExamples[activeUsageLang].code,
+                })}
               </div>
+
+              {/* Language-specific extras */}
+              {activeUsageLang === 'python' && (
+                <div style={{ marginTop: '16px' }}>
+                  {advancedExamples.python.map(renderCodeBlock)}
+                </div>
+              )}
+              {activeUsageLang === 'r' && (
+                <div style={{ marginTop: '16px' }}>
+                  {advancedExamples.r.map(renderCodeBlock)}
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -619,16 +638,33 @@ results = runner.run(show_progress=False)`
                 Command-Line Interface
               </h3>
               <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
-                All runners are also available via the <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code> CLI.
-                Each command accepts a TAXSIM-formatted CSV file as input.
+                The <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code> CLI
+                is a drop-in replacement for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code>.
+                By default it reads from stdin and writes to stdout, just like TAXSIM-35.
+                Advanced subcommands are also available.
               </p>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
+                  <code className="doc-option-name">policyengine-taxsim &lt; input.csv &gt; output.csv</code>
+                </div>
+                <p className="doc-option-description">
+                  Drop-in replacement for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code>.
+                  Reads TAXSIM-formatted CSV from stdin, writes results to stdout. Swap the command name and everything else stays the same.
+                </p>
+                {renderCodeBlock({
+                  id: 'cli-stdin',
+                  label: 'Terminal',
+                  code: `policyengine-taxsim < input.csv > output.csv`
+                })}
+              </div>
 
               <div className="doc-option-card">
                 <div className="doc-option-header">
                   <code className="doc-option-name">policyengine-taxsim policyengine</code>
                 </div>
                 <p className="doc-option-description">
-                  Run PolicyEngine tax calculations on a TAXSIM input file.
+                  Run PolicyEngine tax calculations with explicit input/output file paths.
                   Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
                   <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
                   <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
@@ -694,6 +730,19 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
         {activeSection === 'mappings' && (
           <section className="landing-section">
             <div className="landing-section-inner">
+              {loading && (
+                <LoadingSpinner
+                  message="Loading configuration data..."
+                  subMessage="Please wait while we load the variable mappings"
+                />
+              )}
+              {error && (
+                <div className="error-card" style={{ marginBottom: '24px' }}>
+                  <h3 style={{ color: 'var(--dark-red)', marginBottom: '8px' }}>Failed to load variable mappings</h3>
+                  <p style={{ color: 'var(--dark-gray)' }}>{error}</p>
+                </div>
+              )}
+              {!loading && !error && <>
               <div className="mb-6">
                 <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
                   {activeTab === 'input'
@@ -760,6 +809,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
               <div className="doc-var-list">
                 {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
               </div>
+              </>}
             </div>
           </section>
         )}

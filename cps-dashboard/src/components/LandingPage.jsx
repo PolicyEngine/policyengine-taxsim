@@ -1,100 +1,69 @@
 import React, { useState } from 'react';
 import { FiGithub, FiExternalLink, FiArrowRight, FiBook, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck } from 'react-icons/fi';
 
+const TOKEN_CLASS_MAP = {
+  kw: 'code-keyword',
+  fn: 'code-function',
+  str: 'code-string',
+  op: 'code-operator',
+  var: 'code-variable',
+};
+
+function renderTokens(tokenizedLine, parts, keyRef) {
+  const tokens = tokenizedLine.split(/(\x01\w+.*?\x02)/);
+  tokens.forEach((t) => {
+    const match = t.match(/^\x01(\w+)(.*)\x02$/);
+    if (match) {
+      const prefixLen = match[1].length;
+      const className = TOKEN_CLASS_MAP[match[1]] || '';
+      parts.push(<span key={keyRef.k++} className={className}>{t.slice(prefixLen + 1, -1)}</span>);
+    } else {
+      parts.push(<span key={keyRef.k++}>{t}</span>);
+    }
+  });
+}
+
 const highlightCode = (code, language) => {
   const lines = code.split('\n');
   return lines.map((line, i) => {
-    // Comments
     if (line.trimStart().startsWith('#')) {
       return <span key={i}><span className="code-comment">{line}</span>{'\n'}</span>;
     }
 
-    let highlighted = line;
     const parts = [];
-    let remaining = line;
-    let key = 0;
+    const keyRef = { k: 0 };
 
     if (language === 'cli') {
-      // Shell: highlight the command name and flags
-      const match = remaining.match(/^(\S+)(.*)/);
-      if (match && !remaining.startsWith('#')) {
-        parts.push(<span key={key++} className="code-function">{match[1]}</span>);
-        remaining = match[2];
-        // Highlight flags
-        remaining = remaining.replace(/(-\w+)/g, (m) => `\x01op${m}\x02`);
-        // Highlight strings
-        remaining = remaining.replace(/"([^"]*)"/g, (m, s) => `\x01str"${s}"\x02`);
-        const tokens = remaining.split(/(\x01\w+.*?\x02)/);
-        tokens.forEach((t) => {
-          if (t.startsWith('\x01op')) {
-            parts.push(<span key={key++} className="code-operator">{t.slice(3, -1)}</span>);
-          } else if (t.startsWith('\x01str')) {
-            parts.push(<span key={key++} className="code-string">{t.slice(4, -1)}</span>);
-          } else {
-            parts.push(<span key={key++}>{t}</span>);
-          }
-        });
+      const match = line.match(/^(\S+)(.*)/);
+      if (match && !line.startsWith('#')) {
+        parts.push(<span key={keyRef.k++} className="code-function">{match[1]}</span>);
+        const tokenized = match[2]
+          .replace(/(-\w+)/g, (m) => `\x01op${m}\x02`)
+          .replace(/"([^"]*)"/g, (_, s) => `\x01str"${s}"\x02`);
+        renderTokens(tokenized, parts, keyRef);
       } else {
-        parts.push(<span key={key++}>{line}</span>);
+        parts.push(<span key={keyRef.k++}>{line}</span>);
       }
     } else if (language === 'python') {
-      // Python keywords
-      const pyLine = line
+      const tokenized = line
         .replace(/\b(import|from|as)\b/g, '\x01kw$1\x02')
         .replace(/"([^"]*)"/g, '\x01str"$1"\x02')
         .replace(/(\w+)\s*\(/g, '\x01fn$1\x02(');
-      const tokens = pyLine.split(/(\x01\w+.*?\x02)/);
-      tokens.forEach((t) => {
-        if (t.startsWith('\x01kw')) {
-          parts.push(<span key={key++} className="code-keyword">{t.slice(3, -1)}</span>);
-        } else if (t.startsWith('\x01str')) {
-          parts.push(<span key={key++} className="code-string">{t.slice(4, -1)}</span>);
-        } else if (t.startsWith('\x01fn')) {
-          parts.push(<span key={key++} className="code-function">{t.slice(3, -1)}</span>);
-        } else {
-          parts.push(<span key={key++}>{t}</span>);
-        }
-      });
+      renderTokens(tokenized, parts, keyRef);
     } else if (language === 'r') {
-      // R keywords and functions
-      const rLine = line
+      const tokenized = line
         .replace(/\b(library|setup_policyengine)\b/g, '\x01fn$1\x02')
         .replace(/"([^"]*)"/g, '\x01str"$1"\x02')
         .replace(/<-/g, '\x01op<-\x02')
         .replace(/(\w+)\s*\(/g, '\x01fn$1\x02(');
-      const tokens = rLine.split(/(\x01\w+.*?\x02)/);
-      tokens.forEach((t) => {
-        if (t.startsWith('\x01fn')) {
-          parts.push(<span key={key++} className="code-function">{t.slice(3, -1)}</span>);
-        } else if (t.startsWith('\x01str')) {
-          parts.push(<span key={key++} className="code-string">{t.slice(4, -1)}</span>);
-        } else if (t.startsWith('\x01op')) {
-          parts.push(<span key={key++} className="code-operator">{t.slice(3, -1)}</span>);
-        } else {
-          parts.push(<span key={key++}>{t}</span>);
-        }
-      });
+      renderTokens(tokenized, parts, keyRef);
     } else if (language === 'stata') {
-      // Stata: highlight commands, options, and strings
-      const stataLine = line
+      const tokenized = line
         .replace(/\b(shell|taxsimlocal35|set|gen|export|import|delimited)\b/g, '\x01kw$1\x02')
         .replace(/"([^"]*)"/g, '\x01str"$1"\x02')
         .replace(/,\s*(\w+)/g, ',\x01op $1\x02')
         .replace(/`([^']*)'/, '\x01var`$1\'\x02');
-      const tokens = stataLine.split(/(\x01\w+.*?\x02)/);
-      tokens.forEach((t) => {
-        if (t.startsWith('\x01kw')) {
-          parts.push(<span key={key++} className="code-keyword">{t.slice(3, -1)}</span>);
-        } else if (t.startsWith('\x01str')) {
-          parts.push(<span key={key++} className="code-string">{t.slice(4, -1)}</span>);
-        } else if (t.startsWith('\x01op')) {
-          parts.push(<span key={key++} className="code-operator">{t.slice(3, -1)}</span>);
-        } else if (t.startsWith('\x01var')) {
-          parts.push(<span key={key++} className="code-variable">{t.slice(4, -1)}</span>);
-        } else {
-          parts.push(<span key={key++}>{t}</span>);
-        }
-      });
+      renderTokens(tokenized, parts, keyRef);
     }
 
     return <span key={i}>{parts}{'\n'}</span>;
@@ -382,8 +351,9 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
               </div>
               <h3 className="landing-feature-title">Benefits and taxes</h3>
               <p className="landing-feature-description">
-                SNAP, SSI, Medicaid, TANF, housing vouchers, EITC, CTC, and
-                hundreds more federal and state programs — all in one model.
+                SNAP, SSI, Medicaid, CHIP, ACA marketplace subsidies, TANF,
+                housing vouchers, WIC, EITC, CTC, and hundreds more federal
+                and state programs — all in one model.
               </p>
             </div>
           </div>
