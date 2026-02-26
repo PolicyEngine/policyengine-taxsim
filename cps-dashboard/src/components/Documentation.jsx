@@ -93,9 +93,9 @@ result <- policyengine_calculate_taxes(my_data)`,
       label: 'R',
     },
     stata: {
-      code: `export delimited using "input.csv", replace
-shell policyengine-taxsim < input.csv > output.csv
-import delimited using "output.csv", clear`,
+      code: `export delimited using "txpydata.raw", delimiter(",") replace
+! policyengine-taxsim < txpydata.raw > output.raw
+import delimited using "output.raw", delimiter(",") clear`,
       language: 'stata',
       label: 'Stata',
     },
