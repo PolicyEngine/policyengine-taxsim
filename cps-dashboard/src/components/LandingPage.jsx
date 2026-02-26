@@ -52,7 +52,7 @@ const COMPARISON_EXAMPLES = {
   },
   stata: {
     before: { label: 'Stata', code: 'taxsimlocal35, replace', language: 'stata' },
-    after: { label: 'Stata', code: 'export delimited using "input.csv", replace\nshell policyengine-taxsim < input.csv > output.csv\nimport delimited using "output.csv", clear', language: 'stata' },
+    after: { label: 'Stata', code: 'export delimited using "txpydata.raw", delimiter(",") replace\n! policyengine-taxsim < txpydata.raw > output.raw\nimport delimited using "output.raw", delimiter(",") clear', language: 'stata' },
   },
   sas: {
     before: { label: 'SAS', code: '%let rc = %sysfunc(system(\n  taxsim35 < input.csv > output.csv\n));', language: 'cli' },
