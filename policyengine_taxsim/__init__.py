@@ -4,4 +4,4 @@ from .cli import cli
 
 __all__ = ["generate_household", "export_household", "cli"]
 
-__version__ = "2.11.0"
+__version__ = "2.12.0"
