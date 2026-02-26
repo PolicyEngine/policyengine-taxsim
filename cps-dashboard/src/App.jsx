@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { FiDownload, FiBook, FiHome, FiBarChart2, FiGithub, FiExternalLink, FiArrowRight } from 'react-icons/fi';
+import { FiDownload } from 'react-icons/fi';
 import YearTabs from './components/YearTabs';
 import StateFilter from './components/StateFilter';
 import MetricsRow from './components/MetricsRow';
@@ -26,7 +26,7 @@ function App() {
 
   const handleYearChange = useCallback((year) => {
     setSelectedYear(year);
-    setSelectedState(null); // Reset state filter when year changes
+    setSelectedState(null);
   }, [setSelectedYear]);
 
   const handleStateChange = useCallback((state) => {
@@ -46,7 +46,7 @@ function App() {
     setCurrentView(view);
   }, []);
 
-  // Landing and Documentation render before loading checks (no dashboard data needed)
+  // Landing and documentation render before loading checks (no dashboard data needed)
   if (currentView === 'landing') {
     return (
       <LandingPage
@@ -98,45 +98,12 @@ function App() {
 
   return (
     <div className="landing-page">
-      {/* Navigation — matches landing page */}
-      <nav className="landing-nav">
-        <div className="landing-nav-inner">
-          <div className="landing-nav-brand">
-            <FiBarChart2 style={{ marginRight: '8px' }} />
-            Comparison Dashboard
-          </div>
-          <div className="landing-nav-links">
-            <button onClick={() => handleViewChange('landing')} className="landing-nav-link">
-              <FiHome style={{ marginRight: '6px' }} />
-              Home
-            </button>
-            <button onClick={() => handleViewChange('documentation')} className="landing-nav-link">
-              <FiBook style={{ marginRight: '6px' }} />
-              Documentation
-            </button>
-            <button className="landing-nav-link landing-nav-link-active">
-              <FiBarChart2 style={{ marginRight: '6px' }} />
-              Dashboard
-            </button>
-            <a
-              href="https://github.com/PolicyEngine/policyengine-taxsim"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="landing-nav-link"
-            >
-              <FiGithub style={{ marginRight: '6px' }} />
-              GitHub
-            </a>
-          </div>
-        </div>
-      </nav>
-
-      {/* Dashboard Header */}
+      {/* Dashboard header */}
       <div className="dash-header">
         <div className="dash-header-inner">
           <div className="dash-header-text">
             <h1 className="dash-header-title">
-              {selectedYear} Comparison
+              {selectedYear} comparison
               {selectedState && <span className="dash-header-state"> — {selectedState}</span>}
             </h1>
             <p className="dash-header-desc">
@@ -163,9 +130,8 @@ function App() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main content */}
       <main className="dashboard-content">
-        {/* Performance Overview */}
         <section style={{ marginBottom: '2rem' }}>
           <MetricsRow
             data={currentYearData}
@@ -173,9 +139,8 @@ function App() {
           />
         </section>
 
-        {/* State Analysis */}
         <section>
-          <h2 className="section-title">State-by-State Analysis</h2>
+          <h2 className="section-title">State-by-state analysis</h2>
           <StateTable
             data={currentYearData}
             selectedState={selectedState}
@@ -184,45 +149,6 @@ function App() {
           />
         </section>
       </main>
-
-      {/* Footer — matches landing page */}
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="landing-footer-grid">
-            <a
-              href="https://github.com/PolicyEngine/policyengine-taxsim"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="landing-footer-card"
-            >
-              <FiGithub size={20} />
-              <span>GitHub Repository</span>
-              <FiExternalLink size={14} className="landing-footer-external" />
-            </a>
-            <button
-              onClick={() => handleViewChange('landing')}
-              className="landing-footer-card"
-            >
-              <FiHome size={20} />
-              <span>Home</span>
-              <FiArrowRight size={14} className="landing-footer-external" />
-            </button>
-            <a
-              href="https://taxsim.nber.org/taxsim35/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="landing-footer-card"
-            >
-              <FiExternalLink size={20} />
-              <span>TAXSIM-35 Official Docs</span>
-              <FiExternalLink size={14} className="landing-footer-external" />
-            </a>
-          </div>
-          <div className="landing-footer-copyright">
-            Built by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

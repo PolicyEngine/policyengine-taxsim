@@ -101,12 +101,10 @@ policyengine_calculate_taxes <- function(.data,
                                           year = NULL,
                                           show_progress = TRUE) {
 
-  # Validate setup
+  # Auto-setup on first use
   if (!check_policyengine_setup(quiet = TRUE)) {
-    stop(
-      "PolicyEngine is not set up. Please run setup_policyengine() first.",
-      call. = FALSE
-    )
+    message("PolicyEngine not yet set up. Running one-time setup...")
+    setup_policyengine()
   }
 
   # Activate the virtual environment

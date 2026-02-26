@@ -7,7 +7,7 @@ import SortableTableHeader from './common/SortableTableHeader';
 import Button from './common/Button';
 import { useHouseholdData } from '../hooks/useHouseholdData';
 import { INPUT_VARIABLES, OUTPUT_VARIABLES } from '../constants';
-import { getPercentageClass, getProblemAreas } from '../utils/formatters';
+import { getProblemAreas } from '../utils/formatters';
 import { sortStateData } from '../utils/dataProcessing';
 
 const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelect }) => {

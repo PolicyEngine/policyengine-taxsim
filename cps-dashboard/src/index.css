@@ -7,25 +7,26 @@
 
 /* Brand Colors */
 :root {
+  /* Aligned with app-v2 Tailwind theme (teal brand) */
   --black: #000000;
-  --blue-95: #E2E8F0;
-  --blue-98: #F9FAFB;
+  --blue-95: #e2e8f0;
+  --blue-98: #f9fafb;
   --blue: #319795;
-  --blue-light: #E2E8F0;
-  --blue-pressed: #285E61;
+  --blue-light: #e2e8f0;
+  --blue-pressed: #234e52;
   --blue-primary: #319795;
-  --dark-blue-hover: #2C7A7B;
-  --dark-gray: #6B7280;
-  --dark-red: #EF4444;
-  --darkest-blue: #1A202C;
+  --dark-blue-hover: #2c7a7b;
+  --dark-gray: #6b7280;
+  --dark-red: #ef4444;
+  --darkest-blue: #101828;
   --gray: #808080;
-  --green: #22C55E;
-  --light-gray: #F2F4F7;
-  --medium-dark-gray: #E2E8F0;
-  --medium-light-gray: #9CA3AF;
-  --teal-accent: #38B2AC;
-  --teal-light: #E6FFFA;
-  --teal-pressed: #234E52;
+  --green: #22c55e;
+  --light-gray: #f2f4f7;
+  --medium-dark-gray: #e2e8f0;
+  --medium-light-gray: #9ca3af;
+  --teal-accent: #38b2ac;
+  --teal-light: #e6fffa;
+  --teal-pressed: #234e52;
   --white: #FFFFFF;
 }
 
@@ -1572,6 +1573,22 @@ body {
 }
 
 /* Feature Cards */
+.landing-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.landing-compare-label {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
 .landing-features-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1726,12 +1743,21 @@ body {
 
 .landing-code-content code {
   font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-ligatures: none;
   font-size: 13px;
   line-height: 1.7;
   color: #e2e8f0;
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.code-keyword { color: #c792ea; }
+.code-function { color: #82aaff; }
+.code-string { color: #c3e88d; }
+.code-comment { color: #637777; font-style: italic; }
+.code-operator { color: #89ddff; }
+.code-variable { color: #f78c6c; }
+.code-builtin { color: #ffcb6b; }
 
 /* Get Started Section */
 .landing-lang-toggle {
@@ -1909,6 +1935,11 @@ body {
 
   .landing-hero-tagline {
     font-size: 1rem;
+  }
+
+  .landing-compare-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .landing-features-grid {
