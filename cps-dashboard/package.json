@@ -2,7 +2,7 @@
   "name": "cps-dashboard",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://policyengine.github.io/policyengine-taxsim",
+  "homepage": "/us/taxsim",
   "dependencies": {
     "file-saver": "^2.0.5",
     "js-yaml": "^4.1.0",
@@ -10,34 +10,27 @@
     "papaparse": "^5.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-icons": "^5.5.0",
-    "react-scripts": "5.0.1"
+    "react-icons": "^5.5.0"
   },
   "scripts": {
     "extract-config": "node scripts/extract-config.js",
-    "prestart": "npm run extract-config",
-    "prebuild": "npm run extract-config",
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build",
-    "eject": "react-scripts eject"
+    "prestart": "bun run extract-config",
+    "prebuild": "bun run extract-config",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@vitejs/plugin-react": "^5.1.4",
+    "esbuild": "^0.27.3",
+    "jsdom": "^28.1.0",
+    "tailwindcss": "^4.2.1",
+    "vite": "6",
+    "vitest": "^4.0.18"
   }
 }

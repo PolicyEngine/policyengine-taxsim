@@ -68,10 +68,67 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
             print(f"Warning: Could not generate YAML for record {idx}: {e}")
 
 
-@click.group()
-def cli():
-    """PolicyEngine-TAXSIM comparison and calculation tool"""
-    pass
+@click.group(invoke_without_command=True)
+@click.option("--logs", is_flag=True, help="Generate PE YAML Tests Logs")
+@click.option(
+    "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
+)
+@click.option("--sample", type=int, help="Sample N records from input")
+@click.pass_context
+def cli(ctx, logs, disable_salt, sample):
+    """PolicyEngine-TAXSIM: drop-in replacement for TAXSIM-35.
+
+    Reads CSV from stdin and writes results to stdout, just like taxsim35:
+
+        policyengine-taxsim < input.csv > output.csv
+
+    Or use subcommands for additional features (compare, taxsim, sample-data).
+    """
+    if ctx.invoked_subcommand is not None:
+        # Store options for potential use by subcommands
+        ctx.ensure_object(dict)
+        ctx.obj["logs"] = logs
+        ctx.obj["disable_salt"] = disable_salt
+        ctx.obj["sample"] = sample
+        return
+
+    # Default behavior: read stdin, write stdout (like taxsim35)
+    import sys
+
+    if sys.stdin.isatty():
+        click.echo(ctx.get_help())
+        return
+
+    try:
+        df = pd.read_csv(sys.stdin)
+
+        # Apply sampling if requested
+        if sample and sample < len(df):
+            click.echo(
+                f"Sampling {sample} records from {len(df)} total records",
+                err=True,
+            )
+            df = df.sample(n=sample, random_state=42)
+
+        # Use the PolicyEngineRunner with microsimulation
+        runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
+        results_df = runner.run(show_progress=True)
+
+        # Use the runner's input_df which has taxsimid (auto-assigned if needed)
+        df_with_ids = runner.input_df
+
+        # Generate YAML files if requested
+        if logs:
+            click.echo("Generating PolicyEngine YAML test files...", err=True)
+            _generate_yaml_files(df_with_ids, results_df)
+            click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
+
+        # Write results to stdout
+        results_df.to_csv(sys.stdout, index=False)
+
+    except Exception as e:
+        click.echo(f"Error processing input: {str(e)}", err=True)
+        raise
 
 
 @cli.command()
@@ -91,6 +148,9 @@ def cli():
 def policyengine(input_file, output, logs, disable_salt, sample):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
+
+    This is the file-based interface. For stdin/stdout like taxsim35, omit the
+    subcommand: policyengine-taxsim < input.csv > output.csv
     """
     try:
         # Read input file
@@ -104,7 +164,7 @@ def policyengine(input_file, output, logs, disable_salt, sample):
         # Use the PolicyEngineRunner with microsimulation
         runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         results_df = runner.run(show_progress=True)
-        
+
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
         df_with_ids = runner.input_df
 
@@ -204,7 +264,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
         click.echo("Running PolicyEngine...")
         pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
         pe_results = pe_runner.run()
-        
+
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
         df_with_ids = pe_runner.input_df
 
@@ -214,9 +274,13 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs):
             _generate_yaml_files(df_with_ids, pe_results)
             click.echo(f"Generated {len(df_with_ids)} YAML test files")
 
-        # Run TAXSIM
+        # Run TAXSIM with original input (not PE-modified df which adds
+        # defaults like sage=40 for single filers that TAXSIM rejects).
+        # Sync taxsimid from PE runner in case it was auto-assigned.
         click.echo("Running TAXSIM...")
-        taxsim_runner = TaxsimRunner(df_with_ids)
+        taxsim_input = df.copy()
+        taxsim_input["taxsimid"] = df_with_ids["taxsimid"].values
+        taxsim_runner = TaxsimRunner(taxsim_input)
         taxsim_results = taxsim_runner.run()
 
         # Compare results

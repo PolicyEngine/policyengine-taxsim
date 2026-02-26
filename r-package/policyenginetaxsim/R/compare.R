@@ -42,13 +42,10 @@
 #' @export
 compare_with_taxsim <- function(.data, tolerance = 15, show_progress = TRUE) {
 
-  # Check setup
+  # Auto-setup on first use
   if (!check_policyengine_setup(quiet = TRUE)) {
-    stop(
-      "PolicyEngine Python environment is not set up.\n",
-      "Run setup_policyengine() first.",
-      call. = FALSE
-    )
+    message("PolicyEngine not yet set up. Running one-time setup...")
+    setup_policyengine()
   }
 
   # Validate input
