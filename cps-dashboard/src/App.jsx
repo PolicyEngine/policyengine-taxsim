@@ -59,7 +59,6 @@ function App() {
   if (currentView === 'documentation') {
     return (
       <Documentation
-        onBackToDashboard={() => handleViewChange('dashboard')}
         onNavigateHome={() => handleViewChange('landing')}
       />
     );

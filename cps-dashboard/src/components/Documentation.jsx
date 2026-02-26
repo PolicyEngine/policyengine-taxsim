@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiExternalLink, FiCheck, FiX, FiCopy, FiHome, FiBarChart2, FiGithub, FiBook } from 'react-icons/fi';
+import { highlightCode } from '../utils/codeHighlight';
 import { loadConfigurationData } from '../utils/configLoader';
 import LoadingSpinner from './common/LoadingSpinner';
 import {
@@ -10,13 +11,20 @@ import {
   getMultipleVariables
 } from '../constants';
 
+const LANG_LABELS = {
+  cli: 'CLI',
+  python: 'Python',
+  r: 'R',
+  stata: 'Stata',
+  sas: 'SAS',
+  julia: 'Julia',
+};
+
 const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('input'); // 'input' or 'output'
   const [copiedBlock, setCopiedBlock] = useState(null);
   const [activeSection, setActiveSection] = useState('installation');
-
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [configData, setConfigData] = useState({
@@ -71,7 +79,7 @@ import pandas as pd
 df = pd.read_csv("input.csv")
 result = PolicyEngineRunner(df).run()
 result.to_csv("output.csv", index=False)`,
-      language: 'cli',
+      language: 'python',
       label: 'Python',
     },
     r: {
@@ -81,14 +89,14 @@ my_data <- data.frame(
   year = 2023, state = 6, mstat = 1, pwages = 50000
 )
 result <- policyengine_calculate_taxes(my_data)`,
-      language: 'cli',
+      language: 'r',
       label: 'R',
     },
     stata: {
       code: `export delimited using "input.csv", replace
 shell policyengine-taxsim < input.csv > output.csv
 import delimited using "output.csv", clear`,
-      language: 'cli',
+      language: 'stata',
       label: 'Stata',
     },
     sas: {
@@ -113,19 +121,21 @@ import delimited using "output.csv", clear`,
       {
         id: 'python-pin',
         label: 'Pin policyengine-us version (optional)',
+        language: 'cli',
         code: `# For reproducible results, pin the underlying tax model version
 pip install policyengine-us==1.555.0`
       },
       {
         id: 'python-cli-advanced',
         label: 'CLI advanced commands',
+        language: 'cli',
         code: `# Run PolicyEngine on a TAXSIM input file (with output flag)
 policyengine-taxsim policyengine input.csv -o output.csv
 
-# Compare PolicyEngine vs TAXSIM-35
+# Compare PolicyEngine vs TAXSIM35
 policyengine-taxsim compare input.csv --output-dir comparison_output
 
-# Run official TAXSIM-35 locally
+# Run official TAXSIM35 locally
 policyengine-taxsim taxsim input.csv -o taxsim_output.csv
 
 # Sample records from a large dataset
@@ -136,6 +146,7 @@ policyengine-taxsim sample-data input.csv --sample 100 -o sample.csv`
       {
         id: 'r-install',
         label: 'R package installation',
+        language: 'r',
         code: `# Install R package from GitHub
 devtools::install_github(
   "PolicyEngine/policyengine-taxsim",
@@ -146,6 +157,7 @@ devtools::install_github(
       {
         id: 'r-version-pin',
         label: 'Pin version & check versions',
+        language: 'r',
         code: `# Pin policyengine-us to a specific version for reproducible results
 setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
 
@@ -181,7 +193,7 @@ policyengine_versions()
         </button>
       </div>
       <pre className="landing-code-content">
-        <code>{block.code}</code>
+        <code>{highlightCode(block.code, block.language || 'cli')}</code>
       </pre>
     </div>
   );
@@ -210,89 +222,52 @@ policyengine_versions()
     </div>
   );
 
-  // Function to render PolicyEngine cell for output variables (with multiple variables support)
+  const VariableLink = ({ href, label, fontSize }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="doc-var-link"
+      style={fontSize ? { fontSize } : undefined}
+    >
+      {label}
+      <FiExternalLink style={{ marginLeft: '4px', fontSize: fontSize ? '9px' : '10px' }} />
+    </a>
+  );
+
+  function buildGithubUrl(varName) {
+    return `https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(varName)}`;
+  }
+
   const renderOutputPolicyEngineCell = (mapping) => {
     const multipleVars = getMultipleVariables(mapping.taxsim);
-    
+
     if (multipleVars && mapping.implemented) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {multipleVars.map((varName, index) => (
-            <a 
-              key={index}
-              href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(varName)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ 
-                color: 'var(--blue-primary)', 
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                fontSize: '11px'
-              }}
-              onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-              onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-            >
-              {varName}
-              <FiExternalLink style={{ marginLeft: '4px', fontSize: '9px' }} />
-            </a>
+            <VariableLink key={index} href={buildGithubUrl(varName)} label={varName} fontSize="11px" />
           ))}
         </div>
       );
-    } else if (mapping.implemented && mapping.policyengine && mapping.policyengine !== 'na_pe' && 
-               mapping.policyengine !== 'taxsimid' && mapping.policyengine !== 'get_year') {
-      return (
-        <a 
-          href={`https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(mapping.policyengine)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ 
-            color: 'var(--blue-primary)', 
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            cursor: 'pointer'
-          }}
-          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-        >
-          {mapping.policyengine}
-          <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-        </a>
-      );
-    } else {
-      return mapping.policyengine || 'N/A';
     }
+
+    const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year'];
+    if (mapping.implemented && mapping.policyengine && !NON_LINKABLE.includes(mapping.policyengine)) {
+      return <VariableLink href={buildGithubUrl(mapping.policyengine)} label={mapping.policyengine} />;
+    }
+
+    return mapping.policyengine || 'N/A';
   };
 
-  // Function to render PolicyEngine cell for input variables
   const renderInputPolicyEngineCell = (mapping) => {
     if (mapping.implemented && mapping.policyengine !== 'na_pe' && mapping.githubLink) {
-      return (
-        <a 
-          href={mapping.githubLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ 
-            color: 'var(--blue-primary)', 
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            cursor: 'pointer'
-          }}
-          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-        >
-          {mapping.policyengine}
-          <FiExternalLink style={{ marginLeft: '4px', fontSize: '10px' }} />
-        </a>
-      );
-    } else if (mapping.implemented && mapping.policyengine !== 'na_pe') {
-      return mapping.policyengine;
-    } else {
-      return 'N/A';
+      return <VariableLink href={mapping.githubLink} label={mapping.policyengine} />;
     }
+    if (mapping.implemented && mapping.policyengine !== 'na_pe') {
+      return mapping.policyengine;
+    }
+    return 'N/A';
   };
 
   // Create output mappings from OUTPUT_VARIABLES with actual implementation status
@@ -334,33 +309,31 @@ policyengine_versions()
     'sctc': { implemented: true, variable: 'state_ctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
-    'staxbc': { implemented: true, variable: 'state_income_tax_before_non_refundable_credits' }, 
+    'staxbc': { implemented: true, variable: 'state_income_tax_before_non_refundable_credits' },
 
-    
-    // ❌ NOT IMPLEMENTED variables - ALL HAVE 'na_pe' (NOT AVAILABLE IN POLICYENGINE)
-    // IF variable = 'na_pe' --> IT IS NOT IMPLEMENTED
-    'fica': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'frate': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'srate': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'ficar': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v15': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v16': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v20': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v21': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v23': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v30': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v31': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v33': { implemented: false, variable: 'state_exemptions' }, // Special case: still not implemented
-    'v41': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v42': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v43': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'v45': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'srebate': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'senergy': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'sptcr': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'samt': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'addmed': { implemented: false, variable: 'na_pe' }, // na_pe = NOT IMPLEMENTED
-    'cdate': { implemented: false, variable: 'na_pe' } // na_pe = NOT IMPLEMENTED
+    // Not implemented: variable = 'na_pe' means not available in PolicyEngine
+    'fica': { implemented: false, variable: 'na_pe' },
+    'frate': { implemented: false, variable: 'na_pe' },
+    'srate': { implemented: false, variable: 'na_pe' },
+    'ficar': { implemented: false, variable: 'na_pe' },
+    'v15': { implemented: false, variable: 'na_pe' },
+    'v16': { implemented: false, variable: 'na_pe' },
+    'v20': { implemented: false, variable: 'na_pe' },
+    'v21': { implemented: false, variable: 'na_pe' },
+    'v23': { implemented: false, variable: 'na_pe' },
+    'v30': { implemented: false, variable: 'na_pe' },
+    'v31': { implemented: false, variable: 'na_pe' },
+    'v33': { implemented: false, variable: 'state_exemptions' }, // Has a variable name but still not implemented
+    'v41': { implemented: false, variable: 'na_pe' },
+    'v42': { implemented: false, variable: 'na_pe' },
+    'v43': { implemented: false, variable: 'na_pe' },
+    'v45': { implemented: false, variable: 'na_pe' },
+    'srebate': { implemented: false, variable: 'na_pe' },
+    'senergy': { implemented: false, variable: 'na_pe' },
+    'sptcr': { implemented: false, variable: 'na_pe' },
+    'samt': { implemented: false, variable: 'na_pe' },
+    'addmed': { implemented: false, variable: 'na_pe' },
+    'cdate': { implemented: false, variable: 'na_pe' },
   };
 
   const outputMappings = OUTPUT_VARIABLES.map(variable => {
@@ -379,10 +352,11 @@ policyengine_versions()
 
   // Filter mappings based on search term and active tab
   const currentMappings = activeTab === 'input' ? configData.variableMappings : outputMappings;
+  const search = searchTerm.toLowerCase();
   const filteredMappings = currentMappings.filter(mapping =>
-    mapping.taxsim.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mapping.policyengine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mapping.description.toLowerCase().includes(searchTerm.toLowerCase())
+    mapping.taxsim.toLowerCase().includes(search) ||
+    (mapping.policyengine || '').toLowerCase().includes(search) ||
+    mapping.description.toLowerCase().includes(search)
   );
 
   const renderNav = () => (
@@ -403,12 +377,6 @@ policyengine_versions()
             <FiBook style={{ marginRight: '6px' }} />
             Documentation
           </button>
-          {onBackToDashboard && (
-            <button onClick={onBackToDashboard} className="landing-nav-link">
-              <FiBarChart2 style={{ marginRight: '6px' }} />
-              Dashboard
-            </button>
-          )}
           <a
             href="https://github.com/PolicyEngine/policyengine-taxsim"
             target="_blank"
@@ -440,13 +408,11 @@ policyengine_versions()
           <div className="landing-section-inner">
             <div className="doc-intro-blurb">
               The PolicyEngine TAXSIM Emulator supports <strong>all input and output variables</strong> provided
-              by TAXSIM-35. It's a <strong>drop-in replacement</strong> — install
+              by TAXSIM35. It's a <strong>drop-in replacement</strong> — install
               with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>pip install policyengine-taxsim</code> and
               swap <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code> for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code>.
-              Unlike traditional TAXSIM, which requires sending data to NBER's servers,
-              this emulator <strong>runs entirely on your machine</strong> — making it suitable for
-              confidential microdata (CPS, ACS, SCF, administrative records) behind institutional
-              firewalls. Use the same CSV format you already know: provide household demographics,
+              Like TAXSIM35, this emulator <strong>runs entirely on your machine</strong>.
+              Use the same CSV format you already know: provide household demographics,
               income, and deductions as inputs, and receive federal and state tax calculations as outputs.
             </div>
           </div>
@@ -456,24 +422,19 @@ policyengine_versions()
         <section className="landing-section" style={{ paddingBottom: 0 }}>
           <div className="landing-section-inner">
             <div className="landing-tab-bar">
-              <button
-                onClick={() => setActiveSection('installation')}
-                className={`landing-tab-button ${activeSection === 'installation' ? 'landing-tab-active' : ''}`}
-              >
-                Installation & Usage
-              </button>
-              <button
-                onClick={() => setActiveSection('options')}
-                className={`landing-tab-button ${activeSection === 'options' ? 'landing-tab-active' : ''}`}
-              >
-                All Runners & CLI
-              </button>
-              <button
-                onClick={() => setActiveSection('mappings')}
-                className={`landing-tab-button ${activeSection === 'mappings' ? 'landing-tab-active' : ''}`}
-              >
-                Variable Mappings
-              </button>
+              {[
+                { id: 'installation', label: 'Installation & Usage' },
+                { id: 'options', label: 'All Runners & CLI' },
+                { id: 'mappings', label: 'Variable Mappings' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveSection(id)}
+                  className={`landing-tab-button ${activeSection === id ? 'landing-tab-active' : ''}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </section>
@@ -502,13 +463,13 @@ policyengine_versions()
                 Same input format, same output variables. Just swap the command.
               </p>
               <div className="landing-lang-toggle">
-                {['cli', 'python', 'r', 'stata', 'sas', 'julia'].map((lang) => (
+                {Object.entries(LANG_LABELS).map(([id, label]) => (
                   <button
-                    key={lang}
-                    className={`landing-lang-btn${activeUsageLang === lang ? ' landing-lang-btn-active' : ''}`}
-                    onClick={() => setActiveUsageLang(lang)}
+                    key={id}
+                    className={`landing-lang-btn${activeUsageLang === id ? ' landing-lang-btn-active' : ''}`}
+                    onClick={() => setActiveUsageLang(id)}
                   >
-                    {lang === 'cli' ? 'CLI' : lang === 'python' ? 'Python' : lang === 'r' ? 'R' : lang === 'stata' ? 'Stata' : lang === 'sas' ? 'SAS' : 'Julia'}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -516,6 +477,7 @@ policyengine_versions()
                 {renderCodeBlock({
                   id: `usage-${activeUsageLang}`,
                   label: usageExamples[activeUsageLang].label,
+                  language: usageExamples[activeUsageLang].language,
                   code: usageExamples[activeUsageLang].code,
                 })}
               </div>
@@ -545,7 +507,7 @@ policyengine_versions()
                 TaxsimRunner
               </h3>
               <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
-                Runs the official TAXSIM-35 executable locally. Requires the TAXSIM binary
+                Runs the official TAXSIM35 executable locally. Requires the TAXSIM binary
                 (auto-detected on macOS, Linux, and Windows). Useful for generating reference
                 outputs to compare against PolicyEngine.
               </p>
@@ -562,6 +524,7 @@ policyengine_versions()
                 {renderCodeBlock({
                   id: 'taxsim-runner',
                   label: 'Python',
+                  language: 'python',
                   code: `from policyengine_taxsim.runners import TaxsimRunner
 
 runner = TaxsimRunner(df)
@@ -592,6 +555,7 @@ taxsim_results = runner.run()`
                 {renderCodeBlock({
                   id: 'option-salt',
                   label: 'Example',
+                  language: 'python',
                   code: `runner = PolicyEngineRunner(df, disable_salt=True)
 results = runner.run()`
                 })}
@@ -610,6 +574,7 @@ results = runner.run()`
                 {renderCodeBlock({
                   id: 'option-logs',
                   label: 'Example',
+                  language: 'python',
                   code: `runner = PolicyEngineRunner(df, logs=True)
 results = runner.run()`
                 })}
@@ -628,6 +593,7 @@ results = runner.run()`
                 {renderCodeBlock({
                   id: 'option-progress',
                   label: 'Example',
+                  language: 'python',
                   code: `runner = PolicyEngineRunner(df)
 results = runner.run(show_progress=False)`
                 })}
@@ -640,7 +606,7 @@ results = runner.run(show_progress=False)`
               <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
                 The <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code> CLI
                 is a drop-in replacement for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code>.
-                By default it reads from stdin and writes to stdout, just like TAXSIM-35.
+                By default it reads from stdin and writes to stdout, just like TAXSIM35.
                 Advanced subcommands are also available.
               </p>
 
@@ -682,7 +648,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
                   <code className="doc-option-name">policyengine-taxsim taxsim</code>
                 </div>
                 <p className="doc-option-description">
-                  Run the official TAXSIM-35 executable on a TAXSIM input file.
+                  Run the official TAXSIM35 executable on a TAXSIM input file.
                   Optionally specify a custom path to the TAXSIM binary with{' '}
                   <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--taxsim-path</code>.
                 </p>
@@ -698,7 +664,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
                   <code className="doc-option-name">policyengine-taxsim compare</code>
                 </div>
                 <p className="doc-option-description">
-                  Run both PolicyEngine and TAXSIM-35 on the same input, then compare the
+                  Run both PolicyEngine and TAXSIM35 on the same input, then compare the
                   results. Outputs a comparison report with match rates and differences.
                 </p>
                 {renderCodeBlock({
@@ -764,7 +730,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
               <div className="doc-intro-blurb" style={{ marginBottom: '24px' }}>
                 <strong>Note on extended coverage:</strong> Because this emulator is powered by
                 PolicyEngine's microsimulation model, it can calculate variables beyond what
-                TAXSIM-35 provides. The mappings below show the standard TAXSIM
+                TAXSIM35 provides. The mappings below show the standard TAXSIM
                 inputs and outputs, but PolicyEngine supports hundreds of additional tax and
                 benefit variables. See the{' '}
                 <a
@@ -830,13 +796,6 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
               <span>GitHub Repository</span>
               <FiExternalLink size={14} className="landing-footer-external" />
             </a>
-            {onBackToDashboard && (
-              <button onClick={onBackToDashboard} className="landing-footer-card">
-                <FiBarChart2 size={20} />
-                <span>Comparison Dashboard</span>
-                <FiExternalLink size={14} className="landing-footer-external" />
-              </button>
-            )}
             <a
               href="https://taxsim.nber.org/taxsim35/"
               target="_blank"
@@ -844,7 +803,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
               className="landing-footer-card"
             >
               <FiExternalLink size={20} />
-              <span>TAXSIM-35 Official Docs</span>
+              <span>TAXSIM35 Official Docs</span>
               <FiExternalLink size={14} className="landing-footer-external" />
             </a>
           </div>
@@ -856,86 +815,51 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
     </div>
   );
 
-  // Helper function to render input variables
-  function renderInputVariables() {
-    const { basicInputs, incomeInputs, businessIncomeInputs, expenseInputs } = INPUT_VARIABLE_CATEGORIES;
-
+  function renderVariablesWithDividers(sections) {
     const results = [];
-    let hasAddedBasic = false;
-    let hasAddedIncome = false;
-    let hasAddedBusiness = false;
-    let hasAddedExpense = false;
+    const addedSections = new Set();
 
     filteredMappings.forEach((mapping, index) => {
-      if (basicInputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(<React.Fragment key="divider-basic">{createDivider('Basic Inputs')}</React.Fragment>);
-        hasAddedBasic = true;
-      } else if (incomeInputs.includes(mapping.taxsim) && !hasAddedIncome) {
-        results.push(<React.Fragment key="divider-income">{createDivider('Income Inputs', 'var(--teal-accent)')}</React.Fragment>);
-        hasAddedIncome = true;
-      } else if (businessIncomeInputs.includes(mapping.taxsim) && !hasAddedBusiness) {
-        results.push(<React.Fragment key="divider-business">{createDivider('Business Income', 'var(--dark-gray)')}</React.Fragment>);
-        hasAddedBusiness = true;
-      } else if (expenseInputs.includes(mapping.taxsim) && !hasAddedExpense) {
-        results.push(<React.Fragment key="divider-expense">{createDivider('Expense & Deduction Inputs')}</React.Fragment>);
-        hasAddedExpense = true;
+      for (const { key, codes, title, color } of sections) {
+        if (!addedSections.has(key) && codes.includes(mapping.taxsim)) {
+          results.push(
+            <React.Fragment key={`divider-${key}`}>
+              {createDivider(title, color)}
+            </React.Fragment>
+          );
+          addedSections.add(key);
+          break;
+        }
       }
-
       results.push(renderVariableRow(mapping, index));
     });
 
     return results;
   }
 
-  // Helper function to render output variables
+  function renderInputVariables() {
+    const { basicInputs, incomeInputs, businessIncomeInputs, expenseInputs } = INPUT_VARIABLE_CATEGORIES;
+    return renderVariablesWithDividers([
+      { key: 'basic', codes: basicInputs, title: 'Basic Inputs' },
+      { key: 'income', codes: incomeInputs, title: 'Income Inputs', color: 'var(--teal-accent)' },
+      { key: 'business', codes: businessIncomeInputs, title: 'Business Income', color: 'var(--dark-gray)' },
+      { key: 'expense', codes: expenseInputs, title: 'Expense & Deduction Inputs' },
+    ]);
+  }
+
   function renderOutputVariables() {
     const { basicOutputs, taxOutputs, agiOutputs, deductionOutputs, taxableIncomeOutputs, creditOutputs, amtOutputs, stateOutputs, additionalOutputs } = OUTPUT_VARIABLE_CATEGORIES;
-
-    const results = [];
-    let hasAddedBasic = false;
-    let hasAddedTax = false;
-    let hasAddedAGI = false;
-    let hasAddedDeduction = false;
-    let hasAddedTaxableIncome = false;
-    let hasAddedCredit = false;
-    let hasAddedAMT = false;
-    let hasAddedState = false;
-    let hasAddedAdditional = false;
-
-    filteredMappings.forEach((mapping, index) => {
-      if (basicOutputs.includes(mapping.taxsim) && !hasAddedBasic) {
-        results.push(<React.Fragment key="divider-basic">{createDivider('Basic Outputs')}</React.Fragment>);
-        hasAddedBasic = true;
-      } else if (taxOutputs.includes(mapping.taxsim) && !hasAddedTax) {
-        results.push(<React.Fragment key="divider-tax">{createDivider('Primary Tax Calculations')}</React.Fragment>);
-        hasAddedTax = true;
-      } else if (agiOutputs.includes(mapping.taxsim) && !hasAddedAGI) {
-        results.push(<React.Fragment key="divider-agi">{createDivider('Adjusted Gross Income', 'var(--teal-accent)')}</React.Fragment>);
-        hasAddedAGI = true;
-      } else if (deductionOutputs.includes(mapping.taxsim) && !hasAddedDeduction) {
-        results.push(<React.Fragment key="divider-deduction">{createDivider('Deductions & Exemptions', 'var(--dark-gray)')}</React.Fragment>);
-        hasAddedDeduction = true;
-      } else if (taxableIncomeOutputs.includes(mapping.taxsim) && !hasAddedTaxableIncome) {
-        results.push(<React.Fragment key="divider-taxable">{createDivider('Taxable Income & Tax Calculations')}</React.Fragment>);
-        hasAddedTaxableIncome = true;
-      } else if (creditOutputs.includes(mapping.taxsim) && !hasAddedCredit) {
-        results.push(<React.Fragment key="divider-credit">{createDivider('Tax Credits', 'var(--teal-accent)')}</React.Fragment>);
-        hasAddedCredit = true;
-      } else if (amtOutputs.includes(mapping.taxsim) && !hasAddedAMT) {
-        results.push(<React.Fragment key="divider-amt">{createDivider('Alternative Minimum Tax', 'var(--dark-gray)')}</React.Fragment>);
-        hasAddedAMT = true;
-      } else if (stateOutputs.includes(mapping.taxsim) && !hasAddedState) {
-        results.push(<React.Fragment key="divider-state">{createDivider('State-Specific Calculations')}</React.Fragment>);
-        hasAddedState = true;
-      } else if (additionalOutputs.includes(mapping.taxsim) && !hasAddedAdditional) {
-        results.push(<React.Fragment key="divider-additional">{createDivider('Additional Outputs', 'var(--teal-accent)')}</React.Fragment>);
-        hasAddedAdditional = true;
-      }
-
-      results.push(renderVariableRow(mapping, index));
-    });
-
-    return results;
+    return renderVariablesWithDividers([
+      { key: 'basic', codes: basicOutputs, title: 'Basic Outputs' },
+      { key: 'tax', codes: taxOutputs, title: 'Primary Tax Calculations' },
+      { key: 'agi', codes: agiOutputs, title: 'Adjusted Gross Income', color: 'var(--teal-accent)' },
+      { key: 'deduction', codes: deductionOutputs, title: 'Deductions & Exemptions', color: 'var(--dark-gray)' },
+      { key: 'taxable', codes: taxableIncomeOutputs, title: 'Taxable Income & Tax Calculations' },
+      { key: 'credit', codes: creditOutputs, title: 'Tax Credits', color: 'var(--teal-accent)' },
+      { key: 'amt', codes: amtOutputs, title: 'Alternative Minimum Tax', color: 'var(--dark-gray)' },
+      { key: 'state', codes: stateOutputs, title: 'State-Specific Calculations' },
+      { key: 'additional', codes: additionalOutputs, title: 'Additional Outputs', color: 'var(--teal-accent)' },
+    ]);
   }
 };
 

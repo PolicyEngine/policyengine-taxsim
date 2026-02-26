@@ -2146,12 +2146,17 @@ body {
   color: var(--darkest-blue);
 }
 
-.doc-var-pe a {
+.doc-var-pe a,
+.doc-var-link {
   color: var(--blue-primary);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
 }
 
-.doc-var-pe a:hover {
+.doc-var-pe a:hover,
+.doc-var-link:hover {
   text-decoration: underline;
 }
 

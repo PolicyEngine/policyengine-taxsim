@@ -1,74 +1,6 @@
 import React, { useState } from 'react';
-import { FiGithub, FiExternalLink, FiArrowRight, FiBook, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck } from 'react-icons/fi';
-
-const TOKEN_CLASS_MAP = {
-  kw: 'code-keyword',
-  fn: 'code-function',
-  str: 'code-string',
-  op: 'code-operator',
-  var: 'code-variable',
-};
-
-function renderTokens(tokenizedLine, parts, keyRef) {
-  const tokens = tokenizedLine.split(/(\x01\w+.*?\x02)/);
-  tokens.forEach((t) => {
-    const match = t.match(/^\x01(\w+)(.*)\x02$/);
-    if (match) {
-      const prefixLen = match[1].length;
-      const className = TOKEN_CLASS_MAP[match[1]] || '';
-      parts.push(<span key={keyRef.k++} className={className}>{t.slice(prefixLen + 1, -1)}</span>);
-    } else {
-      parts.push(<span key={keyRef.k++}>{t}</span>);
-    }
-  });
-}
-
-const highlightCode = (code, language) => {
-  const lines = code.split('\n');
-  return lines.map((line, i) => {
-    if (line.trimStart().startsWith('#')) {
-      return <span key={i}><span className="code-comment">{line}</span>{'\n'}</span>;
-    }
-
-    const parts = [];
-    const keyRef = { k: 0 };
-
-    if (language === 'cli') {
-      const match = line.match(/^(\S+)(.*)/);
-      if (match && !line.startsWith('#')) {
-        parts.push(<span key={keyRef.k++} className="code-function">{match[1]}</span>);
-        const tokenized = match[2]
-          .replace(/(-\w+)/g, (m) => `\x01op${m}\x02`)
-          .replace(/"([^"]*)"/g, (_, s) => `\x01str"${s}"\x02`);
-        renderTokens(tokenized, parts, keyRef);
-      } else {
-        parts.push(<span key={keyRef.k++}>{line}</span>);
-      }
-    } else if (language === 'python') {
-      const tokenized = line
-        .replace(/\b(import|from|as)\b/g, '\x01kw$1\x02')
-        .replace(/"([^"]*)"/g, '\x01str"$1"\x02')
-        .replace(/(\w+)\s*\(/g, '\x01fn$1\x02(');
-      renderTokens(tokenized, parts, keyRef);
-    } else if (language === 'r') {
-      const tokenized = line
-        .replace(/\b(library|setup_policyengine)\b/g, '\x01fn$1\x02')
-        .replace(/"([^"]*)"/g, '\x01str"$1"\x02')
-        .replace(/<-/g, '\x01op<-\x02')
-        .replace(/(\w+)\s*\(/g, '\x01fn$1\x02(');
-      renderTokens(tokenized, parts, keyRef);
-    } else if (language === 'stata') {
-      const tokenized = line
-        .replace(/\b(shell|taxsimlocal35|set|gen|export|import|delimited)\b/g, '\x01kw$1\x02')
-        .replace(/"([^"]*)"/g, '\x01str"$1"\x02')
-        .replace(/,\s*(\w+)/g, ',\x01op $1\x02')
-        .replace(/`([^']*)'/, '\x01var`$1\'\x02');
-      renderTokens(tokenized, parts, keyRef);
-    }
-
-    return <span key={i}>{parts}{'\n'}</span>;
-  });
-};
+import { FiGithub, FiExternalLink, FiArrowRight, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck } from 'react-icons/fi';
+import { highlightCode } from '../utils/codeHighlight';
 
 const CodeBlock = ({ label, code, language }) => {
   const [copied, setCopied] = useState(false);
@@ -96,8 +28,46 @@ const CodeBlock = ({ label, code, language }) => {
   );
 };
 
+const LANG_TABS = [
+  { id: 'cli', label: 'CLI' },
+  { id: 'python', label: 'Python' },
+  { id: 'r', label: 'R' },
+  { id: 'stata', label: 'Stata' },
+  { id: 'sas', label: 'SAS' },
+  { id: 'julia', label: 'Julia' },
+];
+
+const COMPARISON_EXAMPLES = {
+  cli: {
+    before: { label: 'Shell', code: 'taxsim35 < input.csv > output.csv', language: 'cli' },
+    after: { label: 'Shell', code: 'policyengine-taxsim < input.csv > output.csv', language: 'cli' },
+  },
+  python: {
+    before: { label: 'Python', code: 'import subprocess\nresult = subprocess.run(\n  "taxsim35 < input.csv > output.csv",\n  shell=True\n)', language: 'python' },
+    after: { label: 'Python', code: 'from policyengine_taxsim.runners import PolicyEngineRunner\nimport pandas as pd\n\ndf = pd.read_csv("input.csv")\nresult = PolicyEngineRunner(df).run()', language: 'python' },
+  },
+  r: {
+    before: { label: 'R', code: 'library(usincometaxes)\nresult <- taxsim_calculate_taxes(input)', language: 'r' },
+    after: { label: 'R', code: 'library(policyenginetaxsim)\nresult <- policyengine_calculate_taxes(input)', language: 'r' },
+  },
+  stata: {
+    before: { label: 'Stata', code: 'taxsimlocal35, replace', language: 'stata' },
+    after: { label: 'Stata', code: 'export delimited using "input.csv", replace\nshell policyengine-taxsim < input.csv > output.csv\nimport delimited using "output.csv", clear', language: 'stata' },
+  },
+  sas: {
+    before: { label: 'SAS', code: '%let rc = %sysfunc(system(\n  taxsim35 < input.csv > output.csv\n));', language: 'cli' },
+    after: { label: 'SAS', code: '%let rc = %sysfunc(system(\n  policyengine-taxsim < input.csv > output.csv\n));', language: 'cli' },
+  },
+  julia: {
+    before: { label: 'Julia', code: 'run(pipeline(`taxsim35`,\n  stdin="input.csv",\n  stdout="output.csv"\n))', language: 'cli' },
+    after: { label: 'Julia', code: 'run(pipeline(`policyengine-taxsim`,\n  stdin="input.csv",\n  stdout="output.csv"\n))', language: 'cli' },
+  },
+};
+
 const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
   const [lang, setLang] = useState('cli');
+
+  const example = COMPARISON_EXAMPLES[lang];
 
   return (
     <div className="landing-page">
@@ -108,26 +78,10 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
             The next chapter of TAXSIM
           </h1>
           <p className="landing-hero-tagline">
-            An open-source, drop-in replacement for TAXSIM-35. Same interface,
+            An open-source, drop-in replacement for TAXSIM35. Same interface,
             same inputs, same outputs — powered by PolicyEngine's
             microsimulation engine.
           </p>
-          <div className="landing-hero-ctas">
-            <button
-              onClick={onNavigateToDocumentation}
-              className="landing-cta-primary"
-            >
-              Read the documentation
-              <FiArrowRight style={{ marginLeft: '8px' }} />
-            </button>
-            <button
-              onClick={onNavigateToDashboard}
-              className="landing-cta-secondary"
-            >
-              View comparison dashboard
-              <FiBarChart2 style={{ marginLeft: '8px' }} />
-            </button>
-          </div>
         </div>
       </section>
 
@@ -153,75 +107,24 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
             Same input format, same output variables. Just swap the command.
           </p>
           <div className="landing-lang-toggle">
-            <button
-              className={`landing-lang-btn${lang === 'cli' ? ' landing-lang-btn-active' : ''}`}
-              onClick={() => setLang('cli')}
-            >
-              CLI
-            </button>
-            <button
-              className={`landing-lang-btn${lang === 'python' ? ' landing-lang-btn-active' : ''}`}
-              onClick={() => setLang('python')}
-            >
-              Python
-            </button>
-            <button
-              className={`landing-lang-btn${lang === 'r' ? ' landing-lang-btn-active' : ''}`}
-              onClick={() => setLang('r')}
-            >
-              R
-            </button>
-            <button
-              className={`landing-lang-btn${lang === 'stata' ? ' landing-lang-btn-active' : ''}`}
-              onClick={() => setLang('stata')}
-            >
-              Stata
-            </button>
-            <button
-              className={`landing-lang-btn${lang === 'sas' ? ' landing-lang-btn-active' : ''}`}
-              onClick={() => setLang('sas')}
-            >
-              SAS
-            </button>
-            <button
-              className={`landing-lang-btn${lang === 'julia' ? ' landing-lang-btn-active' : ''}`}
-              onClick={() => setLang('julia')}
-            >
-              Julia
-            </button>
+            {LANG_TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                className={`landing-lang-btn${lang === id ? ' landing-lang-btn-active' : ''}`}
+                onClick={() => setLang(id)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <div className="landing-compare-grid">
             <div>
-              <h3 className="landing-compare-label" style={{ color: 'var(--dark-gray)' }}>TAXSIM-35 (before)</h3>
-              {lang === 'cli' ? (
-                <CodeBlock label="Shell" code={`taxsim35 < input.csv > output.csv`} language="cli" />
-              ) : lang === 'python' ? (
-                <CodeBlock label="Python" code={`import subprocess\nresult = subprocess.run(\n  "taxsim35 < input.csv > output.csv",\n  shell=True\n)`} language="python" />
-              ) : lang === 'stata' ? (
-                <CodeBlock label="Stata" code={`taxsimlocal35, replace`} language="stata" />
-              ) : lang === 'r' ? (
-                <CodeBlock label="R" code={`library(usincometaxes)\nresult <- taxsim_calculate_taxes(input)`} language="r" />
-              ) : lang === 'sas' ? (
-                <CodeBlock label="SAS" code={`%let rc = %sysfunc(system(\n  taxsim35 < input.csv > output.csv\n));`} language="cli" />
-              ) : (
-                <CodeBlock label="Julia" code={`run(pipeline(\`taxsim35\`,\n  stdin="input.csv",\n  stdout="output.csv"\n))`} language="cli" />
-              )}
+              <h3 className="landing-compare-label" style={{ color: 'var(--dark-gray)' }}>TAXSIM35 (before)</h3>
+              <CodeBlock label={example.before.label} code={example.before.code} language={example.before.language} />
             </div>
             <div>
               <h3 className="landing-compare-label" style={{ color: 'var(--blue-primary)' }}>PolicyEngine TAXSIM (after)</h3>
-              {lang === 'cli' ? (
-                <CodeBlock label="Shell" code={`policyengine-taxsim < input.csv > output.csv`} language="cli" />
-              ) : lang === 'python' ? (
-                <CodeBlock label="Python" code={`from policyengine_taxsim.runners import PolicyEngineRunner\nimport pandas as pd\n\ndf = pd.read_csv("input.csv")\nresult = PolicyEngineRunner(df).run()`} language="python" />
-              ) : lang === 'stata' ? (
-                <CodeBlock label="Stata" code={`export delimited using "input.csv", replace\nshell policyengine-taxsim < input.csv > output.csv\nimport delimited using "output.csv", clear`} language="stata" />
-              ) : lang === 'r' ? (
-                <CodeBlock label="R" code={`library(policyenginetaxsim)\nresult <- policyengine_calculate_taxes(input)`} language="r" />
-              ) : lang === 'sas' ? (
-                <CodeBlock label="SAS" code={`%let rc = %sysfunc(system(\n  policyengine-taxsim < input.csv > output.csv\n));`} language="cli" />
-              ) : (
-                <CodeBlock label="Julia" code={`run(pipeline(\`policyengine-taxsim\`,\n  stdin="input.csv",\n  stdout="output.csv"\n))`} language="cli" />
-              )}
+              <CodeBlock label={example.after.label} code={example.after.code} language={example.after.language} />
             </div>
           </div>
         </div>
@@ -372,6 +275,19 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
         </div>
       </section>
 
+      {/* Documentation CTA */}
+      <section className="landing-section landing-section-alt">
+        <div className="landing-section-inner" style={{ textAlign: 'center' }}>
+          <button
+            onClick={onNavigateToDocumentation}
+            className="landing-cta-primary"
+          >
+            Read the full documentation
+            <FiArrowRight style={{ marginLeft: '8px' }} />
+          </button>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
@@ -386,14 +302,6 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
               <span>GitHub repository</span>
               <FiExternalLink size={14} className="landing-footer-external" />
             </a>
-            <button
-              onClick={onNavigateToDashboard}
-              className="landing-footer-card"
-            >
-              <FiBarChart2 size={20} />
-              <span>Comparison dashboard</span>
-              <FiArrowRight size={14} className="landing-footer-external" />
-            </button>
             <a
               href="https://taxsim.nber.org/taxsim35/"
               target="_blank"
@@ -401,7 +309,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
               className="landing-footer-card"
             >
               <FiExternalLink size={20} />
-              <span>TAXSIM-35 official docs</span>
+              <span>TAXSIM35 official docs</span>
               <FiExternalLink size={14} className="landing-footer-external" />
             </a>
           </div>
