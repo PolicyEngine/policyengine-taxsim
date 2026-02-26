@@ -761,11 +761,12 @@ class PolicyEngineRunner(BaseTaxRunner):
     """
 
     def __init__(
-        self, input_df: pd.DataFrame, logs: bool = False, disable_salt: bool = False
+        self, input_df: pd.DataFrame, logs: bool = False, disable_salt: bool = False, assume_w2_wages: bool = False
     ):
         super().__init__(input_df)
         self.logs = logs
         self.disable_salt = disable_salt
+        self.assume_w2_wages = assume_w2_wages
         self.mappings = load_variable_mappings()
 
     def _ensure_required_columns(self, df):
@@ -834,6 +835,28 @@ class PolicyEngineRunner(BaseTaxRunner):
                     sim.set_input(
                         variable_name="state_and_local_sales_or_income_tax",
                         value=np.zeros(n_year_records),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
+            # Apply W2 wages assumption if needed (for QBID alignment with TAXSIM)
+            # TAXSIM skips the W-2/UBIA wage cap for S-Corp income, so to align
+            # we set w2_wages_from_qualified_business high enough that the cap
+            # never binds, matching TAXSIM's simplified 20%-of-QBI calculation.
+            # Note: this is a person-level variable, so we use the person
+            # population count (not the number of tax-unit records).
+            if self.assume_w2_wages:
+                n_persons = sim.get_variable_population(
+                    "w2_wages_from_qualified_business"
+                ).count
+                years = sorted(set(self.input_df["year"].unique()))
+                for year in years:
+                    sim.set_input(
+                        variable_name="w2_wages_from_qualified_business",
+                        value=np.full(n_persons, 1e9),
                         period=str(
                             int(year)
                             if isinstance(year, (float, np.floating))
