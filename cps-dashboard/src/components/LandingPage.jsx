@@ -92,7 +92,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
           <div className="landing-get-started-code" style={{ maxWidth: '640px', margin: '0 auto' }}>
             <CodeBlock
               label="Terminal"
-              code="pip install policyengine-taxsim"
+              code="pip install git+https://github.com/PolicyEngine/policyengine-taxsim.git"
               language="cli"
             />
           </div>
