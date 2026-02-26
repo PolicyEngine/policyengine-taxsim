@@ -1,3 +1,10 @@
+## [2.10.3] - 2026-02-26
+
+### Fixed
+
+- Fixed Vercel SPA rewrites to correctly serve the dashboard at /us/taxsim.
+
+
 ## [2.10.2] - 2026-02-26
 
 ### Fixed
