@@ -563,6 +563,26 @@ results = runner.run()`
 
               <div className="doc-option-card">
                 <div className="doc-option-header">
+                  <code className="doc-option-name">assume_w2_wages</code>
+                  <span className="doc-option-type">bool, default False</span>
+                </div>
+                <p className="doc-option-description">
+                  Sets <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>w2_wages_from_qualified_business</code> to
+                  a large value so the W-2 wage cap in the QBID (Section 199A) calculation never binds.
+                  This aligns PolicyEngine's output with TAXSIM's simplified S-Corp handling, which applies
+                  a flat 20% deduction on qualified business income without enforcing the W-2/UBIA cap.
+                </p>
+                {renderCodeBlock({
+                  id: 'option-w2-wages',
+                  label: 'Example',
+                  language: 'python',
+                  code: `runner = PolicyEngineRunner(df, assume_w2_wages=True)
+results = runner.run()`
+                })}
+              </div>
+
+              <div className="doc-option-card">
+                <div className="doc-option-header">
                   <code className="doc-option-name">logs</code>
                   <span className="doc-option-type">bool, default False</span>
                 </div>
@@ -632,6 +652,7 @@ results = runner.run(show_progress=False)`
                 <p className="doc-option-description">
                   Run PolicyEngine tax calculations with explicit input/output file paths.
                   Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--assume-w2-wages</code>,{' '}
                   <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
                   <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
                 </p>
@@ -639,7 +660,7 @@ results = runner.run(show_progress=False)`
                   id: 'cli-pe',
                   label: 'Terminal',
                   code: `policyengine-taxsim policyengine input.csv -o output.csv
-policyengine-taxsim policyengine input.csv --disable-salt --logs`
+policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --logs`
                 })}
               </div>
 
@@ -666,11 +687,15 @@ policyengine-taxsim policyengine input.csv --disable-salt --logs`
                 <p className="doc-option-description">
                   Run both PolicyEngine and TAXSIM35 on the same input, then compare the
                   results. Outputs a comparison report with match rates and differences.
+                  Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--assume-w2-wages</code>,{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
+                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
                 </p>
                 {renderCodeBlock({
                   id: 'cli-compare',
                   label: 'Terminal',
-                  code: `policyengine-taxsim compare input.csv --output-dir comparison_output`
+                  code: `policyengine-taxsim compare input.csv --output-dir comparison_output --assume-w2-wages`
                 })}
               </div>
 
