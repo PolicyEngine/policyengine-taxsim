@@ -1,3 +1,10 @@
+## [2.11.0] - 2026-02-26
+
+### Added
+
+- Add --assume-w2-wages CLI flag to align QBID calculation with TAXSIM's S-Corp handling by bypassing the W-2 wage cap.
+
+
 ## [2.10.3] - 2026-02-26
 
 ### Fixed
