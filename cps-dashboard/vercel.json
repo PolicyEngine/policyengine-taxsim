@@ -3,6 +3,7 @@
   "outputDirectory": "build",
   "framework": "vite",
   "rewrites": [
-    { "source": "/us/taxsim/(.*)", "destination": "/us/taxsim/index.html" }
+    { "source": "/us/taxsim", "destination": "/index.html" },
+    { "source": "/us/taxsim/:path*", "destination": "/:path*" }
   ]
 }
