@@ -2,7 +2,7 @@
   "name": "cps-dashboard",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://policyengine.github.io/policyengine-taxsim",
+  "homepage": "/us/taxsim",
   "dependencies": {
     "file-saver": "^2.0.5",
     "js-yaml": "^4.1.0",

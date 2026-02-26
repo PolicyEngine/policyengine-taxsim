@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "framework": "create-react-app",
+  "rewrites": [
+    { "source": "/us/taxsim/(.*)", "destination": "/us/taxsim/index.html" }
+  ]
+}

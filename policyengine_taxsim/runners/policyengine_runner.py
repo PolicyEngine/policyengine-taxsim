@@ -1085,10 +1085,11 @@ class PolicyEngineRunner(BaseTaxRunner):
                         columns[taxsim_var] = np.round(arr, 2)
 
                 except Exception as e:
-                    if "does not exist" in str(e):
+                    err_msg = str(e)
+                    if "does not exist" in err_msg or "was not found" in err_msg:
                         if self.logs:
                             print(
-                                f"Variable {pe_var} not implemented, setting to 0"
+                                f"Variable {pe_var} not available for {taxsim_var}, setting to 0"
                             )
                         columns[taxsim_var] = np.zeros(n)
                     else:
