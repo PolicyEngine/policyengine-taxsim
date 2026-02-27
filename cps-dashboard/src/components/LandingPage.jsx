@@ -165,11 +165,12 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
               <div className="landing-feature-icon" style={{ background: 'var(--blue-primary)' }}>
                 <FiClock color="white" size={24} />
               </div>
-              <h3 className="landing-feature-title">1960s to today</h3>
+              <h3 className="landing-feature-title">1960s through future law</h3>
               <p className="landing-feature-description">
                 Automatic year-stitching routes 2021+ to PolicyEngine and
-                earlier years to TAXSIM35, so a single command handles any
-                tax year from the 1960s onward.
+                earlier years to TAXSIM35. TAXSIM stops at 2023 and freezes
+                state law at 2021; PolicyEngine models enacted legislation
+                including TCJA, ARPA, and OBBBA provisions as scheduled.
               </p>
             </div>
           </div>
