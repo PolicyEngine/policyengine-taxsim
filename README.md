@@ -31,13 +31,14 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 
 ### Key Features
 
-- **High-Performance Microsimulation**: Process thousands of households simultaneously using PolicyEngine's vectorized calculations
-- **TAXSIM-35 Compatibility**: Full compatibility with TAXSIM input CSV format and output variables
-- **Advanced State Handling**: Correctly handles state-specific tax conformity rules (e.g., states that adopt federal AGI vs federal taxable income)
-- **Comprehensive Comparison Tools**: Side-by-side comparison of PolicyEngine vs TAXSIM results with detailed mismatch analysis
-- **Interactive Dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
-- **Flexible Output Options**: Standard, full, and text description output formats matching TAXSIM specifications
-- **YAML Test Generation**: Generate PolicyEngine test cases for reproducibility and validation
+- **Year-stitching**: Automatic routing by tax year — 2021+ uses PolicyEngine, earlier years use TAXSIM35 — so a single command handles any year from the 1960s onward
+- **High-performance microsimulation**: Process thousands of households simultaneously using PolicyEngine's vectorized calculations
+- **TAXSIM-35 compatibility**: Full compatibility with TAXSIM input CSV format and output variables
+- **Advanced state handling**: Correctly handles state-specific tax conformity rules (e.g., states that adopt federal AGI vs federal taxable income)
+- **Comprehensive comparison tools**: Side-by-side comparison of PolicyEngine vs TAXSIM results with detailed mismatch analysis
+- **Interactive dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
+- **Flexible output options**: Standard, full, and text description output formats matching TAXSIM specifications
+- **YAML test generation**: Generate PolicyEngine test cases for reproducibility and validation
 
 ## Quick Start
 

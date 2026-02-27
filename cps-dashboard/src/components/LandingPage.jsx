@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiGithub, FiExternalLink, FiArrowRight, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck } from 'react-icons/fi';
+import { FiGithub, FiExternalLink, FiArrowRight, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck, FiClock } from 'react-icons/fi';
 import { highlightCode } from '../utils/codeHighlight';
 
 const CodeBlock = ({ label, code, language }) => {
@@ -159,6 +159,17 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
                 Same stdin/stdout interface, same input variables, same output
                 format. Just swap <code>taxsim35</code> for{' '}
                 <code>policyengine-taxsim</code>.
+              </p>
+            </div>
+            <div className="landing-feature-card">
+              <div className="landing-feature-icon" style={{ background: 'var(--blue-primary)' }}>
+                <FiClock color="white" size={24} />
+              </div>
+              <h3 className="landing-feature-title">1960s to today</h3>
+              <p className="landing-feature-description">
+                Automatic year-stitching routes 2021+ to PolicyEngine and
+                earlier years to TAXSIM35, so a single command handles any
+                tax year from the 1960s onward.
               </p>
             </div>
           </div>
