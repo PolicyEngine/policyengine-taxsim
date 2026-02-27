@@ -6,6 +6,7 @@ from io import StringIO
 try:
     from .runners.policyengine_runner import PolicyEngineRunner
     from .runners.taxsim_runner import TaxsimRunner
+    from .runners.stitched_runner import StitchedRunner
     from .comparison.comparator import TaxComparator, ComparisonConfig
     from .comparison.statistics import ComparisonStatistics
     from .core.yaml_generator import generate_pe_tests_yaml
@@ -14,6 +15,7 @@ try:
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+    from policyengine_taxsim.runners.stitched_runner import StitchedRunner
     from policyengine_taxsim.comparison.comparator import (
         TaxComparator,
         ComparisonConfig,
@@ -110,8 +112,8 @@ def cli(ctx, logs, disable_salt, sample):
             )
             df = df.sample(n=sample, random_state=42)
 
-        # Use the PolicyEngineRunner with microsimulation
-        runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt)
+        # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
+        runner = StitchedRunner(df, logs=logs, disable_salt=disable_salt)
         results_df = runner.run(show_progress=True)
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
@@ -164,8 +166,8 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
             click.echo(f"Sampling {sample} records from {len(df)} total records")
             df = df.sample(n=sample, random_state=42)
 
-        # Use the PolicyEngineRunner with microsimulation
-        runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages)
+        # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
+        runner = StitchedRunner(df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages)
         results_df = runner.run(show_progress=True)
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
