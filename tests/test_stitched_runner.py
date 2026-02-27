@@ -250,17 +250,14 @@ class TestCLIIntegration:
 
         assert SR is StitchedRunner
 
-    @patch("policyengine_taxsim.cli.StitchedRunner")
-    def test_cli_uses_stitched_runner(self, MockStitched):
-        """The CLI default mode instantiates StitchedRunner."""
+    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
+    def test_cli_uses_stitched_runner(self, MockPE, MockTaxsim):
+        """The CLI default mode instantiates StitchedRunner (not bare PolicyEngineRunner)."""
         from click.testing import CliRunner
         from policyengine_taxsim.cli import cli
 
-        MockStitched.return_value.run.return_value = _make_result(
-            [(1, 2024)]
-        )
-        # Mock input_df attribute for YAML generation check
-        MockStitched.return_value.input_df = _make_input([(1, 2024)])
+        MockPE.return_value.run.return_value = _make_result([(1, 2024)])
 
         cli_runner = CliRunner()
         result = cli_runner.invoke(
@@ -268,4 +265,6 @@ class TestCLIIntegration:
         )
 
         assert result.exit_code == 0
-        MockStitched.assert_called_once()
+        # PE should be called (year 2024 >= 2021), TAXSIM should not
+        MockPE.assert_called_once()
+        MockTaxsim.assert_not_called()
