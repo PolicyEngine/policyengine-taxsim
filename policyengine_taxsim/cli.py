@@ -28,6 +28,10 @@ except ImportError:
 
 def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
     """Generate YAML test files for each record when logs=True"""
+    # Index results by taxsimid for reliable lookup (positional iloc
+    # breaks when StitchedRunner reorders rows from two engines).
+    results_by_id = results_df.set_index("taxsimid")
+
     for idx, row in input_df.iterrows():
         try:
             # Create household data for this record
@@ -45,8 +49,8 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
 
             household = form_household_situation(year, state, taxsim_data)
 
-            # Get results for this record from results_df
-            result_row = results_df.iloc[idx]
+            # Get results for this record by taxsimid
+            result_row = results_by_id.loc[row["taxsimid"]]
 
             # Extract key outputs for YAML
             outputs = []
