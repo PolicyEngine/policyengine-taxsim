@@ -30,11 +30,17 @@ class BaseTaxRunner(ABC):
 
     def _validate_input(self):
         """Validate that input data has required structure"""
+        # year is required by TAXSIM (1960-2023) and PolicyEngine
+        if "year" not in self.input_df.columns:
+            raise ValueError(
+                "Input data must contain a 'year' column"
+            )
+
         # Auto-assign taxsimid if not present
         if "taxsimid" not in self.input_df.columns:
             # Assign sequential IDs starting from 1
             self.input_df["taxsimid"] = range(1, len(self.input_df) + 1)
-        
+
         # Check for duplicate taxsimids
         if self.input_df["taxsimid"].duplicated().any():
             raise ValueError("Input data contains duplicate taxsimid values")
