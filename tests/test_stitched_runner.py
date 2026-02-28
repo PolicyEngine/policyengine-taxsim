@@ -213,6 +213,18 @@ class TestEdgeCases:
         with pytest.raises(ValueError, match="cannot be empty"):
             StitchedRunner(pd.DataFrame())
 
+    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
+    def test_mismatched_taxsimids_raises(self, MockPE, MockTaxsim):
+        """ValueError raised when runner output ids don't match input."""
+        df = _make_input([(1, 2024)])
+        # Return a result with a different taxsimid
+        MockPE.return_value.run.return_value = _make_result([(999, 2024)])
+
+        runner = StitchedRunner(df)
+        with pytest.raises(ValueError, match="do not match"):
+            runner.run(show_progress=False)
+
 
 # ---------------------------------------------------------------------------
 # Kwargs forwarding
@@ -234,6 +246,21 @@ class TestKwargsForwarding:
         _, kwargs = MockPE.call_args
         assert kwargs["logs"] is True
         assert kwargs["disable_salt"] is True
+
+    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
+    def test_pe_kwargs_warning_for_taxsim_rows(self, MockPE, MockTaxsim, caplog):
+        """Warning logged when PE-only kwargs are set but rows go to TAXSIM."""
+        df = _make_input([(1, 2020), (2, 2024)])
+        MockPE.return_value.run.return_value = _make_result([(2, 2024)])
+        MockTaxsim.return_value.run.return_value = _make_result([(1, 2020)])
+
+        import logging
+        with caplog.at_level(logging.WARNING):
+            runner = StitchedRunner(df, logs=True, disable_salt=True)
+            runner.run(show_progress=False)
+
+        assert "TAXSIM will ignore" in caplog.text
 
 
 # ---------------------------------------------------------------------------

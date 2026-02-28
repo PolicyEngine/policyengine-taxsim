@@ -168,8 +168,9 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
               <h3 className="landing-feature-title">1960s through future law</h3>
               <p className="landing-feature-description">
                 Automatic year-stitching routes 2021+ to PolicyEngine and
-                earlier years to TAXSIM35. TAXSIM stops at 2023 and freezes
-                state law at 2021; PolicyEngine models enacted legislation
+                earlier years to TAXSIM35. TAXSIM supports federal law
+                through 2023 and applies 2021 state law (inflation-adjusted)
+                for later years; PolicyEngine models enacted legislation
                 including TCJA, ARPA, and OBBBA provisions as scheduled.
               </p>
             </div>

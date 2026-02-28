@@ -31,7 +31,7 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 
 ### Key Features
 
-- **Year-stitching**: Automatic routing by tax year — 2021+ uses PolicyEngine (with enacted future law like TCJA, ARPA, and OBBBA), earlier years use TAXSIM35 — so a single command covers the 1960s through future scheduled changes
+- **Year-stitching**: Automatic routing by tax year — 2021+ uses PolicyEngine (with enacted law including TCJA, ARPA, and OBBBA), earlier years use TAXSIM35 — so a single command covers the 1960s through future scheduled changes
 - **High-performance microsimulation**: Process thousands of households simultaneously using PolicyEngine's vectorized calculations
 - **TAXSIM-35 compatibility**: Full compatibility with TAXSIM input CSV format and output variables
 - **Advanced state handling**: Correctly handles state-specific tax conformity rules (e.g., states that adopt federal AGI vs federal taxable income)
