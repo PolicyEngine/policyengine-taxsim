@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiGithub, FiExternalLink, FiArrowRight, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck } from 'react-icons/fi';
+import { FiGithub, FiExternalLink, FiArrowRight, FiBarChart2, FiShield, FiCode, FiMap, FiCopy, FiCheck, FiClock } from 'react-icons/fi';
 import { highlightCode } from '../utils/codeHighlight';
 
 const CodeBlock = ({ label, code, language }) => {
@@ -139,7 +139,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
             comparing results across thousands of CPS households. That work led to a formal
             partnership with NBER.
           </p>
-          <div className="landing-features-grid">
+          <div className="landing-features-grid landing-features-grid--three">
             <div className="landing-feature-card">
               <div className="landing-feature-icon" style={{ background: 'var(--teal-accent)' }}>
                 <FiCode color="white" size={24} />
@@ -159,6 +159,17 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
                 Same stdin/stdout interface, same input variables, same output
                 format. Just swap <code>taxsim35</code> for{' '}
                 <code>policyengine-taxsim</code>.
+              </p>
+            </div>
+            <div className="landing-feature-card">
+              <div className="landing-feature-icon" style={{ background: 'var(--blue-primary)' }}>
+                <FiClock color="white" size={24} />
+              </div>
+              <h3 className="landing-feature-title">Full historical and future coverage</h3>
+              <p className="landing-feature-description">
+                Automatic year-stitching routes 2021+ to PolicyEngine and
+                earlier years to TAXSIM35, covering the 1960s through
+                future scheduled law changes in a single command.
               </p>
             </div>
           </div>
