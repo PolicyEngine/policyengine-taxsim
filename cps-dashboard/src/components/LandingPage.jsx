@@ -139,7 +139,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
             comparing results across thousands of CPS households. That work led to a formal
             partnership with NBER.
           </p>
-          <div className="landing-features-grid">
+          <div className="landing-features-grid landing-features-grid--three">
             <div className="landing-feature-card">
               <div className="landing-feature-icon" style={{ background: 'var(--teal-accent)' }}>
                 <FiCode color="white" size={24} />
