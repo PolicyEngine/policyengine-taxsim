@@ -170,8 +170,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
                 Automatic year-stitching routes 2021+ to PolicyEngine and
                 earlier years to TAXSIM35. TAXSIM supports federal law
                 through 2023 and applies 2021 state law (inflation-adjusted)
-                for later years; PolicyEngine models enacted legislation
-                including TCJA, ARPA, and OBBBA provisions as scheduled.
+                for later years.
               </p>
             </div>
           </div>
