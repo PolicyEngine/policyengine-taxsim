@@ -1,3 +1,10 @@
+## [2.13.0] - 2026-03-02
+
+### Added
+
+- Add StitchedRunner for year-based routing to PE or TAXSIM.
+
+
 ## [2.12.0] - 2026-02-26
 
 ### Added
