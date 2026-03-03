@@ -312,7 +312,7 @@ function extractImplementationDetails() {
 }
 
 // Skip extraction if the YAML source is unavailable (e.g. Vercel deployment
-// where the root directory is cps-dashboard and the parent repo isn't present).
+// where the root directory is dashboard and the parent repo isn't present).
 // The committed public/config-data.json will be used instead.
 if (!fs.existsSync(yamlPath)) {
   console.log(`⏭️  YAML source not found at ${yamlPath}`);

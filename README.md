@@ -195,7 +195,7 @@ The project includes a comprehensive React-based interactive dashboard for visua
 
 1. **Navigate to the dashboard directory:**
    ```bash
-   cd cps-dashboard
+   cd dashboard
    ```
 
 2. **Install dependencies:**
@@ -235,7 +235,7 @@ The dashboard loads comparison data from `public/data/YYYY/comparison_results_YY
 
 2. **Copy results to dashboard:**
    ```bash
-   cp comparison_output/comparison_results_2024.csv cps-dashboard/public/data/2024/
+   cp comparison_output/comparison_results_2024.csv dashboard/public/data/2024/
    ```
 
 3. **Restart dashboard** to load new data
