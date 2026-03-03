@@ -123,7 +123,7 @@ import delimited using "output.csv", clear`,
         label: 'Pin policyengine-us version (optional)',
         language: 'cli',
         code: `# For reproducible results, pin the underlying tax model version
-pip install policyengine-us==1.555.0`
+uv pip install policyengine-us==1.555.0`
       },
       {
         id: 'python-cli-advanced',
@@ -409,7 +409,7 @@ policyengine_versions()
             <div className="doc-intro-blurb">
               The PolicyEngine TAXSIM Emulator supports <strong>all input and output variables</strong> provided
               by TAXSIM35. It's a <strong>drop-in replacement</strong> — install
-              with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>pip install policyengine-taxsim</code> and
+              with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>uv pip install policyengine-taxsim</code> and
               swap <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code> for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code>.
               Like TAXSIM35, this emulator <strong>runs entirely on your machine</strong>.
               Use the same CSV format you already know: provide household demographics,
@@ -447,11 +447,14 @@ policyengine_versions()
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
                 Installation
               </h3>
+              <p style={{ color: 'var(--dark-gray)', marginBottom: '12px', fontSize: '14px', lineHeight: '1.7' }}>
+                Requires <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue-primary)' }}>uv</a> (install with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>curl -LsSf https://astral.sh/uv/install.sh | sh</code>).
+              </p>
               <div style={{ maxWidth: '640px', marginBottom: '2rem' }}>
                 {renderCodeBlock({
                   id: 'install-pip',
                   label: 'Terminal',
-                  code: `pip install policyengine-taxsim`,
+                  code: `uv pip install policyengine-taxsim`,
                 })}
               </div>
 
