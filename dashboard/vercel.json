@@ -1,4 +1,7 @@
 {
   "buildCommand": "bun run build",
-  "outputDirectory": "out"
+  "outputDirectory": "out",
+  "rewrites": [
+    { "source": "/us/taxsim/:path*", "destination": "/:path*" }
+  ]
 }
