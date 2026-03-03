@@ -11,11 +11,10 @@ const TOKEN_CLASS_MAP = {
 function renderTokens(tokenizedLine, parts, keyRef) {
   const tokens = tokenizedLine.split(/(\x01\w+.*?\x02)/);
   tokens.forEach((t) => {
-    const match = t.match(/^\x01(\w+)(.*)\x02$/);
+    const match = t.match(/^\x01(kw|fn|str|op|var)(.*)\x02$/);
     if (match) {
-      const prefixLen = match[1].length;
       const className = TOKEN_CLASS_MAP[match[1]] || '';
-      parts.push(<span key={keyRef.k++} className={className}>{t.slice(prefixLen + 1, -1)}</span>);
+      parts.push(<span key={keyRef.k++} className={className}>{match[2]}</span>);
     } else {
       parts.push(<span key={keyRef.k++}>{t}</span>);
     }
