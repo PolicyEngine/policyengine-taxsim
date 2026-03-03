@@ -28,7 +28,7 @@ describe('Documentation', () => {
     const blurbs = document.querySelectorAll('.doc-intro-blurb');
     const introBlurb = blurbs[0];
     expect(introBlurb.textContent).toContain('drop-in replacement');
-    expect(introBlurb.textContent).toContain('pip install policyengine-taxsim');
+    expect(introBlurb.textContent).toContain('uv pip install policyengine-taxsim');
   });
 
   it('has all three section tabs', () => {
@@ -41,7 +41,7 @@ describe('Documentation', () => {
   it('shows separate installation and usage sections', () => {
     const { container } = render(<Documentation />);
     // Installation heading
-    expect(container.innerHTML).toContain('pip install policyengine-taxsim');
+    expect(container.innerHTML).toContain('uv pip install policyengine-taxsim');
     // Usage heading with language tabs
     expect(container.innerHTML).toContain('Same input format, same output variables');
   });
