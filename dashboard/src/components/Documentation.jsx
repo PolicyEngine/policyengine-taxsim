@@ -447,14 +447,11 @@ policyengine_versions()
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
                 Installation
               </h3>
-              <p style={{ color: 'var(--dark-gray)', marginBottom: '12px', fontSize: '14px', lineHeight: '1.7' }}>
-                Requires <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue-primary)' }}>uv</a> (install with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>curl -LsSf https://astral.sh/uv/install.sh | sh</code>).
-              </p>
               <div style={{ maxWidth: '640px', marginBottom: '2rem' }}>
                 {renderCodeBlock({
                   id: 'install-pip',
                   label: 'Terminal',
-                  code: `uv tool install policyengine-taxsim`,
+                  code: `# Install uv package manager (if you don't have it)\ncurl -LsSf https://astral.sh/uv/install.sh | sh\n\n# Install policyengine-taxsim\nuv tool install policyengine-taxsim`,
                 })}
               </div>
 
