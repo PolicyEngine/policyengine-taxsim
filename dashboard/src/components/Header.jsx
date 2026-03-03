@@ -27,7 +27,7 @@ export default function Header() {
         {/* Logo */}
         <a href="https://policyengine.org" className="flex items-center">
           <img
-            src="/us/taxsim/assets/logos/policyengine/white.svg"
+            src="/assets/logos/policyengine/white.svg"
             alt="PolicyEngine"
             className="h-6 w-auto"
           />

@@ -93,25 +93,26 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
 
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-base: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 20px;
-  --font-size-2xl: 24px;
-  --font-size-3xl: 28px;
-  --font-size-4xl: 32px;
+  /* Design system font size tokens (prefixed to avoid Tailwind collisions) */
+  --pe-font-size-xs: 12px;
+  --pe-font-size-sm: 14px;
+  --pe-font-size-base: 16px;
+  --pe-font-size-lg: 18px;
+  --pe-font-size-xl: 20px;
+  --pe-font-size-2xl: 24px;
+  --pe-font-size-3xl: 28px;
+  --pe-font-size-4xl: 32px;
 
-  /* Spacing */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 20px;
-  --spacing-2xl: 24px;
-  --spacing-3xl: 32px;
-  --spacing-4xl: 48px;
-  --spacing-5xl: 64px;
+  /* Design system spacing tokens (prefixed to avoid Tailwind collisions) */
+  --pe-spacing-xs: 4px;
+  --pe-spacing-sm: 8px;
+  --pe-spacing-md: 12px;
+  --pe-spacing-lg: 16px;
+  --pe-spacing-xl: 20px;
+  --pe-spacing-2xl: 24px;
+  --pe-spacing-3xl: 32px;
+  --pe-spacing-4xl: 48px;
+  --pe-spacing-5xl: 64px;
 
   /* Border radius */
   --radius-chip: 2px;
@@ -124,7 +125,7 @@
   --radius-xl: 12px;
 
   /* Layout */
-  --spacing-header: 58px;
+  --pe-spacing-header: 58px;
 
   /* Breakpoints */
   --breakpoint-xs: 36rem;
@@ -144,7 +145,7 @@
 
   html {
     font-family: var(--font-sans);
-    font-size: var(--font-size-base);
+    font-size: var(--pe-font-size-base);
     line-height: 1.55;
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
