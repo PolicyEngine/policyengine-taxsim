@@ -27,17 +27,17 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        working-directory: ./cps-dashboard
+        working-directory: ./dashboard
         run: bun install --frozen-lockfile
 
       - name: Build application
-        working-directory: ./cps-dashboard
+        working-directory: ./dashboard
         run: bun run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./cps-dashboard/build
+          path: ./dashboard/build
 
   deploy:
     environment:
