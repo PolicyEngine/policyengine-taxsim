@@ -409,7 +409,7 @@ policyengine_versions()
             <div className="doc-intro-blurb">
               The PolicyEngine TAXSIM Emulator supports <strong>all input and output variables</strong> provided
               by TAXSIM35. It's a <strong>drop-in replacement</strong> — install
-              with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>uv pip install policyengine-taxsim</code> and
+              with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>uv tool install policyengine-taxsim</code> and
               swap <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code> for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code>.
               Like TAXSIM35, this emulator <strong>runs entirely on your machine</strong>.
               Use the same CSV format you already know: provide household demographics,
@@ -454,7 +454,7 @@ policyengine_versions()
                 {renderCodeBlock({
                   id: 'install-pip',
                   label: 'Terminal',
-                  code: `uv pip install policyengine-taxsim`,
+                  code: `uv tool install policyengine-taxsim`,
                 })}
               </div>
 

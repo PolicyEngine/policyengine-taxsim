@@ -95,7 +95,7 @@ const LandingPage = ({ onNavigateToDashboard, onNavigateToDocumentation }) => {
           <div className="landing-get-started-code" style={{ maxWidth: '640px', margin: '0 auto' }}>
             <CodeBlock
               label="Terminal"
-              code="uv pip install policyengine-taxsim"
+              code="uv tool install policyengine-taxsim"
               language="cli"
             />
           </div>
