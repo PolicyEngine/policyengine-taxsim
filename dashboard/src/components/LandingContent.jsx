@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { linkUrl } from '../utils/basePath';
 import {
   IconBrandGithub,
   IconExternalLink,
@@ -412,7 +413,7 @@ const LandingContent = () => {
       <section className="py-16 px-6 bg-gray-50">
         <div className="max-w-5xl mx-auto text-center">
           <Link
-            href="/documentation"
+            href={linkUrl('/documentation')}
             className="inline-flex items-center px-6 py-3 rounded-lg bg-primary-500 text-white font-semibold hover:bg-primary-600 transition"
           >
             Read the full documentation

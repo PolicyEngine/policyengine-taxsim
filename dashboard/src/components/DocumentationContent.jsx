@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { linkUrl } from '../utils/basePath';
 import {
   IconExternalLink,
   IconCheck,
@@ -388,7 +389,7 @@ policyengine_versions()
         </div>
         <div className="flex items-center gap-1">
           <Link
-            href="/"
+            href={linkUrl('/')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition"
           >
             <IconHome size={16} />
