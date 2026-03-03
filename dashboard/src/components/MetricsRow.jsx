@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 
 const MetricCard = React.memo(({ title, value, type, description }) => {
@@ -5,9 +7,9 @@ const MetricCard = React.memo(({ title, value, type, description }) => {
   const isPercentage = type !== 'total';
 
   const getBarColor = (pct) => {
-    if (pct >= 90) return 'var(--green)';
-    if (pct >= 70) return 'var(--teal-accent)';
-    return 'var(--dark-red)';
+    if (pct >= 90) return '#22c55e';
+    if (pct >= 70) return '#38b2ac';
+    return '#ef4444';
   };
 
   const getBarBg = (pct) => {
@@ -17,15 +19,15 @@ const MetricCard = React.memo(({ title, value, type, description }) => {
   };
 
   return (
-    <div className="dash-metric-card">
-      <div className="dash-metric-label">{title}</div>
-      <div className="dash-metric-value" style={isPercentage ? { color: getBarColor(numericValue) } : {}}>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</div>
+      <div className="text-3xl font-bold mt-2" style={isPercentage ? { color: getBarColor(numericValue) } : {}}>
         {isPercentage ? `${value}%` : Number(value).toLocaleString()}
       </div>
       {isPercentage && (
-        <div className="dash-metric-bar-track" style={{ background: getBarBg(numericValue) }}>
+        <div className="h-2 rounded-full mt-3" style={{ background: getBarBg(numericValue) }}>
           <div
-            className="dash-metric-bar-fill"
+            className="h-full rounded-full transition-all"
             style={{
               width: `${Math.min(numericValue, 100)}%`,
               background: getBarColor(numericValue),
@@ -33,7 +35,7 @@ const MetricCard = React.memo(({ title, value, type, description }) => {
           />
         </div>
       )}
-      {description && <div className="dash-metric-desc">{description}</div>}
+      {description && <div className="text-xs text-gray-400 mt-2">{description}</div>}
     </div>
   );
 });
@@ -43,11 +45,11 @@ MetricCard.displayName = 'MetricCard';
 const MetricsRow = React.memo(({ data, selectedState }) => {
   if (!data || !data.summary) {
     return (
-      <div className="dash-metrics-row">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="dash-metric-card animate-pulse">
-            <div style={{ height: 14, background: 'var(--blue-95)', borderRadius: 4, width: '60%', marginBottom: 12 }} />
-            <div style={{ height: 32, background: 'var(--blue-95)', borderRadius: 4, width: '40%' }} />
+          <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-7 animate-pulse">
+            <div className="h-3.5 bg-gray-200 rounded w-3/5 mb-3" />
+            <div className="h-8 bg-gray-200 rounded w-2/5" />
           </div>
         ))}
       </div>
@@ -71,7 +73,7 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
   }
 
   return (
-    <div className="dash-metrics-row">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
       <MetricCard
         title="Total Records"
         value={displayData.totalRecords}
@@ -82,13 +84,13 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
         title="Federal Match Rate"
         value={displayData.federalMatchPct.toFixed(1)}
         type="federal"
-        description="Within ±$15 tolerance"
+        description="Within \u00b1$15 tolerance"
       />
       <MetricCard
         title="State Match Rate"
         value={displayData.stateMatchPct.toFixed(1)}
         type="state"
-        description="Within ±$15 tolerance"
+        description="Within \u00b1$15 tolerance"
       />
     </div>
   );

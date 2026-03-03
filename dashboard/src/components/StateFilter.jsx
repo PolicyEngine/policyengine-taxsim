@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 
 const StateFilter = ({ selectedState, onStateChange, availableStates }) => {
@@ -72,7 +74,7 @@ const StateFilter = ({ selectedState, onStateChange, availableStates }) => {
         onChange={(e) => {
           onStateChange(e.target.value || null);
         }}
-        className="select"
+        className="px-3 py-2.5 rounded-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50 w-56 font-medium text-secondary-900 transition shadow-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10"
       >
         {states.map((state) => (
           <option key={state.code || 'all'} value={state.code || ''}>

@@ -4,7 +4,8 @@
  */
 export const loadConfigurationData = async () => {
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}config-data.json`);
+    const { assetUrl } = await import('./basePath');
+    const response = await fetch(assetUrl('/config-data.json'));
     if (!response.ok) {
       throw new Error(`Failed to load configuration data: ${response.status}`);
     }

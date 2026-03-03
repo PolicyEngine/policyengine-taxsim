@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useState, useCallback } from 'react';
-import { FiEye } from 'react-icons/fi';
+import { IconEye } from '@tabler/icons-react';
 import GitHubIssues from './GitHubIssues';
 import HouseholdCard from './HouseholdCard';
 import StateTaxNote from './StateTaxNote';
@@ -50,10 +52,10 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
 
   if (!data?.summary?.stateBreakdown) {
     return (
-      <div className="card-container">
-        <div className="card-header">
-          <h2 className="section-title">State-by-State Analysis</h2>
-          <div className="animate-pulse">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-6">
+          <h2 className="text-lg font-bold text-secondary-900">State-by-State Analysis</h2>
+          <div className="animate-pulse mt-4">
             <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
             <div className="h-4 bg-gray-200 rounded w-1/2"></div>
@@ -64,7 +66,7 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
   }
 
   const { stateBreakdown } = data.summary;
-  const filteredData = selectedState 
+  const filteredData = selectedState
     ? stateBreakdown.filter(item => item.state === selectedState)
     : stateBreakdown;
   const sortedData = sortStateData(filteredData, sortField, sortDirection);
@@ -77,9 +79,9 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
   ];
 
   return (
-    <div className="card-container">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="state-table">
+        <table className="w-full">
           <thead>
             <tr>
               {tableHeaders.map(header => (
@@ -92,8 +94,8 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
                   onSort={handleSort}
                 />
               ))}
-              <th>Problem Areas</th>
-              <th>Actions</th>
+              <th className="bg-gray-100 px-6 py-4 text-left text-xs font-semibold text-secondary-900 uppercase tracking-wider border-b-2 border-gray-200">Problem Areas</th>
+              <th className="bg-gray-100 px-6 py-4 text-left text-xs font-semibold text-secondary-900 uppercase tracking-wider border-b-2 border-gray-200">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -126,7 +128,7 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
 
       {/* GitHub Issues */}
       {selectedState && <GitHubIssues selectedState={selectedState} />}
-      
+
       {sortedData.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No data available for the selected filters.
@@ -138,23 +140,28 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
 
 // Memoized State Row Component
 const PctCell = ({ value }) => {
-  const getColor = (pct) => {
-    if (pct >= 90) return 'var(--green)';
-    if (pct >= 70) return 'var(--teal-accent)';
-    return 'var(--dark-red)';
+  const getColorClass = (pct) => {
+    if (pct >= 90) return 'text-success font-semibold';
+    if (pct >= 70) return 'text-primary-800 font-semibold';
+    return 'text-error font-semibold';
   };
-  const getBg = (pct) => {
+  const getBarColor = (pct) => {
+    if (pct >= 90) return '#22c55e';
+    if (pct >= 70) return '#38b2ac';
+    return '#ef4444';
+  };
+  const getBarBg = (pct) => {
     if (pct >= 90) return 'rgba(34, 197, 94, 0.08)';
     if (pct >= 70) return 'rgba(56, 178, 172, 0.08)';
     return 'rgba(239, 68, 68, 0.08)';
   };
-  const color = getColor(value);
+  const color = getBarColor(value);
   return (
-    <td>
-      <div className="dash-pct-cell">
-        <span className="dash-pct-value" style={{ color }}>{value.toFixed(1)}%</span>
-        <div className="dash-pct-bar-track" style={{ background: getBg(value) }}>
-          <div className="dash-pct-bar-fill" style={{ width: `${Math.min(value, 100)}%`, background: color }} />
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100">
+      <div>
+        <span className={getColorClass(value)}>{value.toFixed(1)}%</span>
+        <div className="h-1.5 rounded-full mt-1" style={{ background: getBarBg(value) }}>
+          <div className="h-full rounded-full" style={{ width: `${Math.min(value, 100)}%`, background: color }} />
         </div>
       </div>
     </td>
@@ -173,19 +180,19 @@ const StateRow = React.memo(({
       onClick={() => onSelect(item.state)}
       className={`hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}
     >
-      <td className="font-medium">{item.state}</td>
-      <td>{item.households}</td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100 font-medium">{item.state}</td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100">{item.households}</td>
       <PctCell value={item.federalPct} />
       <PctCell value={item.statePct} />
-      <td className="text-sm text-gray-600">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-b border-gray-100">
         {getProblemAreas(item)}
       </td>
-      <td onClick={(e) => e.stopPropagation()}>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100" onClick={(e) => e.stopPropagation()}>
         <Button
           onClick={() => onInspect(item.state)}
           variant="secondary"
           size="small"
-          icon={<FiEye />}
+          icon={<IconEye size={14} />}
         >
           {isSelected && showHouseholds ? 'Hide' : 'Inspect'}
         </Button>
@@ -195,22 +202,22 @@ const StateRow = React.memo(({
 });
 
 // Household Section Component
-const HouseholdSection = React.memo(({ 
-  householdData, 
-  householdFilters, 
+const HouseholdSection = React.memo(({
+  householdData,
+  householdFilters,
   setHouseholdFilters,
-  selectedState 
+  selectedState
 }) => {
   return (
-    <div className="household-section">
-      <div className="household-controls">
-        <div className="flex-between flex-wrap gap-4">
+    <div className="px-6 py-6 border-t border-gray-200">
+      <div>
+        <div className="flex justify-between flex-wrap gap-4">
           <div className="flex flex-wrap items-center gap-8">
-            <h3 className="section-subtitle">
+            <h3 className="text-base font-semibold text-secondary-900">
               Individual Households in {selectedState}
             </h3>
-            
-            <FilterControls 
+
+            <FilterControls
               filters={householdFilters}
               setFilters={setHouseholdFilters}
             />
@@ -223,23 +230,23 @@ const HouseholdSection = React.memo(({
         </div>
       </div>
 
-      <div className="household-list">
+      <div className="mt-4">
         {householdData.length === 0 ? (
-          <div className="no-data-message">
+          <div className="text-center py-8 text-gray-500">
             No households to display with current filters
           </div>
         ) : (
-          <div className="household-grid">
+          <div className="grid grid-cols-1 gap-4">
             {householdData.slice(0, 50).map((household) => (
-              <HouseholdCard 
-                key={household.taxsimid} 
-                household={household} 
+              <HouseholdCard
+                key={household.taxsimid}
+                household={household}
                 inputVariables={INPUT_VARIABLES}
-                outputVariables={OUTPUT_VARIABLES} 
+                outputVariables={OUTPUT_VARIABLES}
               />
             ))}
             {householdData.length > 50 && (
-              <div className="overflow-message">
+              <div className="text-center py-4 text-sm text-gray-500">
                 Showing first 50 households. Use filters to narrow results.
               </div>
             )}
@@ -260,39 +267,39 @@ const FilterControls = React.memo(({ filters, setFilters }) => {
   }, [setFilters]);
 
   return (
-    <div className="filter-group">
-      <label className="checkbox-label">
+    <div className="flex flex-wrap items-center gap-4">
+      <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
         <input
           type="checkbox"
           checked={filters.showMatches}
           onChange={() => handleFilterChange('showMatches')}
-          className="custom-checkbox"
+          className="rounded border-gray-300"
         />
-        <span className="checkbox-text">Show Matches</span>
+        <span>Show Matches</span>
       </label>
-      <label className="checkbox-label">
+      <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
         <input
           type="checkbox"
           checked={filters.showFederalMismatches}
           onChange={() => handleFilterChange('showFederalMismatches')}
-          className="custom-checkbox"
+          className="rounded border-gray-300"
         />
-        <span className="checkbox-text">Show Federal Mismatches</span>
+        <span>Show Federal Mismatches</span>
       </label>
-      <label className="checkbox-label">
+      <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
         <input
           type="checkbox"
           checked={filters.showStateMismatches}
           onChange={() => handleFilterChange('showStateMismatches')}
-          className="custom-checkbox"
+          className="rounded border-gray-300"
         />
-        <span className="checkbox-text">Show State Mismatches</span>
+        <span>Show State Mismatches</span>
       </label>
     </div>
   );
 });
 
-// Sort Controls Component  
+// Sort Controls Component
 const SortControls = React.memo(({ filters, setFilters }) => {
   const handleSortChange = useCallback((field, value) => {
     setFilters(prev => ({
@@ -302,21 +309,21 @@ const SortControls = React.memo(({ filters, setFilters }) => {
   }, [setFilters]);
 
   return (
-    <div className="sort-controls ml-auto">
-      <span className="sort-label">Sort by:</span>
+    <div className="flex items-center gap-2 text-sm ml-auto">
+      <span className="text-gray-500">Sort by:</span>
       <select
         value={filters.sortBy}
         onChange={(e) => handleSortChange('sortBy', e.target.value)}
-        className="custom-select"
+        className="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm"
       >
         <option value="taxsimid">Household ID</option>
         <option value="mismatches">Mismatch Amount</option>
       </select>
       <button
         onClick={() => handleSortChange('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc')}
-        className="sort-button"
+        className="px-2 py-1.5 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 transition"
       >
-        {filters.sortOrder === 'asc' ? '↑' : '↓'}
+        {filters.sortOrder === 'asc' ? '\u2191' : '\u2193'}
       </button>
     </div>
   );

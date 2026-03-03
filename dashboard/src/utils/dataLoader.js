@@ -114,7 +114,8 @@ const loadTextData = async (url) => {
 
 // Main function to load all data for a given year
 export const loadYearData = async (year) => {
-  const baseUrl = `${import.meta.env.BASE_URL}data/${year}`;
+  const { assetUrl } = await import('./basePath');
+  const baseUrl = assetUrl(`/data/${year}`);
   
   try {
     // Load comparison report (optional - may not exist in new format)

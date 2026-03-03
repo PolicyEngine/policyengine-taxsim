@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Primary brand colors - teal */
+  /* Primary brand colors - teal (matches app-v2) */
   --color-primary-50: #e6fffa;
   --color-primary-100: #b2f5ea;
   --color-primary-200: #81e6d9;
@@ -71,6 +71,24 @@
   --color-border-medium: #cbd5e1;
   --color-border-dark: #94a3b8;
 
+  /* Core foreground/background (shadcn-compatible) */
+  --color-background: #fff;
+  --color-foreground: #101828;
+  --color-primary: #2c7a7b;
+  --color-primary-foreground: #fff;
+  --color-secondary: #f2f4f7;
+  --color-secondary-foreground: #101828;
+  --color-muted: #f2f4f7;
+  --color-muted-foreground: #6b7280;
+  --color-accent: #f2f4f7;
+  --color-accent-foreground: #101828;
+  --color-destructive: #ef4444;
+  --color-card: #fff;
+  --color-card-foreground: #101828;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #319795;
+
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
@@ -100,6 +118,13 @@
   --radius-element: 4px;
   --radius-container: 8px;
   --radius-feature: 12px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Layout */
+  --spacing-header: 58px;
 
   /* Breakpoints */
   --breakpoint-xs: 36rem;
@@ -107,4 +132,70 @@
   --breakpoint-md: 62rem;
   --breakpoint-lg: 75rem;
   --breakpoint-xl: 88rem;
+  --breakpoint-2xl: 96rem;
 }
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    line-height: 1.55;
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-foreground);
+    background-color: var(--color-background);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th {
+    text-align: left;
+    font-weight: 600;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+    font-size: inherit;
+  }
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Code highlighting tokens */
+.token-kw { color: #c586c0; font-weight: 600; }
+.token-fn { color: #dcdcaa; }
+.token-str { color: #ce9178; }
+.token-op { color: #569cd6; }
+.token-var { color: #4ec9b0; }
+.token-comment { color: #6a9955; font-style: italic; }
