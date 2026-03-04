@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { IconMenu2, IconX, IconChevronDown } from '@tabler/icons-react';
+import { assetUrl } from '../utils/basePath';
 
 const NAV_ITEMS = [
   { label: 'Research', href: 'https://policyengine.org/us/research' },
@@ -27,7 +28,7 @@ export default function Header() {
         {/* Logo */}
         <a href="https://policyengine.org" className="flex items-center">
           <img
-            src="/assets/logos/policyengine/white.svg"
+            src={assetUrl('/assets/logos/policyengine/white.svg')}
             alt="PolicyEngine"
             className="h-6 w-auto"
           />
