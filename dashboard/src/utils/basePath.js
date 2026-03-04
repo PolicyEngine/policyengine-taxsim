@@ -8,25 +8,29 @@
 
 const APP_PREFIX = '/us/taxsim';
 
+let cachedBasePath = null;
+
 function getBasePath() {
+  if (cachedBasePath !== null) return cachedBasePath;
   if (typeof window !== 'undefined') {
-    if (window.location.pathname.startsWith(APP_PREFIX)) {
-      return APP_PREFIX;
-    }
+    cachedBasePath = window.location.pathname.startsWith(APP_PREFIX)
+      ? APP_PREFIX
+      : '';
+  } else {
+    return '';
   }
-  return '';
+  return cachedBasePath;
+}
+
+/** Prefix a path with the runtime base path (assets or internal routes) */
+export function prefixPath(path) {
+  const base = getBasePath();
+  const clean = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${clean}`;
 }
 
 /** Prefix a public asset path (e.g. /data/2024/results.csv) */
-export function assetUrl(path) {
-  const base = getBasePath();
-  const clean = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${clean}`;
-}
+export const assetUrl = prefixPath;
 
 /** Prefix an internal route path for Link href (e.g. /documentation) */
-export function linkUrl(path) {
-  const base = getBasePath();
-  const clean = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${clean}`;
-}
+export const linkUrl = prefixPath;

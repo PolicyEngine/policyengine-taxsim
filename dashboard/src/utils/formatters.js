@@ -30,13 +30,6 @@ export const formatDate = (dateString) => {
   });
 };
 
-// Get CSS class for percentage value
-export const getPercentageClass = (percentage) => {
-  if (percentage >= 80) return 'percentage-good';
-  if (percentage >= 60) return 'percentage-warning';
-  return 'percentage-poor';
-};
-
 // Format input values appropriately based on variable type
 export const formatInputValue = (variableCode, value, formatCurrencyFn = formatCurrency) => {
   const numericValue = parseFloat(value) || 0;

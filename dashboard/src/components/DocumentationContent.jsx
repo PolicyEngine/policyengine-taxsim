@@ -25,6 +25,8 @@ import {
   getMultipleVariables
 } from '../constants';
 
+const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year'];
+
 const LANG_LABELS = {
   cli: 'CLI',
   python: 'Python',
@@ -213,7 +215,7 @@ policyengine_versions()
   );
 
   // Shared function to create section dividers
-  const createDivider = (title, color = 'var(--blue-primary)') => (
+  const createDivider = (title, color = 'var(--color-blue-500)') => (
     <div
       className="text-xs font-bold uppercase tracking-wider text-gray-500 py-2 px-4 mt-4 mb-1 border-l-4"
       style={{ borderLeftColor: color }}
@@ -273,7 +275,6 @@ policyengine_versions()
       );
     }
 
-    const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year'];
     if (mapping.implemented && mapping.policyengine && !NON_LINKABLE.includes(mapping.policyengine)) {
       return <VariableLink href={buildGithubUrl(mapping.policyengine)} label={mapping.policyengine} />;
     }
@@ -905,8 +906,8 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
     const { basicInputs, incomeInputs, businessIncomeInputs, expenseInputs } = INPUT_VARIABLE_CATEGORIES;
     return renderVariablesWithDividers([
       { key: 'basic', codes: basicInputs, title: 'Basic Inputs' },
-      { key: 'income', codes: incomeInputs, title: 'Income Inputs', color: 'var(--teal-accent)' },
-      { key: 'business', codes: businessIncomeInputs, title: 'Business Income', color: 'var(--dark-gray)' },
+      { key: 'income', codes: incomeInputs, title: 'Income Inputs', color: 'var(--color-primary-500)' },
+      { key: 'business', codes: businessIncomeInputs, title: 'Business Income', color: 'var(--color-gray-700)' },
       { key: 'expense', codes: expenseInputs, title: 'Expense & Deduction Inputs' },
     ]);
   }
@@ -916,13 +917,13 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
     return renderVariablesWithDividers([
       { key: 'basic', codes: basicOutputs, title: 'Basic Outputs' },
       { key: 'tax', codes: taxOutputs, title: 'Primary Tax Calculations' },
-      { key: 'agi', codes: agiOutputs, title: 'Adjusted Gross Income', color: 'var(--teal-accent)' },
-      { key: 'deduction', codes: deductionOutputs, title: 'Deductions & Exemptions', color: 'var(--dark-gray)' },
+      { key: 'agi', codes: agiOutputs, title: 'Adjusted Gross Income', color: 'var(--color-primary-500)' },
+      { key: 'deduction', codes: deductionOutputs, title: 'Deductions & Exemptions', color: 'var(--color-gray-700)' },
       { key: 'taxable', codes: taxableIncomeOutputs, title: 'Taxable Income & Tax Calculations' },
-      { key: 'credit', codes: creditOutputs, title: 'Tax Credits', color: 'var(--teal-accent)' },
-      { key: 'amt', codes: amtOutputs, title: 'Alternative Minimum Tax', color: 'var(--dark-gray)' },
+      { key: 'credit', codes: creditOutputs, title: 'Tax Credits', color: 'var(--color-primary-500)' },
+      { key: 'amt', codes: amtOutputs, title: 'Alternative Minimum Tax', color: 'var(--color-gray-700)' },
       { key: 'state', codes: stateOutputs, title: 'State-Specific Calculations' },
-      { key: 'additional', codes: additionalOutputs, title: 'Additional Outputs', color: 'var(--teal-accent)' },
+      { key: 'additional', codes: additionalOutputs, title: 'Additional Outputs', color: 'var(--color-primary-500)' },
     ]);
   }
 };

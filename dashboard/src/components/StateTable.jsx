@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { IconEye } from '@tabler/icons-react';
+import { getBarColor, getBarBg } from '../utils/colors';
 import GitHubIssues from './GitHubIssues';
 import HouseholdCard from './HouseholdCard';
 import StateTaxNote from './StateTaxNote';
@@ -144,16 +145,6 @@ const PctCell = ({ value }) => {
     if (pct >= 90) return 'text-success font-semibold';
     if (pct >= 70) return 'text-primary-800 font-semibold';
     return 'text-error font-semibold';
-  };
-  const getBarColor = (pct) => {
-    if (pct >= 90) return '#22c55e';
-    if (pct >= 70) return '#38b2ac';
-    return '#ef4444';
-  };
-  const getBarBg = (pct) => {
-    if (pct >= 90) return 'rgba(34, 197, 94, 0.08)';
-    if (pct >= 70) return 'rgba(56, 178, 172, 0.08)';
-    return 'rgba(239, 68, 68, 0.08)';
   };
   const color = getBarColor(value);
   return (

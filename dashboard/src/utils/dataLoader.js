@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import { FIPS_TO_STATE } from '../constants';
+import { assetUrl } from './basePath';
 
 // Parse the comparison report text file
 const parseComparisonReport = (text) => {
@@ -114,7 +115,6 @@ const loadTextData = async (url) => {
 
 // Main function to load all data for a given year
 export const loadYearData = async (year) => {
-  const { assetUrl } = await import('./basePath');
   const baseUrl = assetUrl(`/data/${year}`);
   
   try {

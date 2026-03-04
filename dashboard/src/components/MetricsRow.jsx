@@ -1,22 +1,11 @@
 'use client';
 
 import React from 'react';
+import { getBarColor, getBarBg } from '../utils/colors';
 
 const MetricCard = React.memo(({ title, value, type, description }) => {
   const numericValue = parseFloat(value);
   const isPercentage = type !== 'total';
-
-  const getBarColor = (pct) => {
-    if (pct >= 90) return '#22c55e';
-    if (pct >= 70) return '#38b2ac';
-    return '#ef4444';
-  };
-
-  const getBarBg = (pct) => {
-    if (pct >= 90) return 'rgba(34, 197, 94, 0.1)';
-    if (pct >= 70) return 'rgba(56, 178, 172, 0.1)';
-    return 'rgba(239, 68, 68, 0.1)';
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
