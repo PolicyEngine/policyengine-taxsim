@@ -1,9 +1,4 @@
 {
   "buildCommand": "bun run build",
-  "outputDirectory": "build",
-  "framework": "vite",
-  "rewrites": [
-    { "source": "/us/taxsim", "destination": "/index.html" },
-    { "source": "/us/taxsim/:path*", "destination": "/:path*" }
-  ]
+  "outputDirectory": "out"
 }

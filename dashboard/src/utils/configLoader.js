@@ -1,10 +1,12 @@
+import { assetUrl } from './basePath';
+
 /**
  * Load the pre-extracted configuration data
  * This data is generated at build time from the original YAML file
  */
 export const loadConfigurationData = async () => {
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}config-data.json`);
+    const response = await fetch(assetUrl('/config-data.json'));
     if (!response.ok) {
       throw new Error(`Failed to load configuration data: ${response.status}`);
     }

@@ -1,14 +1,15 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { assetUrl } from './basePath';
 
 export const exportAllData = async () => {
   try {
     const zip = new JSZip();
-    
+
     const years = [2021, 2022, 2023, 2024];
-    
+
     for (const year of years) {
-      const dataPath = `/data/${year}/comparison_results_${year}.csv`;
+      const dataPath = assetUrl(`/data/${year}/comparison_results_${year}.csv`);
       
       try {
         const response = await fetch(dataPath);
@@ -36,7 +37,7 @@ export const exportAllData = async () => {
 
 export const exportYearData = async (year) => {
   try {
-    const dataPath = `/data/${year}/comparison_results_${year}.csv`;
+    const dataPath = assetUrl(`/data/${year}/comparison_results_${year}.csv`);
     
     const response = await fetch(dataPath);
     if (!response.ok) {

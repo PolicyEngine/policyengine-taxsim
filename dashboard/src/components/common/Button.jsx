@@ -1,37 +1,36 @@
+'use client';
+
 import React from 'react';
 
-const Button = ({ 
-  children, 
-  onClick, 
-  variant = 'primary', 
+const Button = ({
+  children,
+  onClick,
+  variant = 'primary',
   size = 'medium',
   icon = null,
   disabled = false,
   className = '',
-  ...props 
+  ...props
 }) => {
-  const baseClasses = 'inline-flex items-center font-semibold transition-all duration-200';
-  
   const variantClasses = {
-    primary: 'btn',
-    secondary: 'btn-secondary',
-    ghost: 'btn-ghost'
+    primary: 'inline-flex items-center px-4 py-2.5 rounded-lg bg-primary-500 text-white font-semibold text-sm hover:bg-primary-600 transition shadow-sm',
+    secondary: 'inline-flex items-center px-3 py-1.5 rounded-md border border-primary-500 text-primary-500 text-xs font-medium bg-white hover:bg-gray-50 transition',
+    ghost: 'inline-flex items-center bg-transparent border-none text-primary-500 px-4 py-2 font-medium hover:bg-gray-50 transition rounded-lg'
   };
-  
+
   const sizeClasses = {
-    small: 'text-xs px-2 py-1',
-    medium: 'text-sm px-4 py-2',
+    small: 'px-3 py-1.5 text-xs',
+    medium: '',
     large: 'text-base px-6 py-3'
   };
-  
-  const classes = `
-    ${baseClasses}
-    ${variantClasses[variant] || variantClasses.primary}
-    ${sizeClasses[size] || sizeClasses.medium}
-    ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-    ${className}
-  `.trim();
-  
+
+  const classes = [
+    variantClasses[variant] || variantClasses.primary,
+    size !== 'medium' ? sizeClasses[size] : '',
+    disabled ? 'opacity-50 cursor-not-allowed' : '',
+    className
+  ].filter(Boolean).join(' ');
+
   return (
     <button
       onClick={onClick}

@@ -1,5 +1,19 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import { FiExternalLink, FiCheck, FiX, FiCopy, FiHome, FiBarChart2, FiGithub, FiBook } from 'react-icons/fi';
+import Link from 'next/link';
+import { linkUrl } from '../utils/basePath';
+import {
+  IconExternalLink,
+  IconCheck,
+  IconX,
+  IconCopy,
+  IconHome,
+  IconChartBar,
+  IconBrandGithub,
+  IconBook,
+  IconSearch,
+} from '@tabler/icons-react';
 import { highlightCode } from '../utils/codeHighlight';
 import { loadConfigurationData } from '../utils/configLoader';
 import LoadingSpinner from './common/LoadingSpinner';
@@ -11,6 +25,8 @@ import {
   getMultipleVariables
 } from '../constants';
 
+const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year'];
+
 const LANG_LABELS = {
   cli: 'CLI',
   python: 'Python',
@@ -20,7 +36,7 @@ const LANG_LABELS = {
   julia: 'Julia',
 };
 
-const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
+const DocumentationContent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('input'); // 'input' or 'output'
   const [copiedBlock, setCopiedBlock] = useState(null);
@@ -40,7 +56,7 @@ const Documentation = ({ onBackToDashboard, onNavigateHome }) => {
       try {
         setLoading(true);
         const configData = await loadConfigurationData();
-        
+
         setConfigData(configData);
         setError(null);
       } catch (err) {
@@ -171,53 +187,60 @@ policyengine_versions()
   };
 
   const renderCodeBlock = (block) => (
-    <div key={block.id} className="landing-code-block" style={{ marginBottom: '12px' }}>
-      <div className="landing-code-header">
-        <span className="landing-code-label">{block.label}</span>
+    <div key={block.id} className="bg-secondary-900 rounded-lg overflow-hidden mb-3">
+      <div className="bg-secondary-800 px-4 py-2 flex justify-between items-center">
+        <span className="text-xs font-medium text-gray-400">{block.label}</span>
         <button
           onClick={() => handleCopy(block.code, block.id)}
-          className="landing-copy-button"
+          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition"
           title="Copy to clipboard"
         >
           {copiedBlock === block.id ? (
             <>
-              <FiCheck size={14} />
+              <IconCheck size={14} />
               <span>Copied</span>
             </>
           ) : (
             <>
-              <FiCopy size={14} />
+              <IconCopy size={14} />
               <span>Copy</span>
             </>
           )}
         </button>
       </div>
-      <pre className="landing-code-content">
+      <pre className="p-4 overflow-x-auto text-sm leading-relaxed">
         <code>{highlightCode(block.code, block.language || 'cli')}</code>
       </pre>
     </div>
   );
 
   // Shared function to create section dividers
-  const createDivider = (title, color = 'var(--blue-primary)') => (
-    <div className="doc-var-divider" style={{ borderLeftColor: color }}>
+  const createDivider = (title, color = 'var(--color-blue-500)') => (
+    <div
+      className="text-xs font-bold uppercase tracking-wider text-gray-500 py-2 px-4 mt-4 mb-1 border-l-4"
+      style={{ borderLeftColor: color }}
+    >
       {title}
     </div>
   );
 
   // Shared function to render variable rows
   const renderVariableRow = (mapping, index) => (
-    <div key={`var-${index}`} className="doc-var-row">
-      <div className="doc-var-names">
-        <code className="doc-var-taxsim">{mapping.taxsim}</code>
-        <span className="doc-var-arrow">→</span>
-        <span className="doc-var-pe">
+    <div key={`var-${index}`} className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50/50 transition">
+      <div className="flex items-center gap-2 min-w-0">
+        <code className="text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded">{mapping.taxsim}</code>
+        <span className="text-gray-400 text-xs">&rarr;</span>
+        <span className="text-xs text-gray-700">
           {activeTab === 'output' ? renderOutputPolicyEngineCell(mapping) : renderInputPolicyEngineCell(mapping)}
         </span>
       </div>
-      <p className="doc-var-description">{mapping.description}</p>
-      <span className={`doc-var-status ${mapping.implemented ? 'doc-var-status-yes' : 'doc-var-status-no'}`}>
-        {mapping.implemented ? <><FiCheck size={12} /> Implemented</> : <><FiX size={12} /> Not Implemented</>}
+      <p className="flex-1 text-xs text-gray-500 min-w-[200px]">{mapping.description}</p>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+        mapping.implemented
+          ? 'bg-success/10 text-success'
+          : 'bg-gray-100 text-gray-500'
+      }`}>
+        {mapping.implemented ? <><IconCheck size={12} /> Implemented</> : <><IconX size={12} /> Not Implemented</>}
       </span>
     </div>
   );
@@ -227,11 +250,11 @@ policyengine_versions()
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="doc-var-link"
+      className="inline-flex items-center text-primary-600 hover:text-primary-800 hover:underline font-medium"
       style={fontSize ? { fontSize } : undefined}
     >
       {label}
-      <FiExternalLink style={{ marginLeft: '4px', fontSize: fontSize ? '9px' : '10px' }} />
+      <IconExternalLink size={fontSize ? 9 : 10} className="ml-1" />
     </a>
   );
 
@@ -244,7 +267,7 @@ policyengine_versions()
 
     if (multipleVars && mapping.implemented) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className="flex flex-col gap-1">
           {multipleVars.map((varName, index) => (
             <VariableLink key={index} href={buildGithubUrl(varName)} label={varName} fontSize="11px" />
           ))}
@@ -252,7 +275,6 @@ policyengine_versions()
       );
     }
 
-    const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year'];
     if (mapping.implemented && mapping.policyengine && !NON_LINKABLE.includes(mapping.policyengine)) {
       return <VariableLink href={buildGithubUrl(mapping.policyengine)} label={mapping.policyengine} />;
     }
@@ -340,7 +362,7 @@ policyengine_versions()
     const actualStatus = actualImplementationStatus[variable.code];
     const isImplemented = actualStatus ? actualStatus.implemented : false;
     const actualVariable = actualStatus ? actualStatus.variable : variable.policyengine;
-    
+
     return {
       taxsim: variable.code,
       policyengine: isImplemented && actualVariable !== 'na_pe' ? actualVariable : null,
@@ -360,30 +382,31 @@ policyengine_versions()
   );
 
   const renderNav = () => (
-    <nav className="landing-nav">
-      <div className="landing-nav-inner">
-        <div className="landing-nav-brand">
-          <FiBook style={{ marginRight: '8px' }} />
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-14">
+        <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+          <IconBook size={20} className="text-primary-600" />
           Documentation
         </div>
-        <div className="landing-nav-links">
-          {onNavigateHome && (
-            <button onClick={onNavigateHome} className="landing-nav-link">
-              <FiHome style={{ marginRight: '6px' }} />
-              Home
-            </button>
-          )}
-          <button className="landing-nav-link landing-nav-link-active">
-            <FiBook style={{ marginRight: '6px' }} />
+        <div className="flex items-center gap-1">
+          <Link
+            href={linkUrl('/')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition"
+          >
+            <IconHome size={16} />
+            Home
+          </Link>
+          <span className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-primary-600 bg-primary-50">
+            <IconBook size={16} />
             Documentation
-          </button>
+          </span>
           <a
             href="https://github.com/PolicyEngine/policyengine-taxsim"
             target="_blank"
             rel="noopener noreferrer"
-            className="landing-nav-link"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition"
           >
-            <FiGithub style={{ marginRight: '6px' }} />
+            <IconBrandGithub size={16} />
             GitHub
           </a>
         </div>
@@ -398,82 +421,88 @@ policyengine_versions()
   // so Installation & Usage and All Runners sections remain accessible.
 
   return (
-    <div className="landing-page">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {renderNav()}
 
       {/* Main Content */}
-      <main className="doc-content">
+      <main className="max-w-5xl mx-auto px-6 pb-12">
         {/* Intro blurb */}
-        <section className="landing-section" style={{ paddingTop: '2rem', paddingBottom: '0' }}>
-          <div className="landing-section-inner">
-            <div className="doc-intro-blurb">
-              The PolicyEngine TAXSIM Emulator supports <strong>all input and output variables</strong> provided
-              by TAXSIM35. It's a <strong>drop-in replacement</strong> — install
-              with <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>uv tool install policyengine-taxsim</code> and
-              swap <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code> for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code>.
-              Like TAXSIM35, this emulator <strong>runs entirely on your machine</strong>.
-              Use the same CSV format you already know: provide household demographics,
-              income, and deductions as inputs, and receive federal and state tax calculations as outputs.
-            </div>
+        <section className="pt-8">
+          <div className="max-w-3xl mx-auto text-center py-8 text-gray-600 leading-relaxed text-[15px]">
+            The PolicyEngine TAXSIM Emulator supports <strong className="text-gray-900">all input and output variables</strong> provided
+            by TAXSIM35. It&apos;s a <strong className="text-gray-900">drop-in replacement</strong> &mdash; install
+            with <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">uv tool install policyengine-taxsim</code> and
+            swap <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">taxsim35</code> for <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">policyengine-taxsim</code>.
+            Like TAXSIM35, this emulator <strong className="text-gray-900">runs entirely on your machine</strong>.
+            Use the same CSV format you already know: provide household demographics,
+            income, and deductions as inputs, and receive federal and state tax calculations as outputs.
           </div>
         </section>
 
         {/* Section Tabs */}
-        <section className="landing-section" style={{ paddingBottom: 0 }}>
-          <div className="landing-section-inner">
-            <div className="landing-tab-bar">
-              {[
-                { id: 'installation', label: 'Installation & Usage' },
-                { id: 'options', label: 'All Runners & CLI' },
-                { id: 'mappings', label: 'Variable Mappings' },
-              ].map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveSection(id)}
-                  className={`landing-tab-button ${activeSection === id ? 'landing-tab-active' : ''}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+        <section className="pb-0">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg max-w-2xl mx-auto mb-8">
+            {[
+              { id: 'installation', label: 'Installation & Usage' },
+              { id: 'options', label: 'All Runners & CLI' },
+              { id: 'mappings', label: 'Variable Mappings' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setActiveSection(id)}
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition ${
+                  activeSection === id
+                    ? 'bg-white shadow-sm text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </section>
 
         {/* Installation & Usage */}
         {activeSection === 'installation' && (
-          <section className="landing-section">
-            <div className="landing-section-inner">
-              {/* Installation */}
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+          <section className="space-y-6">
+            {/* Installation */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 Installation
               </h3>
-              <div style={{ maxWidth: '640px', marginBottom: '2rem' }}>
+              <div className="max-w-[640px]">
                 {renderCodeBlock({
                   id: 'install-pip',
                   label: 'Terminal',
                   code: `# Install uv package manager (if you don't have it)\ncurl -LsSf https://astral.sh/uv/install.sh | sh\n\n# Install policyengine-taxsim\nuv tool install policyengine-taxsim`,
                 })}
               </div>
+            </div>
 
-              {/* Usage with language tabs */}
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+            {/* Usage with language tabs */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 Usage
               </h3>
-              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
                 Same input format, same output variables. Just swap the command.
               </p>
-              <div className="landing-lang-toggle">
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-4">
                 {Object.entries(LANG_LABELS).map(([id, label]) => (
                   <button
                     key={id}
-                    className={`landing-lang-btn${activeUsageLang === id ? ' landing-lang-btn-active' : ''}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                      activeUsageLang === id
+                        ? 'bg-white shadow-sm text-primary-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
                     onClick={() => setActiveUsageLang(id)}
                   >
                     {label}
                   </button>
                 ))}
               </div>
-              <div style={{ marginTop: '16px' }}>
+              <div>
                 {renderCodeBlock({
                   id: `usage-${activeUsageLang}`,
                   label: usageExamples[activeUsageLang].label,
@@ -484,12 +513,12 @@ policyengine_versions()
 
               {/* Language-specific extras */}
               {activeUsageLang === 'python' && (
-                <div style={{ marginTop: '16px' }}>
+                <div className="mt-4">
                   {advancedExamples.python.map(renderCodeBlock)}
                 </div>
               )}
               {activeUsageLang === 'r' && (
-                <div style={{ marginTop: '16px' }}>
+                <div className="mt-4">
                   {advancedExamples.r.map(renderCodeBlock)}
                 </div>
               )}
@@ -499,26 +528,26 @@ policyengine_versions()
 
         {/* All Runners & CLI */}
         {activeSection === 'options' && (
-          <section className="landing-section">
-            <div className="landing-section-inner">
+          <section className="space-y-6">
 
-              {/* TaxsimRunner */}
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', marginBottom: '12px' }}>
+            {/* TaxsimRunner */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 TaxsimRunner
               </h3>
-              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
                 Runs the official TAXSIM35 executable locally. Requires the TAXSIM binary
                 (auto-detected on macOS, Linux, and Windows). Useful for generating reference
                 outputs to compare against PolicyEngine.
               </p>
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">TaxsimRunner</code>
-                  <span className="doc-option-type">input_df, taxsim_path=None</span>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">TaxsimRunner</code>
+                  <span className="text-xs text-gray-400">input_df, taxsim_path=None</span>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Takes a TAXSIM-formatted DataFrame and an optional path to the TAXSIM executable.
-                  If <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim_path</code> is
+                  If <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">taxsim_path</code> is
                   not provided, the runner auto-detects the bundled executable for your OS.
                 </p>
                 {renderCodeBlock({
@@ -531,25 +560,27 @@ runner = TaxsimRunner(df)
 taxsim_results = runner.run()`
                 })}
               </div>
+            </div>
 
-              {/* PolicyEngineRunner advanced options */}
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', margin: '32px 0 12px' }}>
-                PolicyEngineRunner — Advanced Options
+            {/* PolicyEngineRunner advanced options */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                PolicyEngineRunner &mdash; Advanced options
               </h3>
-              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
-                Beyond the basic usage shown in Installation & Usage, <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>PolicyEngineRunner</code> accepts
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
+                Beyond the basic usage shown in Installation & Usage, <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">PolicyEngineRunner</code> accepts
                 additional options for policy simulations and debugging.
                 These options are currently available in the Python API only.
               </p>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">disable_salt</code>
-                  <span className="doc-option-type">bool, default False</span>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">disable_salt</code>
+                  <span className="text-xs text-gray-400">bool, default False</span>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Sets the State and Local Tax (SALT) deduction to zero for all records.
-                  Useful for modeling the impact of SALT cap policies — for example,
+                  Useful for modeling the impact of SALT cap policies &mdash; for example,
                   the $10,000 SALT deduction cap introduced by the 2017 Tax Cuts and Jobs Act.
                 </p>
                 {renderCodeBlock({
@@ -561,15 +592,15 @@ results = runner.run()`
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">assume_w2_wages</code>
-                  <span className="doc-option-type">bool, default False</span>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">assume_w2_wages</code>
+                  <span className="text-xs text-gray-400">bool, default False</span>
                 </div>
-                <p className="doc-option-description">
-                  Sets <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>w2_wages_from_qualified_business</code> to
+                <p className="text-sm text-gray-500 mb-3">
+                  Sets <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">w2_wages_from_qualified_business</code> to
                   a large value so the W-2 wage cap in the QBID (Section 199A) calculation never binds.
-                  This aligns PolicyEngine's output with TAXSIM's simplified S-Corp handling, which applies
+                  This aligns PolicyEngine&apos;s output with TAXSIM&apos;s simplified S-Corp handling, which applies
                   a flat 20% deduction on qualified business income without enforcing the W-2/UBIA cap.
                 </p>
                 {renderCodeBlock({
@@ -581,12 +612,12 @@ results = runner.run()`
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">logs</code>
-                  <span className="doc-option-type">bool, default False</span>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">logs</code>
+                  <span className="text-xs text-gray-400">bool, default False</span>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Generates detailed YAML log files for each household calculation.
                   Useful for debugging discrepancies or auditing how PolicyEngine
                   maps TAXSIM inputs to its internal variables.
@@ -600,14 +631,14 @@ results = runner.run()`
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">show_progress</code>
-                  <span className="doc-option-type">bool, default True (passed to .run())</span>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">show_progress</code>
+                  <span className="text-xs text-gray-400">bool, default True (passed to .run())</span>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Controls whether progress bars are displayed during calculation.
-                  Set to <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>False</code> for
+                  Set to <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">False</code> for
                   batch jobs or automated pipelines.
                 </p>
                 {renderCodeBlock({
@@ -618,24 +649,26 @@ results = runner.run()`
 results = runner.run(show_progress=False)`
                 })}
               </div>
+            </div>
 
-              {/* CLI */}
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--darkest-blue)', margin: '32px 0 12px' }}>
-                Command-Line Interface
+            {/* CLI */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Command-line interface
               </h3>
-              <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
-                The <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>policyengine-taxsim</code> CLI
-                is a drop-in replacement for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code>.
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
+                The <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">policyengine-taxsim</code> CLI
+                is a drop-in replacement for <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">taxsim35</code>.
                 By default it reads from stdin and writes to stdout, just like TAXSIM35.
                 Advanced subcommands are also available.
               </p>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">policyengine-taxsim &lt; input.csv &gt; output.csv</code>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">policyengine-taxsim &lt; input.csv &gt; output.csv</code>
                 </div>
-                <p className="doc-option-description">
-                  Drop-in replacement for <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>taxsim35</code>.
+                <p className="text-sm text-gray-500 mb-3">
+                  Drop-in replacement for <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">taxsim35</code>.
                   Reads TAXSIM-formatted CSV from stdin, writes results to stdout. Swap the command name and everything else stays the same.
                 </p>
                 {renderCodeBlock({
@@ -645,16 +678,16 @@ results = runner.run(show_progress=False)`
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">policyengine-taxsim policyengine</code>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">policyengine-taxsim policyengine</code>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Run PolicyEngine tax calculations with explicit input/output file paths.
-                  Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--assume-w2-wages</code>,{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
+                  Supports <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--disable-salt</code>,{' '}
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--assume-w2-wages</code>,{' '}
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--logs</code>, and{' '}
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--sample N</code>.
                 </p>
                 {renderCodeBlock({
                   id: 'cli-pe',
@@ -664,14 +697,14 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">policyengine-taxsim taxsim</code>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">policyengine-taxsim taxsim</code>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Run the official TAXSIM35 executable on a TAXSIM input file.
                   Optionally specify a custom path to the TAXSIM binary with{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--taxsim-path</code>.
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--taxsim-path</code>.
                 </p>
                 {renderCodeBlock({
                   id: 'cli-taxsim',
@@ -680,17 +713,17 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">policyengine-taxsim compare</code>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">policyengine-taxsim compare</code>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Run both PolicyEngine and TAXSIM35 on the same input, then compare the
                   results. Outputs a comparison report with match rates and differences.
-                  Supports <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--disable-salt</code>,{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--assume-w2-wages</code>,{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--logs</code>, and{' '}
-                  <code style={{ background: 'var(--blue-98)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px' }}>--sample N</code>.
+                  Supports <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--disable-salt</code>,{' '}
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--assume-w2-wages</code>,{' '}
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--logs</code>, and{' '}
+                  <code className="bg-blue-50 px-1.5 py-0.5 rounded text-[13px]">--sample N</code>.
                 </p>
                 {renderCodeBlock({
                   id: 'cli-compare',
@@ -699,11 +732,11 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                 })}
               </div>
 
-              <div className="doc-option-card">
-                <div className="doc-option-header">
-                  <code className="doc-option-name">policyengine-taxsim sample-data</code>
+              <div className="bg-gray-50 rounded-lg p-5 mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">policyengine-taxsim sample-data</code>
                 </div>
-                <p className="doc-option-description">
+                <p className="text-sm text-gray-500 mb-3">
                   Sample N records from a large dataset. Useful for testing on a subset
                   before running on the full file.
                 </p>
@@ -719,121 +752,128 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
 
         {/* Variable Mappings */}
         {activeSection === 'mappings' && (
-          <section className="landing-section">
-            <div className="landing-section-inner">
-              {loading && (
-                <LoadingSpinner
-                  message="Loading configuration data..."
-                  subMessage="Please wait while we load the variable mappings"
-                />
-              )}
-              {error && (
-                <div className="error-card" style={{ marginBottom: '24px' }}>
-                  <h3 style={{ color: 'var(--dark-red)', marginBottom: '8px' }}>Failed to load variable mappings</h3>
-                  <p style={{ color: 'var(--dark-gray)' }}>{error}</p>
-                </div>
-              )}
-              {!loading && !error && <>
-              <div className="mb-6">
-                <p style={{ color: 'var(--dark-gray)', marginBottom: '16px', fontSize: '15px', lineHeight: '1.7' }}>
-                  {activeTab === 'input'
-                    ? 'This table shows how TAXSIM input variables are mapped to PolicyEngine variables in our implementation. '
-                    : 'This table shows the TAXSIM output variables that are calculated and returned by both systems. '
-                  }
-                  For complete TAXSIM variable documentation, refer to the official documentation:
-                </p>
-                <a
-                  href="https://taxsim.nber.org/taxsimtest/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="landing-validation-link"
-                >
-                  TAXSIM Official Documentation <FiExternalLink size={14} />
-                </a>
+          <section>
+            {loading && (
+              <LoadingSpinner
+                message="Loading configuration data..."
+                subMessage="Please wait while we load the variable mappings"
+              />
+            )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+                <h3 className="text-red-800 font-semibold mb-2">Failed to load variable mappings</h3>
+                <p className="text-gray-600">{error}</p>
               </div>
-
-              <div className="doc-intro-blurb" style={{ marginBottom: '24px' }}>
-                <strong>Note on extended coverage:</strong> Because this emulator is powered by
-                PolicyEngine's microsimulation model, it can calculate variables beyond what
-                TAXSIM35 provides. The mappings below show the standard TAXSIM
-                inputs and outputs, but PolicyEngine supports hundreds of additional tax and
-                benefit variables. See the{' '}
-                <a
-                  href="https://github.com/PolicyEngine/policyengine-us"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: 'var(--blue-primary)', fontWeight: 600 }}
-                >
-                  PolicyEngine US variable definitions
-                </a>{' '}
-                for the full list.
-              </div>
-
-              {/* Tab Navigation */}
-              <div className="landing-tab-bar" style={{ marginBottom: '16px' }}>
-                <button
-                  onClick={() => setActiveTab('input')}
-                  className={`landing-tab-button ${activeTab === 'input' ? 'landing-tab-active' : ''}`}
-                >
-                  Input Variables
-                </button>
-                <button
-                  onClick={() => setActiveTab('output')}
-                  className={`landing-tab-button ${activeTab === 'output' ? 'landing-tab-active' : ''}`}
-                >
-                  Output Variables
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Search variables..."
-                  className="doc-search-input"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              {/* Variable Mappings */}
-              <div className="doc-var-list">
-                {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
-              </div>
-              </>}
+            )}
+            {!loading && !error && <>
+            <div className="mb-6">
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
+                {activeTab === 'input'
+                  ? 'This table shows how TAXSIM input variables are mapped to PolicyEngine variables in our implementation. '
+                  : 'This table shows the TAXSIM output variables that are calculated and returned by both systems. '
+                }
+                For complete TAXSIM variable documentation, refer to the official documentation:
+              </p>
+              <a
+                href="https://taxsim.nber.org/taxsimtest/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-800 font-medium text-sm"
+              >
+                TAXSIM Official Documentation <IconExternalLink size={14} />
+              </a>
             </div>
+
+            <div className="max-w-3xl mx-auto text-center py-4 text-gray-600 leading-relaxed text-sm mb-6 bg-blue-50/50 rounded-lg px-6">
+              <strong className="text-gray-900">Note on extended coverage:</strong> Because this emulator is powered by
+              PolicyEngine&apos;s microsimulation model, it can calculate variables beyond what
+              TAXSIM35 provides. The mappings below show the standard TAXSIM
+              inputs and outputs, but PolicyEngine supports hundreds of additional tax and
+              benefit variables. See the{' '}
+              <a
+                href="https://github.com/PolicyEngine/policyengine-us"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 font-semibold hover:underline"
+              >
+                PolicyEngine US variable definitions
+              </a>{' '}
+              for the full list.
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg max-w-md mx-auto mb-4">
+              <button
+                onClick={() => setActiveTab('input')}
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition ${
+                  activeTab === 'input'
+                    ? 'bg-white shadow-sm text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Input Variables
+              </button>
+              <button
+                onClick={() => setActiveTab('output')}
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition ${
+                  activeTab === 'output'
+                    ? 'bg-white shadow-sm text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Output Variables
+              </button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="mb-6 relative">
+              <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search variables..."
+                className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Variable Mappings */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {activeTab === 'input' ? renderInputVariables() : renderOutputVariables()}
+            </div>
+            </>}
           </section>
         )}
 
       </main>
 
-      {/* Footer — matches landing page */}
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="landing-footer-grid">
+      {/* Footer -- matches landing page */}
+      <footer className="bg-gray-900 text-white mt-16">
+        <div className="max-w-5xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <a
               href="https://github.com/PolicyEngine/policyengine-taxsim"
               target="_blank"
               rel="noopener noreferrer"
-              className="landing-footer-card"
+              className="flex items-center gap-3 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition group"
             >
-              <FiGithub size={20} />
-              <span>GitHub Repository</span>
-              <FiExternalLink size={14} className="landing-footer-external" />
+              <IconBrandGithub size={20} className="text-gray-400 group-hover:text-white transition" />
+              <span className="text-sm font-medium">GitHub Repository</span>
+              <IconExternalLink size={14} className="ml-auto text-gray-500 group-hover:text-gray-300 transition" />
             </a>
             <a
               href="https://taxsim.nber.org/taxsim35/"
               target="_blank"
               rel="noopener noreferrer"
-              className="landing-footer-card"
+              className="flex items-center gap-3 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition group"
             >
-              <FiExternalLink size={20} />
-              <span>TAXSIM35 Official Docs</span>
-              <FiExternalLink size={14} className="landing-footer-external" />
+              <IconExternalLink size={20} className="text-gray-400 group-hover:text-white transition" />
+              <span className="text-sm font-medium">TAXSIM35 Official Docs</span>
+              <IconExternalLink size={14} className="ml-auto text-gray-500 group-hover:text-gray-300 transition" />
             </a>
           </div>
-          <div className="landing-footer-copyright">
-            Built by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer">PolicyEngine</a>
+          <div className="text-center text-sm text-gray-400">
+            Built by <a href="https://policyengine.org" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition">PolicyEngine</a>
           </div>
         </div>
       </footer>
@@ -866,8 +906,8 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
     const { basicInputs, incomeInputs, businessIncomeInputs, expenseInputs } = INPUT_VARIABLE_CATEGORIES;
     return renderVariablesWithDividers([
       { key: 'basic', codes: basicInputs, title: 'Basic Inputs' },
-      { key: 'income', codes: incomeInputs, title: 'Income Inputs', color: 'var(--teal-accent)' },
-      { key: 'business', codes: businessIncomeInputs, title: 'Business Income', color: 'var(--dark-gray)' },
+      { key: 'income', codes: incomeInputs, title: 'Income Inputs', color: 'var(--color-primary-500)' },
+      { key: 'business', codes: businessIncomeInputs, title: 'Business Income', color: 'var(--color-gray-700)' },
       { key: 'expense', codes: expenseInputs, title: 'Expense & Deduction Inputs' },
     ]);
   }
@@ -877,15 +917,15 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
     return renderVariablesWithDividers([
       { key: 'basic', codes: basicOutputs, title: 'Basic Outputs' },
       { key: 'tax', codes: taxOutputs, title: 'Primary Tax Calculations' },
-      { key: 'agi', codes: agiOutputs, title: 'Adjusted Gross Income', color: 'var(--teal-accent)' },
-      { key: 'deduction', codes: deductionOutputs, title: 'Deductions & Exemptions', color: 'var(--dark-gray)' },
+      { key: 'agi', codes: agiOutputs, title: 'Adjusted Gross Income', color: 'var(--color-primary-500)' },
+      { key: 'deduction', codes: deductionOutputs, title: 'Deductions & Exemptions', color: 'var(--color-gray-700)' },
       { key: 'taxable', codes: taxableIncomeOutputs, title: 'Taxable Income & Tax Calculations' },
-      { key: 'credit', codes: creditOutputs, title: 'Tax Credits', color: 'var(--teal-accent)' },
-      { key: 'amt', codes: amtOutputs, title: 'Alternative Minimum Tax', color: 'var(--dark-gray)' },
+      { key: 'credit', codes: creditOutputs, title: 'Tax Credits', color: 'var(--color-primary-500)' },
+      { key: 'amt', codes: amtOutputs, title: 'Alternative Minimum Tax', color: 'var(--color-gray-700)' },
       { key: 'state', codes: stateOutputs, title: 'State-Specific Calculations' },
-      { key: 'additional', codes: additionalOutputs, title: 'Additional Outputs', color: 'var(--teal-accent)' },
+      { key: 'additional', codes: additionalOutputs, title: 'Additional Outputs', color: 'var(--color-primary-500)' },
     ]);
   }
 };
 
-export default Documentation;
+export default DocumentationContent;
