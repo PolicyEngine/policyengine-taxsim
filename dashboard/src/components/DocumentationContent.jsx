@@ -207,7 +207,7 @@ policyengine_versions()
           )}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-sm leading-relaxed">
+      <pre className="p-4 overflow-x-auto text-sm leading-relaxed text-gray-100">
         <code>{highlightCode(block.code, block.language || 'cli')}</code>
       </pre>
     </div>

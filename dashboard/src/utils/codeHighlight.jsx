@@ -1,11 +1,11 @@
 import React from 'react';
 
 const TOKEN_CLASS_MAP = {
-  kw: 'code-keyword',
-  fn: 'code-function',
-  str: 'code-string',
-  op: 'code-operator',
-  var: 'code-variable',
+  kw: 'token-kw',
+  fn: 'token-fn',
+  str: 'token-str',
+  op: 'token-op',
+  var: 'token-var',
 };
 
 function renderTokens(tokenizedLine, parts, keyRef) {
@@ -25,7 +25,7 @@ export const highlightCode = (code, language) => {
   const lines = code.split('\n');
   return lines.map((line, i) => {
     if (line.trimStart().startsWith('#')) {
-      return <span key={i}><span className="code-comment">{line}</span>{'\n'}</span>;
+      return <span key={i}><span className="token-comment">{line}</span>{'\n'}</span>;
     }
 
     const parts = [];
