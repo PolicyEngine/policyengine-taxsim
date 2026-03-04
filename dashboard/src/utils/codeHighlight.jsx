@@ -36,7 +36,7 @@ export const highlightCode = (code, language) => {
       if (match && !line.startsWith('#')) {
         parts.push(<span key={keyRef.k++} className="code-function">{match[1]}</span>);
         const tokenized = match[2]
-          .replace(/(-\w+)/g, (m) => `\x01op${m}\x02`)
+          .replace(/(?<=\s)-[\w-]+/g, (m) => `\x01op${m}\x02`)
           .replace(/"([^"]*)"/g, (_, s) => `\x01str"${s}"\x02`);
         renderTokens(tokenized, parts, keyRef);
       } else {
