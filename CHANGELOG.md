@@ -1,3 +1,10 @@
+## [2.13.2] - 2026-03-04
+
+### Fixed
+
+- Restore basePath for embedded context at policyengine.org.
+
+
 ## [2.13.1] - 2026-03-04
 
 ### Changed
