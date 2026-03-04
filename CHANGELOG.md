@@ -1,3 +1,10 @@
+## [2.13.1] - 2026-03-04
+
+### Changed
+
+- Convert dashboard from Vite to Next.js with Tailwind CSS v4, add PolicyEngine header, and use design system tokens.
+
+
 ## [2.13.0] - 2026-03-02
 
 ### Added
