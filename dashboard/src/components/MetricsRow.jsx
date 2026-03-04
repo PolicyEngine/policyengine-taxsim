@@ -73,13 +73,13 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
         title="Federal Match Rate"
         value={displayData.federalMatchPct.toFixed(1)}
         type="federal"
-        description="Within \u00b1$15 tolerance"
+        description="Within ±$15 tolerance"
       />
       <MetricCard
         title="State Match Rate"
         value={displayData.stateMatchPct.toFixed(1)}
         type="state"
-        description="Within \u00b1$15 tolerance"
+        description="Within ±$15 tolerance"
       />
     </div>
   );
