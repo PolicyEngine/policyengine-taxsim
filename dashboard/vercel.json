@@ -1,6 +1,16 @@
 {
   "buildCommand": "bun run build",
   "outputDirectory": "out",
+  "rewrites": [
+    {
+      "source": "/us/taxsim",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/us/taxsim/:path*",
+      "destination": "/:path*"
+    }
+  ],
   "redirects": [
     {
       "source": "/",
