@@ -475,6 +475,10 @@ policyengine_versions()
                   label: 'Terminal',
                   code: `# Install uv package manager (if you don't have it)\ncurl -LsSf https://astral.sh/uv/install.sh | sh\n\n# Install policyengine-taxsim\nuv tool install policyengine-taxsim`,
                 })}
+                <p className="text-sm text-gray-400 mt-3">
+                  macOS note: If Stata, SAS, or other programs can&apos;t find the command, use the full
+                  path: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">~/.local/bin/policyengine-taxsim</code>
+                </p>
               </div>
             </div>
 
