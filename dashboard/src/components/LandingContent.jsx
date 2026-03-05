@@ -174,10 +174,6 @@ const LandingContent = () => {
             }
             language="cli"
           />
-          <p className="text-sm text-gray-400 mt-4 text-center">
-            macOS note: If Stata, SAS, or other programs can&apos;t find the command, use the full
-            path: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">~/.local/bin/policyengine-taxsim</code>
-          </p>
         </div>
       </section>
 
@@ -227,6 +223,11 @@ const LandingContent = () => {
               />
             </div>
           </div>
+          {['stata', 'sas', 'julia'].includes(lang) && (
+            <p className="text-sm text-gray-400 mt-6 text-center">
+              macOS: Replace <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">policyengine-taxsim</code> with <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">~/.local/bin/policyengine-taxsim</code> if the command is not found.
+            </p>
+          )}
         </div>
       </section>
 
