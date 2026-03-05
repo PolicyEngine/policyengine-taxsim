@@ -225,7 +225,7 @@ const LandingContent = () => {
           </div>
           {['stata', 'sas', 'julia'].includes(lang) && (
             <p className="text-sm text-gray-400 mt-6 text-center">
-              macOS: Replace <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">policyengine-taxsim</code> with <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">~/.local/bin/policyengine-taxsim</code> if the command is not found.
+              If the command is not found, open Terminal and run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">uv tool dir --bin</code>, then replace <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">policyengine-taxsim</code> with the full path shown (e.g. <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">/Users/you/.local/bin/policyengine-taxsim</code>).
             </p>
           )}
         </div>
