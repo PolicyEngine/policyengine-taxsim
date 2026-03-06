@@ -140,8 +140,19 @@ const COMPARISON_EXAMPLES = {
   },
 };
 
+const OS_TABS = [
+  { id: 'mac', label: 'macOS/Linux' },
+  { id: 'win', label: 'Windows' },
+];
+
+const INSTALL_COMMANDS = {
+  mac: "# Install uv package manager (if you don't have it)\ncurl -LsSf https://astral.sh/uv/install.sh | sh\n\n# Install policyengine-taxsim\nuv tool install policyengine-taxsim",
+  win: "# Install uv package manager (if you don't have it)\npowershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\"\n\n# Install policyengine-taxsim\nuv tool install policyengine-taxsim",
+};
+
 const LandingContent = () => {
   const [lang, setLang] = useState('cli');
+  const [os, setOs] = useState('mac');
 
   const example = COMPARISON_EXAMPLES[lang];
 
@@ -166,12 +177,25 @@ const LandingContent = () => {
         <h2 className="text-2xl md:text-3xl font-bold text-secondary-900 text-center mb-8">
           Installation
         </h2>
-        <div className="max-w-[640px] mx-auto">
+        <div className={`${os === 'win' ? 'max-w-3xl' : 'max-w-[640px]'} mx-auto`}>
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
+            {OS_TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  os === id
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-white text-gray-500 hover:bg-gray-100'
+                }`}
+                onClick={() => setOs(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <CodeBlock
             label="Terminal"
-            code={
-              "# Install uv package manager (if you don't have it)\ncurl -LsSf https://astral.sh/uv/install.sh | sh\n\n# Install policyengine-taxsim\nuv tool install policyengine-taxsim"
-            }
+            code={INSTALL_COMMANDS[os]}
             language="cli"
           />
         </div>
