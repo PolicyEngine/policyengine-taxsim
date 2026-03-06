@@ -470,7 +470,7 @@ policyengine_versions()
               <h3 className="text-lg font-bold text-gray-900 mb-3">
                 Installation
               </h3>
-              <div className="max-w-2xl">
+              <div className={installOs === 'win' ? 'max-w-3xl' : 'max-w-[640px]'}>
                 <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-4">
                   {[
                     { id: 'mac', label: 'macOS/Linux' },
@@ -500,6 +500,32 @@ policyengine_versions()
                   If the command is not found, open Terminal and run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">uv tool dir --bin</code>, then replace <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">policyengine-taxsim</code> with the full path shown (e.g. <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">/Users/you/.local/bin/policyengine-taxsim</code>).
                 </p>
               </div>
+            </div>
+
+            {/* Upgrading & Version Pinning */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Upgrading
+              </h3>
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
+                To upgrade to the latest version:
+              </p>
+              {renderCodeBlock({
+                id: 'upgrade',
+                label: 'Terminal',
+                code: 'uv tool upgrade policyengine-taxsim',
+              })}
+              <h3 className="text-lg font-bold text-gray-900 mb-3 mt-6">
+                Version pinning
+              </h3>
+              <p className="text-gray-500 mb-4 text-[15px] leading-relaxed">
+                For reproducible results, pin to a specific version:
+              </p>
+              {renderCodeBlock({
+                id: 'version-pin',
+                label: 'Terminal',
+                code: '# Install a specific version of policyengine-taxsim\nuv tool install policyengine-taxsim==2.13.0\n\n# Pin the underlying tax model for reproducible results\nuv tool install policyengine-taxsim --with policyengine-us==1.555.0',
+              })}
             </div>
 
             {/* Usage with language tabs */}
@@ -533,6 +559,11 @@ policyengine_versions()
                   code: usageExamples[activeUsageLang].code,
                 })}
               </div>
+              {['stata', 'sas', 'julia'].includes(activeUsageLang) && (
+                <p className="text-sm text-gray-400 mt-3">
+                  If the command is not found, open Terminal and run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">uv tool dir --bin</code>, then replace <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">policyengine-taxsim</code> with the full path shown (e.g. <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">/Users/you/.local/bin/policyengine-taxsim</code>).
+                </p>
+              )}
 
               {/* Language-specific extras */}
               {activeUsageLang === 'python' && (
