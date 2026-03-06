@@ -1,3 +1,10 @@
+## [2.13.3] - 2026-03-06
+
+### Fixed
+
+- Add macOS troubleshooting note for PATH issues when using policyengine-taxsim from Stata, SAS, or other programs.
+
+
 ## [2.13.2] - 2026-03-04
 
 ### Fixed
