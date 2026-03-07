@@ -1,128 +1,129 @@
+@import '@policyengine/design-system/tokens.css';
 @import 'tailwindcss';
 
 @theme {
-  /* Primary brand colors - teal (matches app-v2) */
-  --color-primary-50: #e6fffa;
-  --color-primary-100: #b2f5ea;
-  --color-primary-200: #81e6d9;
-  --color-primary-300: #4fd1c5;
-  --color-primary-400: #38b2ac;
-  --color-primary-500: #319795;
-  --color-primary-600: #2c7a7b;
-  --color-primary-700: #285e61;
-  --color-primary-800: #234e52;
-  --color-primary-900: #1d4044;
+  /* Primary brand colors - teal (from design-system tokens) */
+  --color-primary-50: var(--pe-color-primary-50);
+  --color-primary-100: var(--pe-color-primary-100);
+  --color-primary-200: var(--pe-color-primary-200);
+  --color-primary-300: var(--pe-color-primary-300);
+  --color-primary-400: var(--pe-color-primary-400);
+  --color-primary-500: var(--pe-color-primary-500);
+  --color-primary-600: var(--pe-color-primary-600);
+  --color-primary-700: var(--pe-color-primary-700);
+  --color-primary-800: var(--pe-color-primary-800);
+  --color-primary-900: var(--pe-color-primary-900);
 
-  /* Secondary colors - gray scale */
-  --color-secondary-50: #f0f9ff;
-  --color-secondary-100: #f2f4f7;
-  --color-secondary-200: #e2e8f0;
-  --color-secondary-300: #cbd5e1;
-  --color-secondary-400: #94a3b8;
+  /* Secondary colors - gray scale (mapped from design-system gray tokens) */
+  --color-secondary-50: var(--pe-color-blue-50);
+  --color-secondary-100: var(--pe-color-gray-100);
+  --color-secondary-200: var(--pe-color-gray-200);
+  --color-secondary-300: var(--pe-color-border-medium);
+  --color-secondary-400: var(--pe-color-border-dark);
   --color-secondary-500: #64748b;
   --color-secondary-600: #475569;
-  --color-secondary-700: #344054;
+  --color-secondary-700: var(--pe-color-gray-700);
   --color-secondary-800: #1e293b;
-  --color-secondary-900: #101828;
+  --color-secondary-900: var(--pe-color-gray-900);
 
-  /* Blue accent colors */
-  --color-blue-50: #f0f9ff;
-  --color-blue-100: #e0f2fe;
-  --color-blue-200: #bae6fd;
-  --color-blue-300: #7dd3fc;
-  --color-blue-400: #38bdf8;
-  --color-blue-500: #0ea5e9;
-  --color-blue-600: #0284c7;
-  --color-blue-700: #026aa2;
-  --color-blue-800: #075985;
-  --color-blue-900: #0c4a6e;
+  /* Blue accent colors (from design-system tokens) */
+  --color-blue-50: var(--pe-color-blue-50);
+  --color-blue-100: var(--pe-color-blue-100);
+  --color-blue-200: var(--pe-color-blue-200);
+  --color-blue-300: var(--pe-color-blue-300);
+  --color-blue-400: var(--pe-color-blue-400);
+  --color-blue-500: var(--pe-color-blue-500);
+  --color-blue-600: var(--pe-color-blue-600);
+  --color-blue-700: var(--pe-color-blue-700);
+  --color-blue-800: var(--pe-color-blue-800);
+  --color-blue-900: var(--pe-color-blue-900);
 
-  /* Gray scale */
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f2f4f7;
-  --color-gray-200: #e2e8f0;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #344054;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #101828;
+  /* Gray scale (from design-system tokens) */
+  --color-gray-50: var(--pe-color-gray-50);
+  --color-gray-100: var(--pe-color-gray-100);
+  --color-gray-200: var(--pe-color-gray-200);
+  --color-gray-300: var(--pe-color-gray-300);
+  --color-gray-400: var(--pe-color-gray-400);
+  --color-gray-500: var(--pe-color-gray-500);
+  --color-gray-600: var(--pe-color-gray-600);
+  --color-gray-700: var(--pe-color-gray-700);
+  --color-gray-800: var(--pe-color-gray-800);
+  --color-gray-900: var(--pe-color-gray-900);
 
-  /* Semantic colors */
-  --color-success: #22c55e;
-  --color-warning: #fec601;
-  --color-error: #ef4444;
-  --color-info: #1890ff;
+  /* Semantic colors (from design-system tokens) */
+  --color-success: var(--pe-color-success);
+  --color-warning: var(--pe-color-warning);
+  --color-error: var(--pe-color-error);
+  --color-info: var(--pe-color-info);
 
-  /* Background colors */
-  --color-bg-primary: #fff;
-  --color-bg-secondary: #f5f9ff;
-  --color-bg-tertiary: #f1f5f9;
+  /* Background colors (from design-system tokens) */
+  --color-bg-primary: var(--pe-color-bg-primary);
+  --color-bg-secondary: var(--pe-color-bg-secondary);
+  --color-bg-tertiary: var(--pe-color-bg-tertiary);
 
-  /* Text colors */
-  --color-text-primary: #000;
-  --color-text-secondary: #5a5a5a;
-  --color-text-tertiary: #9ca3af;
-  --color-text-inverse: #fff;
+  /* Text colors (from design-system tokens) */
+  --color-text-primary: var(--pe-color-text-primary);
+  --color-text-secondary: var(--pe-color-text-secondary);
+  --color-text-tertiary: var(--pe-color-text-tertiary);
+  --color-text-inverse: var(--pe-color-text-inverse);
 
-  /* Border colors */
-  --color-border-light: #e2e8f0;
-  --color-border-medium: #cbd5e1;
-  --color-border-dark: #94a3b8;
+  /* Border colors (from design-system tokens) */
+  --color-border-light: var(--pe-color-border-light);
+  --color-border-medium: var(--pe-color-border-medium);
+  --color-border-dark: var(--pe-color-border-dark);
 
-  /* Core foreground/background (shadcn-compatible) */
-  --color-background: #fff;
-  --color-foreground: #101828;
-  --color-primary: #2c7a7b;
-  --color-primary-foreground: #fff;
-  --color-secondary: #f2f4f7;
-  --color-secondary-foreground: #101828;
-  --color-muted: #f2f4f7;
-  --color-muted-foreground: #6b7280;
-  --color-accent: #f2f4f7;
-  --color-accent-foreground: #101828;
-  --color-destructive: #ef4444;
-  --color-card: #fff;
-  --color-card-foreground: #101828;
-  --color-border: #e2e8f0;
-  --color-input: #e2e8f0;
-  --color-ring: #319795;
+  /* Core foreground/background (shadcn-compatible, from design-system tokens) */
+  --color-background: var(--pe-color-bg-primary);
+  --color-foreground: var(--pe-color-gray-900);
+  --color-primary: var(--pe-color-primary-600);
+  --color-primary-foreground: var(--pe-color-text-inverse);
+  --color-secondary: var(--pe-color-gray-100);
+  --color-secondary-foreground: var(--pe-color-gray-900);
+  --color-muted: var(--pe-color-gray-100);
+  --color-muted-foreground: var(--pe-color-gray-500);
+  --color-accent: var(--pe-color-gray-100);
+  --color-accent-foreground: var(--pe-color-gray-900);
+  --color-destructive: var(--pe-color-error);
+  --color-card: var(--pe-color-bg-primary);
+  --color-card-foreground: var(--pe-color-gray-900);
+  --color-border: var(--pe-color-border-light);
+  --color-input: var(--pe-color-border-light);
+  --color-ring: var(--pe-color-primary-500);
 
-  /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  /* Typography (from design-system tokens) */
+  --font-sans: var(--pe-font-family-primary);
+  --font-mono: var(--pe-font-family-mono);
 
-  /* Design system font size tokens (prefixed to avoid Tailwind collisions) */
-  --pe-font-size-xs: 12px;
-  --pe-font-size-sm: 14px;
-  --pe-font-size-base: 16px;
-  --pe-font-size-lg: 18px;
-  --pe-font-size-xl: 20px;
-  --pe-font-size-2xl: 24px;
-  --pe-font-size-3xl: 28px;
-  --pe-font-size-4xl: 32px;
+  /* Design system font size tokens (from design-system tokens) */
+  --pe-font-size-xs: var(--pe-font-size-xs);
+  --pe-font-size-sm: var(--pe-font-size-sm);
+  --pe-font-size-base: var(--pe-font-size-base);
+  --pe-font-size-lg: var(--pe-font-size-lg);
+  --pe-font-size-xl: var(--pe-font-size-xl);
+  --pe-font-size-2xl: var(--pe-font-size-2xl);
+  --pe-font-size-3xl: var(--pe-font-size-3xl);
+  --pe-font-size-4xl: var(--pe-font-size-4xl);
 
-  /* Design system spacing tokens (prefixed to avoid Tailwind collisions) */
-  --pe-spacing-xs: 4px;
-  --pe-spacing-sm: 8px;
-  --pe-spacing-md: 12px;
-  --pe-spacing-lg: 16px;
-  --pe-spacing-xl: 20px;
-  --pe-spacing-2xl: 24px;
-  --pe-spacing-3xl: 32px;
-  --pe-spacing-4xl: 48px;
-  --pe-spacing-5xl: 64px;
+  /* Design system spacing tokens (from design-system tokens) */
+  --pe-spacing-xs: var(--pe-space-xs);
+  --pe-spacing-sm: var(--pe-space-sm);
+  --pe-spacing-md: var(--pe-space-md);
+  --pe-spacing-lg: var(--pe-space-lg);
+  --pe-spacing-xl: var(--pe-space-xl);
+  --pe-spacing-2xl: var(--pe-space-2xl);
+  --pe-spacing-3xl: var(--pe-space-3xl);
+  --pe-spacing-4xl: var(--pe-space-4xl);
+  --pe-spacing-5xl: var(--pe-space-5xl);
 
-  /* Border radius */
-  --radius-chip: 2px;
-  --radius-element: 4px;
-  --radius-container: 8px;
-  --radius-feature: 12px;
-  --radius-sm: 4px;
+  /* Border radius (from design-system tokens) */
+  --radius-chip: var(--pe-radius-chip);
+  --radius-element: var(--pe-radius-element);
+  --radius-container: var(--pe-radius-container);
+  --radius-feature: var(--pe-radius-feature);
+  --radius-sm: var(--pe-radius-element);
   --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-lg: var(--pe-radius-container);
+  --radius-xl: var(--pe-radius-feature);
 
   /* Layout */
   --pe-spacing-header: 58px;
