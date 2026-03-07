@@ -81,11 +81,46 @@ def _mixed_contiguous_and_noncontiguous():
     """Mix of contiguous (KY, CA, NY) and non-contiguous (AK, HI) states."""
     return pd.DataFrame(
         [
-            {"taxsimid": 1, "year": 2023, "state": 18, "mstat": 1, "pwages": 50000, "idtl": 0},  # KY
-            {"taxsimid": 2, "year": 2023, "state": 5, "mstat": 1, "pwages": 50000, "idtl": 0},   # CA
-            {"taxsimid": 3, "year": 2023, "state": 33, "mstat": 1, "pwages": 50000, "idtl": 0},  # NY
-            {"taxsimid": 4, "year": 2023, "state": 2, "mstat": 1, "pwages": 50000, "idtl": 0},   # AK
-            {"taxsimid": 5, "year": 2023, "state": 12, "mstat": 1, "pwages": 50000, "idtl": 0},  # HI
+            {
+                "taxsimid": 1,
+                "year": 2023,
+                "state": 18,
+                "mstat": 1,
+                "pwages": 50000,
+                "idtl": 0,
+            },  # KY
+            {
+                "taxsimid": 2,
+                "year": 2023,
+                "state": 5,
+                "mstat": 1,
+                "pwages": 50000,
+                "idtl": 0,
+            },  # CA
+            {
+                "taxsimid": 3,
+                "year": 2023,
+                "state": 33,
+                "mstat": 1,
+                "pwages": 50000,
+                "idtl": 0,
+            },  # NY
+            {
+                "taxsimid": 4,
+                "year": 2023,
+                "state": 2,
+                "mstat": 1,
+                "pwages": 50000,
+                "idtl": 0,
+            },  # AK
+            {
+                "taxsimid": 5,
+                "year": 2023,
+                "state": 12,
+                "mstat": 1,
+                "pwages": 50000,
+                "idtl": 0,
+            },  # HI
         ]
     )
 

@@ -103,9 +103,7 @@ class TestGeneratePhaseEfficiency:
         times = {}
         for n in [100, 500]:
             records = _make_synthetic_records(n, seed=42)
-            runner = PolicyEngineRunner(
-                records.copy(), logs=False, disable_salt=True
-            )
+            runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
             runner.input_df["year"] = runner.input_df["year"].apply(
                 lambda x: int(float(x))
             )
@@ -133,9 +131,7 @@ class TestExtractResultsStructure:
         this would be slow at higher record counts.
         """
         records = _make_synthetic_records(200, seed=55)
-        runner = PolicyEngineRunner(
-            records.copy(), logs=False, disable_salt=True
-        )
+        runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
 
         orig_extract = runner._extract_vectorized_results.__func__
         extract_time = {}
@@ -146,9 +142,7 @@ class TestExtractResultsStructure:
             extract_time["t"] = time.time() - t0
             return result
 
-        runner._extract_vectorized_results = types.MethodType(
-            timed_extract, runner
-        )
+        runner._extract_vectorized_results = types.MethodType(timed_extract, runner)
         result = runner.run(show_progress=False)
 
         assert len(result) == 200
@@ -172,9 +166,7 @@ class TestBenchmark:
         elapsed = time.time() - start
 
         assert len(result) == 500
-        assert elapsed < 60, (
-            f"500 records took {elapsed:.1f}s, expected < 60s"
-        )
+        assert elapsed < 60, f"500 records took {elapsed:.1f}s, expected < 60s"
         print(f"\nBenchmark: 500 records in {elapsed:.1f}s")
 
     def test_benchmark_cps_like(self):
@@ -190,29 +182,31 @@ class TestBenchmark:
         mstat = rng.choice([1, 2], size=n, p=[0.55, 0.45])
         depx = rng.choice([0, 1, 2, 3, 4], size=n, p=[0.35, 0.25, 0.2, 0.15, 0.05])
 
-        records = pd.DataFrame({
-            "taxsimid": np.arange(1, n + 1),
-            "year": 2023,
-            "state": rng.choice(all_states, size=n),
-            "mstat": mstat,
-            "depx": depx,
-            "page": rng.randint(20, 75, size=n),
-            "sage": np.where(mstat == 2, rng.randint(20, 75, size=n), 0),
-            "pwages": rng.lognormal(10.5, 1.0, size=n).round(2),
-            "swages": np.where(
-                mstat == 2, rng.lognormal(10.0, 1.2, size=n).round(2), 0
-            ),
-            "dividends": np.where(
-                rng.random(n) < 0.15, rng.lognormal(8, 2, size=n).round(2), 0
-            ),
-            "intrec": np.where(
-                rng.random(n) < 0.25, rng.lognormal(7, 1.5, size=n).round(2), 0
-            ),
-            "pensions": np.where(
-                rng.random(n) < 0.20, rng.lognormal(9.5, 1.0, size=n).round(2), 0
-            ),
-            "idtl": 2,
-        })
+        records = pd.DataFrame(
+            {
+                "taxsimid": np.arange(1, n + 1),
+                "year": 2023,
+                "state": rng.choice(all_states, size=n),
+                "mstat": mstat,
+                "depx": depx,
+                "page": rng.randint(20, 75, size=n),
+                "sage": np.where(mstat == 2, rng.randint(20, 75, size=n), 0),
+                "pwages": rng.lognormal(10.5, 1.0, size=n).round(2),
+                "swages": np.where(
+                    mstat == 2, rng.lognormal(10.0, 1.2, size=n).round(2), 0
+                ),
+                "dividends": np.where(
+                    rng.random(n) < 0.15, rng.lognormal(8, 2, size=n).round(2), 0
+                ),
+                "intrec": np.where(
+                    rng.random(n) < 0.25, rng.lognormal(7, 1.5, size=n).round(2), 0
+                ),
+                "pensions": np.where(
+                    rng.random(n) < 0.20, rng.lognormal(9.5, 1.0, size=n).round(2), 0
+                ),
+                "idtl": 2,
+            }
+        )
 
         # Add dependent ages
         for i in range(1, 5):
@@ -229,11 +223,11 @@ class TestBenchmark:
         elapsed = time.time() - start
 
         assert len(result) == n
-        print(f"\nBenchmark (CPS-like): {n} records, {records['state'].nunique()} states, idtl=2")
-        print(f"  Total: {elapsed:.1f}s")
-        assert elapsed < 120, (
-            f"CPS-like benchmark took {elapsed:.1f}s, expected < 120s"
+        print(
+            f"\nBenchmark (CPS-like): {n} records, {records['state'].nunique()} states, idtl=2"
         )
+        print(f"  Total: {elapsed:.1f}s")
+        assert elapsed < 120, f"CPS-like benchmark took {elapsed:.1f}s, expected < 120s"
 
 
 class TestStateVariableEfficiency:
@@ -249,22 +243,22 @@ class TestStateVariableEfficiency:
         rng = np.random.RandomState(88)
         all_states = list(range(1, 52))
         n = 50
-        records = pd.DataFrame({
-            "taxsimid": np.arange(1, n + 1),
-            "year": 2023,
-            "state": rng.choice(all_states, size=n),
-            "mstat": 1,
-            "depx": 0,
-            "page": 40,
-            "sage": 0,
-            "pwages": rng.uniform(30000, 100000, size=n).round(2),
-            "swages": 0.0,
-            "idtl": 2,  # full output to trigger all state vars
-        })
-
-        runner = PolicyEngineRunner(
-            records.copy(), logs=False, disable_salt=True
+        records = pd.DataFrame(
+            {
+                "taxsimid": np.arange(1, n + 1),
+                "year": 2023,
+                "state": rng.choice(all_states, size=n),
+                "mstat": 1,
+                "depx": 0,
+                "page": 40,
+                "sage": 0,
+                "pwages": rng.uniform(30000, 100000, size=n).round(2),
+                "swages": 0.0,
+                "idtl": 2,  # full output to trigger all state vars
+            }
         )
+
+        runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
 
         # Count _calc_tax_unit calls
         orig_calc_tu = runner._calc_tax_unit.__func__
@@ -291,21 +285,21 @@ class TestStateVariableEfficiency:
         Verify that unified state variable results match expected values.
         state_income_tax (already unified) should match siitax column.
         """
-        records = pd.DataFrame({
-            "taxsimid": [1, 2],
-            "year": 2023,
-            "state": [5, 33],  # CA, NY
-            "mstat": 1,
-            "depx": 0,
-            "page": 40,
-            "sage": 0,
-            "pwages": [80000.0, 60000.0],
-            "swages": 0.0,
-            "idtl": 2,
-        })
-        runner = PolicyEngineRunner(
-            records.copy(), logs=False, disable_salt=True
+        records = pd.DataFrame(
+            {
+                "taxsimid": [1, 2],
+                "year": 2023,
+                "state": [5, 33],  # CA, NY
+                "mstat": 1,
+                "depx": 0,
+                "page": 40,
+                "sage": 0,
+                "pwages": [80000.0, 60000.0],
+                "swages": 0.0,
+                "idtl": 2,
+            }
         )
+        runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
         result = runner.run(show_progress=False)
 
         # siitax should be nonzero for CA and NY

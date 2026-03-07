@@ -36,8 +36,7 @@ class StitchedRunner(BaseTaxRunner):
         # Warn if PE-only kwargs are set but some rows go to TAXSIM
         if taxsim_mask.any():
             active_pe_kwargs = {
-                k for k, v in self._pe_kwargs.items()
-                if k in self._PE_ONLY_KWARGS and v
+                k for k, v in self._pe_kwargs.items() if k in self._PE_ONLY_KWARGS and v
             }
             if active_pe_kwargs:
                 logger.warning(
@@ -51,9 +50,7 @@ class StitchedRunner(BaseTaxRunner):
         frames = []
 
         if pe_mask.any():
-            pe_runner = PolicyEngineRunner(
-                self.input_df[pe_mask], **self._pe_kwargs
-            )
+            pe_runner = PolicyEngineRunner(self.input_df[pe_mask], **self._pe_kwargs)
             frames.append(pe_runner.run(show_progress=show_progress))
 
         if taxsim_mask.any():

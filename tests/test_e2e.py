@@ -9,7 +9,6 @@ import sys
 
 
 class E2ETest(unittest.TestCase):
-
     def setUp(self) -> None:
         import importlib.resources as pkg_resources
         import policyengine_taxsim
@@ -236,7 +235,7 @@ class E2ETest(unittest.TestCase):
         # Compare
         standard_output_cols = ["year", "fiitax", "siitax"]
         full_output_cols = standard_output_cols + [
-            "tfica" "v10",  # state_agi
+            "tficav10",  # state_agi
             "v13",
             "v18",
             "v19",
@@ -350,17 +349,20 @@ class E2ETest(unittest.TestCase):
             # "fiitax",
             "siitax",
         ]
-        full_output_cols = standard_output_cols + [
-            # "tfica"
-            # "v10",  # state_agi
-            # "v13",
-            # "v18",
-            # "v19",
-            # "v26",
-            # "v28",
-            # "v34",
-            # "v45",
-        ]
+        full_output_cols = (
+            standard_output_cols
+            + [
+                # "tfica"
+                # "v10",  # state_agi
+                # "v13",
+                # "v18",
+                # "v19",
+                # "v26",
+                # "v28",
+                # "v34",
+                # "v45",
+            ]
+        )
 
         # Determine which columns to check based on idtl value
         columns_to_check = (
@@ -461,17 +463,20 @@ class E2ETest(unittest.TestCase):
             # "fiitax",
             "siitax",
         ]
-        full_output_cols = standard_output_cols + [
-            # "tfica"
-            # "v10",  # state_agi
-            # "v13",
-            # "v18",
-            # "v19",
-            # "v26",
-            # "v28",
-            # "v34",
-            # "v45",
-        ]
+        full_output_cols = (
+            standard_output_cols
+            + [
+                # "tfica"
+                # "v10",  # state_agi
+                # "v13",
+                # "v18",
+                # "v19",
+                # "v26",
+                # "v28",
+                # "v34",
+                # "v45",
+            ]
+        )
 
         # Determine which columns to check based on idtl value
         columns_to_check = (
@@ -581,17 +586,20 @@ class E2ETest(unittest.TestCase):
             # "fiitax",
             "siitax",
         ]
-        full_output_cols = standard_output_cols + [
-            # "tfica"
-            # "v10",  # state_agi
-            # "v13",
-            # "v18",
-            # "v19",
-            # "v26",
-            # "v28",
-            # "v34",
-            # "v45",
-        ]
+        full_output_cols = (
+            standard_output_cols
+            + [
+                # "tfica"
+                # "v10",  # state_agi
+                # "v13",
+                # "v18",
+                # "v19",
+                # "v26",
+                # "v28",
+                # "v34",
+                # "v45",
+            ]
+        )
 
         # Determine which columns to check based on idtl value
         columns_to_check = (

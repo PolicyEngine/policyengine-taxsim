@@ -32,9 +32,7 @@ class BaseTaxRunner(ABC):
         """Validate that input data has required structure"""
         # year is required by TAXSIM (1960-2023) and PolicyEngine
         if "year" not in self.input_df.columns:
-            raise ValueError(
-                "Input data must contain a 'year' column"
-            )
+            raise ValueError("Input data must contain a 'year' column")
 
         # Auto-assign taxsimid if not present
         if "taxsimid" not in self.input_df.columns:
