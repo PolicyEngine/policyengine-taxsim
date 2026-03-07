@@ -1,1 +1,0 @@
-Added ruff formatter with CI check and Makefile target.

@@ -1,3 +1,10 @@
+## [2.14.0] - 2026-03-07
+
+### Added
+
+- Added ruff formatter with CI check and Makefile target.
+
+
 ## [2.13.3] - 2026-03-06
 
 ### Fixed
