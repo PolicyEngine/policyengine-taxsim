@@ -185,7 +185,11 @@ def form_household_situation(year, state, taxsim_vars):
     for i in range(1, depx + 1):
         dep_name = f"your {get_ordinal(i)} dependent"
         people[dep_name] = {
-            "age": {str(year): int(taxsim_vars.get(f"age{i}", 10)) if taxsim_vars.get(f"age{i}") is not None else 10},
+            "age": {
+                str(year): int(taxsim_vars.get(f"age{i}", 10))
+                if taxsim_vars.get(f"age{i}") is not None
+                else 10
+            },
             "employment_income": {str(year): 0},
             "is_tax_unit_dependent": {str(year): True},
             "is_tax_unit_spouse": {str(year): False},
@@ -195,38 +199,44 @@ def form_household_situation(year, state, taxsim_vars):
     household_situation = add_additional_units(
         state.lower(), year, household_situation, taxsim_vars
     )
-    
+
     # Explicitly set SSI to 0 for all people to prevent PolicyEngine from imputing SSI benefits
     # TAXSIM does not model SSI, so we need to ensure it's not automatically calculated
     for person_name in household_situation["people"]:
         household_situation["people"][person_name]["ssi"] = {str(year): 0}
-    
+
     # Explicitly set person-level benefit programs to 0 to prevent PolicyEngine from imputing these benefits
     # TAXSIM does not model these programs, so we need to ensure they're not automatically calculated
     for person_name in household_situation["people"]:
         household_situation["people"][person_name]["head_start"] = {str(year): 0}
         household_situation["people"][person_name]["early_head_start"] = {str(year): 0}
-        household_situation["people"][person_name]["commodity_supplemental_food_program"] = {str(year): 0}
-    
+        household_situation["people"][person_name][
+            "commodity_supplemental_food_program"
+        ] = {str(year): 0}
+
     # Explicitly set SNAP to 0 for all SPM units to prevent PolicyEngine from imputing SNAP benefits
     # TAXSIM does not model SNAP, so we need to ensure it's not automatically calculated
     for spm_unit_name in household_situation["spm_units"]:
         household_situation["spm_units"][spm_unit_name]["snap"] = {str(year): 0}
-    
+
     # Explicitly set TANF to 0 for all SPM units to prevent PolicyEngine from imputing TANF benefits
     # TAXSIM does not model TANF, so we need to ensure it's not automatically calculated
     for spm_unit_name in household_situation["spm_units"]:
         household_situation["spm_units"][spm_unit_name]["tanf"] = {str(year): 0}
-    
+
     # Explicitly set free_school_meals to 0 for all SPM units to prevent PolicyEngine from imputing free school meal benefits
     # TAXSIM does not model free school meals, so we need to ensure it's not automatically calculated
     for spm_unit_name in household_situation["spm_units"]:
-        household_situation["spm_units"][spm_unit_name]["free_school_meals"] = {str(year): 0}
-    
+        household_situation["spm_units"][spm_unit_name]["free_school_meals"] = {
+            str(year): 0
+        }
+
     # Explicitly set reduced_price_school_meals to 0 for all SPM units to prevent PolicyEngine from imputing reduced price school meal benefits
     # TAXSIM does not model reduced price school meals, so we need to ensure it's not automatically calculated
     for spm_unit_name in household_situation["spm_units"]:
-        household_situation["spm_units"][spm_unit_name]["reduced_price_school_meals"] = {str(year): 0}
+        household_situation["spm_units"][spm_unit_name][
+            "reduced_price_school_meals"
+        ] = {str(year): 0}
 
     return household_situation
 
@@ -308,7 +318,7 @@ def generate_household(taxsim_vars):
 
     # Convert TAXSIM32 dependent format if present
     taxsim_vars = convert_taxsim32_dependents(taxsim_vars)
-    
+
     taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
 
     state = get_state_code(taxsim_vars["state"])

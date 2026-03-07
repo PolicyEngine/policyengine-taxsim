@@ -125,9 +125,7 @@ class TestAssumeW2WagesRunner:
             )
 
         # At least one record should show a meaningful difference
-        fiitax_diff = (
-            result_default["fiitax"].values - result_w2["fiitax"].values
-        )
+        fiitax_diff = result_default["fiitax"].values - result_w2["fiitax"].values
         assert fiitax_diff.max() > 100, (
             f"Expected meaningful QBID difference for high-income S-Corp filers, "
             f"but max fiitax reduction was only ${fiitax_diff.max():.2f}"

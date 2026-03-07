@@ -23,7 +23,10 @@ except ImportError:
     from policyengine_taxsim.comparison.statistics import ComparisonStatistics
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
     from policyengine_taxsim.core.input_mapper import form_household_situation
-    from policyengine_taxsim.core.utils import get_state_code, convert_taxsim32_dependents
+    from policyengine_taxsim.core.utils import (
+        get_state_code,
+        convert_taxsim32_dependents,
+    )
 
 
 def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
@@ -66,7 +69,7 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
 
             # Generate YAML file
             # Use taxsimid from row if available, otherwise use index + 1
-            taxsim_id = int(row['taxsimid']) if 'taxsimid' in row else idx + 1
+            taxsim_id = int(row["taxsimid"]) if "taxsimid" in row else idx + 1
             yaml_filename = f"taxsim_record_{taxsim_id}_{year}.yaml"
             generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
 
@@ -151,7 +154,10 @@ def cli(ctx, logs, disable_salt, sample):
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
 @click.option(
-    "--assume-w2-wages", is_flag=True, default=False, help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)"
+    "--assume-w2-wages",
+    is_flag=True,
+    default=False,
+    help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample):
@@ -171,7 +177,9 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
             df = df.sample(n=sample, random_state=42)
 
         # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
-        runner = StitchedRunner(df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages)
+        runner = StitchedRunner(
+            df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages
+        )
         results_df = runner.run(show_progress=True)
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
@@ -241,7 +249,10 @@ def taxsim(input_file, output, sample, taxsim_path):
 )
 @click.option("--logs", is_flag=True, help="Generate PolicyEngine YAML logs")
 @click.option(
-    "--assume-w2-wages", is_flag=True, default=False, help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)"
+    "--assume-w2-wages",
+    is_flag=True,
+    default=False,
+    help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
 )
 def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_wages):
     """Compare PolicyEngine and TAXSIM results"""
@@ -274,7 +285,9 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_
 
         # Run PolicyEngine
         click.echo("Running PolicyEngine...")
-        pe_runner = PolicyEngineRunner(df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages)
+        pe_runner = PolicyEngineRunner(
+            df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages
+        )
         pe_results = pe_runner.run()
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)

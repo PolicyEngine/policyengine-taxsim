@@ -427,7 +427,9 @@ class TaxsimMicrosimDataset(Dataset):
                     # For each dependent, figure out which dep number they are
                     dep_position = position_in_hh[dep_mask_indices]
                     dep_has_spouse = has_spouse_expanded[dep_mask_indices]
-                    dep_num = dep_position - np.where(dep_has_spouse, 2, 1) + 1  # 1-indexed
+                    dep_num = (
+                        dep_position - np.where(dep_has_spouse, 2, 1) + 1
+                    )  # 1-indexed
 
                     dep_hh_idx = household_ids[dep_mask_indices]
                     for dep_slot in range(1, 12):
@@ -448,7 +450,10 @@ class TaxsimMicrosimDataset(Dataset):
                 default_val = mapping.get("default", 0.0)
 
                 # Primary values
-                if isinstance(primary_source, str) and primary_source in year_data.columns:
+                if (
+                    isinstance(primary_source, str)
+                    and primary_source in year_data.columns
+                ):
                     prim_vals = year_data[primary_source].fillna(0).values.astype(float)
                     values[is_primary] = np.repeat(prim_vals, people_per_hh)[is_primary]
                 elif callable(primary_source):
@@ -462,7 +467,10 @@ class TaxsimMicrosimDataset(Dataset):
                     values[is_primary] = primary_source
 
                 # Spouse values
-                if isinstance(spouse_source, str) and spouse_source in year_data.columns:
+                if (
+                    isinstance(spouse_source, str)
+                    and spouse_source in year_data.columns
+                ):
                     sp_vals = year_data[spouse_source].fillna(0).values.astype(float)
                     values[is_spouse] = np.repeat(sp_vals, people_per_hh)[is_spouse]
                 elif callable(spouse_source):
@@ -578,8 +586,12 @@ class TaxsimMicrosimDataset(Dataset):
                             age_cols[col] = np.zeros(len(df), dtype=int)
                         mask = (dep_counter == dep_slot) & (count_series > 0)
                         age_cols[col] = np.where(mask, age_val, age_cols[col])
-                    dep_counter = np.where(count_series > 0, dep_counter + 1, dep_counter)
-                    count_series = np.where(count_series > 0, count_series - 1, count_series)
+                    dep_counter = np.where(
+                        count_series > 0, dep_counter + 1, dep_counter
+                    )
+                    count_series = np.where(
+                        count_series > 0, count_series - 1, count_series
+                    )
 
             for col, vals in age_cols.items():
                 if col not in df.columns:
@@ -731,10 +743,18 @@ class TaxsimMicrosimDataset(Dataset):
             # SPM unit data
             data["spm_unit_id"][year_int] = year_spm_unit_ids
             data["spm_unit_weight"][year_int] = np.ones(n_year_records)
-            data["snap"][year_int] = np.zeros(n_year_records)  # Set SNAP to 0 to match TAXSIM (which doesn't model SNAP)
-            data["tanf"][year_int] = np.zeros(n_year_records)  # Set TANF to 0 to match TAXSIM (which doesn't model TANF)
-            data["free_school_meals"][year_int] = np.zeros(n_year_records)  # Set free school meals to 0 to match TAXSIM (which doesn't model free school meals)
-            data["reduced_price_school_meals"][year_int] = np.zeros(n_year_records)  # Set reduced price school meals to 0 to match TAXSIM (which doesn't model reduced price school meals)
+            data["snap"][year_int] = np.zeros(
+                n_year_records
+            )  # Set SNAP to 0 to match TAXSIM (which doesn't model SNAP)
+            data["tanf"][year_int] = np.zeros(
+                n_year_records
+            )  # Set TANF to 0 to match TAXSIM (which doesn't model TANF)
+            data["free_school_meals"][year_int] = np.zeros(
+                n_year_records
+            )  # Set free school meals to 0 to match TAXSIM (which doesn't model free school meals)
+            data["reduced_price_school_meals"][year_int] = np.zeros(
+                n_year_records
+            )  # Set reduced price school meals to 0 to match TAXSIM (which doesn't model reduced price school meals)
 
             # Marital unit data
             data["marital_unit_id"][year_int] = year_marital_unit_ids
@@ -761,7 +781,11 @@ class PolicyEngineRunner(BaseTaxRunner):
     """
 
     def __init__(
-        self, input_df: pd.DataFrame, logs: bool = False, disable_salt: bool = False, assume_w2_wages: bool = False
+        self,
+        input_df: pd.DataFrame,
+        logs: bool = False,
+        disable_salt: bool = False,
+        assume_w2_wages: bool = False,
     ):
         super().__init__(input_df)
         self.logs = logs
@@ -917,14 +941,10 @@ class PolicyEngineRunner(BaseTaxRunner):
         values = np.array(sim.calculate(var_name, period=period))
         entity_key = var_obj.entity.key
         if entity_key == "person":
-            return np.array(
-                sim.map_result(values, "person", "tax_unit", how="sum")
-            )
+            return np.array(sim.map_result(values, "person", "tax_unit", how="sum"))
         elif entity_key != "tax_unit":
             # For household/spm_unit etc., project to person then sum to tax_unit
-            return np.array(
-                sim.map_result(values, entity_key, "tax_unit")
-            )
+            return np.array(sim.map_result(values, entity_key, "tax_unit"))
         return values
 
     def _extract_vectorized_results(
@@ -1024,8 +1044,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                         )
                         unified_vars_list = (
                             all(
-                                sim.tax_benefit_system.variables.get(v)
-                                is not None
+                                sim.tax_benefit_system.variables.get(v) is not None
                                 for v in variables_list
                             )
                             if variables_list
@@ -1063,7 +1082,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                                         ):
                                             continue
                                         try:
-                                            arr = self._calc_tax_unit(sim, resolved, year_str)
+                                            arr = self._calc_tax_unit(
+                                                sim, resolved, year_str
+                                            )
                                             var_sum += arr
                                         except Exception as e:
                                             if "does not exist" in str(e):
@@ -1081,7 +1102,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                                     ):
                                         continue
                                     try:
-                                        arr = self._calc_tax_unit(sim, resolved, year_str)
+                                        arr = self._calc_tax_unit(
+                                            sim, resolved, year_str
+                                        )
                                         result_array[state_mask] = arr[state_mask]
                                     except Exception as e:
                                         if "does not exist" in str(e):
@@ -1126,9 +1149,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             else:
                 fiitax_arr = self._calc_tax_unit(
                     sim, "income_tax", year_str
-                ) + self._calc_tax_unit(
-                    sim, "additional_medicare_tax", year_str
-                )
+                ) + self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
                 columns["fiitax"] = np.round(fiitax_arr, 2)
 
             # Apply idtl filtering: mask out columns not requested by each row's idtl

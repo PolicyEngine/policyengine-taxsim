@@ -191,7 +191,6 @@ def test_export_single_household(sample_taxsim_input):
             "you": {
                 "age": {"2021": 35},
                 "employment_income": {"2021": 50000},
-                
                 "is_tax_unit_head": {"2021": True},
             }
         },
@@ -412,7 +411,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                     "your first dependent",
                     "your second dependent",
                 ],
-                                    "pa_use_tax": {"2023": 0},
+                "pa_use_tax": {"2023": 0},
             }
         },
     }
@@ -492,7 +491,7 @@ def test_household_with_dependent_single_parent(
         "tax_units": {
             "your tax unit": {
                 "members": ["you", "your first dependent", "your second dependent"],
-                                    "pa_use_tax": {"2023": 0},
+                "pa_use_tax": {"2023": 0},
             }
         },
     }

@@ -37,7 +37,7 @@ class TaxsimRunner(BaseTaxRunner):
         "age10",
         "age11",
     ]
-    
+
     # TAXSIM32 format columns for dependent counts by age bracket
     TAXSIM32_COLUMNS = [
         "dep13",  # Number of dependents under 13
@@ -71,7 +71,9 @@ class TaxsimRunner(BaseTaxRunner):
         "idtl",  # Output control
     ]
 
-    ALL_COLUMNS = REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + TAXSIM32_COLUMNS + INCOME_COLUMNS
+    ALL_COLUMNS = (
+        REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + TAXSIM32_COLUMNS + INCOME_COLUMNS
+    )
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
         super().__init__(input_df)
@@ -98,15 +100,27 @@ class TaxsimRunner(BaseTaxRunner):
             # 1. Relative path (for running from repo during development)
             Path("resources") / "taxsimtest" / exe_name,
             # 2. Shared data location (for pip-installed packages)
-            Path(sys.prefix) / "share" / "policyengine_taxsim" / "taxsimtest" / exe_name,
+            Path(sys.prefix)
+            / "share"
+            / "policyengine_taxsim"
+            / "taxsimtest"
+            / exe_name,
             # 3. User site-packages shared data
-            Path(sys.base_prefix) / "share" / "policyengine_taxsim" / "taxsimtest" / exe_name,
+            Path(sys.base_prefix)
+            / "share"
+            / "policyengine_taxsim"
+            / "taxsimtest"
+            / exe_name,
         ]
 
         # Also check virtualenv locations
         if hasattr(sys, "real_prefix"):  # virtualenv
             search_paths.append(
-                Path(sys.real_prefix) / "share" / "policyengine_taxsim" / "taxsimtest" / exe_name
+                Path(sys.real_prefix)
+                / "share"
+                / "policyengine_taxsim"
+                / "taxsimtest"
+                / exe_name
             )
 
         for taxsim_path in search_paths:
@@ -154,7 +168,7 @@ class TaxsimRunner(BaseTaxRunner):
 
             # Add only age columns for actual dependents (up to 11 max)
             for i in range(min(depx, 11)):
-                age_col = f"age{i+1}"
+                age_col = f"age{i + 1}"
                 dynamic_columns.append(age_col)
 
             # Add income columns (but exclude TAXSIM32 columns since TAXSIM-35 uses individual ages)

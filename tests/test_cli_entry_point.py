@@ -12,9 +12,7 @@ from importlib.metadata import distribution
 def test_cli_entry_point_resolves():
     """The console script entry point must import and be callable."""
     dist = distribution("policyengine-taxsim")
-    console_scripts = [
-        ep for ep in dist.entry_points if ep.group == "console_scripts"
-    ]
+    console_scripts = [ep for ep in dist.entry_points if ep.group == "console_scripts"]
     assert len(console_scripts) == 1, "Expected exactly one console script"
     ep = console_scripts[0]
     assert ep.name == "policyengine-taxsim"

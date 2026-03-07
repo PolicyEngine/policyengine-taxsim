@@ -164,8 +164,12 @@ class PETestsYAMLGenerator:
                 "ssi": person_data.get("ssi", {}).get(year_str, 0),
                 "wic": person_data.get("wic", {}).get(year_str, 0),
                 "head_start": person_data.get("head_start", {}).get(year_str, 0),
-                "early_head_start": person_data.get("early_head_start", {}).get(year_str, 0),
-                "commodity_supplemental_food_program": person_data.get("commodity_supplemental_food_program", {}).get(year_str, 0),
+                "early_head_start": person_data.get("early_head_start", {}).get(
+                    year_str, 0
+                ),
+                "commodity_supplemental_food_program": person_data.get(
+                    "commodity_supplemental_food_program", {}
+                ).get(year_str, 0),
             }
 
             # Add optional fields only if they have non-zero values

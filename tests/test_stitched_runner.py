@@ -68,12 +68,8 @@ class TestRouting:
     def test_mixed_years(self, MockPE, MockTaxsim):
         """Mixed years split correctly between engines."""
         df = _make_input([(1, 2019), (2, 2022), (3, 1990), (4, 2025)])
-        MockPE.return_value.run.return_value = _make_result(
-            [(2, 2022), (4, 2025)]
-        )
-        MockTaxsim.return_value.run.return_value = _make_result(
-            [(1, 2019), (3, 1990)]
-        )
+        MockPE.return_value.run.return_value = _make_result([(2, 2022), (4, 2025)])
+        MockTaxsim.return_value.run.return_value = _make_result([(1, 2019), (3, 1990)])
 
         runner = StitchedRunner(df)
         runner.run(show_progress=False)
@@ -135,12 +131,8 @@ class TestOutputOrdering:
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_order_preserved(self, MockPE, MockTaxsim):
         df = _make_input([(3, 2019), (1, 2023), (4, 1990), (2, 2025)])
-        MockPE.return_value.run.return_value = _make_result(
-            [(1, 2023), (2, 2025)]
-        )
-        MockTaxsim.return_value.run.return_value = _make_result(
-            [(3, 2019), (4, 1990)]
-        )
+        MockPE.return_value.run.return_value = _make_result([(1, 2023), (2, 2025)])
+        MockTaxsim.return_value.run.return_value = _make_result([(3, 2019), (4, 1990)])
 
         runner = StitchedRunner(df)
         result = runner.run(show_progress=False)
@@ -256,6 +248,7 @@ class TestKwargsForwarding:
         MockTaxsim.return_value.run.return_value = _make_result([(1, 2020)])
 
         import logging
+
         with caplog.at_level(logging.WARNING):
             runner = StitchedRunner(df, logs=True, disable_salt=True)
             runner.run(show_progress=False)
