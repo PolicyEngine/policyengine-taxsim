@@ -12,6 +12,7 @@ try:
     from .core.yaml_generator import generate_pe_tests_yaml
     from .core.input_mapper import form_household_situation
     from .core.utils import get_state_code, convert_taxsim32_dependents
+    from .core.io import read_input, write_output
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
@@ -27,6 +28,7 @@ except ImportError:
         get_state_code,
         convert_taxsim32_dependents,
     )
+    from policyengine_taxsim.core.io import read_input, write_output
 
 
 def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
@@ -169,7 +171,7 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
     """
     try:
         # Read input file
-        df = pd.read_csv(input_file)
+        df = read_input(input_file)
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -192,7 +194,7 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
             click.echo(f"Generated {len(df_with_ids)} YAML test files")
 
         # Save results to output file
-        results_df.to_csv(output, index=False)
+        write_output(results_df, output)
         click.echo(f"Results saved to {output}")
 
     except Exception as e:
@@ -213,7 +215,7 @@ def taxsim(input_file, output, sample, taxsim_path):
     """Run TAXSIM-35 tax calculations"""
     try:
         # Load and optionally sample data
-        df = pd.read_csv(input_file)
+        df = read_input(input_file)
 
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
@@ -224,7 +226,7 @@ def taxsim(input_file, output, sample, taxsim_path):
         results = runner.run()
 
         # Save results
-        results.to_csv(output, index=False)
+        write_output(results, output)
         click.echo(f"TAXSIM results saved to: {output}")
 
     except Exception as e:
@@ -258,7 +260,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
-        df = pd.read_csv(input_file)
+        df = read_input(input_file)
 
         # Override year column if specified
         if year is not None and "year" in df.columns:
@@ -344,7 +346,7 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_
 def sample_data(input_file, sample, output):
     """Sample records from a large dataset"""
     try:
-        df = pd.read_csv(input_file)
+        df = read_input(input_file)
 
         if not sample:
             click.echo(
@@ -368,7 +370,7 @@ def sample_data(input_file, sample, output):
             )
 
         # Save sampled data
-        sampled_df.to_csv(output, index=False)
+        write_output(sampled_df, output)
         click.echo(f"Sampled {sample} records from {len(df)} total records")
         click.echo(f"Sampled data saved to: {output}")
 
