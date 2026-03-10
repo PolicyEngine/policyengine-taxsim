@@ -49,7 +49,9 @@ def main(input_file, output, logs, disable_salt):
         generate_household, export_household = get_mappers()
 
         # Read input file
-        df = pd.read_csv(input_file)
+        from policyengine_taxsim.core.io import read_input
+
+        df = read_input(input_file)
 
         # Process each row
         idtl_0_results = []
