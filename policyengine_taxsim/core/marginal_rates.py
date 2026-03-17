@@ -38,8 +38,13 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
     base_state = float(simulation.calculate("state_income_tax", period=year)[0])
     base_fica = (
         float(simulation.calculate("employee_payroll_tax", period=year)[0])
-        + sum(float(v) for v in simulation.calculate("employer_social_security_tax", period=year))
-        + sum(float(v) for v in simulation.calculate("employer_medicare_tax", period=year))
+        + sum(
+            float(v)
+            for v in simulation.calculate("employer_social_security_tax", period=year)
+        )
+        + sum(
+            float(v) for v in simulation.calculate("employer_medicare_tax", period=year)
+        )
     )
 
     # Get current wages
@@ -79,8 +84,16 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
     new_state = float(perturbed_sim.calculate("state_income_tax", period=year)[0])
     new_fica = (
         float(perturbed_sim.calculate("employee_payroll_tax", period=year)[0])
-        + sum(float(v) for v in perturbed_sim.calculate("employer_social_security_tax", period=year))
-        + sum(float(v) for v in perturbed_sim.calculate("employer_medicare_tax", period=year))
+        + sum(
+            float(v)
+            for v in perturbed_sim.calculate(
+                "employer_social_security_tax", period=year
+            )
+        )
+        + sum(
+            float(v)
+            for v in perturbed_sim.calculate("employer_medicare_tax", period=year)
+        )
     )
 
     return {
