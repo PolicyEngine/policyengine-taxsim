@@ -24,7 +24,7 @@ import {
   getMultipleVariables
 } from '../constants';
 
-const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year'];
+const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year', 'income_tax (via perturbation)', 'state_income_tax (via perturbation)', 'employee_payroll_tax (via perturbation)'];
 
 const LANG_LABELS = {
   cli: 'CLI',
@@ -333,11 +333,13 @@ policyengine_versions()
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
     'staxbc': { implemented: true, variable: 'state_income_tax_before_non_refundable_credits' },
 
+    // Marginal rates: computed via wage perturbation (not a single PE variable)
+    'frate': { implemented: true, variable: 'income_tax (via perturbation)' },
+    'srate': { implemented: true, variable: 'state_income_tax (via perturbation)' },
+    'ficar': { implemented: true, variable: 'employee_payroll_tax (via perturbation)' },
+
     // Not implemented: variable = 'na_pe' means not available in PolicyEngine
     'fica': { implemented: false, variable: 'na_pe' },
-    'frate': { implemented: false, variable: 'na_pe' },
-    'srate': { implemented: false, variable: 'na_pe' },
-    'ficar': { implemented: false, variable: 'na_pe' },
     'v15': { implemented: false, variable: 'na_pe' },
     'v16': { implemented: false, variable: 'na_pe' },
     'v20': { implemented: false, variable: 'na_pe' },
@@ -664,6 +666,29 @@ results = runner.run()`
                   code: `runner = PolicyEngineRunner(df, assume_w2_wages=True)
 results = runner.run()`
                 })}
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-5 mb-4 border border-blue-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <code className="text-sm font-semibold text-gray-900">Marginal tax rates (frate, srate, ficar)</code>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Marginal rates are computed automatically for all output levels (<code className="bg-white px-1.5 py-0.5 rounded text-[13px]">idtl=0</code>,{' '}
+                  <code className="bg-white px-1.5 py-0.5 rounded text-[13px]">idtl=2</code>,{' '}
+                  <code className="bg-white px-1.5 py-0.5 rounded text-[13px]">idtl=5</code>).
+                  The methodology matches TAXSIM-35:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc mb-3">
+                  <li>Perturbs <strong>employment income (wages) only</strong> &mdash; self-employment income is not perturbed</li>
+                  <li>Splits the perturbation between primary and spouse earners <strong>proportionally to their wage share</strong> (weighted average earnings, matching TAXSIM <code className="bg-white px-1.5 py-0.5 rounded text-[13px]">mtr=11</code>)</li>
+                  <li>Measures the change in each tax component independently: federal income tax (<code className="bg-white px-1.5 py-0.5 rounded text-[13px]">frate</code>), state income tax (<code className="bg-white px-1.5 py-0.5 rounded text-[13px]">srate</code>), and employee payroll tax (<code className="bg-white px-1.5 py-0.5 rounded text-[13px]">ficar</code>)</li>
+                  <li>Returns rates as <strong>percentages</strong> (e.g., 22.0 for 22%)</li>
+                </ul>
+                <p className="text-sm text-gray-500">
+                  <strong>Note:</strong> TAXSIM uses a $0.01 perturbation with Fortran float64 precision.
+                  PolicyEngine uses float32 internally, so we use a $100 perturbation for numerical stability.
+                  This may produce slightly different results near tax bracket boundaries.
+                </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-5 mb-4">
