@@ -193,7 +193,6 @@ class E2ETest(unittest.TestCase):
             print(f.read())
 
     def test_generate_taxsim35_single_household_output(self):
-
         output_file = self.output_dir / self.SINGLE_HOUSEHOLD_TAXSIM35_OUTPUT
 
         self.generate_taxsim35_output(self.input_file_single_household, output_file)
@@ -298,7 +297,6 @@ class E2ETest(unittest.TestCase):
             print(f.read())
 
     def test_generate_taxsim35_joint_household_output(self):
-
         output_file = self.output_dir / self.JOINT_HOUSEHOLD_TAXSIM35_OUTPUT
         self.generate_taxsim35_output(self.input_file_joint_household, output_file)
 

@@ -961,6 +961,88 @@ class PolicyEngineRunner(BaseTaxRunner):
             return np.array(sim.map_result(values, entity_key, "tax_unit"))
         return values
 
+    def _compute_marginal_rates(self, sim, year_str, year_data):
+        """Compute TAXSIM-compatible marginal tax rates via wage perturbation.
+
+        Matches TAXSIM-35 methodology:
+        - Perturbs employment_income (wages) only, not self-employment
+        - Splits perturbation between primary and spouse proportionally
+          to their share of total wages (weighted average earnings)
+        - Uses $0.01 delta to match TAXSIM batch mode
+        - Returns rates as percentages (22.0 for 22%)
+
+        Returns:
+            dict with 'frate', 'srate', 'ficar' arrays at tax_unit level
+        """
+        delta = (
+            100.0  # $100: large enough for float32 precision, small for bracket safety
+        )
+        n_tax_units = len(year_data)
+
+        # Get base tax values from the main simulation
+        base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
+        base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
+        base_fica = self._calc_tax_unit(sim, "employee_payroll_tax", year_str)
+
+        # Get current employment_income at person level
+        emp_income = np.array(sim.calculate("employment_income", period=year_str))
+
+        # Compute proportional wage split per person
+        # Map person-level income to tax_unit totals, then compute share
+        tu_total_wages = np.array(
+            sim.map_result(emp_income, "person", "tax_unit", how="sum")
+        )
+        # Expand tax_unit totals back to person level
+        person_tu_id = np.array(sim.populations["tax_unit"].members_entity_id)
+        tu_total_expanded = tu_total_wages[person_tu_id]
+
+        # Each person's share of total wages (0.5/0.5 if both zero)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            wage_share = np.where(
+                tu_total_expanded > 0,
+                emp_income / tu_total_expanded,
+                0.0,
+            )
+        # For zero-wage households, split 50/50 between head and spouse
+        is_head = np.array(sim.calculate("is_tax_unit_head", period=year_str))
+        is_spouse = np.array(sim.calculate("is_tax_unit_spouse", period=year_str))
+        zero_wage_mask = tu_total_expanded == 0
+        wage_share = np.where(zero_wage_mask & is_head, 0.5, wage_share)
+        wage_share = np.where(zero_wage_mask & is_spouse, 0.5, wage_share)
+
+        # Create perturbation: delta * wage_share for each person
+        perturbation = delta * wage_share
+
+        # Create branch simulation with perturbed wages
+        branch = sim.get_branch("mtr_wage_perturbation")
+
+        # Clear cached values for variables that depend on employment_income
+        for variable in sim.tax_benefit_system.variables:
+            if variable not in sim.input_variables or variable == "employment_income":
+                branch.delete_arrays(variable)
+
+        # Set perturbed employment income
+        branch.set_input("employment_income", year_str, emp_income + perturbation)
+
+        # Compute perturbed tax values
+        new_federal = self._calc_tax_unit(branch, "income_tax", year_str)
+        new_state = self._calc_tax_unit(branch, "state_income_tax", year_str)
+        new_fica = self._calc_tax_unit(branch, "employee_payroll_tax", year_str)
+
+        # Compute rates as percentages: 100 * (new - base) / delta
+        frate = 100.0 * (new_federal - base_federal) / delta
+        srate = 100.0 * (new_state - base_state) / delta
+        ficar = 100.0 * (new_fica - base_fica) / delta
+
+        # Clean up branch
+        del sim.branches["mtr_wage_perturbation"]
+
+        return {
+            "frate": np.round(frate, 4),
+            "srate": np.round(srate, 4),
+            "ficar": np.round(ficar, 4),
+        }
+
     def _extract_vectorized_results(
         self, sim: Microsimulation, input_df: pd.DataFrame
     ) -> pd.DataFrame:
@@ -1043,6 +1125,10 @@ class PolicyEngineRunner(BaseTaxRunner):
                 if pe_var == "na_pe":
                     # na_pe variables get 0
                     columns[taxsim_var] = np.zeros(n)
+                    continue
+
+                if pe_var == "marginal_rate_computed":
+                    # Marginal rates are computed specially after this loop
                     continue
 
                 try:
@@ -1165,6 +1251,22 @@ class PolicyEngineRunner(BaseTaxRunner):
                     sim, "income_tax", year_str
                 ) + self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
                 columns["fiitax"] = np.round(fiitax_arr, 2)
+
+            # Compute marginal rates if any idtl level requests them
+            mtr_vars = {"frate", "srate", "ficar"}
+            needs_mtr = any(v in vars_to_compute for v in mtr_vars)
+            if needs_mtr:
+                try:
+                    mtr_results = self._compute_marginal_rates(sim, year_str, year_data)
+                    for mtr_var in mtr_vars:
+                        if mtr_var in vars_to_compute:
+                            columns[mtr_var] = mtr_results[mtr_var]
+                except Exception as e:
+                    if self.logs:
+                        print(f"Warning: marginal rate computation failed: {e}")
+                    for mtr_var in mtr_vars:
+                        if mtr_var in vars_to_compute:
+                            columns[mtr_var] = np.zeros(n)
 
             # Apply idtl filtering: mask out columns not requested by each row's idtl
             if len(unique_idtls) > 1 or 0 in unique_idtls:

@@ -5,6 +5,7 @@ from .utils import (
 )
 from policyengine_us import Simulation
 from .yaml_generator import generate_pe_tests_yaml
+from .marginal_rates import compute_marginal_rates_single
 
 disable_salt_variable = False
 
@@ -13,6 +14,9 @@ def generate_non_description_output(
     taxsim_output, mappings, year, state_name, simulation, output_type, logs
 ):
     outputs = []
+    mtr_computed = False
+    mtr_results = {}
+
     for key, each_item in mappings.items():
         if each_item["implemented"]:
             if key == "taxsimid":
@@ -21,6 +25,22 @@ def generate_non_description_output(
                 taxsim_output[key] = int(year)
             elif key == "state":
                 taxsim_output[key] = get_state_number(state_name)
+            elif each_item.get("variable") == "marginal_rate_computed":
+                # Marginal rates: compute once, apply per key
+                if not mtr_computed:
+                    try:
+                        mtr_results = compute_marginal_rates_single(
+                            simulation,
+                            simulation.situation_input,
+                            year,
+                            disable_salt_variable,
+                        )
+                    except Exception:
+                        mtr_results = {"frate": 0.0, "srate": 0.0, "ficar": 0.0}
+                    mtr_computed = True
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = mtr_results.get(key, 0.0)
             elif "variables" in each_item and len(each_item["variables"]) > 0:
                 pe_variables = each_item["variables"]
                 taxsim_output[key] = simulate_multiple(simulation, pe_variables, year)
@@ -77,6 +97,9 @@ def generate_text_description_output(
     lines = [""]
     sorted_groups = sorted(groups.keys(), key=lambda x: group_orders[x])
     outputs = []
+    mtr_computed = False
+    mtr_results = {}
+
     for group_name in sorted_groups:
         variables = groups[group_name]
         if variables:
@@ -98,6 +121,19 @@ def generate_text_description_output(
                     value = (
                         f"{get_state_number(state_name)}{' ' * LEFT_MARGIN}{state_name}"
                     )
+                elif variable == "marginal_rate_computed":
+                    if not mtr_computed:
+                        try:
+                            mtr_results = compute_marginal_rates_single(
+                                simulation,
+                                simulation.situation_input,
+                                year,
+                                disable_salt_variable,
+                            )
+                        except Exception:
+                            mtr_results = {"frate": 0.0, "srate": 0.0, "ficar": 0.0}
+                        mtr_computed = True
+                    value = mtr_results.get(var_name, 0.0)
                 elif "variables" in each_item and len(each_item["variables"]) > 0:
                     value = simulate_multiple(simulation, each_item["variables"], year)
                 else:
