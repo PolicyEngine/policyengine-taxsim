@@ -36,7 +36,11 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
     # Get base tax values from the existing simulation
     base_federal = float(simulation.calculate("income_tax", period=year)[0])
     base_state = float(simulation.calculate("state_income_tax", period=year)[0])
-    base_fica = float(simulation.calculate("employee_payroll_tax", period=year)[0])
+    base_fica = (
+        float(simulation.calculate("employee_payroll_tax", period=year)[0])
+        + sum(float(v) for v in simulation.calculate("employer_social_security_tax", period=year))
+        + sum(float(v) for v in simulation.calculate("employer_medicare_tax", period=year))
+    )
 
     # Get current wages
     pwages = float(people["you"].get("employment_income", {}).get(year, 0))
@@ -73,7 +77,11 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
 
     new_federal = float(perturbed_sim.calculate("income_tax", period=year)[0])
     new_state = float(perturbed_sim.calculate("state_income_tax", period=year)[0])
-    new_fica = float(perturbed_sim.calculate("employee_payroll_tax", period=year)[0])
+    new_fica = (
+        float(perturbed_sim.calculate("employee_payroll_tax", period=year)[0])
+        + sum(float(v) for v in perturbed_sim.calculate("employer_social_security_tax", period=year))
+        + sum(float(v) for v in perturbed_sim.calculate("employer_medicare_tax", period=year))
+    )
 
     return {
         "frate": round(100.0 * (new_federal - base_federal) / DELTA, 4),

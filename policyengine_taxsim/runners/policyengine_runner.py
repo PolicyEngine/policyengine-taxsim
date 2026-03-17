@@ -982,7 +982,11 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Get base tax values from the main simulation
         base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
-        base_fica = self._calc_tax_unit(sim, "employee_payroll_tax", year_str)
+        base_fica = (
+            self._calc_tax_unit(sim, "employee_payroll_tax", year_str)
+            + self._calc_tax_unit(sim, "employer_social_security_tax", year_str)
+            + self._calc_tax_unit(sim, "employer_medicare_tax", year_str)
+        )
 
         # Get current employment_income at person level
         emp_income = np.array(sim.calculate("employment_income", period=year_str))
@@ -1027,7 +1031,11 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Compute perturbed tax values
         new_federal = self._calc_tax_unit(branch, "income_tax", year_str)
         new_state = self._calc_tax_unit(branch, "state_income_tax", year_str)
-        new_fica = self._calc_tax_unit(branch, "employee_payroll_tax", year_str)
+        new_fica = (
+            self._calc_tax_unit(branch, "employee_payroll_tax", year_str)
+            + self._calc_tax_unit(branch, "employer_social_security_tax", year_str)
+            + self._calc_tax_unit(branch, "employer_medicare_tax", year_str)
+        )
 
         # Compute rates as percentages: 100 * (new - base) / delta
         frate = 100.0 * (new_federal - base_federal) / delta
