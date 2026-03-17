@@ -977,8 +977,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         delta = (
             100.0  # $100: large enough for float32 precision, small for bracket safety
         )
-        n_tax_units = len(year_data)
-
         # Get base tax values from the main simulation
         base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
