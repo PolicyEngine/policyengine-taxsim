@@ -11,6 +11,8 @@ jobs:
     if: |
       (github.repository == 'PolicyEngine/policyengine-taxsim')
       && (github.event.head_commit.message == 'Update package version')
+    permissions:
+      id-token: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -28,7 +30,3 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI }}
-          skip-existing: true
