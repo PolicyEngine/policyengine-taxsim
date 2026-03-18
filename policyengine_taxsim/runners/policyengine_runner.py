@@ -821,9 +821,62 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         return df
 
+    CHUNK_SIZE = 100_000
+
+    def _run_chunk(self, chunk_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Run PolicyEngine Microsimulation on a single chunk of records.
+        Each chunk must contain only one year.
+
+        Returns:
+            DataFrame with TAXSIM-formatted output variables
+        """
+        dataset = TaxsimMicrosimDataset(chunk_df)
+
+        try:
+            dataset.generate()
+            sim = Microsimulation(dataset=dataset)
+
+            if self.disable_salt:
+                years = sorted(set(chunk_df["year"].unique()))
+                for year in years:
+                    year_mask = chunk_df["year"] == year
+                    n_year_records = year_mask.sum()
+                    sim.set_input(
+                        variable_name="state_and_local_sales_or_income_tax",
+                        value=np.zeros(n_year_records),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
+            if self.assume_w2_wages:
+                n_persons = sim.get_variable_population(
+                    "w2_wages_from_qualified_business"
+                ).count
+                years = sorted(set(chunk_df["year"].unique()))
+                for year in years:
+                    sim.set_input(
+                        variable_name="w2_wages_from_qualified_business",
+                        value=np.full(n_persons, 1e9),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
+            return self._extract_vectorized_results(sim, chunk_df)
+
+        finally:
+            dataset.cleanup()
+
     def run(self, show_progress: bool = True) -> pd.DataFrame:
         """
-        Run PolicyEngine Microsimulation on all records simultaneously
+        Run PolicyEngine Microsimulation on all records, chunked by year
+        and then by CHUNK_SIZE to avoid memory issues with large datasets.
 
         Returns:
             DataFrame with TAXSIM-formatted output variables
@@ -836,68 +889,29 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Ensure years are integers to handle decimal values like 2021.0
         self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
 
-        # Create the dataset
-        dataset = TaxsimMicrosimDataset(self.input_df)
+        # Split by year first (required for correct dataset generation),
+        # then by chunk size within each year.
+        frames = []
+        years = sorted(self.input_df["year"].unique())
+        total_chunks = sum(
+            (len(self.input_df[self.input_df["year"] == y]) + self.CHUNK_SIZE - 1)
+            // self.CHUNK_SIZE
+            for y in years
+        )
 
-        try:
-            # Generate the dataset
-            if show_progress:
-                print("Generating PolicyEngine dataset...")
-            dataset.generate()
+        with tqdm(
+            total=total_chunks,
+            desc="Processing chunks",
+            disable=not show_progress,
+        ) as pbar:
+            for year in years:
+                year_df = self.input_df[self.input_df["year"] == year].copy()
+                for start in range(0, len(year_df), self.CHUNK_SIZE):
+                    chunk_df = year_df.iloc[start : start + self.CHUNK_SIZE].copy()
+                    frames.append(self._run_chunk(chunk_df))
+                    pbar.update(1)
 
-            # Create Microsimulation
-            if show_progress:
-                print("Creating PolicyEngine microsimulation...")
-            sim = Microsimulation(dataset=dataset)
-
-            # Apply SALT override if needed
-            if self.disable_salt:
-                years = sorted(set(self.input_df["year"].unique()))
-                for year in years:
-                    year_mask = self.input_df["year"] == year
-                    n_year_records = year_mask.sum()
-                    sim.set_input(
-                        variable_name="state_and_local_sales_or_income_tax",
-                        value=np.zeros(n_year_records),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
-
-            # Apply W2 wages assumption if needed (for QBID alignment with TAXSIM)
-            # TAXSIM skips the W-2/UBIA wage cap for S-Corp income, so to align
-            # we set w2_wages_from_qualified_business high enough that the cap
-            # never binds, matching TAXSIM's simplified 20%-of-QBI calculation.
-            # Note: this is a person-level variable, so we use the person
-            # population count (not the number of tax-unit records).
-            if self.assume_w2_wages:
-                n_persons = sim.get_variable_population(
-                    "w2_wages_from_qualified_business"
-                ).count
-                years = sorted(set(self.input_df["year"].unique()))
-                for year in years:
-                    sim.set_input(
-                        variable_name="w2_wages_from_qualified_business",
-                        value=np.full(n_persons, 1e9),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
-
-            # Disable problematic variables that cause circular dependencies
-            years = sorted(set(self.input_df["year"].unique()))
-
-            # Extract results
-            if show_progress:
-                print("Extracting results from PolicyEngine...")
-            results_df = self._extract_vectorized_results(sim, self.input_df)
-
-        finally:
-            dataset.cleanup()
+        results_df = pd.concat(frames, ignore_index=True)
 
         if show_progress:
             print("PolicyEngine Microsimulation completed")
