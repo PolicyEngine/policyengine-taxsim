@@ -89,7 +89,7 @@ policyengine_to_taxsim:
     group_column: 1
   ficar:
     variable: marginal_rate_computed
-    implemented: true
+    implemented: false
     idtl:
       - standard: 0
       - full: 2

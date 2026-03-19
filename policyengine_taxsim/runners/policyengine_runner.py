@@ -972,19 +972,17 @@ class PolicyEngineRunner(BaseTaxRunner):
         - Returns rates as percentages (22.0 for 22%)
 
         Returns:
-            dict with 'frate', 'srate', 'ficar' arrays at tax_unit level
+            dict with 'frate', 'srate' arrays at tax_unit level
         """
         delta = (
             100.0  # $100: large enough for float32 precision, small for bracket safety
         )
         # Get base tax values from the main simulation
-        base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
+        # frate must match fiitax definition: income_tax + additional_medicare_tax
+        base_federal = self._calc_tax_unit(
+            sim, "income_tax", year_str
+        ) + self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
-        base_fica = (
-            self._calc_tax_unit(sim, "employee_payroll_tax", year_str)
-            + self._calc_tax_unit(sim, "employer_social_security_tax", year_str)
-            + self._calc_tax_unit(sim, "employer_medicare_tax", year_str)
-        )
 
         # Get current employment_income at person level
         emp_income = np.array(sim.calculate("employment_income", period=year_str))
@@ -1027,18 +1025,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         branch.set_input("employment_income", year_str, emp_income + perturbation)
 
         # Compute perturbed tax values
-        new_federal = self._calc_tax_unit(branch, "income_tax", year_str)
+        new_federal = self._calc_tax_unit(
+            branch, "income_tax", year_str
+        ) + self._calc_tax_unit(branch, "additional_medicare_tax", year_str)
         new_state = self._calc_tax_unit(branch, "state_income_tax", year_str)
-        new_fica = (
-            self._calc_tax_unit(branch, "employee_payroll_tax", year_str)
-            + self._calc_tax_unit(branch, "employer_social_security_tax", year_str)
-            + self._calc_tax_unit(branch, "employer_medicare_tax", year_str)
-        )
-
         # Compute rates as percentages: 100 * (new - base) / delta
         frate = 100.0 * (new_federal - base_federal) / delta
         srate = 100.0 * (new_state - base_state) / delta
-        ficar = 100.0 * (new_fica - base_fica) / delta
 
         # Clean up branch
         del sim.branches["mtr_wage_perturbation"]
@@ -1046,7 +1039,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         return {
             "frate": np.round(frate, 4),
             "srate": np.round(srate, 4),
-            "ficar": np.round(ficar, 4),
         }
 
     def _extract_vectorized_results(
@@ -1259,7 +1251,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                 columns["fiitax"] = np.round(fiitax_arr, 2)
 
             # Compute marginal rates if any idtl level requests them
-            mtr_vars = {"frate", "srate", "ficar"}
+            mtr_vars = {"frate", "srate"}
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
             if needs_mtr:
                 try:
