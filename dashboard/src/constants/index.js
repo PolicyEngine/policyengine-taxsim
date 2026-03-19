@@ -135,7 +135,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'sctc', name: 'State child tax credit', policyengine: 'state_ctc' },
   { code: 'sptcr', name: 'State property tax credit', policyengine: 'state_property_tax_credit' },
   { code: 'samt', name: 'State alternative minimum tax', policyengine: 'state_amt' },
-  { code: 'srate', name: 'State marginal rate', policyengine: null },
+  { code: 'srate', name: 'State marginal rate', policyengine: 'state_marginal_tax_rate' },
 
   // Additional Federal Results (v42-v46)
   { code: 'v42', name: 'Earned Self-Employment Income for FICA', policyengine: 'self_employment_income' },
@@ -152,8 +152,8 @@ export const OUTPUT_VARIABLES = [
   // Additional Outputs (moved to end for proper section ordering)
   { code: 'fica', name: 'FICA (OADSI and HI, sum of employee AND employer including Additional Medicare Tax)', policyengine: null },
   { code: 'tfica', name: 'Taxpayer liability for FICA', policyengine: 'taxsim_tfica' },
-  { code: 'frate', name: 'Federal marginal rate', policyengine: null },
-  { code: 'ficar', name: 'FICA rate', policyengine: null },
+  { code: 'frate', name: 'Federal marginal rate', policyengine: 'federal_marginal_tax_rate' },
+  { code: 'ficar', name: 'FICA rate', policyengine: 'fica_marginal_tax_rate' },
 ];
 
 // Input fields from TAXSIM

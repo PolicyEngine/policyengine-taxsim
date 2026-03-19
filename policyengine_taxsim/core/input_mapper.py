@@ -8,7 +8,6 @@ import copy
 
 
 def add_additional_units(state, year, situation, taxsim_vars):
-
     additional_tax_units_config = load_variable_mappings()["taxsim_to_policyengine"][
         "household_situation"
     ]["additional_tax_units"]

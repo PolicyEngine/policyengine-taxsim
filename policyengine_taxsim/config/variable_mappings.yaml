@@ -66,8 +66,8 @@ policyengine_to_taxsim:
     full_text_group: "Basic Output"
     group_column: 1
   frate:
-    variable: na_pe
-    implemented: false
+    variable: marginal_rate_computed
+    implemented: true
     idtl:
       - standard: 0
       - full: 2
@@ -77,8 +77,8 @@ policyengine_to_taxsim:
     full_text_group: "Marginal Rates wrt Weighted Average Earnings"
     group_column: 1
   srate:
-    variable: na_pe
-    implemented: false
+    variable: marginal_rate_computed
+    implemented: true
     idtl:
       - standard: 0
       - full: 2
@@ -88,7 +88,7 @@ policyengine_to_taxsim:
     full_text_group: "Marginal Rates wrt Weighted Average Earnings"
     group_column: 1
   ficar:
-    variable: na_pe
+    variable: marginal_rate_computed
     implemented: false
     idtl:
       - standard: 0
