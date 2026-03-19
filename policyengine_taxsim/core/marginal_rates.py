@@ -34,18 +34,11 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
     people = situation["people"]
 
     # Get base tax values from the existing simulation
-    base_federal = float(simulation.calculate("income_tax", period=year)[0])
-    base_state = float(simulation.calculate("state_income_tax", period=year)[0])
-    base_fica = (
-        float(simulation.calculate("employee_payroll_tax", period=year)[0])
-        + sum(
-            float(v)
-            for v in simulation.calculate("employer_social_security_tax", period=year)
-        )
-        + sum(
-            float(v) for v in simulation.calculate("employer_medicare_tax", period=year)
-        )
+    # frate must match fiitax definition: income_tax + additional_medicare_tax
+    base_federal = float(simulation.calculate("income_tax", period=year)[0]) + float(
+        simulation.calculate("additional_medicare_tax", period=year)[0]
     )
+    base_state = float(simulation.calculate("state_income_tax", period=year)[0])
 
     # Get current wages
     pwages = float(people["you"].get("employment_income", {}).get(year, 0))
@@ -80,24 +73,12 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
             period=year,
         )
 
-    new_federal = float(perturbed_sim.calculate("income_tax", period=year)[0])
+    new_federal = float(
+        perturbed_sim.calculate("income_tax", period=year)[0]
+    ) + float(perturbed_sim.calculate("additional_medicare_tax", period=year)[0])
     new_state = float(perturbed_sim.calculate("state_income_tax", period=year)[0])
-    new_fica = (
-        float(perturbed_sim.calculate("employee_payroll_tax", period=year)[0])
-        + sum(
-            float(v)
-            for v in perturbed_sim.calculate(
-                "employer_social_security_tax", period=year
-            )
-        )
-        + sum(
-            float(v)
-            for v in perturbed_sim.calculate("employer_medicare_tax", period=year)
-        )
-    )
 
     return {
         "frate": round(100.0 * (new_federal - base_federal) / DELTA, 4),
         "srate": round(100.0 * (new_state - base_state) / DELTA, 4),
-        "ficar": round(100.0 * (new_fica - base_fica) / DELTA, 4),
     }
