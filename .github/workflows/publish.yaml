@@ -14,6 +14,7 @@ jobs:
     if: |
       (github.repository == 'PolicyEngine/policyengine-taxsim')
       && (github.event.workflow_run.conclusion == 'success')
+      && (github.event.workflow_run.head_commit.message != 'Update package version')
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
