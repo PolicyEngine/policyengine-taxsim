@@ -1,4 +1,4 @@
-name: Run Tests
+name: CI
 
 on:
   push:
@@ -22,24 +22,147 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.10", "3.11"]
-
     steps:
-      - uses: actions/checkout@v2
-
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .
           pip install pytest
-
       - name: Make TAXSIM executables executable (Unix)
         if: runner.os != 'Windows'
         run: chmod +x resources/taxsim35/taxsim35-*.exe
-
       - name: Run tests
         run: pytest tests/
+
+  check-changelog:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for changelog fragments
+        run: |
+          FRAGMENTS=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD -- 'changelog.d/*' | grep -v '.gitkeep' || true)
+
+          if [ -z "$FRAGMENTS" ]; then
+            echo "Error: No new changelog fragments found in this PR."
+            echo ""
+            echo "Please add a changelog fragment. Example:"
+            echo "  echo 'Description of change.' > changelog.d/$(echo $GITHUB_HEAD_REF | tr '/' '-').added.md"
+            echo ""
+            echo "Fragment types: added, changed, fixed, removed, breaking"
+            echo "Format: changelog.d/<name>.<type>.md"
+            exit 1
+          fi
+
+          echo "Found new changelog fragments:"
+          echo "$FRAGMENTS"
+
+          for f in $FRAGMENTS; do
+            TYPE=$(echo "$f" | rev | cut -d. -f2 | rev)
+            case "$TYPE" in
+              added|changed|fixed|removed|breaking)
+                echo "  OK: $f ($TYPE)"
+                ;;
+              *)
+                echo "  ERROR: $f has invalid type '$TYPE'"
+                echo "  Valid types: added, changed, fixed, removed, breaking"
+                exit 1
+                ;;
+            esac
+          done
+
+  versioning:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Check for changelog fragments
+        id: fragments
+        run: |
+          FRAGMENTS=$(find changelog.d -type f ! -name '.gitkeep' 2>/dev/null | head -1)
+          if [ -z "$FRAGMENTS" ]; then
+            echo "No changelog fragments found, skipping versioning."
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Python
+        if: steps.fragments.outputs.found == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install towncrier
+        if: steps.fragments.outputs.found == 'true'
+        run: pip install towncrier
+
+      - name: Infer version bump and update version
+        if: steps.fragments.outputs.found == 'true'
+        run: python .github/bump_version.py
+
+      - name: Get new version
+        if: steps.fragments.outputs.found == 'true'
+        id: version
+        run: |
+          VERSION=$(python -c "import re; print(re.search(r'version = \"(.+?)\"', open('pyproject.toml').read()).group(1))")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build changelog
+        if: steps.fragments.outputs.found == 'true'
+        run: towncrier build --yes --version ${{ steps.version.outputs.version }}
+
+      - name: Commit version bump
+        if: steps.fragments.outputs.found == 'true'
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "."
+          message: Update package version
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [versioning]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: python -m pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI }}
+          skip-existing: true
