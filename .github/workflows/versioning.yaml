@@ -14,10 +14,17 @@ jobs:
     if: |
       (!(github.event.head_commit.message == 'Update package version'))
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.POLICYENGINE_GITHUB }}
+          token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
 
       - name: Setup Python
