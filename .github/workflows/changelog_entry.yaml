@@ -1,4 +1,4 @@
-name: Versioning
+name: Changelog fragment check
 
 on:
   pull_request:
@@ -15,11 +15,11 @@ jobs:
 
       - name: Check for changelog fragments
         run: |
-          # Get list of added/modified files in this PR vs base branch
-          FRAGMENTS=$(find changelog.d -type f ! -name '.gitkeep' 2>/dev/null | head -20)
+          # Compare this PR's commits against the base branch
+          FRAGMENTS=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD -- 'changelog.d/*' | grep -v '.gitkeep' || true)
 
           if [ -z "$FRAGMENTS" ]; then
-            echo "Error: No changelog fragments found in changelog.d/"
+            echo "Error: No new changelog fragments found in this PR."
             echo ""
             echo "Please add a changelog fragment. Example:"
             echo "  echo 'Description of change.' > changelog.d/$(echo $GITHUB_HEAD_REF | tr '/' '-').added.md"
@@ -29,7 +29,7 @@ jobs:
             exit 1
           fi
 
-          echo "Found changelog fragments:"
+          echo "Found new changelog fragments:"
           echo "$FRAGMENTS"
 
           # Validate fragment types

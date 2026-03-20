@@ -1,7 +1,10 @@
 name: Publish to PyPI
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Versioning updates"]
+    types:
+      - completed
     branches:
       - main
 
@@ -10,10 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.repository == 'PolicyEngine/policyengine-taxsim')
-      && (github.event.head_commit.message == 'Update package version')
+      && (github.event.workflow_run.conclusion == 'success')
+      && (github.event.workflow_run.head_commit.message != 'Update package version')
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
