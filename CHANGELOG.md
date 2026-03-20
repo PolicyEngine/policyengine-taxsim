@@ -1,3 +1,10 @@
+## [2.15.1] - 2026-03-20
+
+### Fixed
+
+- Consolidate CI workflows into a single dependency chain.
+
+
 ## [2.15.0] - 2026-03-20
 
 ### Added
