@@ -1,3 +1,15 @@
+## [2.15.0] - 2026-03-20
+
+### Added
+
+- Add chunked processing for large datasets and multi-year support.
+- Add TAXSIM-compatible marginal tax rate computation (frate, srate, ficar) via wage perturbation.
+
+### Fixed
+
+- Fix changelog fragment check to diff against base branch, and chain publish workflow after versioning via workflow_run.
+
+
 ## [2.14.0] - 2026-03-07
 
 ### Added
