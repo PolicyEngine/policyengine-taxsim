@@ -13,32 +13,67 @@ Local (no Modal):
 
 import modal
 
-image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "policyengine-taxsim",
-        "fastapi[standard]",
-        "resend",
-    )
+image = modal.Image.debian_slim(python_version="3.11").pip_install(
+    "policyengine-taxsim",
+    "fastapi[standard]",
+    "resend",
 )
 
 app = modal.App("policyengine-taxsim")
 
 REQUIRED_COLUMNS = {"year"}
 NUMERIC_COLUMNS = {
-    "taxsimid", "year", "state", "mstat", "depx", "pwages", "swages",
-    "page", "sage", "pensions", "gssi", "ltcg", "stcg", "intrec", "idtl",
+    "taxsimid",
+    "year",
+    "state",
+    "mstat",
+    "depx",
+    "pwages",
+    "swages",
+    "page",
+    "sage",
+    "pensions",
+    "gssi",
+    "ltcg",
+    "stcg",
+    "intrec",
+    "idtl",
 }
 
 # All recognized TAXSIM input column names
 KNOWN_COLUMNS = {
-    "taxsimid", "year", "state", "mstat", "page", "sage",
-    "dependent_exemption", "depx", "pwages", "swages",
-    "psemp", "ssemp", "dividends", "intrec", "stcg", "ltcg",
-    "otherprop", "nonprop", "pensions", "gssi",
-    "pui", "sui", "transfers", "rentpaid", "proptax",
-    "otheritem", "childcare", "mortgage", "scorp",
-    "pbusinc", "pprofinc", "idtl",
+    "taxsimid",
+    "year",
+    "state",
+    "mstat",
+    "page",
+    "sage",
+    "dependent_exemption",
+    "depx",
+    "pwages",
+    "swages",
+    "psemp",
+    "ssemp",
+    "dividends",
+    "intrec",
+    "stcg",
+    "ltcg",
+    "otherprop",
+    "nonprop",
+    "pensions",
+    "gssi",
+    "pui",
+    "sui",
+    "transfers",
+    "rentpaid",
+    "proptax",
+    "otheritem",
+    "childcare",
+    "mortgage",
+    "scorp",
+    "pbusinc",
+    "pprofinc",
+    "idtl",
 }
 
 MAILCHIMP_URL = (
@@ -141,6 +176,7 @@ def _subscribe_to_mailchimp(email):
         data = json.loads(json_str)
         if data.get("result") == "error":
             import logging
+
             logging.getLogger(__name__).warning(
                 "Mailchimp subscription for %s: %s", email, data.get("msg", "")
             )
@@ -160,24 +196,30 @@ def _send_results_email(email, csv_text, rows_processed, filename):
 
     resend.api_key = api_key
 
-    output_filename = filename.replace(".csv", "_output.csv") if filename else "output.csv"
+    output_filename = (
+        filename.replace(".csv", "_output.csv") if filename else "output.csv"
+    )
 
-    resend.Emails.send({
-        "from": "PolicyEngine Team <hello@policyengine.org>",
-        "to": email,
-        "subject": f"Your TAXSIM emulator results ({rows_processed:,} households)",
-        "html": (
-            f"<p>Your TAXSIM emulator results are attached.</p>"
-            f"<p><strong>{rows_processed:,}</strong> households were processed successfully.</p>"
-            f"<p>Run more simulations at "
-            f"<a href='https://policyengine.org/us/taxsim/run/'>policyengine.org/us/taxsim/run</a>.</p>"
-            f"<p style='color: #666; font-size: 12px;'>— PolicyEngine</p>"
-        ),
-        "attachments": [{
-            "filename": output_filename,
-            "content": base64.b64encode(csv_text.encode()).decode(),
-        }],
-    })
+    resend.Emails.send(
+        {
+            "from": "PolicyEngine Team <hello@policyengine.org>",
+            "to": email,
+            "subject": f"Your TAXSIM emulator results ({rows_processed:,} households)",
+            "html": (
+                f"<p>Your TAXSIM emulator results are attached.</p>"
+                f"<p><strong>{rows_processed:,}</strong> households were processed successfully.</p>"
+                f"<p>Run more simulations at "
+                f"<a href='https://policyengine.org/us/taxsim/run/'>policyengine.org/us/taxsim/run</a>.</p>"
+                f"<p style='color: #666; font-size: 12px;'>— PolicyEngine</p>"
+            ),
+            "attachments": [
+                {
+                    "filename": output_filename,
+                    "content": base64.b64encode(csv_text.encode()).decode(),
+                }
+            ],
+        }
+    )
 
 
 @app.cls(image=image, container_idle_timeout=300, timeout=600)
@@ -276,6 +318,7 @@ def _build_local_app():
                 # Run in a thread so we can yield SSE events
                 loop = asyncio.get_event_loop()
                 import concurrent.futures
+
                 executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
                 future = loop.run_in_executor(
@@ -293,7 +336,10 @@ def _build_local_app():
                 last_chunks = -1
                 while not future.done():
                     await asyncio.sleep(0.3)
-                    if progress_state["chunks_done"] != last_chunks and progress_state["total_chunks"] > 0:
+                    if (
+                        progress_state["chunks_done"] != last_chunks
+                        and progress_state["total_chunks"] > 0
+                    ):
                         last_chunks = progress_state["chunks_done"]
                         evt = {
                             "type": "progress",
@@ -353,11 +399,14 @@ def _build_local_app():
             except Exception as e:
                 # Log but don't raise — user already got a 200
                 import logging
+
                 logging.getLogger(__name__).error(f"Background email job failed: {e}")
 
         background_tasks.add_task(_process_and_email)
 
-        return {"message": f"Results will be emailed to {req.email} when processing completes."}
+        return {
+            "message": f"Results will be emailed to {req.email} when processing completes."
+        }
 
     return _app
 
