@@ -28,7 +28,7 @@ class StitchedRunner(BaseTaxRunner):
         self.pe_min_year = pe_min_year if pe_min_year is not None else self.PE_MIN_YEAR
         self._pe_kwargs = kwargs
 
-    def run(self, show_progress: bool = True) -> pd.DataFrame:
+    def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
         years = self.input_df["year"].astype(int)
         pe_mask = years >= self.pe_min_year
         taxsim_mask = ~pe_mask
@@ -51,7 +51,7 @@ class StitchedRunner(BaseTaxRunner):
 
         if pe_mask.any():
             pe_runner = PolicyEngineRunner(self.input_df[pe_mask], **self._pe_kwargs)
-            frames.append(pe_runner.run(show_progress=show_progress))
+            frames.append(pe_runner.run(show_progress=show_progress, on_progress=on_progress))
 
         if taxsim_mask.any():
             taxsim_runner = TaxsimRunner(self.input_df[taxsim_mask])
