@@ -8,6 +8,8 @@ import {
   IconLoader2,
   IconFileTypeCsv,
   IconAlertCircle,
+  IconMail,
+  IconCheck,
 } from '@tabler/icons-react';
 
 // Modal deployment URL (set NEXT_PUBLIC_TAXSIM_API_URL to override)
@@ -29,13 +31,17 @@ const CsvRunner = () => {
   const [rowCount, setRowCount] = useState(0);
   const [resultRows, setResultRows] = useState(0);
   const [idtl, setIdtl] = useState('0');
-  const [progress, setProgress] = useState(null); // { chunks_done, total_chunks, rows_done, total_rows }
+  const [progress, setProgress] = useState(null);
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [subscribeToUpdates, setSubscribeToUpdates] = useState(true);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const parseCsvRowCount = (csv) => {
     const lines = csv.trim().split('\n');
-    return Math.max(0, lines.length - 1); // subtract header
+    return Math.max(0, lines.length - 1);
   };
 
   const handleFileContent = useCallback((content, name) => {
@@ -45,6 +51,7 @@ const CsvRunner = () => {
     setOutputCsv('');
     setError('');
     setProgress(null);
+    setEmailSent(false);
   }, []);
 
   const handleFileSelect = (e) => {
@@ -87,6 +94,7 @@ const CsvRunner = () => {
     setResultRows(0);
     setError('');
     setProgress(null);
+    setEmailSent(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -107,7 +115,6 @@ const CsvRunner = () => {
         idtl: parseInt(idtl, 10),
       });
 
-      // Try SSE streaming first for progress updates
       try {
         const res = await fetch(streamUrl, {
           method: 'POST',
@@ -127,7 +134,7 @@ const CsvRunner = () => {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n\n');
-          buffer = lines.pop(); // keep incomplete chunk
+          buffer = lines.pop();
 
           for (const line of lines) {
             const match = line.match(/^data: (.+)$/m);
@@ -151,7 +158,6 @@ const CsvRunner = () => {
           }
         }
       } catch (streamErr) {
-        // Fall back to regular POST if streaming not available
         if (streamErr.message !== 'stream-fallback') throw streamErr;
 
         const res = await fetch(baseUrl, {
@@ -184,6 +190,38 @@ const CsvRunner = () => {
     }
   };
 
+  const sendViaEmail = async () => {
+    if (!isValidEmail || !inputCsv.trim()) return;
+    setEmailSending(true);
+    setError('');
+
+    try {
+      const url = API_URL.includes('modal.run') ? API_URL : `${API_URL}/run/email`;
+      // Fire-and-forget: don't await the response to avoid deadlocking
+      // the single uvicorn worker (background task + stream = deadlock)
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          csv: inputCsv,
+          email: email.trim(),
+          filename: fileName || 'input.csv',
+          disable_salt: true,
+          idtl: parseInt(idtl, 10),
+          subscribe: subscribeToUpdates,
+        }),
+      }).catch(() => {}); // Silently ignore email errors
+
+      setEmailSent(true);
+      setEmailSending(false);
+      // Kick off the browser run immediately
+      runTaxsim();
+    } catch (err) {
+      setError(err.message);
+      setEmailSending(false);
+    }
+  };
+
   const downloadOutput = () => {
     if (!outputCsv) return;
     const blob = new Blob([outputCsv], { type: 'text/csv' });
@@ -205,6 +243,8 @@ const CsvRunner = () => {
   const progressPct = progress
     ? Math.round((progress.rows_done / progress.total_rows) * 100)
     : 0;
+
+  const isValidEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -267,35 +307,14 @@ const CsvRunner = () => {
             </button>
           </div>
 
-          {/* Input preview */}
-          <div className="bg-secondary-900 rounded-lg overflow-hidden">
-            <div className="bg-secondary-800 px-4 py-2">
-              <span className="text-gray-400 text-sm font-mono">Input preview</span>
-            </div>
-            <pre className="p-4 text-sm text-gray-100 font-mono overflow-x-auto leading-relaxed">
-              {(() => {
-                const { shown, remaining } = previewLines(inputCsv);
-                return (
-                  <>
-                    {shown.join('\n')}
-                    {remaining > 0 && (
-                      <span className="text-gray-500">{'\n'}... {fmt(remaining)} more rows</span>
-                    )}
-                  </>
-                );
-              })()}
-            </pre>
-          </div>
-
-          {/* Options */}
-          <div className="bg-gray-50 rounded-lg px-5 py-4 space-y-4">
-            {/* Output detail level */}
+          {/* Output detail options */}
+          <div className="bg-gray-50 rounded-lg px-5 py-4">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm font-medium text-gray-700 min-w-[100px]">Output detail</span>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { value: '0', label: 'Standard', tip: '9 variables: federal & state tax, FICA, marginal rates' },
-                  { value: '2', label: 'Full', tip: '35+ variables: AGI, taxable income, credits, deductions, AMT, and more' },
+                  { value: '0', label: 'Standard', tip: 'Key tax amounts: federal & state tax, FICA, marginal rates' },
+                  { value: '2', label: 'Full', tip: 'All line items: AGI, taxable income, credits, deductions, AMT, and more (35+ columns)' },
                 ].map(({ value, label, tip }) => (
                   <div key={value} className="relative group">
                     <button
@@ -316,27 +335,116 @@ const CsvRunner = () => {
                 ))}
               </div>
             </div>
-
           </div>
 
-          {/* Run button */}
+          {/* Input preview */}
+          <div className="bg-secondary-900 rounded-lg overflow-hidden">
+            <div className="bg-secondary-800 px-4 py-2">
+              <span className="text-gray-400 text-sm font-mono">Input preview</span>
+            </div>
+            <pre className="p-4 text-sm text-gray-100 font-mono overflow-x-auto leading-relaxed">
+              {(() => {
+                const { shown, remaining } = previewLines(inputCsv);
+                return (
+                  <>
+                    {shown.join('\n')}
+                    {remaining > 0 && (
+                      <span className="text-gray-500">{'\n'}... {fmt(remaining)} more rows</span>
+                    )}
+                  </>
+                );
+              })()}
+            </pre>
+          </div>
+
+          {/* Email — primary action */}
+          <div className="border border-gray-200 rounded-xl px-6 py-5 space-y-4">
+            <div className="text-center">
+              <h3 className="text-base font-semibold text-secondary-900">
+                Get your tax calculation results via email
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Enter your email and we&apos;ll send the results as a CSV attachment when processing completes.
+              </p>
+            </div>
+
+            {emailSent ? (
+              <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 rounded-lg px-4 py-3">
+                <IconCheck size={18} />
+                <span className="text-sm font-medium">
+                  Results will be emailed to {email} when processing completes.
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 max-w-md mx-auto">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="flex-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={sendViaEmail}
+                    disabled={!isValidEmail || emailSending || isRunning}
+                    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition ${
+                      isValidEmail && !emailSending && !isRunning
+                        ? 'bg-primary-500 text-white hover:bg-primary-600'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {emailSending ? (
+                      <IconLoader2 size={16} className="animate-spin" />
+                    ) : (
+                      <IconMail size={16} />
+                    )}
+                    Send results
+                  </button>
+                </div>
+
+                <label className="flex items-center justify-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={subscribeToUpdates}
+                    onChange={(e) => setSubscribeToUpdates(e.target.checked)}
+                    className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                  />
+                  <span className="text-xs text-gray-500">
+                    Keep me updated on PolicyEngine models and tools
+                  </span>
+                </label>
+              </>
+            )}
+          </div>
+
+          {/* Or download directly */}
+          <div className="flex items-center gap-3 justify-center">
+            <div className="h-px bg-gray-200 flex-1" />
+            <span className="text-xs text-gray-400 uppercase tracking-wide">or</span>
+            <div className="h-px bg-gray-200 flex-1" />
+          </div>
+
           <div className="flex justify-center">
             <button
               onClick={runTaxsim}
               disabled={isRunning}
-              className={`inline-flex items-center gap-2 px-8 py-3 rounded-lg font-semibold text-white transition ${
+              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition ${
                 isRunning
-                  ? 'bg-primary-400 cursor-not-allowed'
-                  : 'bg-primary-500 hover:bg-primary-600'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
               {isRunning ? (
                 <>
-                  <IconLoader2 size={18} className="animate-spin" />
+                  <IconLoader2 size={16} className="animate-spin" />
                   Processing {fmt(rowCount)} {rowCount === 1 ? 'household' : 'households'}...
                 </>
               ) : (
-                <>Run the emulator</>
+                <>
+                  <IconDownload size={16} />
+                  Run and download in browser
+                </>
               )}
             </button>
           </div>

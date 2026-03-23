@@ -18,6 +18,7 @@ image = (
     .pip_install(
         "policyengine-taxsim",
         "fastapi[standard]",
+        "resend",
     )
 )
 
@@ -28,6 +29,11 @@ NUMERIC_COLUMNS = {
     "taxsimid", "year", "state", "mstat", "depx", "pwages", "swages",
     "page", "sage", "pensions", "gssi", "ltcg", "stcg", "intrec", "idtl",
 }
+
+MAILCHIMP_URL = (
+    "https://policyengine.us5.list-manage.com/subscribe/post-json"
+    "?u=e5ad35332666289a0f48013c5&id=71ed1f89d8&f_id=00f173e6f0"
+)
 
 
 def _validate_csv(csv_text):
@@ -97,6 +103,60 @@ def _run_taxsim(csv_text, disable_salt, assume_w2_wages, idtl, on_progress=None)
     return {"csv": results.to_csv(index=False), "rows_processed": len(df)}
 
 
+def _subscribe_to_mailchimp(email):
+    """Subscribe an email to the PolicyEngine Mailchimp list (best-effort)."""
+    import urllib.request
+    import urllib.parse
+    import json
+
+    try:
+        url = f"{MAILCHIMP_URL}&EMAIL={urllib.parse.quote(email)}&c=cb"
+        resp = urllib.request.urlopen(url, timeout=10)
+        body = resp.read().decode()
+        # JSONP response: cb({...})
+        json_str = body[body.index("(") + 1 : body.rindex(")")]
+        data = json.loads(json_str)
+        if data.get("result") == "error":
+            import logging
+            logging.getLogger(__name__).warning(
+                "Mailchimp subscription for %s: %s", email, data.get("msg", "")
+            )
+    except Exception:
+        pass  # Best-effort — don't fail the request if Mailchimp is down
+
+
+def _send_results_email(email, csv_text, rows_processed, filename):
+    """Send results CSV via Resend."""
+    import os
+    import base64
+    import resend
+
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        raise ValueError("Email delivery is not configured (missing RESEND_API_KEY).")
+
+    resend.api_key = api_key
+
+    output_filename = filename.replace(".csv", "_output.csv") if filename else "output.csv"
+
+    resend.Emails.send({
+        "from": "PolicyEngine Team <hello@policyengine.org>",
+        "to": email,
+        "subject": f"Your TAXSIM emulator results ({rows_processed:,} households)",
+        "html": (
+            f"<p>Your TAXSIM emulator results are attached.</p>"
+            f"<p><strong>{rows_processed:,}</strong> households were processed successfully.</p>"
+            f"<p>Run more simulations at "
+            f"<a href='https://policyengine.org/us/taxsim/run/'>policyengine.org/us/taxsim/run</a>.</p>"
+            f"<p style='color: #666; font-size: 12px;'>— PolicyEngine</p>"
+        ),
+        "attachments": [{
+            "filename": output_filename,
+            "content": base64.b64encode(csv_text.encode()).decode(),
+        }],
+    })
+
+
 @app.cls(image=image, container_idle_timeout=300, timeout=600)
 class TaxsimAPI:
     @modal.enter()
@@ -130,7 +190,7 @@ class TaxsimAPI:
 def _build_local_app():
     import asyncio
     import json
-    from fastapi import FastAPI, HTTPException, Request
+    from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import StreamingResponse
     from pydantic import BaseModel
@@ -150,6 +210,15 @@ def _build_local_app():
         disable_salt: bool = False
         assume_w2_wages: bool = False
         idtl: Optional[int] = None
+
+    class EmailRunRequest(BaseModel):
+        csv: str
+        email: str
+        filename: str = "input.csv"
+        disable_salt: bool = False
+        assume_w2_wages: bool = False
+        idtl: Optional[int] = None
+        subscribe: bool = True
 
     @_app.post("/run")
     def run_taxsim(req: RunRequest):
@@ -221,6 +290,51 @@ def _build_local_app():
                 yield f"data: {json.dumps({'type': 'error', 'error': f'Processing error: {e}'})}\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    @_app.post("/run/email")
+    def run_and_email(req: EmailRunRequest, background_tasks: BackgroundTasks):
+        """Validate CSV, subscribe to Mailchimp, then process and email results in background."""
+        import re
+
+        # Validate email
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", req.email):
+            raise HTTPException(status_code=400, detail="Invalid email address.")
+
+        # Validate CSV upfront so the user gets immediate feedback
+        try:
+            _validate_csv(req.csv)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        def _process_and_email():
+            try:
+                # Subscribe to Mailchimp (best-effort, only if user opted in)
+                if req.subscribe:
+                    _subscribe_to_mailchimp(req.email)
+
+                # Run the simulation
+                result = _run_taxsim(
+                    req.csv,
+                    disable_salt=req.disable_salt,
+                    assume_w2_wages=req.assume_w2_wages,
+                    idtl=req.idtl,
+                )
+
+                # Email the results
+                _send_results_email(
+                    req.email,
+                    result["csv"],
+                    result["rows_processed"],
+                    req.filename,
+                )
+            except Exception as e:
+                # Log but don't raise — user already got a 200
+                import logging
+                logging.getLogger(__name__).error(f"Background email job failed: {e}")
+
+        background_tasks.add_task(_process_and_email)
+
+        return {"message": f"Results will be emailed to {req.email} when processing completes."}
 
     return _app
 
