@@ -30,6 +30,17 @@ NUMERIC_COLUMNS = {
     "page", "sage", "pensions", "gssi", "ltcg", "stcg", "intrec", "idtl",
 }
 
+# All recognized TAXSIM input column names
+KNOWN_COLUMNS = {
+    "taxsimid", "year", "state", "mstat", "page", "sage",
+    "dependent_exemption", "depx", "pwages", "swages",
+    "psemp", "ssemp", "dividends", "intrec", "stcg", "ltcg",
+    "otherprop", "nonprop", "pensions", "gssi",
+    "pui", "sui", "transfers", "rentpaid", "proptax",
+    "otheritem", "childcare", "mortgage", "scorp",
+    "pbusinc", "pprofinc", "idtl",
+}
+
 MAILCHIMP_URL = (
     "https://policyengine.us5.list-manage.com/subscribe/post-json"
     "?u=e5ad35332666289a0f48013c5&id=71ed1f89d8&f_id=00f173e6f0"
@@ -75,14 +86,23 @@ def _validate_csv(csv_text):
                 "All input variables must be numbers."
             )
 
-    return df
+    # Warn about unrecognized columns (they'll be silently ignored)
+    warnings = []
+    unknown = set(df.columns) - KNOWN_COLUMNS
+    if unknown:
+        warnings.append(
+            f"Unrecognized column(s): {', '.join(sorted(unknown))}. "
+            "These will be ignored. See the documentation for valid input variables."
+        )
+
+    return df, warnings
 
 
 def _run_taxsim(csv_text, disable_salt, assume_w2_wages, idtl, on_progress=None):
     """Shared logic for both Modal and local endpoints."""
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
 
-    df = _validate_csv(csv_text)
+    df, warnings = _validate_csv(csv_text)
 
     # Override idtl on all rows if specified
     if idtl is not None:
@@ -97,10 +117,13 @@ def _run_taxsim(csv_text, disable_salt, assume_w2_wages, idtl, on_progress=None)
     results = runner.run(show_progress=False, on_progress=on_progress)
 
     # idtl=5 returns text per-household; everything else returns a DataFrame
+    base = {"rows_processed": len(df)}
+    if warnings:
+        base["warnings"] = warnings
     if isinstance(results, str):
-        return {"csv": results, "rows_processed": len(df)}
+        return {"csv": results, **base}
 
-    return {"csv": results.to_csv(index=False), "rows_processed": len(df)}
+    return {"csv": results.to_csv(index=False), **base}
 
 
 def _subscribe_to_mailchimp(email):
@@ -302,7 +325,7 @@ def _build_local_app():
 
         # Validate CSV upfront so the user gets immediate feedback
         try:
-            _validate_csv(req.csv)
+            _df, _warnings = _validate_csv(req.csv)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 

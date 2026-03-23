@@ -22,6 +22,16 @@ const SAMPLE_CSV = `taxsimid,year,state,mstat,depx,pwages,swages,page,sage
 
 const fmt = (n) => Number(n).toLocaleString();
 
+const KNOWN_COLUMNS = new Set([
+  'taxsimid', 'year', 'state', 'mstat', 'page', 'sage',
+  'dependent_exemption', 'depx', 'pwages', 'swages',
+  'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg',
+  'otherprop', 'nonprop', 'pensions', 'gssi',
+  'pui', 'sui', 'transfers', 'rentpaid', 'proptax',
+  'otheritem', 'childcare', 'mortgage', 'scorp',
+  'pbusinc', 'pprofinc', 'idtl',
+]);
+
 const CsvRunner = () => {
   const [inputCsv, setInputCsv] = useState('');
   const [outputCsv, setOutputCsv] = useState('');
@@ -36,6 +46,7 @@ const CsvRunner = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
   const [subscribeToUpdates, setSubscribeToUpdates] = useState(true);
+  const [warnings, setWarnings] = useState([]);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -52,6 +63,21 @@ const CsvRunner = () => {
     setError('');
     setProgress(null);
     setEmailSent(false);
+
+    // Check for unrecognized columns immediately
+    const header = content.trim().split('\n')[0];
+    if (header) {
+      const cols = header.split(',').map((c) => c.trim());
+      const unknown = cols.filter((c) => !KNOWN_COLUMNS.has(c));
+      if (unknown.length > 0) {
+        setWarnings([
+          `Unrecognized column${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}. ` +
+            'These will be ignored. See the documentation for valid input variables.',
+        ]);
+      } else {
+        setWarnings([]);
+      }
+    }
   }, []);
 
   const handleFileSelect = (e) => {
@@ -95,6 +121,7 @@ const CsvRunner = () => {
     setError('');
     setProgress(null);
     setEmailSent(false);
+    setWarnings([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -103,6 +130,7 @@ const CsvRunner = () => {
     setIsRunning(true);
     setError('');
     setOutputCsv('');
+    setWarnings([]);
     setProgress(null);
 
     try {
@@ -151,6 +179,7 @@ const CsvRunner = () => {
             } else if (evt.type === 'result') {
               setOutputCsv(evt.csv);
               setResultRows(evt.rows_processed);
+              if (evt.warnings) setWarnings(evt.warnings);
               setProgress(null);
             } else if (evt.type === 'error') {
               throw new Error(evt.error);
@@ -175,6 +204,7 @@ const CsvRunner = () => {
         if (data.error) throw new Error(data.error);
         setOutputCsv(data.csv);
         setResultRows(data.rows_processed);
+        if (data.warnings) setWarnings(data.warnings);
       }
     } catch (err) {
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
@@ -306,6 +336,18 @@ const CsvRunner = () => {
               <IconX size={18} />
             </button>
           </div>
+
+          {/* Warnings (e.g. unrecognized columns) */}
+          {warnings.length > 0 && (
+            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+              <IconAlertCircle size={18} className="text-amber-500 flex-shrink-0" />
+              <div className="text-sm text-amber-700">
+                {warnings.map((w, i) => (
+                  <p key={i}>{w}</p>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Output detail options */}
           <div className="bg-gray-50 rounded-lg px-5 py-4">
