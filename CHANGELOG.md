@@ -1,3 +1,10 @@
+## [2.15.2] - 2026-03-23
+
+### Changed
+
+- Match dashboard header to policyengine-app-v2 design.
+
+
 ## [2.15.1] - 2026-03-20
 
 ### Fixed
