@@ -405,6 +405,12 @@ policyengine_versions()
             <IconHome size={16} />
             Home
           </Link>
+          <Link
+            href="/run"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition"
+          >
+            Web Runner
+          </Link>
           <span className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-primary-600 bg-primary-50">
             <IconBook size={16} />
             Documentation

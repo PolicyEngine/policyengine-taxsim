@@ -31,6 +31,13 @@ dependencies = [
     "tqdm",
 ]
 
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "resend>=2.0.0",
+]
+
 [tool.hatch.metadata]
 allow-direct-references = true
 

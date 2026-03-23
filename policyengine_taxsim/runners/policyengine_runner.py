@@ -821,7 +821,7 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         return df
 
-    CHUNK_SIZE = 100_000
+    CHUNK_SIZE = 10_000
 
     def _run_chunk(self, chunk_df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -873,10 +873,14 @@ class PolicyEngineRunner(BaseTaxRunner):
         finally:
             dataset.cleanup()
 
-    def run(self, show_progress: bool = True) -> pd.DataFrame:
+    def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
         """
         Run PolicyEngine Microsimulation on all records, chunked by year
         and then by CHUNK_SIZE to avoid memory issues with large datasets.
+
+        Args:
+            show_progress: Whether to show tqdm progress bar.
+            on_progress: Optional callback(chunks_done, total_chunks, rows_done, total_rows).
 
         Returns:
             DataFrame with TAXSIM-formatted output variables
@@ -898,6 +902,9 @@ class PolicyEngineRunner(BaseTaxRunner):
             // self.CHUNK_SIZE
             for y in years
         )
+        total_rows = len(self.input_df)
+        chunks_done = 0
+        rows_done = 0
 
         with tqdm(
             total=total_chunks,
@@ -909,7 +916,11 @@ class PolicyEngineRunner(BaseTaxRunner):
                 for start in range(0, len(year_df), self.CHUNK_SIZE):
                     chunk_df = year_df.iloc[start : start + self.CHUNK_SIZE].copy()
                     frames.append(self._run_chunk(chunk_df))
+                    chunks_done += 1
+                    rows_done += len(chunk_df)
                     pbar.update(1)
+                    if on_progress:
+                        on_progress(chunks_done, total_chunks, rows_done, total_rows)
 
         results_df = pd.concat(frames, ignore_index=True)
 

@@ -255,6 +255,22 @@ const LandingContent = () => {
         </div>
       </section>
 
+      {/* Try it online CTA */}
+      <section className="py-12 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+          <p className="text-gray-500 text-lg mb-6">
+            Or run it directly in your browser.
+          </p>
+          <Link
+            href="/run"
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-primary-500 text-white font-semibold hover:bg-primary-600 transition"
+          >
+            Try it online
+            <IconArrowRight className="ml-2" size={18} />
+          </Link>
+        </div>
+      </section>
+
       {/* Powered by PolicyEngine */}
       <section className="py-16 px-6 bg-gray-50">
         <div className="max-w-5xl mx-auto">
