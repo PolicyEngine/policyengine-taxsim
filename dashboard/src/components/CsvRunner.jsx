@@ -31,7 +31,6 @@ const CsvRunner = () => {
   const [idtl, setIdtl] = useState('0');
   const [progress, setProgress] = useState(null); // { chunks_done, total_chunks, rows_done, total_rows }
   const fileInputRef = useRef(null);
-  const dropRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const parseCsvRowCount = (csv) => {
@@ -213,7 +212,6 @@ const CsvRunner = () => {
       {/* Upload area */}
       {!inputCsv ? (
         <div
-          ref={dropRef}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
