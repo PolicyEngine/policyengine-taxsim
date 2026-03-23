@@ -104,7 +104,6 @@ const CsvRunner = () => {
       const payload = JSON.stringify({
         csv: inputCsv,
         disable_salt: true,
-        assume_w2_wages: true,
         idtl: parseInt(idtl, 10),
       });
 
