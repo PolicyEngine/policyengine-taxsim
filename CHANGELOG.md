@@ -1,3 +1,10 @@
+## [2.16.0] - 2026-03-23
+
+### Added
+
+- Add web runner for browser-based CSV processing.
+
+
 ## [2.15.2] - 2026-03-23
 
 ### Changed
