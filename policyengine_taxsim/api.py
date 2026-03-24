@@ -133,7 +133,14 @@ def _validate_csv(csv_text):
     return df, warnings
 
 
-def _run_taxsim(csv_text, disable_salt, assume_w2_wages, idtl, on_progress=None):
+def _run_taxsim(
+    csv_text,
+    disable_salt,
+    assume_w2_wages,
+    idtl,
+    on_progress=None,
+    use_remote_taxsim=False,
+):
     """Shared logic for both Modal and local endpoints."""
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
 
@@ -148,6 +155,7 @@ def _run_taxsim(csv_text, disable_salt, assume_w2_wages, idtl, on_progress=None)
         logs=False,
         disable_salt=disable_salt,
         assume_w2_wages=assume_w2_wages,
+        use_remote_taxsim=use_remote_taxsim,
     )
     results = runner.run(show_progress=False, on_progress=on_progress)
 
@@ -293,6 +301,7 @@ def _build_local_app():
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
                 idtl=req.idtl,
+                use_remote_taxsim=True,
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -329,6 +338,7 @@ def _build_local_app():
                         assume_w2_wages=req.assume_w2_wages,
                         idtl=req.idtl,
                         on_progress=on_progress,
+                        use_remote_taxsim=True,
                     ),
                 )
 
@@ -387,6 +397,7 @@ def _build_local_app():
                     disable_salt=req.disable_salt,
                     assume_w2_wages=req.assume_w2_wages,
                     idtl=req.idtl,
+                    use_remote_taxsim=True,
                 )
 
                 # Email the results

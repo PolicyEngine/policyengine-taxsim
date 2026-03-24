@@ -5,7 +5,6 @@ import pandas as pd
 
 from .base_runner import BaseTaxRunner
 from .policyengine_runner import PolicyEngineRunner
-from .taxsim_runner import TaxsimRunner
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,8 @@ class StitchedRunner(BaseTaxRunner):
     """Routes rows to PolicyEngine or TAXSIM based on tax year.
 
     Years >= pe_min_year (default 2021) are processed by PolicyEngineRunner.
-    Earlier years are processed by TaxsimRunner. Results are merged and
+    Earlier years are processed by TaxsimRunner (local binary) or
+    RemoteTaxsimRunner (NBER web service). Results are merged and
     returned in the original taxsimid order.
     """
 
@@ -23,10 +23,28 @@ class StitchedRunner(BaseTaxRunner):
     # kwargs that only PolicyEngineRunner understands
     _PE_ONLY_KWARGS = {"logs", "disable_salt", "assume_w2_wages"}
 
-    def __init__(self, input_df: pd.DataFrame, pe_min_year=None, **kwargs):
+    def __init__(
+        self,
+        input_df: pd.DataFrame,
+        pe_min_year=None,
+        use_remote_taxsim=False,
+        **kwargs,
+    ):
         super().__init__(input_df)
         self.pe_min_year = pe_min_year if pe_min_year is not None else self.PE_MIN_YEAR
+        self.use_remote_taxsim = use_remote_taxsim
         self._pe_kwargs = kwargs
+
+    def _make_taxsim_runner(self, df):
+        """Create the appropriate TAXSIM runner (local or remote)."""
+        if self.use_remote_taxsim:
+            from .remote_taxsim_runner import RemoteTaxsimRunner
+
+            return RemoteTaxsimRunner(df)
+        else:
+            from .taxsim_runner import TaxsimRunner
+
+            return TaxsimRunner(df)
 
     def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
         years = self.input_df["year"].astype(int)
@@ -56,7 +74,7 @@ class StitchedRunner(BaseTaxRunner):
             )
 
         if taxsim_mask.any():
-            taxsim_runner = TaxsimRunner(self.input_df[taxsim_mask])
+            taxsim_runner = self._make_taxsim_runner(self.input_df[taxsim_mask])
             frames.append(taxsim_runner.run(show_progress=show_progress))
 
         if not frames:
