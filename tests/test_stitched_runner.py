@@ -33,7 +33,7 @@ def _make_result(ids_and_years, prefix=""):
 class TestRouting:
     """Rows are sent to the correct engine based on year."""
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_all_pe_years(self, MockPE, MockTaxsim):
         """All rows >= 2021 go only to PolicyEngineRunner."""
@@ -48,7 +48,7 @@ class TestRouting:
         MockPE.assert_called_once()
         MockTaxsim.assert_not_called()
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_all_taxsim_years(self, MockPE, MockTaxsim):
         """All rows < 2021 go only to TaxsimRunner."""
@@ -63,7 +63,7 @@ class TestRouting:
         MockTaxsim.assert_called_once()
         MockPE.assert_not_called()
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_mixed_years(self, MockPE, MockTaxsim):
         """Mixed years split correctly between engines."""
@@ -94,7 +94,7 @@ class TestRouting:
 class TestBoundaryYears:
     """Year 2021 goes to PE, year 2020 goes to TAXSIM."""
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_year_2021_goes_to_pe(self, MockPE, MockTaxsim):
         df = _make_input([(1, 2021)])
@@ -106,7 +106,7 @@ class TestBoundaryYears:
         MockPE.assert_called_once()
         MockTaxsim.assert_not_called()
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_year_2020_goes_to_taxsim(self, MockPE, MockTaxsim):
         df = _make_input([(1, 2020)])
@@ -127,7 +127,7 @@ class TestBoundaryYears:
 class TestOutputOrdering:
     """Result rows are returned in the original taxsimid order."""
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_order_preserved(self, MockPE, MockTaxsim):
         df = _make_input([(3, 2019), (1, 2023), (4, 1990), (2, 2025)])
@@ -148,7 +148,7 @@ class TestOutputOrdering:
 class TestConfigurableCutoff:
     """pe_min_year parameter shifts the routing boundary."""
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_custom_cutoff(self, MockPE, MockTaxsim):
         df = _make_input([(1, 2022), (2, 2023)])
@@ -174,7 +174,7 @@ class TestConfigurableCutoff:
 class TestEdgeCases:
     """Single-row inputs and empty DataFrame."""
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_single_pe_row(self, MockPE, MockTaxsim):
         df = _make_input([(1, 2024)])
@@ -187,7 +187,7 @@ class TestEdgeCases:
         MockPE.assert_called_once()
         MockTaxsim.assert_not_called()
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_single_taxsim_row(self, MockPE, MockTaxsim):
         df = _make_input([(1, 1980)])
@@ -205,7 +205,7 @@ class TestEdgeCases:
         with pytest.raises(ValueError, match="cannot be empty"):
             StitchedRunner(pd.DataFrame())
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_mismatched_taxsimids_raises(self, MockPE, MockTaxsim):
         """ValueError raised when runner output ids don't match input."""
@@ -226,7 +226,7 @@ class TestEdgeCases:
 class TestKwargsForwarding:
     """PE-specific kwargs (logs, disable_salt) are forwarded."""
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_pe_kwargs_forwarded(self, MockPE, MockTaxsim):
         df = _make_input([(1, 2024)])
@@ -239,7 +239,7 @@ class TestKwargsForwarding:
         assert kwargs["logs"] is True
         assert kwargs["disable_salt"] is True
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_pe_kwargs_warning_for_taxsim_rows(self, MockPE, MockTaxsim, caplog):
         """Warning logged when PE-only kwargs are set but rows go to TAXSIM."""
@@ -270,7 +270,7 @@ class TestCLIIntegration:
 
         assert SR is StitchedRunner
 
-    @patch("policyengine_taxsim.runners.stitched_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
     def test_cli_uses_stitched_runner(self, MockPE, MockTaxsim):
         """The CLI default mode instantiates StitchedRunner (not bare PolicyEngineRunner)."""
