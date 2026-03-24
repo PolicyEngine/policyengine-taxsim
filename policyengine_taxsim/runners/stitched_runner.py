@@ -80,7 +80,7 @@ class StitchedRunner(BaseTaxRunner):
         if not frames:
             return pd.DataFrame(columns=self.input_df.columns)
 
-        result = pd.concat(frames, ignore_index=True).fillna(0)
+        result = pd.concat(frames, ignore_index=True)
 
         # Restore original taxsimid order
         original_order = self.input_df["taxsimid"].tolist()
