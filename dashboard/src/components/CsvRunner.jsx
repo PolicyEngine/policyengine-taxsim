@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
+import { assetUrl } from '../utils/basePath';
 import {
   IconUpload,
   IconDownload,
@@ -10,6 +11,7 @@ import {
   IconAlertCircle,
   IconMail,
   IconCheck,
+  IconDatabase,
 } from '@tabler/icons-react';
 
 const API_URL = process.env.NEXT_PUBLIC_TAXSIM_API_URL || '';
@@ -18,6 +20,22 @@ const SAMPLE_CSV = `taxsimid,year,state,mstat,depx,pwages,swages,page,sage
 1,2024,5,2,2,80000,50000,40,38
 2,2024,33,1,0,120000,0,35,0
 3,2024,44,2,1,60000,40000,30,28`;
+
+// Pre-built datasets available for download from /public
+const SAMPLE_DATASETS = [
+  {
+    id: 'sample_3',
+    label: '3 households',
+    description: 'Minimal test file with 3 example households',
+    file: null,  // uses inline SAMPLE_CSV
+  },
+  {
+    id: 'sample_ecps_2024',
+    label: 'Enhanced CPS 2024 (916 households)',
+    description: 'Representative sample from the Enhanced Current Population Survey — diverse incomes, filing statuses, and all 50 states',
+    file: 'sample_ecps_2024.csv',
+  },
+];
 
 const fmt = (n) => Number(n).toLocaleString();
 
@@ -107,8 +125,25 @@ const CsvRunner = () => {
 
   const handleDragLeave = () => setIsDragging(false);
 
-  const loadSample = () => {
-    handleFileContent(SAMPLE_CSV, 'sample.csv');
+  const [loadingDataset, setLoadingDataset] = useState(null);
+
+  const loadSampleDataset = async (dataset) => {
+    if (dataset.file === null) {
+      // Inline sample
+      handleFileContent(SAMPLE_CSV, 'sample.csv');
+      return;
+    }
+    setLoadingDataset(dataset.id);
+    try {
+      const res = await fetch(assetUrl(`/${dataset.file}`));
+      if (!res.ok) throw new Error(`Failed to load ${dataset.file}`);
+      const text = await res.text();
+      handleFileContent(text, dataset.file);
+    } catch (err) {
+      setError(`Failed to load sample dataset: ${err.message}`);
+    } finally {
+      setLoadingDataset(null);
+    }
   };
 
   const clearInput = () => {
@@ -306,15 +341,35 @@ const CsvRunner = () => {
           <p className="text-sm text-gray-400">
             TAXSIM-format CSV with columns like taxsimid, year, state, mstat, pwages, etc.
           </p>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              loadSample();
-            }}
-            className="mt-4 text-sm text-primary-500 hover:text-primary-600 underline"
+
+          {/* Sample datasets */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mt-6 pt-5 border-t border-gray-200"
           >
-            Or try a sample file
-          </button>
+            <p className="text-sm font-medium text-gray-500 mb-3">Or try a sample dataset</p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              {SAMPLE_DATASETS.map((ds) => (
+                <button
+                  key={ds.id}
+                  onClick={() => loadSampleDataset(ds)}
+                  disabled={loadingDataset !== null}
+                  className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:border-primary-400 hover:bg-primary-50 transition disabled:opacity-50"
+                >
+                  {loadingDataset === ds.id ? (
+                    <IconLoader2 size={16} className="animate-spin text-primary-500" />
+                  ) : (
+                    <IconDatabase size={16} className="text-gray-400 group-hover:text-primary-500" />
+                  )}
+                  {ds.label}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-secondary-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10 max-w-xs text-center">
+                    {ds.description}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-secondary-900" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
