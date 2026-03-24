@@ -1,3 +1,10 @@
+## [2.17.0] - 2026-03-24
+
+### Added
+
+- Add remote TAXSIM-35 runner for seamless pre-2021 support in the web runner.
+
+
 ## [2.16.0] - 2026-03-23
 
 ### Added
