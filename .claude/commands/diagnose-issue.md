@@ -162,16 +162,22 @@ ls /Users/pavelmakarchuk/policyengine-us/policyengine_us/variables/gov/states/{s
 grep -r "variable_name" /Users/pavelmakarchuk/policyengine-us/policyengine_us/
 ```
 
-### Step 9: Document Finding
-Update the tracker in `issue_analysis/README.md`.
+### Step 9: File policyengine-us Issue (MANDATORY when PE needs a fix)
 
-If PE needs a fix, **draft** an issue for policyengine-us with:
-1. Summary of the problem
-2. Root cause analysis with code references
-3. Suggested fix
-4. Integration test with correct expected values (from TaxAct PDF, not PE's buggy output)
+Every policyengine-us issue filed from a TAXSIM diagnosis **MUST** include:
 
-**Show the draft to the user and wait for approval before posting.**
+1. **Summary** of the problem
+2. **Root cause analysis** with code references
+3. **Suggested fix**
+4. **Integration test** (YAML) with expected values derived from the TaxAct PDF (ground truth), NOT from PE's current buggy output. Use the format from existing tests in `policyengine_us/tests/policy/baseline/gov/states/{state}/tax/income/integration.yaml`
+5. **Link to the originating TAXSIM issue**: `PolicyEngine/policyengine-taxsim#{issue_number}`
+
+After filing the policyengine-us issue, **comment on the TAXSIM issue** with:
+- The three-way comparison table
+- Root cause summary
+- Link to the policyengine-us issue: `PolicyEngine/policyengine-us#{issue_number}`
+
+**Show all drafts to the user and wait for approval before posting.**
 
 ---
 
