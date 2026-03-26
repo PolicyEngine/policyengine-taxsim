@@ -12,7 +12,8 @@ import {
   IconCheck,
 } from '@tabler/icons-react';
 
-const API_URL = process.env.NEXT_PUBLIC_TAXSIM_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_TAXSIM_API_URL || '';
+const IS_MODAL = API_URL.includes('modal.run');
 
 const SAMPLE_CSV = `taxsimid,year,state,mstat,depx,pwages,swages,page,sage
 1,2024,5,2,2,80000,50000,40,38
@@ -126,6 +127,10 @@ const CsvRunner = () => {
 
   const runTaxsim = async () => {
     if (!inputCsv.trim()) return;
+    if (!API_URL) {
+      setError('API server URL is not configured (NEXT_PUBLIC_TAXSIM_API_URL).');
+      return;
+    }
     setIsRunning(true);
     setError('');
     setOutputCsv('');
@@ -133,8 +138,7 @@ const CsvRunner = () => {
     setProgress(null);
 
     try {
-      const isModal = API_URL.includes('modal.run');
-      const baseUrl = isModal ? API_URL : `${API_URL}/run`;
+      const baseUrl = IS_MODAL ? API_URL : `${API_URL}/run`;
       const streamUrl = `${API_URL}/run/stream`;
 
       const payload = JSON.stringify({
@@ -144,7 +148,7 @@ const CsvRunner = () => {
       });
 
       // Modal only supports a single POST endpoint (no SSE streaming)
-      if (isModal) {
+      if (IS_MODAL) {
         const res = await fetch(baseUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -247,7 +251,7 @@ const CsvRunner = () => {
     setError('');
 
     try {
-      const url = API_URL.includes('modal.run') ? API_URL : `${API_URL}/run/email`;
+      const url = IS_MODAL ? API_URL : `${API_URL}/run/email`;
       // Fire-and-forget: don't await the response to avoid deadlocking
       // the single uvicorn worker (background task + stream = deadlock)
       fetch(url, {
