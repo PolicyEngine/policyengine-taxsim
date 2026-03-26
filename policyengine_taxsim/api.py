@@ -317,8 +317,10 @@ def _build_modal_app():
                 )
 
                 last_chunks = -1
+                heartbeat_counter = 0
                 while not future.done():
                     await asyncio.sleep(0.3)
+                    heartbeat_counter += 1
                     if (
                         progress_state["chunks_done"] != last_chunks
                         and progress_state["total_chunks"] > 0
@@ -332,6 +334,10 @@ def _build_modal_app():
                             "total_rows": progress_state.get("total_rows", 0),
                         }
                         yield f"data: {json.dumps(evt)}\n\n"
+                        heartbeat_counter = 0
+                    elif heartbeat_counter >= 30:
+                        yield ": heartbeat\n\n"
+                        heartbeat_counter = 0
 
                 result = await future
                 yield f"data: {json.dumps({'type': 'result', **result})}\n\n"
@@ -484,8 +490,10 @@ def _build_local_app():
 
                 # Poll for progress while the runner works
                 last_chunks = -1
+                heartbeat_counter = 0
                 while not future.done():
                     await asyncio.sleep(0.3)
+                    heartbeat_counter += 1
                     if (
                         progress_state["chunks_done"] != last_chunks
                         and progress_state["total_chunks"] > 0
@@ -499,6 +507,10 @@ def _build_local_app():
                             "total_rows": progress_state.get("total_rows", 0),
                         }
                         yield f"data: {json.dumps(evt)}\n\n"
+                        heartbeat_counter = 0
+                    elif heartbeat_counter >= 30:
+                        yield ": heartbeat\n\n"
+                        heartbeat_counter = 0
 
                 result = await future
                 yield f"data: {json.dumps({'type': 'result', **result})}\n\n"
