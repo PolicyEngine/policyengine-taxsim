@@ -492,7 +492,13 @@ const CsvRunner = () => {
             </button>
           </div>
 
-          {/* Progress bar */}
+          {/* Cold start / progress */}
+          {isRunning && !progress && (
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
+              <IconLoader2 size={16} className="animate-spin" />
+              <span>Connecting to server — first request may take up to a minute to start...</span>
+            </div>
+          )}
           {progress && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm text-gray-500">
