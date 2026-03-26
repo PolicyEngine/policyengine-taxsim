@@ -1,3 +1,10 @@
+## [2.17.1] - 2026-03-26
+
+### Changed
+
+- Deploy TAXSIM API on Modal and wire dashboard to use it instead of requiring a local server.
+
+
 ## [2.17.0] - 2026-03-24
 
 ### Added
