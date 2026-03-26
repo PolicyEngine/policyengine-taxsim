@@ -287,65 +287,52 @@ def _build_modal_app():
     @_app.post("/run/stream")
     async def run_taxsim_stream(request: Request):
         """SSE endpoint that streams chunk progress, then the final result."""
+        import threading
+        import queue
+
         body = await request.json()
         req = RunRequest(**body)
 
         async def event_stream():
-            progress_state = {"chunks_done": 0, "total_chunks": 0}
+            msg_queue = queue.Queue()
 
             def on_progress(chunks_done, total_chunks, rows_done, total_rows):
-                progress_state["chunks_done"] = chunks_done
-                progress_state["total_chunks"] = total_chunks
-                progress_state["rows_done"] = rows_done
-                progress_state["total_rows"] = total_rows
+                msg_queue.put(
+                    {
+                        "type": "progress",
+                        "chunks_done": chunks_done,
+                        "total_chunks": total_chunks,
+                        "rows_done": rows_done,
+                        "total_rows": total_rows,
+                    }
+                )
 
-            try:
-                loop = asyncio.get_event_loop()
-                import concurrent.futures
-
-                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-
-                future = loop.run_in_executor(
-                    executor,
-                    lambda: _run_taxsim(
+            def run_worker():
+                try:
+                    result = _run_taxsim(
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
                         idtl=req.idtl,
                         on_progress=on_progress,
-                    ),
-                )
+                    )
+                    msg_queue.put({"type": "result", **result})
+                except ValueError as e:
+                    msg_queue.put({"type": "error", "error": str(e)})
+                except Exception as e:
+                    msg_queue.put({"type": "error", "error": f"Processing error: {e}"})
 
-                last_chunks = -1
-                heartbeat_counter = 0
-                while not future.done():
-                    await asyncio.sleep(0.3)
-                    heartbeat_counter += 1
-                    if (
-                        progress_state["chunks_done"] != last_chunks
-                        and progress_state["total_chunks"] > 0
-                    ):
-                        last_chunks = progress_state["chunks_done"]
-                        evt = {
-                            "type": "progress",
-                            "chunks_done": progress_state["chunks_done"],
-                            "total_chunks": progress_state["total_chunks"],
-                            "rows_done": progress_state.get("rows_done", 0),
-                            "total_rows": progress_state.get("total_rows", 0),
-                        }
-                        yield f"data: {json.dumps(evt)}\n\n"
-                        heartbeat_counter = 0
-                    elif heartbeat_counter >= 30:
-                        yield ": heartbeat\n\n"
-                        heartbeat_counter = 0
+            thread = threading.Thread(target=run_worker, daemon=True)
+            thread.start()
 
-                result = await future
-                yield f"data: {json.dumps({'type': 'result', **result})}\n\n"
-
-            except ValueError as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': f'Processing error: {e}'})}\n\n"
+            while thread.is_alive() or not msg_queue.empty():
+                try:
+                    msg = msg_queue.get(timeout=10)
+                    yield f"data: {json.dumps(msg)}\n\n"
+                    if msg["type"] in ("result", "error"):
+                        return
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
@@ -457,68 +444,53 @@ def _build_local_app():
     @_app.post("/run/stream")
     async def run_taxsim_stream(request: Request):
         """SSE endpoint that streams chunk progress, then the final result."""
+        import threading
+        import queue as queue_mod
+
         body = await request.json()
         req = RunRequest(**body)
 
         async def event_stream():
-            progress_state = {"chunks_done": 0, "total_chunks": 0}
+            msg_queue = queue_mod.Queue()
 
             def on_progress(chunks_done, total_chunks, rows_done, total_rows):
-                progress_state["chunks_done"] = chunks_done
-                progress_state["total_chunks"] = total_chunks
-                progress_state["rows_done"] = rows_done
-                progress_state["total_rows"] = total_rows
+                msg_queue.put(
+                    {
+                        "type": "progress",
+                        "chunks_done": chunks_done,
+                        "total_chunks": total_chunks,
+                        "rows_done": rows_done,
+                        "total_rows": total_rows,
+                    }
+                )
 
-            try:
-                # Run in a thread so we can yield SSE events
-                loop = asyncio.get_event_loop()
-                import concurrent.futures
-
-                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-
-                future = loop.run_in_executor(
-                    executor,
-                    lambda: _run_taxsim(
+            def run_worker():
+                try:
+                    result = _run_taxsim(
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
                         idtl=req.idtl,
                         on_progress=on_progress,
                         use_remote_taxsim=True,
-                    ),
-                )
+                    )
+                    msg_queue.put({"type": "result", **result})
+                except ValueError as e:
+                    msg_queue.put({"type": "error", "error": str(e)})
+                except Exception as e:
+                    msg_queue.put({"type": "error", "error": f"Processing error: {e}"})
 
-                # Poll for progress while the runner works
-                last_chunks = -1
-                heartbeat_counter = 0
-                while not future.done():
-                    await asyncio.sleep(0.3)
-                    heartbeat_counter += 1
-                    if (
-                        progress_state["chunks_done"] != last_chunks
-                        and progress_state["total_chunks"] > 0
-                    ):
-                        last_chunks = progress_state["chunks_done"]
-                        evt = {
-                            "type": "progress",
-                            "chunks_done": progress_state["chunks_done"],
-                            "total_chunks": progress_state["total_chunks"],
-                            "rows_done": progress_state.get("rows_done", 0),
-                            "total_rows": progress_state.get("total_rows", 0),
-                        }
-                        yield f"data: {json.dumps(evt)}\n\n"
-                        heartbeat_counter = 0
-                    elif heartbeat_counter >= 30:
-                        yield ": heartbeat\n\n"
-                        heartbeat_counter = 0
+            thread = threading.Thread(target=run_worker, daemon=True)
+            thread.start()
 
-                result = await future
-                yield f"data: {json.dumps({'type': 'result', **result})}\n\n"
-
-            except ValueError as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': f'Processing error: {e}'})}\n\n"
+            while thread.is_alive() or not msg_queue.empty():
+                try:
+                    msg = msg_queue.get(timeout=10)
+                    yield f"data: {json.dumps(msg)}\n\n"
+                    if msg["type"] in ("result", "error"):
+                        return
+                except queue_mod.Empty:
+                    yield ": heartbeat\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
