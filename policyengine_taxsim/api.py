@@ -382,7 +382,7 @@ def _build_modal_app():
 @app.cls(
     image=image,
     scaledown_window=300,
-    timeout=600,
+    timeout=3600,
     memory=4096,
     secrets=[modal.Secret.from_name("resend-api-key")],
 )
