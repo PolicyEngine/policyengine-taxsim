@@ -13,10 +13,14 @@ Local (no Modal):
 
 import modal
 
-image = modal.Image.debian_slim(python_version="3.11").apt_install("git").pip_install(
-    "policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git@main",
-    "fastapi[standard]",
-    "resend",
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("git")
+    .pip_install(
+        "policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git@main",
+        "fastapi[standard]",
+        "resend",
+    )
 )
 
 app = modal.App("policyengine-taxsim")
