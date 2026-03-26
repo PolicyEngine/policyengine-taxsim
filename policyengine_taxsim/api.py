@@ -235,7 +235,12 @@ def _send_results_email(email, csv_text, rows_processed, filename):
     )
 
 
-@app.cls(image=image, scaledown_window=300, timeout=600)
+@app.cls(
+    image=image,
+    scaledown_window=300,
+    timeout=600,
+    secrets=[modal.Secret.from_name("resend-api-key")],
+)
 class TaxsimAPI:
     @modal.enter()
     def load(self):
