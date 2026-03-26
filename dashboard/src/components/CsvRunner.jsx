@@ -12,8 +12,7 @@ import {
   IconCheck,
 } from '@tabler/icons-react';
 
-// Modal deployment URL (set NEXT_PUBLIC_TAXSIM_API_URL to override)
-const API_URL = process.env.NEXT_PUBLIC_TAXSIM_API_URL || 'http://localhost:8440';
+const API_URL = process.env.NEXT_PUBLIC_TAXSIM_API_URL || '';
 
 const SAMPLE_CSV = `taxsimid,year,state,mstat,depx,pwages,swages,page,sage
 1,2024,5,2,2,80000,50000,40,38
@@ -127,6 +126,10 @@ const CsvRunner = () => {
 
   const runTaxsim = async () => {
     if (!inputCsv.trim()) return;
+    if (!API_URL) {
+      setError('API server URL is not configured (NEXT_PUBLIC_TAXSIM_API_URL).');
+      return;
+    }
     setIsRunning(true);
     setError('');
     setOutputCsv('');
@@ -134,17 +137,15 @@ const CsvRunner = () => {
     setProgress(null);
 
     try {
-      const baseUrl = API_URL.includes('modal.run') ? API_URL : `${API_URL}/run`;
-      const streamUrl = API_URL.includes('modal.run') ? API_URL : `${API_URL}/run/stream`;
-
       const payload = JSON.stringify({
         csv: inputCsv,
         disable_salt: true,
         idtl: parseInt(idtl, 10),
       });
 
+      // Try SSE streaming first for real-time progress, fall back to plain POST
       try {
-        const res = await fetch(streamUrl, {
+        const res = await fetch(`${API_URL}/run/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: payload,
@@ -189,7 +190,7 @@ const CsvRunner = () => {
       } catch (streamErr) {
         if (streamErr.message !== 'stream-fallback') throw streamErr;
 
-        const res = await fetch(baseUrl, {
+        const res = await fetch(`${API_URL}/run`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: payload,
@@ -209,7 +210,7 @@ const CsvRunner = () => {
     } catch (err) {
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
         setError(
-          'Cannot reach the API server. Make sure it is running:\n\n  uvicorn policyengine_taxsim.api:local_app --port 8440'
+          'Cannot reach the API server. The server may be starting up — please try again in a few seconds.'
         );
       } else {
         setError(err.message);
@@ -226,7 +227,7 @@ const CsvRunner = () => {
     setError('');
 
     try {
-      const url = API_URL.includes('modal.run') ? API_URL : `${API_URL}/run/email`;
+      const url = `${API_URL}/run/email`;
       // Fire-and-forget: don't await the response to avoid deadlocking
       // the single uvicorn worker (background task + stream = deadlock)
       fetch(url, {
@@ -491,7 +492,13 @@ const CsvRunner = () => {
             </button>
           </div>
 
-          {/* Progress bar */}
+          {/* Cold start / progress */}
+          {isRunning && !progress && (
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
+              <IconLoader2 size={16} className="animate-spin" />
+              <span>Connecting to server — first request may take up to a minute to start...</span>
+            </div>
+          )}
           {progress && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm text-gray-500">

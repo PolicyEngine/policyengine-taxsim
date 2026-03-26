@@ -13,10 +13,14 @@ Local (no Modal):
 
 import modal
 
-image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "policyengine-taxsim",
-    "fastapi[standard]",
-    "resend",
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("git")
+    .pip_install(
+        "policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git@main",
+        "fastapi[standard]",
+        "resend",
+    )
 )
 
 app = modal.App("policyengine-taxsim")
@@ -150,13 +154,14 @@ def _run_taxsim(
     if idtl is not None:
         df["idtl"] = int(idtl)
 
-    runner = StitchedRunner(
-        df,
+    runner_kwargs = dict(
         logs=False,
         disable_salt=disable_salt,
         assume_w2_wages=assume_w2_wages,
-        use_remote_taxsim=use_remote_taxsim,
     )
+    if use_remote_taxsim:
+        runner_kwargs["use_remote_taxsim"] = True
+    runner = StitchedRunner(df, **runner_kwargs)
     results = runner.run(show_progress=False, on_progress=on_progress)
 
     # idtl=5 returns text per-household; everything else returns a DataFrame
@@ -230,31 +235,159 @@ def _send_results_email(email, csv_text, rows_processed, filename):
     )
 
 
-@app.cls(image=image, container_idle_timeout=300, timeout=600)
+def _build_modal_app():
+    """Build FastAPI app for Modal deployment (same routes as local, no use_remote_taxsim)."""
+    import asyncio
+    import json
+    import re
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse
+    from pydantic import BaseModel
+    from typing import Optional
+
+    _app = FastAPI(title="PolicyEngine TAXSIM API")
+
+    _app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["POST"],
+        allow_headers=["*"],
+    )
+
+    class RunRequest(BaseModel):
+        csv: str
+        disable_salt: bool = False
+        assume_w2_wages: bool = False
+        idtl: Optional[int] = None
+
+    class EmailRunRequest(BaseModel):
+        csv: str
+        email: str
+        filename: str = "input.csv"
+        disable_salt: bool = False
+        assume_w2_wages: bool = False
+        idtl: Optional[int] = None
+        subscribe: bool = True
+
+    @_app.post("/run")
+    def run_taxsim(req: RunRequest):
+        try:
+            return _run_taxsim(
+                req.csv,
+                disable_salt=req.disable_salt,
+                assume_w2_wages=req.assume_w2_wages,
+                idtl=req.idtl,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Processing error: {e}")
+
+    @_app.post("/run/stream")
+    async def run_taxsim_stream(request: Request):
+        """SSE endpoint that streams chunk progress, then the final result."""
+        import threading
+        import queue
+
+        body = await request.json()
+        req = RunRequest(**body)
+
+        async def event_stream():
+            msg_queue = queue.Queue()
+
+            def on_progress(chunks_done, total_chunks, rows_done, total_rows):
+                msg_queue.put(
+                    {
+                        "type": "progress",
+                        "chunks_done": chunks_done,
+                        "total_chunks": total_chunks,
+                        "rows_done": rows_done,
+                        "total_rows": total_rows,
+                    }
+                )
+
+            def run_worker():
+                try:
+                    result = _run_taxsim(
+                        req.csv,
+                        disable_salt=req.disable_salt,
+                        assume_w2_wages=req.assume_w2_wages,
+                        idtl=req.idtl,
+                        on_progress=on_progress,
+                    )
+                    msg_queue.put({"type": "result", **result})
+                except ValueError as e:
+                    msg_queue.put({"type": "error", "error": str(e)})
+                except Exception as e:
+                    msg_queue.put({"type": "error", "error": f"Processing error: {e}"})
+
+            thread = threading.Thread(target=run_worker, daemon=True)
+            thread.start()
+
+            while thread.is_alive() or not msg_queue.empty():
+                try:
+                    msg = msg_queue.get(timeout=10)
+                    yield f"data: {json.dumps(msg)}\n\n"
+                    if msg["type"] in ("result", "error"):
+                        return
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    @_app.post("/run/email")
+    def run_and_email(req: EmailRunRequest):
+        """Validate CSV, run simulation, and email results."""
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", req.email):
+            raise HTTPException(status_code=400, detail="Invalid email address.")
+
+        try:
+            _validate_csv(req.csv)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        if req.subscribe:
+            _subscribe_to_mailchimp(req.email)
+
+        try:
+            result = _run_taxsim(
+                req.csv,
+                disable_salt=req.disable_salt,
+                assume_w2_wages=req.assume_w2_wages,
+                idtl=req.idtl,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Processing error: {e}")
+
+        try:
+            _send_results_email(
+                req.email, result["csv"], result["rows_processed"], req.filename
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Email delivery failed: {e}")
+
+        return {"message": f"Results emailed to {req.email}.", **result}
+
+    return _app
+
+
+@app.cls(
+    image=image,
+    scaledown_window=300,
+    timeout=3600,
+    memory=4096,
+    secrets=[modal.Secret.from_name("resend-api-key")],
+)
 class TaxsimAPI:
     @modal.enter()
     def load(self):
         """Pre-import policyengine-us so first request is fast."""
         import policyengine_us  # noqa: F401
 
-    @modal.fastapi_endpoint(method="POST", docs=True)
-    def run(self, req: dict):
-        """Accept TAXSIM-format CSV, run through PolicyEngine, return results."""
-        csv_text = req.get("csv", "")
-        if not csv_text:
-            return {"error": "No CSV provided"}
-
-        try:
-            return _run_taxsim(
-                csv_text,
-                disable_salt=bool(req.get("disable_salt", False)),
-                assume_w2_wages=bool(req.get("assume_w2_wages", False)),
-                idtl=req.get("idtl"),
-            )
-        except ValueError as e:
-            return {"error": str(e)}
-        except Exception as e:
-            return {"error": f"Processing error: {e}"}
+    @modal.asgi_app()
+    def serve(self):
+        return _build_modal_app()
 
 
 # ---------------------------------------------------------------------------
@@ -311,62 +444,53 @@ def _build_local_app():
     @_app.post("/run/stream")
     async def run_taxsim_stream(request: Request):
         """SSE endpoint that streams chunk progress, then the final result."""
+        import threading
+        import queue as queue_mod
+
         body = await request.json()
         req = RunRequest(**body)
 
         async def event_stream():
-            progress_state = {"chunks_done": 0, "total_chunks": 0}
+            msg_queue = queue_mod.Queue()
 
             def on_progress(chunks_done, total_chunks, rows_done, total_rows):
-                progress_state["chunks_done"] = chunks_done
-                progress_state["total_chunks"] = total_chunks
-                progress_state["rows_done"] = rows_done
-                progress_state["total_rows"] = total_rows
+                msg_queue.put(
+                    {
+                        "type": "progress",
+                        "chunks_done": chunks_done,
+                        "total_chunks": total_chunks,
+                        "rows_done": rows_done,
+                        "total_rows": total_rows,
+                    }
+                )
 
-            try:
-                # Run in a thread so we can yield SSE events
-                loop = asyncio.get_event_loop()
-                import concurrent.futures
-
-                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-
-                future = loop.run_in_executor(
-                    executor,
-                    lambda: _run_taxsim(
+            def run_worker():
+                try:
+                    result = _run_taxsim(
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
                         idtl=req.idtl,
                         on_progress=on_progress,
                         use_remote_taxsim=True,
-                    ),
-                )
+                    )
+                    msg_queue.put({"type": "result", **result})
+                except ValueError as e:
+                    msg_queue.put({"type": "error", "error": str(e)})
+                except Exception as e:
+                    msg_queue.put({"type": "error", "error": f"Processing error: {e}"})
 
-                # Poll for progress while the runner works
-                last_chunks = -1
-                while not future.done():
-                    await asyncio.sleep(0.3)
-                    if (
-                        progress_state["chunks_done"] != last_chunks
-                        and progress_state["total_chunks"] > 0
-                    ):
-                        last_chunks = progress_state["chunks_done"]
-                        evt = {
-                            "type": "progress",
-                            "chunks_done": progress_state["chunks_done"],
-                            "total_chunks": progress_state["total_chunks"],
-                            "rows_done": progress_state.get("rows_done", 0),
-                            "total_rows": progress_state.get("total_rows", 0),
-                        }
-                        yield f"data: {json.dumps(evt)}\n\n"
+            thread = threading.Thread(target=run_worker, daemon=True)
+            thread.start()
 
-                result = await future
-                yield f"data: {json.dumps({'type': 'result', **result})}\n\n"
-
-            except ValueError as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'error': f'Processing error: {e}'})}\n\n"
+            while thread.is_alive() or not msg_queue.empty():
+                try:
+                    msg = msg_queue.get(timeout=10)
+                    yield f"data: {json.dumps(msg)}\n\n"
+                    if msg["type"] in ("result", "error"):
+                        return
+                except queue_mod.Empty:
+                    yield ": heartbeat\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
