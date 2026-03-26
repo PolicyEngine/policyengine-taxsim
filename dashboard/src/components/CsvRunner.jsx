@@ -251,7 +251,9 @@ const CsvRunner = () => {
     setError('');
 
     try {
-      const url = IS_MODAL ? API_URL : `${API_URL}/run/email`;
+      const url = IS_MODAL
+        ? API_URL.replace('-run.modal.run', '-run-email.modal.run')
+        : `${API_URL}/run/email`;
       // Fire-and-forget: don't await the response to avoid deadlocking
       // the single uvicorn worker (background task + stream = deadlock)
       fetch(url, {

@@ -261,6 +261,52 @@ class TaxsimAPI:
         except Exception as e:
             return {"error": f"Processing error: {e}"}
 
+    @modal.fastapi_endpoint(method="POST", docs=True)
+    def run_email(self, req: dict):
+        """Validate CSV, run through PolicyEngine, and email results."""
+        import re
+
+        csv_text = req.get("csv", "")
+        email = req.get("email", "")
+        filename = req.get("filename", "input.csv")
+        subscribe = req.get("subscribe", True)
+
+        if not csv_text:
+            return {"error": "No CSV provided"}
+        if not email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            return {"error": "Invalid email address."}
+
+        # Validate CSV upfront
+        try:
+            _validate_csv(csv_text)
+        except ValueError as e:
+            return {"error": str(e)}
+
+        # Subscribe to Mailchimp (best-effort)
+        if subscribe:
+            _subscribe_to_mailchimp(email)
+
+        # Run the simulation
+        try:
+            result = _run_taxsim(
+                csv_text,
+                disable_salt=bool(req.get("disable_salt", False)),
+                assume_w2_wages=bool(req.get("assume_w2_wages", False)),
+                idtl=req.get("idtl"),
+            )
+        except Exception as e:
+            return {"error": f"Processing error: {e}"}
+
+        # Email the results
+        try:
+            _send_results_email(
+                email, result["csv"], result["rows_processed"], filename
+            )
+        except Exception as e:
+            return {"error": f"Email delivery failed: {e}"}
+
+        return {"message": f"Results emailed to {email}.", **result}
+
 
 # ---------------------------------------------------------------------------
 # Local fallback: `uvicorn policyengine_taxsim.api:local_app --port 8440`
