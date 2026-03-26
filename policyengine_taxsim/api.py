@@ -235,10 +235,155 @@ def _send_results_email(email, csv_text, rows_processed, filename):
     )
 
 
+def _build_modal_app():
+    """Build FastAPI app for Modal deployment (same routes as local, no use_remote_taxsim)."""
+    import asyncio
+    import json
+    import re
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse
+    from pydantic import BaseModel
+    from typing import Optional
+
+    _app = FastAPI(title="PolicyEngine TAXSIM API")
+
+    _app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["POST"],
+        allow_headers=["*"],
+    )
+
+    class RunRequest(BaseModel):
+        csv: str
+        disable_salt: bool = False
+        assume_w2_wages: bool = False
+        idtl: Optional[int] = None
+
+    class EmailRunRequest(BaseModel):
+        csv: str
+        email: str
+        filename: str = "input.csv"
+        disable_salt: bool = False
+        assume_w2_wages: bool = False
+        idtl: Optional[int] = None
+        subscribe: bool = True
+
+    @_app.post("/run")
+    def run_taxsim(req: RunRequest):
+        try:
+            return _run_taxsim(
+                req.csv,
+                disable_salt=req.disable_salt,
+                assume_w2_wages=req.assume_w2_wages,
+                idtl=req.idtl,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Processing error: {e}")
+
+    @_app.post("/run/stream")
+    async def run_taxsim_stream(request: Request):
+        """SSE endpoint that streams chunk progress, then the final result."""
+        body = await request.json()
+        req = RunRequest(**body)
+
+        async def event_stream():
+            progress_state = {"chunks_done": 0, "total_chunks": 0}
+
+            def on_progress(chunks_done, total_chunks, rows_done, total_rows):
+                progress_state["chunks_done"] = chunks_done
+                progress_state["total_chunks"] = total_chunks
+                progress_state["rows_done"] = rows_done
+                progress_state["total_rows"] = total_rows
+
+            try:
+                loop = asyncio.get_event_loop()
+                import concurrent.futures
+
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+                future = loop.run_in_executor(
+                    executor,
+                    lambda: _run_taxsim(
+                        req.csv,
+                        disable_salt=req.disable_salt,
+                        assume_w2_wages=req.assume_w2_wages,
+                        idtl=req.idtl,
+                        on_progress=on_progress,
+                    ),
+                )
+
+                last_chunks = -1
+                while not future.done():
+                    await asyncio.sleep(0.3)
+                    if (
+                        progress_state["chunks_done"] != last_chunks
+                        and progress_state["total_chunks"] > 0
+                    ):
+                        last_chunks = progress_state["chunks_done"]
+                        evt = {
+                            "type": "progress",
+                            "chunks_done": progress_state["chunks_done"],
+                            "total_chunks": progress_state["total_chunks"],
+                            "rows_done": progress_state.get("rows_done", 0),
+                            "total_rows": progress_state.get("total_rows", 0),
+                        }
+                        yield f"data: {json.dumps(evt)}\n\n"
+
+                result = await future
+                yield f"data: {json.dumps({'type': 'result', **result})}\n\n"
+
+            except ValueError as e:
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'error': f'Processing error: {e}'})}\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    @_app.post("/run/email")
+    def run_and_email(req: EmailRunRequest):
+        """Validate CSV, run simulation, and email results."""
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", req.email):
+            raise HTTPException(status_code=400, detail="Invalid email address.")
+
+        try:
+            _validate_csv(req.csv)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        if req.subscribe:
+            _subscribe_to_mailchimp(req.email)
+
+        try:
+            result = _run_taxsim(
+                req.csv,
+                disable_salt=req.disable_salt,
+                assume_w2_wages=req.assume_w2_wages,
+                idtl=req.idtl,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Processing error: {e}")
+
+        try:
+            _send_results_email(
+                req.email, result["csv"], result["rows_processed"], req.filename
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Email delivery failed: {e}")
+
+        return {"message": f"Results emailed to {req.email}.", **result}
+
+    return _app
+
+
 @app.cls(
     image=image,
     scaledown_window=300,
     timeout=600,
+    memory=4096,
     secrets=[modal.Secret.from_name("resend-api-key")],
 )
 class TaxsimAPI:
@@ -247,70 +392,9 @@ class TaxsimAPI:
         """Pre-import policyengine-us so first request is fast."""
         import policyengine_us  # noqa: F401
 
-    @modal.fastapi_endpoint(method="POST", docs=True)
-    def run(self, req: dict):
-        """Accept TAXSIM-format CSV, run through PolicyEngine, return results."""
-        csv_text = req.get("csv", "")
-        if not csv_text:
-            return {"error": "No CSV provided"}
-
-        try:
-            return _run_taxsim(
-                csv_text,
-                disable_salt=bool(req.get("disable_salt", False)),
-                assume_w2_wages=bool(req.get("assume_w2_wages", False)),
-                idtl=req.get("idtl"),
-            )
-        except ValueError as e:
-            return {"error": str(e)}
-        except Exception as e:
-            return {"error": f"Processing error: {e}"}
-
-    @modal.fastapi_endpoint(method="POST", docs=True)
-    def run_email(self, req: dict):
-        """Validate CSV, run through PolicyEngine, and email results."""
-        import re
-
-        csv_text = req.get("csv", "")
-        email = req.get("email", "")
-        filename = req.get("filename", "input.csv")
-        subscribe = req.get("subscribe", True)
-
-        if not csv_text:
-            return {"error": "No CSV provided"}
-        if not email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-            return {"error": "Invalid email address."}
-
-        # Validate CSV upfront
-        try:
-            _validate_csv(csv_text)
-        except ValueError as e:
-            return {"error": str(e)}
-
-        # Subscribe to Mailchimp (best-effort)
-        if subscribe:
-            _subscribe_to_mailchimp(email)
-
-        # Run the simulation
-        try:
-            result = _run_taxsim(
-                csv_text,
-                disable_salt=bool(req.get("disable_salt", False)),
-                assume_w2_wages=bool(req.get("assume_w2_wages", False)),
-                idtl=req.get("idtl"),
-            )
-        except Exception as e:
-            return {"error": f"Processing error: {e}"}
-
-        # Email the results
-        try:
-            _send_results_email(
-                email, result["csv"], result["rows_processed"], filename
-            )
-        except Exception as e:
-            return {"error": f"Email delivery failed: {e}"}
-
-        return {"message": f"Results emailed to {email}.", **result}
+    @modal.asgi_app()
+    def serve(self):
+        return _build_modal_app()
 
 
 # ---------------------------------------------------------------------------

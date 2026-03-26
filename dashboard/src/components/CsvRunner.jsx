@@ -13,7 +13,6 @@ import {
 } from '@tabler/icons-react';
 
 const API_URL = process.env.NEXT_PUBLIC_TAXSIM_API_URL || '';
-const IS_MODAL = API_URL.includes('modal.run');
 
 const SAMPLE_CSV = `taxsimid,year,state,mstat,depx,pwages,swages,page,sage
 1,2024,5,2,2,80000,50000,40,38
@@ -138,18 +137,60 @@ const CsvRunner = () => {
     setProgress(null);
 
     try {
-      const baseUrl = IS_MODAL ? API_URL : `${API_URL}/run`;
-      const streamUrl = `${API_URL}/run/stream`;
-
       const payload = JSON.stringify({
         csv: inputCsv,
         disable_salt: true,
         idtl: parseInt(idtl, 10),
       });
 
-      // Modal only supports a single POST endpoint (no SSE streaming)
-      if (IS_MODAL) {
-        const res = await fetch(baseUrl, {
+      // Try SSE streaming first for real-time progress, fall back to plain POST
+      try {
+        const res = await fetch(`${API_URL}/run/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+
+        if (!res.ok) throw new Error('stream-fallback');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const match = line.match(/^data: (.+)$/m);
+            if (!match) continue;
+            const evt = JSON.parse(match[1]);
+
+            if (evt.type === 'progress') {
+              setProgress({
+                chunks_done: evt.chunks_done,
+                total_chunks: evt.total_chunks,
+                rows_done: evt.rows_done,
+                total_rows: evt.total_rows,
+              });
+            } else if (evt.type === 'result') {
+              setOutputCsv(evt.csv);
+              setResultRows(evt.rows_processed);
+              if (evt.warnings) setWarnings(evt.warnings);
+              setProgress(null);
+            } else if (evt.type === 'error') {
+              throw new Error(evt.error);
+            }
+          }
+        }
+      } catch (streamErr) {
+        if (streamErr.message !== 'stream-fallback') throw streamErr;
+
+        const res = await fetch(`${API_URL}/run`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: payload,
@@ -165,71 +206,6 @@ const CsvRunner = () => {
         setOutputCsv(data.csv);
         setResultRows(data.rows_processed);
         if (data.warnings) setWarnings(data.warnings);
-      } else {
-        // Local server: try SSE streaming first, fall back to plain POST
-        try {
-          const res = await fetch(streamUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload,
-          });
-
-          if (!res.ok) throw new Error('stream-fallback');
-
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop();
-
-            for (const line of lines) {
-              const match = line.match(/^data: (.+)$/m);
-              if (!match) continue;
-              const evt = JSON.parse(match[1]);
-
-              if (evt.type === 'progress') {
-                setProgress({
-                  chunks_done: evt.chunks_done,
-                  total_chunks: evt.total_chunks,
-                  rows_done: evt.rows_done,
-                  total_rows: evt.total_rows,
-                });
-              } else if (evt.type === 'result') {
-                setOutputCsv(evt.csv);
-                setResultRows(evt.rows_processed);
-                if (evt.warnings) setWarnings(evt.warnings);
-                setProgress(null);
-              } else if (evt.type === 'error') {
-                throw new Error(evt.error);
-              }
-            }
-          }
-        } catch (streamErr) {
-          if (streamErr.message !== 'stream-fallback') throw streamErr;
-
-          const res = await fetch(baseUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload,
-          });
-
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(body.detail || body.error || `Server error (${res.status})`);
-          }
-
-          const data = await res.json();
-          if (data.error) throw new Error(data.error);
-          setOutputCsv(data.csv);
-          setResultRows(data.rows_processed);
-          if (data.warnings) setWarnings(data.warnings);
-        }
       }
     } catch (err) {
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
@@ -251,9 +227,7 @@ const CsvRunner = () => {
     setError('');
 
     try {
-      const url = IS_MODAL
-        ? API_URL.replace('-run.modal.run', '-run-email.modal.run')
-        : `${API_URL}/run/email`;
+      const url = `${API_URL}/run/email`;
       // Fire-and-forget: don't await the response to avoid deadlocking
       // the single uvicorn worker (background task + stream = deadlock)
       fetch(url, {
