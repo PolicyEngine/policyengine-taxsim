@@ -13,8 +13,8 @@ Local (no Modal):
 
 import modal
 
-image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "policyengine-taxsim",
+image = modal.Image.debian_slim(python_version="3.11").apt_install("git").pip_install(
+    "policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git@main",
     "fastapi[standard]",
     "resend",
 )
@@ -150,13 +150,14 @@ def _run_taxsim(
     if idtl is not None:
         df["idtl"] = int(idtl)
 
-    runner = StitchedRunner(
-        df,
+    runner_kwargs = dict(
         logs=False,
         disable_salt=disable_salt,
         assume_w2_wages=assume_w2_wages,
-        use_remote_taxsim=use_remote_taxsim,
     )
+    if use_remote_taxsim:
+        runner_kwargs["use_remote_taxsim"] = True
+    runner = StitchedRunner(df, **runner_kwargs)
     results = runner.run(show_progress=False, on_progress=on_progress)
 
     # idtl=5 returns text per-household; everything else returns a DataFrame
@@ -230,7 +231,7 @@ def _send_results_email(email, csv_text, rows_processed, filename):
     )
 
 
-@app.cls(image=image, container_idle_timeout=300, timeout=600)
+@app.cls(image=image, scaledown_window=300, timeout=600)
 class TaxsimAPI:
     @modal.enter()
     def load(self):

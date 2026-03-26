@@ -209,7 +209,7 @@ const CsvRunner = () => {
     } catch (err) {
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
         setError(
-          'Cannot reach the API server. Make sure it is running:\n\n  uvicorn policyengine_taxsim.api:local_app --port 8440'
+          'Cannot reach the API server. The server may be starting up — please try again in a few seconds.'
         );
       } else {
         setError(err.message);
