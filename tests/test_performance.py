@@ -91,6 +91,66 @@ class TestRunnerOutputCorrectness:
         pd.testing.assert_frame_equal(golden_output, output2)
 
 
+class TestFederalOutputAdjustments:
+    def test_fiitax_includes_additional_medicare_tax_when_precomputed(self):
+        """
+        fiitax is normally populated from the income_tax mapping before the
+        special post-processing step runs. That post-processing still needs to
+        add additional_medicare_tax instead of skipping fiitax entirely.
+        """
+        records = pd.DataFrame(
+            {
+                "taxsimid": [1],
+                "year": [2023],
+                "state": [5],  # CA
+                "mstat": [1],
+                "depx": [0],
+                "page": [45],
+                "sage": [0],
+                "pwages": [300000.0],
+                "swages": [0.0],
+                "idtl": [0],
+            }
+        )
+        runner = PolicyEngineRunner(
+            records.copy(), logs=False, disable_salt=True
+        )
+        runner.mappings = {
+            "policyengine_to_taxsim": {
+                "fiitax": {
+                    "implemented": True,
+                    "variable": "income_tax",
+                    "idtl": [{"standard_output": 0}, {"full_output": 2}],
+                }
+            }
+        }
+
+        fake_sim = types.SimpleNamespace(
+            tax_benefit_system=types.SimpleNamespace(
+                variables={
+                    "income_tax": object(),
+                    "additional_medicare_tax": object(),
+                }
+            )
+        )
+        calc_calls = []
+
+        def fake_calc_tu(self_runner, sim, var_name, period):
+            calc_calls.append(var_name)
+            if var_name == "income_tax":
+                return np.array([1000.0])
+            if var_name == "additional_medicare_tax":
+                return np.array([900.0])
+            raise AssertionError(f"Unexpected variable: {var_name}")
+
+        runner._calc_tax_unit = types.MethodType(fake_calc_tu, runner)
+
+        result = runner._extract_vectorized_results(fake_sim, runner.input_df)
+
+        assert result["fiitax"].iloc[0] == pytest.approx(1900.0)
+        assert calc_calls == ["income_tax", "additional_medicare_tax"]
+
+
 class TestGeneratePhaseEfficiency:
     """Verify that the generate phase scales sub-linearly (vectorized)."""
 
