@@ -1,0 +1,1 @@
+TAXSIM now prefers PE-US `taxsim_*` compatibility variables for ambiguous state outputs such as `v32`, `v36`, `v37`, `v38`, `v39`, `sctc`, and `staxbc`, while retaining explicit per-state fallbacks for older `policyengine-us` versions.

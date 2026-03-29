@@ -3,6 +3,12 @@ from .utils import (
     get_state_number,
     to_roundedup_number,
 )
+from .state_output_resolver import (
+    calculate_scalar_state_mapped_output,
+    get_state_specific_variable_name,
+    has_state_variable_mapping,
+    is_missing_variable_error,
+)
 from policyengine_us import Simulation
 from .yaml_generator import generate_pe_tests_yaml
 from .marginal_rates import compute_marginal_rates_single
@@ -45,17 +51,19 @@ def generate_non_description_output(
                 pe_variables = each_item["variables"]
                 taxsim_output[key] = simulate_multiple(simulation, pe_variables, year)
             else:
-                pe_variable = each_item["variable"]
-                state_initial = state_name.lower()
-
-                if "state" in pe_variable:
-                    pe_variable = pe_variable.replace("state", state_initial)
-
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
-                        taxsim_output[key] = simulate(simulation, pe_variable, year)
+                        taxsim_output[key] = calculate_single_variable_output(
+                            simulation,
+                            each_item,
+                            year,
+                            state_name,
+                        )
                         outputs.append(
-                            {"variable": pe_variable, "value": taxsim_output[key]}
+                            {
+                                "variable": each_item["variable"],
+                                "value": taxsim_output[key],
+                            }
                         )
 
     file_name = f"{taxsim_output['taxsimid']}-{state_name}.yaml"
@@ -106,13 +114,7 @@ def generate_text_description_output(
             # Group headers are 2 tabs left of text_description
             lines.append(f"{' ' * GROUP_MARGIN}{group_name}:")
 
-            state_initial = state_name.lower()
-
             for desc, var_name, each_item in sorted(variables, key=lambda x: x[0]):
-                variable = each_item["variable"]
-
-                if "state" in variable:
-                    variable = variable.replace("state", state_initial)
                 if var_name == "taxsimid":
                     value = taxsim_input["taxsimid"]
                 elif var_name == "year":
@@ -121,7 +123,7 @@ def generate_text_description_output(
                     value = (
                         f"{get_state_number(state_name)}{' ' * LEFT_MARGIN}{state_name}"
                     )
-                elif variable == "marginal_rate_computed":
+                elif each_item["variable"] == "marginal_rate_computed":
                     if not mtr_computed:
                         try:
                             mtr_results = compute_marginal_rates_single(
@@ -137,8 +139,13 @@ def generate_text_description_output(
                 elif "variables" in each_item and len(each_item["variables"]) > 0:
                     value = simulate_multiple(simulation, each_item["variables"], year)
                 else:
-                    value = simulate(simulation, variable, year)
-                    outputs.append({"variable": variable, "value": value})
+                    value = calculate_single_variable_output(
+                        simulation,
+                        each_item,
+                        year,
+                        state_name,
+                    )
+                    outputs.append({"variable": each_item["variable"], "value": value})
 
                 # Format the base value
                 if isinstance(value, (int, float)):
@@ -165,9 +172,6 @@ def taxsim_input_definition(data_dict, year, state_name):
     """Process a dictionary of data according to the configuration."""
     output_lines = []
     mappings = load_variable_mappings()["taxsim_input_definition"]
-
-    # Header lines using year from input data
-    current_year = data_dict.get("year", year)
 
     output_lines.extend(["   Input Data:"])
 
@@ -305,8 +309,45 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
 def simulate(simulation, variable, year):
     try:
         return to_roundedup_number(simulation.calculate(variable, period=year))
-    except Exception as error:
+    except Exception:
         return 0.00
+
+
+def calculate_single_variable_output(simulation, mapping, year, state_code):
+    variable = mapping["variable"]
+    resolved_variable = get_state_specific_variable_name(variable, state_code)
+
+    try:
+        value = try_simulate(simulation, resolved_variable, year)
+        if value is not None:
+            return value
+
+        if has_state_variable_mapping(mapping):
+            parameter_values = simulation.tax_benefit_system.parameters(year)
+            fallback_value = calculate_scalar_state_mapped_output(
+                mapping,
+                state_code,
+                lambda variable_name: raw_simulate(simulation, variable_name, year),
+                parameter_values,
+            )
+            return to_roundedup_number(fallback_value)
+    except Exception:
+        return 0.00
+
+    return 0.00
+
+
+def raw_simulate(simulation, variable, year):
+    return simulation.calculate(variable, period=year)
+
+
+def try_simulate(simulation, variable, year):
+    try:
+        return to_roundedup_number(raw_simulate(simulation, variable, year))
+    except Exception as error:
+        if is_missing_variable_error(error):
+            return None
+        raise
 
 
 def simulate_multiple(simulation, variables, year):
@@ -315,6 +356,6 @@ def simulate_multiple(simulation, variables, year):
             to_roundedup_number(simulation.calculate(variable, period=year))
             for variable in variables
         )
-    except Exception as error:
+    except Exception:
         total = 0.00
     return to_roundedup_number(total)

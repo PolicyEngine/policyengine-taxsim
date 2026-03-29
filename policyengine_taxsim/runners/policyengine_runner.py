@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict
 from tqdm import tqdm
 from .base_runner import BaseTaxRunner
 
@@ -12,12 +12,15 @@ from policyengine_taxsim.core.utils import (
     SOI_TO_FIPS_MAP,
     get_state_code,
     get_state_number,
-    to_roundedup_number,
-    convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.input_mapper import (
-    set_taxsim_defaults,
     get_taxsim_defaults,
+)
+from policyengine_taxsim.core.state_output_resolver import (
+    calculate_state_mapped_output,
+    get_state_specific_variable_name,
+    has_state_variable_mapping,
+    is_missing_variable_error,
 )
 
 from policyengine_us import Microsimulation
@@ -447,7 +450,6 @@ class TaxsimMicrosimDataset(Dataset):
                 # Standard variable mapping
                 primary_source = mapping.get("primary")
                 spouse_source = mapping.get("spouse")
-                default_val = mapping.get("default", 0.0)
 
                 # Primary values
                 if (
@@ -609,8 +611,6 @@ class TaxsimMicrosimDataset(Dataset):
 
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
-        n_records = len(self.input_df)
-
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
@@ -620,7 +620,6 @@ class TaxsimMicrosimDataset(Dataset):
 
         # Extract years (assuming all records might have different years)
         # Years should already be converted to integers in the run() method
-        years = self.input_df["year"].values
         unique_years = sorted(self.input_df["year"].unique())
 
         # Use SOI to FIPS mapping from core utils
@@ -972,6 +971,14 @@ class PolicyEngineRunner(BaseTaxRunner):
             return np.array(sim.map_result(values, entity_key, "tax_unit"))
         return values
 
+    def _try_calc_tax_unit(self, sim, var_name, period):
+        try:
+            return self._calc_tax_unit(sim, var_name, period)
+        except Exception as error:
+            if is_missing_variable_error(error):
+                return None
+            raise
+
     def _compute_marginal_rates(self, sim, year_str, year_data):
         """Compute TAXSIM-compatible marginal tax rates via wage perturbation.
 
@@ -1122,13 +1129,15 @@ class PolicyEngineRunner(BaseTaxRunner):
                     "needed_for_idtls": needed_for_idtls,
                 }
 
+            parameter_values = sim.tax_benefit_system.parameters(year_str)
+
             # Compute all needed variables vectorized
             for taxsim_var, info in vars_to_compute.items():
                 mapping = info["mapping"]
                 pe_var = mapping.get("variable", "")
                 variables_list = mapping.get("variables", [])
-                has_state = "state" in pe_var or any(
-                    "state" in v for v in variables_list
+                uses_state_prefix = pe_var.startswith("state_") or any(
+                    v.startswith("state_") for v in variables_list
                 )
 
                 if pe_var == "na_pe":
@@ -1141,101 +1150,86 @@ class PolicyEngineRunner(BaseTaxRunner):
                     continue
 
                 try:
-                    if has_state:
-                        # Check if unified PE variable exists (e.g., state_agi,
-                        # state_eitc). These use defined_for internally so a
-                        # single calculate() call returns correct per-state
-                        # values without iterating over states.
-                        unified_var = (
-                            sim.tax_benefit_system.variables.get(pe_var)
-                            if pe_var and not variables_list
-                            else None
-                        )
-                        unified_vars_list = (
-                            all(
-                                sim.tax_benefit_system.variables.get(v) is not None
-                                for v in variables_list
-                            )
-                            if variables_list
-                            else False
+                    if variables_list:
+                        unified_vars_list = all(
+                            sim.tax_benefit_system.variables.get(v) is not None
+                            for v in variables_list
                         )
 
-                        if unified_var and not variables_list:
-                            # Single unified state variable — one call
-                            arr = self._calc_tax_unit(sim, pe_var, year_str)
-                            columns[taxsim_var] = np.round(arr, 2)
+                        if unified_vars_list:
+                            var_sum = np.zeros(n)
+                            for var in variables_list:
+                                arr = self._calc_tax_unit(sim, var, year_str)
+                                var_sum += arr
+                            columns[taxsim_var] = np.round(var_sum, 2)
+                        elif uses_state_prefix:
+                            result_array = np.zeros(n)
+                            unique_states = np.unique(state_initials)
 
-                        elif unified_vars_list:
-                            # Multi-variable sum with unified state vars
+                            for st in unique_states:
+                                state_mask = state_initials == st
+                                var_sum = np.zeros(n)
+                                for var_template in variables_list:
+                                    resolved = get_state_specific_variable_name(
+                                        var_template, st
+                                    )
+                                    if self._is_year_restricted_variable(
+                                        resolved, year_int
+                                    ):
+                                        continue
+                                    arr = self._try_calc_tax_unit(
+                                        sim, resolved, year_str
+                                    )
+                                    if arr is None:
+                                        continue
+                                    var_sum += arr
+                                result_array[state_mask] = var_sum[state_mask]
+
+                            columns[taxsim_var] = np.round(result_array, 2)
+                        else:
                             var_sum = np.zeros(n)
                             for var in variables_list:
                                 arr = self._calc_tax_unit(sim, var, year_str)
                                 var_sum += arr
                             columns[taxsim_var] = np.round(var_sum, 2)
 
+                    elif has_state_variable_mapping(mapping):
+                        arr = self._try_calc_tax_unit(sim, pe_var, year_str)
+                        if arr is not None:
+                            columns[taxsim_var] = np.round(arr, 2)
                         else:
-                            # Fallback: per-state iteration for vars without
-                            # a unified PE equivalent
+                            result_array = calculate_state_mapped_output(
+                                mapping,
+                                state_initials,
+                                lambda variable_name: self._calc_tax_unit(
+                                    sim, variable_name, year_str
+                                ),
+                                parameter_values,
+                            )
+                            columns[taxsim_var] = np.round(result_array, 2)
+
+                    elif uses_state_prefix:
+                        arr = self._try_calc_tax_unit(sim, pe_var, year_str)
+                        if arr is not None:
+                            columns[taxsim_var] = np.round(arr, 2)
+                        else:
                             result_array = np.zeros(n)
                             unique_states = np.unique(state_initials)
-
                             for st in unique_states:
                                 state_mask = state_initials == st
-
-                                if variables_list:
-                                    var_sum = np.zeros(n)
-                                    for var_template in variables_list:
-                                        resolved = var_template.replace("state", st)
-                                        if self._is_year_restricted_variable(
-                                            resolved, year_int
-                                        ):
-                                            continue
-                                        try:
-                                            arr = self._calc_tax_unit(
-                                                sim, resolved, year_str
-                                            )
-                                            var_sum += arr
-                                        except Exception as e:
-                                            if "does not exist" in str(e):
-                                                if self.logs:
-                                                    print(
-                                                        f"Variable {resolved} not implemented, setting to 0"
-                                                    )
-                                            else:
-                                                raise
-                                    result_array[state_mask] = var_sum[state_mask]
-                                else:
-                                    resolved = pe_var.replace("state", st)
-                                    if self._is_year_restricted_variable(
-                                        resolved, year_int
-                                    ):
-                                        continue
-                                    try:
-                                        arr = self._calc_tax_unit(
-                                            sim, resolved, year_str
-                                        )
-                                        result_array[state_mask] = arr[state_mask]
-                                    except Exception as e:
-                                        if "does not exist" in str(e):
-                                            if self.logs:
-                                                print(
-                                                    f"Variable {resolved} not implemented, setting to 0"
-                                                )
-                                        else:
-                                            raise
+                                resolved = get_state_specific_variable_name(pe_var, st)
+                                if self._is_year_restricted_variable(
+                                    resolved, year_int
+                                ):
+                                    continue
+                                arr = self._try_calc_tax_unit(sim, resolved, year_str)
+                                if arr is None:
+                                    continue
+                                result_array[state_mask] = arr[state_mask]
 
                             columns[taxsim_var] = np.round(result_array, 2)
 
-                    elif variables_list:
-                        # Multi-variable sum (non-state)
-                        var_sum = np.zeros(n)
-                        for var in variables_list:
-                            arr = self._calc_tax_unit(sim, var, year_str)
-                            var_sum += arr
-                        columns[taxsim_var] = np.round(var_sum, 2)
-
                     else:
-                        # Single non-state variable
                         arr = self._calc_tax_unit(sim, pe_var, year_str)
                         columns[taxsim_var] = np.round(arr, 2)
 
