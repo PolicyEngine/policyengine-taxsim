@@ -235,13 +235,9 @@ def _extract_text_value(text, label, group_name="State Tax Calculation"):
 
 
 def test_state_specific_variable_name_only_rewrites_state_prefix():
+    assert get_state_specific_variable_name("state_income_tax", "PA") == "pa_income_tax"
     assert (
-        get_state_specific_variable_name("state_income_tax", "PA")
-        == "pa_income_tax"
-    )
-    assert (
-        get_state_specific_variable_name("reinstate_credit", "DC")
-        == "reinstate_credit"
+        get_state_specific_variable_name("reinstate_credit", "DC") == "reinstate_credit"
     )
 
 

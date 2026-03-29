@@ -1229,10 +1229,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                                 if variables_list:
                                     var_sum = np.zeros(n)
                                     for var_template in variables_list:
-                                        resolved = (
-                                            get_state_specific_variable_name(
-                                                var_template, st
-                                            )
+                                        resolved = get_state_specific_variable_name(
+                                            var_template, st
                                         )
                                         if self._is_year_restricted_variable(
                                             resolved, year_int
