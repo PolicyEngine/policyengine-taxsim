@@ -115,24 +115,24 @@ export const OUTPUT_VARIABLES = [
   // State Income Calculations (v30-v36)
   { code: 'v30', name: 'State Household Income (imputation for property tax credit)', policyengine: 'household_income' },
   { code: 'v31', name: 'State Rent Expense (imputation for property tax credit)', policyengine: 'rent' },
-  { code: 'v32', name: 'State AGI', policyengine: 'state_agi' },
+  { code: 'v32', name: 'State AGI', policyengine: 'taxsim_v32_state_agi' },
   { code: 'v33', name: 'State Exemption amount', policyengine: 'state_exemptions' },
   { code: 'v34', name: 'State Standard Deduction', policyengine: 'state_standard_deduction' },
   { code: 'v35', name: 'State Itemized Deductions', policyengine: 'state_itemized_deductions' },
-  { code: 'v36', name: 'State Taxable Income', policyengine: 'state_taxable_income' },
+  { code: 'v36', name: 'State Taxable Income', policyengine: 'taxsim_v36_taxable_income' },
 
   // State Tax Credits (v37-v41)
-  { code: 'v37', name: 'State Property Tax Credit', policyengine: 'state_property_tax_credit' },
-  { code: 'v38', name: 'State Child Care Credit', policyengine: 'state_cdcc' },
-  { code: 'v39', name: 'State EIC', policyengine: 'state_eitc' },
+  { code: 'v37', name: 'State Property Tax Credit', policyengine: 'taxsim_v37_property_tax_credit' },
+  { code: 'v38', name: 'State Child Care Credit', policyengine: 'taxsim_v38_cdcc' },
+  { code: 'v39', name: 'State EIC', policyengine: 'taxsim_v39_eitc' },
   { code: 'v40', name: 'State Total Credits', policyengine: 'state_tax_credits' },
   { code: 'v41', name: 'State Bracket Rate', policyengine: 'state_income_tax_rate' },
 
   // Additional State Results (moved to be with other state variables)
-  { code: 'staxbc', name: 'State tax before credits', policyengine: 'state_income_tax_before_credits' },
+  { code: 'staxbc', name: 'State tax before credits', policyengine: 'taxsim_staxbc' },
   { code: 'srebate', name: 'State income tax rebates (shown only in year paid even if eligibility depends on prior year)', policyengine: 'state_rebates' },
   { code: 'senergy', name: 'State energy/fuel tax credits', policyengine: 'state_energy_credits' },
-  { code: 'sctc', name: 'State child tax credit', policyengine: 'state_ctc' },
+  { code: 'sctc', name: 'State child tax credit', policyengine: 'taxsim_sctc' },
   { code: 'sptcr', name: 'State property tax credit', policyengine: 'state_property_tax_credit' },
   { code: 'samt', name: 'State alternative minimum tax', policyengine: 'state_amt' },
   { code: 'srate', name: 'State marginal rate', policyengine: 'state_marginal_tax_rate' },
@@ -229,14 +229,15 @@ export const POLICYENGINE_VARIABLE_PATHS = {
   
   // State tax variables
   'state_income_tax': 'gov/states/tax/income/state_income_tax.py',
-  'state_agi': 'gov/states/tax/income/agi.py',
+  'taxsim_v32_state_agi': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
   'state_standard_deduction': 'gov/states/tax/income/deductions/state_standard_deduction.py',
   'state_itemized_deductions': 'gov/states/tax/income/deductions/state_itemized_deductions.py',
-  'state_taxable_income': 'gov/states/tax/income/state_taxable_income.py',
-  'state_property_tax_credit': 'gov/states/tax/credits/state_property_tax_credit.py',
-  'state_cdcc': 'gov/states/tax/credits/state_cdcc.py',
-  'state_eitc': 'gov/states/tax/credits/state_eitc.py',
-  'state_ctc': 'gov/states/tax/credits/state_ctc.py',
+  'taxsim_v36_taxable_income': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
+  'taxsim_v37_property_tax_credit': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
+  'taxsim_v38_cdcc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
+  'taxsim_v39_eitc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
+  'taxsim_sctc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
+  'taxsim_staxbc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
   'state_non_refundable_credits': 'gov/states/tax/credits/state_non_refundable_credits.py',
   'state_refundable_credits': 'gov/states/tax/credits/state_refundable_credits.py',
   

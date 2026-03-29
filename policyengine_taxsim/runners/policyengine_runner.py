@@ -15,6 +15,13 @@ from policyengine_taxsim.core.utils import (
     to_roundedup_number,
     convert_taxsim32_dependents,
 )
+from policyengine_taxsim.core.state_output_resolver import (
+    calculate_output_adapter,
+    calculate_state_mapped_output,
+    get_state_specific_variable_name,
+    has_state_variable_mapping,
+    is_output_adapter,
+)
 from policyengine_taxsim.core.input_mapper import (
     set_taxsim_defaults,
     get_taxsim_defaults,
@@ -53,6 +60,9 @@ class TaxsimMicrosimDataset(Dataset):
         pe_to_taxsim = mappings.get("policyengine_to_taxsim", {})
         for taxsim_var, mapping in pe_to_taxsim.items():
             if isinstance(mapping, dict):
+                if has_state_variable_mapping(mapping):
+                    continue
+
                 # Single variable mapping
                 pe_var = mapping.get("variable")
                 if pe_var and pe_var not in [
@@ -1127,8 +1137,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                 mapping = info["mapping"]
                 pe_var = mapping.get("variable", "")
                 variables_list = mapping.get("variables", [])
-                has_state = "state" in pe_var or any(
-                    "state" in v for v in variables_list
+                has_state = pe_var.startswith("state_") or any(
+                    v.startswith("state_") for v in variables_list
                 )
 
                 if pe_var == "na_pe":
@@ -1141,6 +1151,34 @@ class PolicyEngineRunner(BaseTaxRunner):
                     continue
 
                 try:
+                    if is_output_adapter(pe_var):
+                        columns[taxsim_var] = np.round(
+                            calculate_output_adapter(
+                                mapping,
+                                state_codes,
+                                lambda variable: self._calc_tax_unit(
+                                    sim, variable, year_str
+                                ),
+                                sim.tax_benefit_system.parameters(year_str),
+                            ),
+                            2,
+                        )
+                        continue
+
+                    if has_state_variable_mapping(mapping):
+                        columns[taxsim_var] = np.round(
+                            calculate_state_mapped_output(
+                                mapping,
+                                state_codes,
+                                lambda variable: self._calc_tax_unit(
+                                    sim, variable, year_str
+                                ),
+                                sim.tax_benefit_system.parameters(year_str),
+                            ),
+                            2,
+                        )
+                        continue
+
                     if has_state:
                         # Check if unified PE variable exists (e.g., state_agi,
                         # state_eitc). These use defined_for internally so a
@@ -1185,7 +1223,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                                 if variables_list:
                                     var_sum = np.zeros(n)
                                     for var_template in variables_list:
-                                        resolved = var_template.replace("state", st)
+                                        resolved = get_state_specific_variable_name(
+                                            var_template, st
+                                        )
                                         if self._is_year_restricted_variable(
                                             resolved, year_int
                                         ):
@@ -1205,7 +1245,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                                                 raise
                                     result_array[state_mask] = var_sum[state_mask]
                                 else:
-                                    resolved = pe_var.replace("state", st)
+                                    resolved = get_state_specific_variable_name(
+                                        pe_var, st
+                                    )
                                     if self._is_year_restricted_variable(
                                         resolved, year_int
                                     ):

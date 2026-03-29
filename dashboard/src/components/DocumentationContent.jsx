@@ -260,7 +260,11 @@ policyengine_versions()
   );
 
   function buildGithubUrl(varName) {
-    return `https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${getVariablePath(varName)}`;
+    const path = getVariablePath(varName);
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    return `https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/${path}`;
   }
 
   const renderOutputPolicyEngineCell = (mapping) => {
@@ -324,21 +328,21 @@ policyengine_versions()
     'v26': { implemented: true, variable: 'amt_income' },
     'v27': { implemented: true, variable: 'alternative_minimum_tax' },
     'v28': { implemented: true, variable: 'multiple_variables' },
-    'v32': { implemented: true, variable: 'state_agi' },
+    'v32': { implemented: true, variable: 'taxsim_v32_state_agi' },
     'v34': { implemented: true, variable: 'state_standard_deduction' },
     'v35': { implemented: true, variable: 'state_itemized_deductions' },
-    'v36': { implemented: true, variable: 'state_taxable_income' },
-    'v37': { implemented: true, variable: 'state_property_tax_credit' },
-    'v38': { implemented: true, variable: 'state_cdcc' },
-    'v39': { implemented: true, variable: 'state_eitc' },
+    'v36': { implemented: true, variable: 'taxsim_v36_taxable_income' },
+    'v37': { implemented: true, variable: 'taxsim_v37_property_tax_credit' },
+    'v38': { implemented: true, variable: 'taxsim_v38_cdcc' },
+    'v39': { implemented: true, variable: 'taxsim_v39_eitc' },
     'v40': { implemented: true, variable: 'multiple_variables' },
     'v44': { implemented: true, variable: 'multiple_variable' },
     'qbid': { implemented: true, variable: 'qualified_business_income_deduction' },
     'niit': { implemented: true, variable: 'net_investment_income_tax' },
-    'sctc': { implemented: true, variable: 'state_ctc' },
+    'sctc': { implemented: true, variable: 'taxsim_sctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
-    'staxbc': { implemented: true, variable: 'state_income_tax_before_non_refundable_credits' },
+    'staxbc': { implemented: true, variable: 'taxsim_staxbc' },
 
     // Marginal rates: based on PE variables, adjusted to match TAXSIM methodology
     'frate': { implemented: true, variable: 'federal_marginal_tax_rate' },

@@ -3,11 +3,29 @@ from .utils import (
     get_state_number,
     to_roundedup_number,
 )
+from .state_output_resolver import (
+    calculate_output_adapter,
+    get_state_mapped_variables,
+    get_state_specific_variable_name,
+    has_state_variable_mapping,
+    is_output_adapter,
+)
 from policyengine_us import Simulation
 from .yaml_generator import generate_pe_tests_yaml
 from .marginal_rates import compute_marginal_rates_single
 
 disable_salt_variable = False
+
+
+def resolve_output_variable(simulation, variable, state_name):
+    if simulation.tax_benefit_system.variables.get(variable) is not None:
+        return variable
+
+    state_specific = get_state_specific_variable_name(variable, state_name)
+    if simulation.tax_benefit_system.variables.get(state_specific) is not None:
+        return state_specific
+
+    return variable
 
 
 def generate_non_description_output(
@@ -41,15 +59,41 @@ def generate_non_description_output(
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
                         taxsim_output[key] = mtr_results.get(key, 0.0)
+            elif is_output_adapter(each_item.get("variable", "")):
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        value = calculate_output_adapter(
+                            each_item,
+                            state_name,
+                            lambda variable: simulation.calculate(
+                                variable, period=year
+                            ),
+                            simulation.tax_benefit_system.parameters(year),
+                        )[0]
+                        taxsim_output[key] = to_roundedup_number(value)
+                        outputs.append(
+                            {
+                                "variable": each_item["variable"],
+                                "value": taxsim_output[key],
+                            }
+                        )
+            elif has_state_variable_mapping(each_item):
+                pe_variables = get_state_mapped_variables(each_item, state_name)
+
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = (
+                            simulate_multiple(simulation, pe_variables, year)
+                            if pe_variables
+                            else 0.0
+                        )
             elif "variables" in each_item and len(each_item["variables"]) > 0:
                 pe_variables = each_item["variables"]
                 taxsim_output[key] = simulate_multiple(simulation, pe_variables, year)
             else:
-                pe_variable = each_item["variable"]
-                state_initial = state_name.lower()
-
-                if "state" in pe_variable:
-                    pe_variable = pe_variable.replace("state", state_initial)
+                pe_variable = resolve_output_variable(
+                    simulation, each_item["variable"], state_name
+                )
 
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
@@ -106,13 +150,7 @@ def generate_text_description_output(
             # Group headers are 2 tabs left of text_description
             lines.append(f"{' ' * GROUP_MARGIN}{group_name}:")
 
-            state_initial = state_name.lower()
-
             for desc, var_name, each_item in sorted(variables, key=lambda x: x[0]):
-                variable = each_item["variable"]
-
-                if "state" in variable:
-                    variable = variable.replace("state", state_initial)
                 if var_name == "taxsimid":
                     value = taxsim_input["taxsimid"]
                 elif var_name == "year":
@@ -121,7 +159,7 @@ def generate_text_description_output(
                     value = (
                         f"{get_state_number(state_name)}{' ' * LEFT_MARGIN}{state_name}"
                     )
-                elif variable == "marginal_rate_computed":
+                elif each_item.get("variable") == "marginal_rate_computed":
                     if not mtr_computed:
                         try:
                             mtr_results = compute_marginal_rates_single(
@@ -134,9 +172,36 @@ def generate_text_description_output(
                             mtr_results = {"frate": 0.0, "srate": 0.0, "ficar": 0.0}
                         mtr_computed = True
                     value = mtr_results.get(var_name, 0.0)
+                elif is_output_adapter(each_item.get("variable", "")):
+                    value = to_roundedup_number(
+                        calculate_output_adapter(
+                            each_item,
+                            state_name,
+                            lambda variable: simulation.calculate(
+                                variable, period=year
+                            ),
+                            simulation.tax_benefit_system.parameters(year),
+                        )[0]
+                    )
+                    outputs.append(
+                        {
+                            "variable": each_item["variable"],
+                            "value": value,
+                        }
+                    )
+                elif has_state_variable_mapping(each_item):
+                    pe_variables = get_state_mapped_variables(each_item, state_name)
+                    value = (
+                        simulate_multiple(simulation, pe_variables, year)
+                        if pe_variables
+                        else 0.0
+                    )
                 elif "variables" in each_item and len(each_item["variables"]) > 0:
                     value = simulate_multiple(simulation, each_item["variables"], year)
                 else:
+                    variable = resolve_output_variable(
+                        simulation, each_item["variable"], state_name
+                    )
                     value = simulate(simulation, variable, year)
                     outputs.append({"variable": variable, "value": value})
 
