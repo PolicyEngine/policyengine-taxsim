@@ -336,13 +336,13 @@ The emulator produces all standard TAXSIM output variables:
 | v27 | Alternative minimum tax |
 | v28 | Income tax before credits |
 | v29 | FICA taxes |
-| v32 | **State AGI** (or federal AGI/taxable income for conformity states) |
+| v32 | **State AGI** resolved in `policyengine-taxsim` with explicit per-state mappings |
 | v34 | State standard deduction |
 | v35 | State itemized deductions |
-| v36 | State taxable income |
-| v37 | Property tax credit |
-| v38 | State child care credit |
-| v39 | State earned income credit |
+| v36 | State taxable income (resolved in `policyengine-taxsim` with explicit per-state mappings) |
+| v37 | Property tax credit (resolved in `policyengine-taxsim` with explicit per-state mappings) |
+| v38 | State child care credit (resolved in `policyengine-taxsim` with explicit per-state mappings) |
+| v39 | State earned income credit (resolved in `policyengine-taxsim` with explicit per-state mappings) |
 | v40 | Total state credits |
 | qbid | Qualified business income deduction |
 | niit | Net investment income tax |
