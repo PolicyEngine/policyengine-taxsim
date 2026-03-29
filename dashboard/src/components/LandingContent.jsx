@@ -110,7 +110,7 @@ const COMPARISON_EXAMPLES = {
     },
     after: {
       label: 'Stata',
-      code: 'export delimited using "input.csv", replace\nshell policyengine-taxsim < input.csv > output.csv\nimport delimited using "output.csv", clear',
+      code: 'export delimited using "txpydata.raw", delimiter(",") replace\n! policyengine-taxsim < txpydata.raw > output.raw\nimport delimited using "output.raw", delimiter(",") clear',
       language: 'stata',
     },
   },
