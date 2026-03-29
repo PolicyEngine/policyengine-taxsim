@@ -16,9 +16,11 @@ from policyengine_taxsim.core.utils import (
     convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.state_output_resolver import (
-    get_state_mapped_variables,
+    calculate_output_adapter,
+    calculate_state_mapped_output,
     get_state_specific_variable_name,
     has_state_variable_mapping,
+    is_output_adapter,
 )
 from policyengine_taxsim.core.input_mapper import (
     set_taxsim_defaults,
@@ -1149,40 +1151,32 @@ class PolicyEngineRunner(BaseTaxRunner):
                     continue
 
                 try:
+                    if is_output_adapter(pe_var):
+                        columns[taxsim_var] = np.round(
+                            calculate_output_adapter(
+                                mapping,
+                                state_codes,
+                                lambda variable: self._calc_tax_unit(
+                                    sim, variable, year_str
+                                ),
+                                sim.tax_benefit_system.parameters(year_str),
+                            ),
+                            2,
+                        )
+                        continue
+
                     if has_state_variable_mapping(mapping):
-                        result_array = np.zeros(n)
-
-                        for state_code in np.unique(state_codes):
-                            variables_for_state = get_state_mapped_variables(
-                                mapping, state_code
-                            )
-                            if not variables_for_state:
-                                continue
-
-                            state_mask = state_codes == state_code
-                            var_sum = np.zeros(n)
-
-                            for resolved in variables_for_state:
-                                if self._is_year_restricted_variable(
-                                    resolved, year_int
-                                ):
-                                    continue
-
-                                try:
-                                    arr = self._calc_tax_unit(sim, resolved, year_str)
-                                    var_sum += arr
-                                except Exception as e:
-                                    if "does not exist" in str(e):
-                                        if self.logs:
-                                            print(
-                                                f"Variable {resolved} not implemented, setting to 0"
-                                            )
-                                    else:
-                                        raise
-
-                            result_array[state_mask] = var_sum[state_mask]
-
-                        columns[taxsim_var] = np.round(result_array, 2)
+                        columns[taxsim_var] = np.round(
+                            calculate_state_mapped_output(
+                                mapping,
+                                state_codes,
+                                lambda variable: self._calc_tax_unit(
+                                    sim, variable, year_str
+                                ),
+                                sim.tax_benefit_system.parameters(year_str),
+                            ),
+                            2,
+                        )
                         continue
 
                     if has_state:

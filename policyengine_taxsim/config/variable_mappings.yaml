@@ -618,7 +618,7 @@ policyengine_to_taxsim:
       NM: nm_cdcc
       NY: ny_cdcc
       OH: oh_cdcc
-      OK: ok_child_care_credit_component
+      OK: adapter:ok_child_care_credit_component
       OR: or_working_family_household_and_dependent_care_credit
       PA: pa_cdcc
       RI: ri_cdcc
@@ -691,12 +691,12 @@ policyengine_to_taxsim:
       IL: il_ctc
       MA: ma_child_and_family_credit
       MD: md_ctc
-      MN: mn_child_tax_credit_component
+      MN: adapter:mn_child_tax_credit_component
       NE: ne_refundable_ctc
       NJ: nj_ctc
       NM: nm_ctc
       NY: ny_ctc
-      OK: ok_child_tax_credit_component
+      OK: adapter:ok_child_tax_credit_component
       OR: or_ctc
       RI: ri_child_tax_rebate
       UT: ut_ctc

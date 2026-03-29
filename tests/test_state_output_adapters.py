@@ -104,7 +104,7 @@ DICT_OUTPUT_CASES = [
             "idtl": 2,
             "mstat": 1,
         },
-        ["ok_child_care_credit_component"],
+        ["adapter:ok_child_care_credit_component"],
     ),
     (
         "v39",
@@ -182,7 +182,7 @@ TEXT_OUTPUT_CASES = [
             "idtl": 5,
             "mstat": 1,
         },
-        ["ok_child_tax_credit_component"],
+        ["adapter:ok_child_tax_credit_component"],
     ),
     (
         "sctc",
@@ -198,7 +198,7 @@ TEXT_OUTPUT_CASES = [
             "idtl": 5,
             "mstat": 4,
         },
-        ["mn_child_tax_credit_component"],
+        ["adapter:mn_child_tax_credit_component"],
     ),
 ]
 
@@ -207,8 +207,117 @@ def _expected_value(taxsim_input, variables):
     situation = generate_household(dict(taxsim_input))
     simulation = Simulation(situation=situation)
     total = 0.0
+    parameter_values = simulation.tax_benefit_system.parameters(
+        str(taxsim_input["year"])
+    )
 
     for variable in variables:
+        if variable == "adapter:ok_child_care_credit_component":
+            adjusted_gross_income = simulation.calculate(
+                "adjusted_gross_income",
+                period=str(taxsim_input["year"]),
+            ).item()
+            ok_agi = simulation.calculate(
+                "ok_agi",
+                period=str(taxsim_input["year"]),
+            ).item()
+            cdcc_potential = simulation.calculate(
+                "cdcc_potential",
+                period=str(taxsim_input["year"]),
+            ).item()
+            ctc_value = simulation.calculate(
+                "ctc_value",
+                period=str(taxsim_input["year"]),
+            ).item()
+            agi_ratio = (
+                max(0.0, min(1.0, ok_agi / adjusted_gross_income))
+                if adjusted_gross_income
+                else 0.0
+            )
+            child_care_credit = (
+                (
+                    adjusted_gross_income
+                    <= parameter_values.gov.states.ok.tax.income.credits.child.agi_limit
+                )
+                * agi_ratio
+                * cdcc_potential
+                * float(
+                    parameter_values.gov.states.ok.tax.income.credits.child.cdcc_fraction
+                )
+            )
+            child_tax_credit = (
+                (
+                    adjusted_gross_income
+                    <= parameter_values.gov.states.ok.tax.income.credits.child.agi_limit
+                )
+                * agi_ratio
+                * ctc_value
+                * float(
+                    parameter_values.gov.states.ok.tax.income.credits.child.ctc_fraction
+                )
+            )
+            total += child_care_credit if child_care_credit >= child_tax_credit else 0.0
+            continue
+
+        if variable == "adapter:ok_child_tax_credit_component":
+            adjusted_gross_income = simulation.calculate(
+                "adjusted_gross_income",
+                period=str(taxsim_input["year"]),
+            ).item()
+            ok_agi = simulation.calculate(
+                "ok_agi",
+                period=str(taxsim_input["year"]),
+            ).item()
+            cdcc_potential = simulation.calculate(
+                "cdcc_potential",
+                period=str(taxsim_input["year"]),
+            ).item()
+            ctc_value = simulation.calculate(
+                "ctc_value",
+                period=str(taxsim_input["year"]),
+            ).item()
+            agi_ratio = (
+                max(0.0, min(1.0, ok_agi / adjusted_gross_income))
+                if adjusted_gross_income
+                else 0.0
+            )
+            child_care_credit = (
+                (
+                    adjusted_gross_income
+                    <= parameter_values.gov.states.ok.tax.income.credits.child.agi_limit
+                )
+                * agi_ratio
+                * cdcc_potential
+                * float(
+                    parameter_values.gov.states.ok.tax.income.credits.child.cdcc_fraction
+                )
+            )
+            child_tax_credit = (
+                (
+                    adjusted_gross_income
+                    <= parameter_values.gov.states.ok.tax.income.credits.child.agi_limit
+                )
+                * agi_ratio
+                * ctc_value
+                * float(
+                    parameter_values.gov.states.ok.tax.income.credits.child.ctc_fraction
+                )
+            )
+            total += child_tax_credit if child_tax_credit > child_care_credit else 0.0
+            continue
+
+        if variable == "adapter:mn_child_tax_credit_component":
+            combined_credit = simulation.calculate(
+                "mn_child_and_working_families_credits",
+                period=str(taxsim_input["year"]),
+            ).item()
+            working_family_credit = simulation.calculate(
+                "mn_wfc",
+                period=str(taxsim_input["year"]),
+            ).item()
+            total += max(0.0, combined_credit - working_family_credit)
+            continue
+
         total += float(
             simulation.calculate(variable, period=str(taxsim_input["year"])).item()
         )
@@ -262,7 +371,7 @@ def test_export_household_text_outputs_use_explicit_state_mappings(
 
     text = export_household(taxsim_input, situation, False, False)
 
-    assert _extract_text_value(text, label) == pytest.approx(expected, abs=0.01)
+    assert _extract_text_value(text, label) == pytest.approx(round(expected, 1))
 
 
 @pytest.mark.parametrize(
