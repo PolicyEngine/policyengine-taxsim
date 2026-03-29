@@ -1,3 +1,21 @@
+## [2.18.0] - 2026-03-29
+
+### Added
+
+- Add pre-built Enhanced CPS sample dataset and dataset documentation to the web runner.
+- Added support for Stata (.dta) file format. Input and output files are auto-detected by extension; all CLI subcommands now accept .dta files alongside CSV.
+
+### Changed
+
+- Update Stata code examples on landing page and docs to use idiomatic TAXSIM conventions (! shell escape, txpydata.raw/output.raw filenames, explicit delimiter).
+
+### Fixed
+
+- Include Additional Medicare Tax (0.9% on wages above $200K/$250K) in fiitax output to match TAXSIM's treatment.
+- Handle missing parameter errors gracefully in PolicyEngineRunner instead of crashing.
+- Move TAXSIM-only umbrella outputs onto explicit per-state adapters and align scalar and vectorized state output resolution.
+
+
 ## [2.17.2] - 2026-03-29
 
 ### Changed
