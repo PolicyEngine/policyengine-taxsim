@@ -465,6 +465,7 @@ policyengine_versions()
               { id: 'installation', label: 'Installation & Usage' },
               { id: 'options', label: 'All Runners & CLI' },
               { id: 'mappings', label: 'Variable Mappings' },
+              { id: 'datasets', label: 'Sample Datasets' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -943,6 +944,206 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
               </p>
             )}
             </>}
+          </section>
+        )}
+
+        {/* Sample Datasets */}
+        {activeSection === 'datasets' && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h2 className="text-xl font-bold text-gray-900">Sample Datasets</h2>
+              <p className="text-gray-600">
+                The web runner includes pre-built sample datasets derived from the{' '}
+                <a href="https://policyengine.github.io/policyengine-us-data/" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  Enhanced Current Population Survey (Enhanced CPS)
+                </a>
+                , published by PolicyEngine on{' '}
+                <a href="https://huggingface.co/policyengine/policyengine-us-data" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  HuggingFace
+                </a>.
+                These are real, representative tax filing units converted into TAXSIM input format.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Enhanced CPS 2024 (868 tax units)</h3>
+              <p className="text-gray-600">
+                A representative sample of US tax filing units drawn from the Enhanced CPS — the Census
+                Current Population Survey augmented with IRS Public Use File (PUF) imputations and
+                reweighted to match IRS Statistics of Income targets.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Tax units', value: '868' },
+                  { label: 'Single filers', value: '560' },
+                  { label: 'Joint filers', value: '308' },
+                  { label: 'States', value: '50' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-bold text-primary-600">{value}</div>
+                    <div className="text-xs text-gray-500">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">How datasets are constructed</h3>
+              <p className="text-gray-600">
+                The conversion from PolicyEngine&apos;s H5 microdata format to TAXSIM CSV is a multi-step process:
+              </p>
+
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">1</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Load the H5 dataset via PolicyEngine</p>
+                    <p className="text-sm text-gray-500">
+                      The Enhanced CPS H5 file is loaded using <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">policyengine-us</code>&apos;s
+                      Microsimulation engine, which computes derived variables like <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">is_tax_unit_head</code> and{' '}
+                      <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">is_tax_unit_spouse</code> that aren&apos;t stored in the raw data.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">2</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Group persons into tax units</p>
+                    <p className="text-sm text-gray-500">
+                      Each person is linked to a tax unit via <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">person_tax_unit_id</code>.
+                      Within each tax unit, we identify the head (primary filer), spouse, and dependents.
+                      Each tax unit becomes one row in the TAXSIM CSV.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">3</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Map PolicyEngine variables to TAXSIM columns</p>
+                    <p className="text-sm text-gray-500">
+                      Person-level income (wages, self-employment) is assigned to the primary or secondary filer.
+                      Investment income (dividends, interest, capital gains) is summed across all persons in the tax unit.
+                      Household-level variables (state, property tax, rent) are looked up from the household entity.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">4</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Convert state codes</p>
+                    <p className="text-sm text-gray-500">
+                      The CPS uses FIPS state codes (e.g. 6 = California) while TAXSIM uses SOI codes (e.g. 5 = California).
+                      All state codes are converted from FIPS to SOI format.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 pb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Variable mapping</h3>
+                <p className="text-sm text-gray-500 mt-1">PolicyEngine variable → TAXSIM input column</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-y border-gray-200">
+                      <th className="text-left px-6 py-3 font-semibold text-gray-700">TAXSIM Column</th>
+                      <th className="text-left px-6 py-3 font-semibold text-gray-700">PolicyEngine Source</th>
+                      <th className="text-left px-6 py-3 font-semibold text-gray-700">Aggregation</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {[
+                      ['taxsimid', 'tax_unit_id', 'Direct'],
+                      ['year', '(argument)', 'Set to 2024'],
+                      ['state', 'state_fips (household)', 'FIPS → SOI conversion'],
+                      ['mstat', 'is_tax_unit_spouse present', '1=single, 2=joint'],
+                      ['page', 'age (head)', 'Direct'],
+                      ['sage', 'age (spouse)', 'Direct, 0 if no spouse'],
+                      ['depx', 'is_tax_unit_dependent', 'Count of dependents'],
+                      ['pwages', 'employment_income (head)', 'Direct'],
+                      ['swages', 'employment_income (spouse)', 'Direct'],
+                      ['psemp', 'self_employment_income (head)', 'Direct'],
+                      ['ssemp', 'self_employment_income (spouse)', 'Direct'],
+                      ['dividends', 'qualified_dividend_income', 'Sum across tax unit'],
+                      ['intrec', 'taxable_interest_income', 'Sum across tax unit'],
+                      ['stcg', 'short_term_capital_gains', 'Sum across tax unit'],
+                      ['ltcg', 'long_term_capital_gains', 'Sum across tax unit'],
+                      ['otherprop', 'rental_income', 'Sum across tax unit'],
+                      ['pensions', 'taxable_private_pension_income', 'Sum across tax unit'],
+                      ['gssi', 'social_security_* (all types)', 'Sum retirement + disability + survivors + dependents'],
+                      ['pui', 'unemployment_compensation (head)', 'Direct'],
+                      ['sui', 'unemployment_compensation (spouse)', 'Direct'],
+                      ['scorp', 'partnership_s_corp_income', 'Sum across tax unit'],
+                      ['proptax', 'real_estate_taxes (household)', 'Direct'],
+                      ['mortgage', 'deductible_mortgage_interest (household)', 'Direct'],
+                      ['rentpaid', 'rent (household)', 'Direct'],
+                      ['age1–age11', 'age (each dependent)', 'Direct, up to 11'],
+                    ].map(([taxsim, pe, agg], i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                        <td className="px-6 py-2.5 font-mono text-xs text-gray-900">{taxsim}</td>
+                        <td className="px-6 py-2.5 font-mono text-xs text-primary-700">{pe}</td>
+                        <td className="px-6 py-2.5 text-gray-500 text-xs">{agg}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Regenerating datasets</h3>
+              <p className="text-gray-600">
+                The conversion script is included in the repository. To regenerate or create new datasets:
+              </p>
+              <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm font-mono overflow-x-auto">
+{`# Install dependencies
+pip install policyengine-us huggingface_hub
+
+# Generate from the pinned small Enhanced CPS snapshot (868 tax units)
+python scripts/convert_h5_to_taxsim.py
+
+# Custom dataset and output path
+python scripts/convert_h5_to_taxsim.py \\
+  --dataset enhanced_cps_2024 \\
+  --year 2024 \\
+  --output my_output.csv`}
+              </pre>
+              <p className="text-sm text-gray-500">
+                The script supports any H5 dataset published on PolicyEngine&apos;s HuggingFace repository.
+                To request additional pre-built datasets in TAXSIM format, please{' '}
+                <a href="https://github.com/PolicyEngine/policyengine-taxsim/issues" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  open a GitHub issue
+                </a>.
+              </p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 space-y-2">
+              <h3 className="text-base font-semibold text-amber-800">Limitations</h3>
+              <ul className="text-sm text-amber-700 space-y-1 list-disc ml-5">
+                <li>
+                  Household-level variables (state, property tax, mortgage, rent) are shared across
+                  all tax units within the same household — if two tax units share a household, they
+                  get the same values for these fields.
+                </li>
+                <li>
+                  <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">childcare</code>,{' '}
+                  <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">pbusinc</code> (qualified business income),
+                  and <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">otheritem</code> (other itemized deductions)
+                  are not currently extracted from the H5.
+                </li>
+                <li>
+                  The sample uses the <em>small</em> Enhanced CPS (1,000 households → 868 tax units)
+                  pinned to a specific Hugging Face revision for reproducibility.
+                  The full Enhanced CPS has ~80,000 tax units but is too large to serve as a static file.
+                </li>
+              </ul>
+            </div>
           </section>
         )}
 
