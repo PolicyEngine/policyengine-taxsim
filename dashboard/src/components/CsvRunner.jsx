@@ -31,7 +31,7 @@ const SAMPLE_DATASETS = [
   },
   {
     id: 'sample_ecps_2024',
-    label: 'Enhanced CPS 2024 (916 households)',
+    label: 'Enhanced CPS 2024 (868 tax units)',
     description: 'Representative sample from the Enhanced Current Population Survey — diverse incomes, filing statuses, and all 50 states',
     file: 'sample_ecps_2024.csv',
   },

@@ -65,15 +65,10 @@ FIPS_TO_SOI = {
     56: 51,
 }
 
-
-DATASET_CLASSES = {
-    "enhanced_cps_2024": "EnhancedCPS_2024",
-    "small_enhanced_cps_2024": "EnhancedCPS_2024",  # same class, different file
-    "cps_2024": "CPS_2024",
-}
+SMALL_ECPS_REVISION = "c24d1444f381e10f81103ea853ab57a46ed3f10e"
 
 
-def load_sim(dataset_name: str, year: int):
+def load_sim(dataset_name: str, year: int, revision: str):
     """Load a PolicyEngine Microsimulation for the given dataset."""
     from policyengine_us import Microsimulation
 
@@ -85,23 +80,8 @@ def load_sim(dataset_name: str, year: int):
             repo_id="policyengine/policyengine-us-data",
             repo_type="model",
             filename="small_enhanced_cps_2024.h5",
+            revision=revision,
         )
-        from policyengine_us_data import EnhancedCPS_2024
-
-        # Create a temporary dataset class pointing to the small file
-        import policyengine_core.data
-
-        class SmallECPS(EnhancedCPS_2024):
-            file_path = path
-            label = "Small Enhanced CPS 2024"
-            name = "small_enhanced_cps_2024"
-            url = None  # already downloaded
-
-            @classmethod
-            def from_file(cls, *args, **kwargs):
-                # Override to use the local file directly
-                pass
-
         sim = Microsimulation(dataset=path)
     else:
         sim = Microsimulation(dataset=dataset_name)
@@ -286,10 +266,18 @@ def main():
         default="dashboard/public/sample_ecps_2024.csv",
         help="Output CSV path",
     )
+    parser.add_argument(
+        "--revision",
+        default=SMALL_ECPS_REVISION,
+        help=(
+            "Hugging Face revision for small_enhanced_cps_2024 "
+            f"(default: {SMALL_ECPS_REVISION})"
+        ),
+    )
     args = parser.parse_args()
 
     print(f"Loading dataset: {args.dataset}")
-    sim = load_sim(args.dataset, args.year)
+    sim = load_sim(args.dataset, args.year, args.revision)
 
     print(f"Extracting TAXSIM CSV for year {args.year}...")
     df = extract_taxsim_csv(sim, args.year)

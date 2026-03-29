@@ -966,7 +966,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Enhanced CPS 2024 (916 tax units)</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Enhanced CPS 2024 (868 tax units)</h3>
               <p className="text-gray-600">
                 A representative sample of US tax filing units drawn from the Enhanced CPS — the Census
                 Current Population Survey augmented with IRS Public Use File (PUF) imputations and
@@ -974,9 +974,9 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Tax units', value: '916' },
-                  { label: 'Single filers', value: '616' },
-                  { label: 'Joint filers', value: '300' },
+                  { label: 'Tax units', value: '868' },
+                  { label: 'Single filers', value: '560' },
+                  { label: 'Joint filers', value: '308' },
                   { label: 'States', value: '50' },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-gray-50 rounded-lg p-3 text-center">
@@ -1105,7 +1105,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
 {`# Install dependencies
 pip install policyengine-us huggingface_hub
 
-# Generate from the small Enhanced CPS (916 tax units)
+# Generate from the pinned small Enhanced CPS snapshot (868 tax units)
 python scripts/convert_h5_to_taxsim.py
 
 # Custom dataset and output path
@@ -1138,7 +1138,8 @@ python scripts/convert_h5_to_taxsim.py \\
                   are not currently extracted from the H5.
                 </li>
                 <li>
-                  The sample uses the <em>small</em> Enhanced CPS (1,000 households → 916 tax units).
+                  The sample uses the <em>small</em> Enhanced CPS (1,000 households → 868 tax units)
+                  pinned to a specific Hugging Face revision for reproducibility.
                   The full Enhanced CPS has ~80,000 tax units but is too large to serve as a static file.
                 </li>
               </ul>
