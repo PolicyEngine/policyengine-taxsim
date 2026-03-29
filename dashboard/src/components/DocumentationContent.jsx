@@ -342,7 +342,7 @@ policyengine_versions()
     'sctc': { implemented: true, variable: 'taxsim_sctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
-    'staxbc': { implemented: true, variable: 'state_income_tax_before_refundable_credits' },
+    'staxbc': { implemented: true, variable: 'taxsim_staxbc' },
 
     // Marginal rates: based on PE variables, adjusted to match TAXSIM methodology
     'frate': { implemented: true, variable: 'federal_marginal_tax_rate' },

@@ -1,6 +1,13 @@
 from __future__ import annotations
 
 
+def get_state_specific_variable_name(variable: str, state_code: str) -> str:
+    if not variable.startswith("state_"):
+        return variable
+
+    return variable.replace("state_", f"{state_code.lower()}_", 1)
+
+
 def has_state_variable_mapping(mapping: dict) -> bool:
     return bool(mapping.get("state_variables"))
 

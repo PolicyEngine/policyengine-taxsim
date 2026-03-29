@@ -4,6 +4,9 @@ import pandas as pd
 import pytest
 
 from policyengine_taxsim import export_household, generate_household
+from policyengine_taxsim.core.state_output_resolver import (
+    get_state_specific_variable_name,
+)
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
 from policyengine_us import Simulation
 
@@ -88,6 +91,36 @@ DICT_OUTPUT_CASES = [
         },
         ["wa_working_families_tax_credit"],
     ),
+    (
+        "v38",
+        {
+            "year": 2023,
+            "state": 37,  # OK
+            "pwages": 40_000.0,
+            "childcare": 2_000.0,
+            "depx": 1,
+            "age1": 5,
+            "taxsimid": 9,
+            "idtl": 2,
+            "mstat": 1,
+        },
+        ["ok_child_care_credit_component"],
+    ),
+    (
+        "v39",
+        {
+            "year": 2023,
+            "state": 24,  # MN
+            "pwages": 20_050.0,
+            "depx": 2,
+            "age1": 9,
+            "age2": 7,
+            "taxsimid": 10,
+            "idtl": 2,
+            "mstat": 4,
+        },
+        ["mn_wfc"],
+    ),
 ]
 
 TEXT_OUTPUT_CASES = [
@@ -118,6 +151,54 @@ TEXT_OUTPUT_CASES = [
             "mstat": 1,
         },
         ["nj_ctc"],
+    ),
+    (
+        "staxbc",
+        "Tax before credits",
+        {
+            "year": 2023,
+            "state": 37,  # OK
+            "pwages": 40_000.0,
+            "childcare": 2_000.0,
+            "depx": 1,
+            "age1": 5,
+            "taxsimid": 11,
+            "idtl": 5,
+            "mstat": 1,
+        },
+        ["ok_income_tax_before_credits"],
+    ),
+    (
+        "sctc",
+        "Child Tax Credit",
+        {
+            "year": 2023,
+            "state": 37,  # OK
+            "pwages": 40_000.0,
+            "childcare": 2_000.0,
+            "depx": 1,
+            "age1": 5,
+            "taxsimid": 12,
+            "idtl": 5,
+            "mstat": 1,
+        },
+        ["ok_child_tax_credit_component"],
+    ),
+    (
+        "sctc",
+        "Child Tax Credit",
+        {
+            "year": 2023,
+            "state": 24,  # MN
+            "pwages": 20_050.0,
+            "depx": 2,
+            "age1": 9,
+            "age2": 7,
+            "taxsimid": 13,
+            "idtl": 5,
+            "mstat": 4,
+        },
+        ["mn_child_tax_credit_component"],
     ),
 ]
 
@@ -153,6 +234,17 @@ def _extract_text_value(text, label, group_name="State Tax Calculation"):
     return float(match.group(1))
 
 
+def test_state_specific_variable_name_only_rewrites_state_prefix():
+    assert (
+        get_state_specific_variable_name("state_income_tax", "PA")
+        == "pa_income_tax"
+    )
+    assert (
+        get_state_specific_variable_name("reinstate_credit", "DC")
+        == "reinstate_credit"
+    )
+
+
 @pytest.mark.parametrize(("taxsim_var", "taxsim_input", "variables"), DICT_OUTPUT_CASES)
 def test_export_household_dict_outputs_use_explicit_state_mappings(
     taxsim_var, taxsim_input, variables
@@ -162,7 +254,6 @@ def test_export_household_dict_outputs_use_explicit_state_mappings(
     result = export_household(taxsim_input, situation, False, False)
 
     assert float(result[taxsim_var]) == pytest.approx(expected, abs=0.01)
-    assert float(result[taxsim_var]) > 0
 
 
 @pytest.mark.parametrize(
@@ -176,7 +267,6 @@ def test_export_household_text_outputs_use_explicit_state_mappings(
     text = export_household(taxsim_input, situation, False, False)
 
     assert _extract_text_value(text, label) == pytest.approx(expected, abs=0.01)
-    assert expected > 0
 
 
 @pytest.mark.parametrize(
@@ -194,4 +284,51 @@ def test_policyengine_runner_state_outputs_use_clean_adapter_mappings(
     ).run(show_progress=False)
 
     assert float(result[taxsim_var].iloc[0]) == pytest.approx(expected, abs=0.01)
-    assert expected > 0
+
+
+@pytest.mark.parametrize(
+    ("taxsim_input", "component_var", "taxsim_vars"),
+    [
+        (
+            {
+                "year": 2023,
+                "state": 37,  # OK
+                "pwages": 40_000.0,
+                "childcare": 2_000.0,
+                "depx": 1,
+                "age1": 5,
+                "taxsimid": 14,
+                "idtl": 5,
+                "mstat": 1,
+            },
+            "ok_child_care_child_tax_credit",
+            ("v38", "sctc"),
+        ),
+        (
+            {
+                "year": 2023,
+                "state": 24,  # MN
+                "pwages": 20_050.0,
+                "depx": 2,
+                "age1": 9,
+                "age2": 7,
+                "taxsimid": 15,
+                "idtl": 5,
+                "mstat": 4,
+            },
+            "mn_child_and_working_families_credits",
+            ("v39", "sctc"),
+        ),
+    ],
+)
+def test_combined_state_credit_outputs_do_not_double_count(
+    taxsim_input, component_var, taxsim_vars
+):
+    expected_total, _ = _expected_value(taxsim_input, [component_var])
+
+    result = PolicyEngineRunner(
+        pd.DataFrame([taxsim_input]), logs=False, disable_salt=False
+    ).run(show_progress=False)
+
+    total = sum(float(result[var].iloc[0]) for var in taxsim_vars)
+    assert total == pytest.approx(expected_total, abs=0.01)

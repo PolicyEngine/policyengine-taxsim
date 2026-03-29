@@ -129,7 +129,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'v41', name: 'State Bracket Rate', policyengine: 'state_income_tax_rate' },
 
   // Additional State Results (moved to be with other state variables)
-  { code: 'staxbc', name: 'State tax before credits', policyengine: 'state_income_tax_before_refundable_credits' },
+  { code: 'staxbc', name: 'State tax before credits', policyengine: 'taxsim_staxbc' },
   { code: 'srebate', name: 'State income tax rebates (shown only in year paid even if eligibility depends on prior year)', policyengine: 'state_rebates' },
   { code: 'senergy', name: 'State energy/fuel tax credits', policyengine: 'state_energy_credits' },
   { code: 'sctc', name: 'State child tax credit', policyengine: 'taxsim_sctc' },
@@ -237,7 +237,7 @@ export const POLICYENGINE_VARIABLE_PATHS = {
   'taxsim_v38_cdcc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
   'taxsim_v39_eitc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
   'taxsim_sctc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
-  'state_income_tax_before_refundable_credits': 'gov/states/tax/income/state_income_tax_before_refundable_credits.py',
+  'taxsim_staxbc': 'https://github.com/PolicyEngine/policyengine-taxsim/blob/main/policyengine_taxsim/config/variable_mappings.yaml',
   'state_non_refundable_credits': 'gov/states/tax/credits/state_non_refundable_credits.py',
   'state_refundable_credits': 'gov/states/tax/credits/state_refundable_credits.py',
   

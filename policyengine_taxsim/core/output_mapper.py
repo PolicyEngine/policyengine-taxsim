@@ -5,6 +5,7 @@ from .utils import (
 )
 from .state_output_resolver import (
     get_state_mapped_variables,
+    get_state_specific_variable_name,
     has_state_variable_mapping,
 )
 from policyengine_us import Simulation
@@ -18,7 +19,7 @@ def resolve_output_variable(simulation, variable, state_name):
     if simulation.tax_benefit_system.variables.get(variable) is not None:
         return variable
 
-    state_specific = variable.replace("state", state_name.lower())
+    state_specific = get_state_specific_variable_name(variable, state_name)
     if simulation.tax_benefit_system.variables.get(state_specific) is not None:
         return state_specific
 

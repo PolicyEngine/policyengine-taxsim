@@ -491,7 +491,59 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
   staxbc:
-    variable: state_income_tax_before_refundable_credits
+    variable: taxsim_staxbc
+    state_variables:
+      AK: null
+      AL: al_income_tax_before_non_refundable_credits
+      AR: ar_income_tax_before_non_refundable_credits_unit
+      AZ: az_income_tax_before_non_refundable_credits
+      CA: ca_income_tax_before_credits
+      CO: co_income_tax_before_non_refundable_credits
+      CT: ct_income_tax_before_refundable_credits
+      DC: dc_income_tax_before_credits
+      DE: de_income_tax_before_non_refundable_credits_unit
+      FL: null
+      GA: ga_income_tax_before_non_refundable_credits
+      HI: hi_income_tax_before_non_refundable_credits
+      IA: ia_income_tax_before_credits
+      ID: id_income_tax_before_non_refundable_credits
+      IL: il_income_tax_before_non_refundable_credits
+      IN: in_income_tax_before_refundable_credits
+      KS: ks_income_tax_before_credits
+      KY: ky_income_tax_before_non_refundable_credits_unit
+      LA: la_income_tax_before_non_refundable_credits
+      MA: ma_income_tax_before_credits
+      MD: md_income_tax_before_credits
+      ME: me_income_tax_before_credits
+      MI: mi_income_tax_before_non_refundable_credits
+      MN: mn_income_tax_before_credits
+      MO: mo_income_tax_before_credits
+      MS: ms_income_tax_before_credits_unit
+      MT: mt_income_tax_before_refundable_credits_unit
+      NC: nc_income_tax_before_credits
+      ND: nd_income_tax_before_credits
+      NE: ne_income_tax_before_credits
+      NH: nh_income_tax_before_refundable_credits
+      NJ: nj_income_tax_before_refundable_credits
+      NM: nm_income_tax_before_non_refundable_credits
+      NV: null
+      NY: ny_income_tax_before_credits
+      OH: oh_income_tax_before_non_refundable_credits
+      OK: ok_income_tax_before_credits
+      OR: or_income_tax_before_credits
+      PA: pa_income_tax
+      RI: ri_income_tax_before_non_refundable_credits
+      SC: sc_income_tax_before_non_refundable_credits
+      SD: null
+      TN: null
+      TX: null
+      UT: ut_income_tax_before_credits
+      VA: va_income_tax_before_non_refundable_credits
+      VT: vt_income_tax_before_non_refundable_credits
+      WA: wa_income_tax_before_refundable_credits
+      WI: wi_income_tax_before_credits
+      WV: wv_income_tax_before_non_refundable_credits
+      WY: null
     implemented: true
     idtl:
       - full_text: 5
@@ -566,7 +618,7 @@ policyengine_to_taxsim:
       NM: nm_cdcc
       NY: ny_cdcc
       OH: oh_cdcc
-      OK: ok_child_care_child_tax_credit
+      OK: ok_child_care_credit_component
       OR: or_working_family_household_and_dependent_care_credit
       PA: pa_cdcc
       RI: ri_cdcc
@@ -601,9 +653,7 @@ policyengine_to_taxsim:
       MD: md_eitc
       ME: me_eitc
       MI: mi_eitc
-      MN:
-        - mn_wfc
-        - mn_child_and_working_families_credits
+      MN: mn_wfc
       MO: mo_wftc
       MT: mt_eitc
       NE: ne_eitc
@@ -641,12 +691,12 @@ policyengine_to_taxsim:
       IL: il_ctc
       MA: ma_child_and_family_credit
       MD: md_ctc
-      MN: mn_child_and_working_families_credits
+      MN: mn_child_tax_credit_component
       NE: ne_refundable_ctc
       NJ: nj_ctc
       NM: nm_ctc
       NY: ny_ctc
-      OK: ok_child_care_child_tax_credit
+      OK: ok_child_tax_credit_component
       OR: or_ctc
       RI: ri_child_tax_rebate
       UT: ut_ctc
