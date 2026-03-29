@@ -112,9 +112,7 @@ class TestFederalOutputAdjustments:
                 "idtl": [0],
             }
         )
-        runner = PolicyEngineRunner(
-            records.copy(), logs=False, disable_salt=True
-        )
+        runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
         runner.mappings = {
             "policyengine_to_taxsim": {
                 "fiitax": {
