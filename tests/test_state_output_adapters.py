@@ -140,7 +140,9 @@ def _extract_text_value(text, label, group_name="State Tax Calculation"):
     try:
         group_text = text.split(group_header, 1)[1].split("\n\n", 1)[0]
     except IndexError as error:
-        raise AssertionError(f"Could not find '{group_name}' in text output:\n{text}") from error
+        raise AssertionError(
+            f"Could not find '{group_name}' in text output:\n{text}"
+        ) from error
 
     pattern = re.compile(rf"{re.escape(label)}\s+(-?\d+(?:\.\d+)?)")
     match = pattern.search(group_text)
@@ -179,7 +181,8 @@ def test_export_household_text_outputs_use_explicit_state_mappings(
 
 @pytest.mark.parametrize(
     ("taxsim_var", "taxsim_input", "variables"),
-    DICT_OUTPUT_CASES + [(code, payload, variables) for code, _, payload, variables in TEXT_OUTPUT_CASES],
+    DICT_OUTPUT_CASES
+    + [(code, payload, variables) for code, _, payload, variables in TEXT_OUTPUT_CASES],
 )
 def test_policyengine_runner_state_outputs_use_clean_adapter_mappings(
     taxsim_var, taxsim_input, variables
