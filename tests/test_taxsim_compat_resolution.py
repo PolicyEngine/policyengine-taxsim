@@ -44,6 +44,8 @@ class FakeSimulation:
 
     def calculate(self, variable, period):
         self.calls.append(variable)
+        if variable not in self.responses:
+            raise ValueError(f"Variable {variable} does not exist")
         value = self.responses[variable]
         if isinstance(value, Exception):
             raise value
@@ -81,6 +83,9 @@ def test_calculate_single_variable_output_falls_back_to_state_mapping():
             "taxsim_v36_taxable_income": ValueError(
                 "Variable taxsim_v36_taxable_income does not exist"
             ),
+            "state_taxable_income": ValueError(
+                "Variable state_taxable_income does not exist"
+            ),
             "pa_adjusted_taxable_income": 76_000.0,
         }
     )
@@ -90,10 +95,32 @@ def test_calculate_single_variable_output_falls_back_to_state_mapping():
     assert value == 76_000.0
     assert simulation.calls == [
         "taxsim_v36_taxable_income",
+        "state_taxable_income",
         "pa_adjusted_taxable_income",
     ]
 
 
+def test_calculate_single_variable_output_prefers_legacy_unified_fallback():
+    mapping = {
+        "variable": "taxsim_v32_state_agi",
+        "state_variables": {"PA": "pa_eligibility_income"},
+    }
+    simulation = FakeSimulation(
+        {
+            "taxsim_v32_state_agi": ValueError(
+                "Variable taxsim_v32_state_agi does not exist"
+            ),
+            "state_agi": 81_000.0,
+        }
+    )
+
+    value = calculate_single_variable_output(simulation, mapping, "2023", "PA")
+
+    assert value == 81_000.0
+    assert simulation.calls == [
+        "taxsim_v32_state_agi",
+        "state_agi",
+    ]
 def test_calculate_single_variable_output_uses_component_adapter_fallback():
     mapping = {
         "variable": "taxsim_v38_cdcc",
@@ -121,7 +148,7 @@ def test_calculate_state_mapped_output_uses_vector_fallback_components():
             "PA": "pa_cdcc",
         }
     }
-    state_codes = np.array(["OK", "PA"])
+    state_codes = np.array(["ok", "pa"])
     responses = {
         "adjusted_gross_income": np.array([40_000.0, 50_000.0]),
         "ok_agi": np.array([20_000.0, 0.0]),

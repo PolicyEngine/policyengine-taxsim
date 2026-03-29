@@ -6,6 +6,7 @@ from .utils import (
 from .state_output_resolver import (
     calculate_scalar_state_mapped_output,
     get_state_specific_variable_name,
+    get_legacy_compat_variable_name,
     has_state_variable_mapping,
     is_missing_variable_error,
 )
@@ -321,6 +322,12 @@ def calculate_single_variable_output(simulation, mapping, year, state_code):
         value = try_simulate(simulation, resolved_variable, year)
         if value is not None:
             return value
+
+        legacy_variable = get_legacy_compat_variable_name(variable)
+        if legacy_variable is not None:
+            legacy_value = try_simulate(simulation, legacy_variable, year)
+            if legacy_value is not None:
+                return legacy_value
 
         if has_state_variable_mapping(mapping):
             parameter_values = simulation.tax_benefit_system.parameters(year)

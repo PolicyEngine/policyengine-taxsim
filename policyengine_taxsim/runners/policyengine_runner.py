@@ -18,6 +18,7 @@ from policyengine_taxsim.core.input_mapper import (
 )
 from policyengine_taxsim.core.state_output_resolver import (
     calculate_state_mapped_output,
+    get_legacy_compat_variable_name,
     get_state_specific_variable_name,
     has_state_variable_mapping,
     is_missing_variable_error,
@@ -1198,15 +1199,26 @@ class PolicyEngineRunner(BaseTaxRunner):
                         if arr is not None:
                             columns[taxsim_var] = np.round(arr, 2)
                         else:
-                            result_array = calculate_state_mapped_output(
-                                mapping,
-                                state_initials,
-                                lambda variable_name: self._calc_tax_unit(
-                                    sim, variable_name, year_str
-                                ),
-                                parameter_values,
+                            legacy_variable = get_legacy_compat_variable_name(pe_var)
+                            legacy_arr = (
+                                self._try_calc_tax_unit(
+                                    sim, legacy_variable, year_str
+                                )
+                                if legacy_variable is not None
+                                else None
                             )
-                            columns[taxsim_var] = np.round(result_array, 2)
+                            if legacy_arr is not None:
+                                columns[taxsim_var] = np.round(legacy_arr, 2)
+                            else:
+                                result_array = calculate_state_mapped_output(
+                                    mapping,
+                                    state_initials,
+                                    lambda variable_name: self._calc_tax_unit(
+                                        sim, variable_name, year_str
+                                    ),
+                                    parameter_values,
+                                )
+                                columns[taxsim_var] = np.round(result_array, 2)
 
                     elif uses_state_prefix:
                         arr = self._try_calc_tax_unit(sim, pe_var, year_str)

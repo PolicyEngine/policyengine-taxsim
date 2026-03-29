@@ -12,6 +12,15 @@ COMPONENT_ADAPTERS = {
     "adapter:ok_child_care_credit_component",
     "adapter:ok_child_tax_credit_component",
 }
+LEGACY_COMPAT_VARIABLES = {
+    "taxsim_sctc": "state_ctc",
+    "taxsim_staxbc": "state_income_tax_before_non_refundable_credits",
+    "taxsim_v32_state_agi": "state_agi",
+    "taxsim_v36_taxable_income": "state_taxable_income",
+    "taxsim_v37_property_tax_credit": "state_property_tax_credit",
+    "taxsim_v38_cdcc": "state_cdcc",
+    "taxsim_v39_eitc": "state_eitc",
+}
 MISSING_VARIABLE_MESSAGES = ("does not exist", "was not found")
 
 
@@ -24,6 +33,10 @@ def get_state_specific_variable_name(variable: str, state_code: str) -> str:
 
 def has_state_variable_mapping(mapping: dict) -> bool:
     return bool(mapping.get("state_variables"))
+
+
+def get_legacy_compat_variable_name(variable: str) -> str | None:
+    return LEGACY_COMPAT_VARIABLES.get(variable)
 
 
 def get_state_mapped_variables(mapping: dict, state_code: str) -> list[str]:
@@ -393,7 +406,7 @@ def _normalize_state_codes(state_codes) -> np.ndarray:
     if isinstance(state_codes, str):
         return np.array([state_codes.upper()])
 
-    return np.asarray(state_codes, dtype=str)
+    return np.char.upper(np.asarray(state_codes, dtype=str))
 
 
 def _try_calculate_scalar(variable: str, calculate) -> float | None:
