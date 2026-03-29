@@ -1,3 +1,10 @@
+## [2.17.2] - 2026-03-29
+
+### Changed
+
+- Upgrade Next.js from 15 to 16.
+
+
 ## [2.17.1] - 2026-03-26
 
 ### Changed
