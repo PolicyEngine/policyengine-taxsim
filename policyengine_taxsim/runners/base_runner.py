@@ -3,6 +3,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 from pathlib import Path
 
+try:
+    from ..core.io import write_output
+except ImportError:
+    from policyengine_taxsim.core.io import write_output
+
 
 class BaseTaxRunner(ABC):
     """Abstract base class for tax calculation runners
@@ -87,14 +92,14 @@ class BaseTaxRunner(ABC):
             output_path: Path where to save the input data
         """
         output_path = Path(output_path)
-        self.input_df.to_csv(output_path, index=False)
+        write_output(self.input_df, output_path)
         print(f"Input data saved to: {output_path}")
 
     def save_results(
         self, output_path: Union[str, Path], results_df: Optional[pd.DataFrame] = None
     ):
         """
-        Save results to CSV file
+        Save results to file (CSV or Stata based on extension)
 
         Args:
             output_path: Path where to save the results
@@ -108,7 +113,7 @@ class BaseTaxRunner(ABC):
                 results_df = self.results
 
         output_path = Path(output_path)
-        results_df.to_csv(output_path, index=False)
+        write_output(results_df, output_path)
         print(f"Results saved to: {output_path}")
 
     def get_record_count(self) -> int:
