@@ -121,6 +121,8 @@ def test_calculate_single_variable_output_prefers_legacy_unified_fallback():
         "taxsim_v32_state_agi",
         "state_agi",
     ]
+
+
 def test_calculate_single_variable_output_uses_component_adapter_fallback():
     mapping = {
         "variable": "taxsim_v38_cdcc",

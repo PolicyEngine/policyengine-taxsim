@@ -1201,9 +1201,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                         else:
                             legacy_variable = get_legacy_compat_variable_name(pe_var)
                             legacy_arr = (
-                                self._try_calc_tax_unit(
-                                    sim, legacy_variable, year_str
-                                )
+                                self._try_calc_tax_unit(sim, legacy_variable, year_str)
                                 if legacy_variable is not None
                                 else None
                             )
