@@ -1,3 +1,10 @@
+## [2.18.1] - 2026-03-30
+
+### Fixed
+
+- Recognize dependent age and count columns; use full Enhanced CPS dataset.
+
+
 ## [2.18.0] - 2026-03-29
 
 ### Added
