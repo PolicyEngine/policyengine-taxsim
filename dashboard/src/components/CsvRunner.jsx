@@ -31,8 +31,8 @@ const SAMPLE_DATASETS = [
   },
   {
     id: 'sample_ecps_2024',
-    label: 'Enhanced CPS 2024 (868 tax units)',
-    description: 'Representative sample from the Enhanced Current Population Survey — diverse incomes, filing statuses, and all 50 states',
+    label: 'Enhanced CPS 2024 (56,356 tax units)',
+    description: 'Full Enhanced CPS — all 50 states, diverse incomes and filing statuses',
     file: 'sample_ecps_2024.csv',
   },
 ];
@@ -47,6 +47,11 @@ const KNOWN_COLUMNS = new Set([
   'pui', 'sui', 'transfers', 'rentpaid', 'proptax',
   'otheritem', 'childcare', 'mortgage', 'scorp',
   'pbusinc', 'pprofinc', 'idtl',
+  // Dependent ages (TAXSIM-35 format)
+  'age1', 'age2', 'age3', 'age4', 'age5', 'age6',
+  'age7', 'age8', 'age9', 'age10', 'age11',
+  // Dependent counts by age bracket (TAXSIM-32 format)
+  'dep13', 'dep17', 'dep18',
 ]);
 
 const CsvRunner = () => {
@@ -362,7 +367,7 @@ const CsvRunner = () => {
                     <IconDatabase size={16} className="text-gray-400 group-hover:text-primary-500" />
                   )}
                   {ds.label}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-secondary-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10 max-w-xs text-center">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-secondary-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none z-10 w-56 text-center">
                     {ds.description}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-secondary-900" />
                   </div>

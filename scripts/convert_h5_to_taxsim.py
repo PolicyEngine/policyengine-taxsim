@@ -83,6 +83,15 @@ def load_sim(dataset_name: str, year: int, revision: str):
             revision=revision,
         )
         sim = Microsimulation(dataset=path)
+    elif dataset_name == "enhanced_cps_2024":
+        from huggingface_hub import hf_hub_download
+
+        path = hf_hub_download(
+            repo_id="policyengine/policyengine-us-data",
+            repo_type="model",
+            filename="enhanced_cps_2024.h5",
+        )
+        sim = Microsimulation(dataset=path)
     else:
         sim = Microsimulation(dataset=dataset_name)
 

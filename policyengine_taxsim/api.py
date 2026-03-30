@@ -78,6 +78,22 @@ KNOWN_COLUMNS = {
     "pbusinc",
     "pprofinc",
     "idtl",
+    # Dependent ages (TAXSIM-35 format)
+    "age1",
+    "age2",
+    "age3",
+    "age4",
+    "age5",
+    "age6",
+    "age7",
+    "age8",
+    "age9",
+    "age10",
+    "age11",
+    # Dependent counts by age bracket (TAXSIM-32 format)
+    "dep13",
+    "dep17",
+    "dep18",
 }
 
 MAILCHIMP_URL = (
