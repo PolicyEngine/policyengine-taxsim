@@ -249,7 +249,7 @@ policyengine_to_taxsim:
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v22:
-    variable: ctc_value
+    variable: non_refundable_ctc
     implemented: true
     idtl:
       - full: 2
@@ -259,12 +259,12 @@ policyengine_to_taxsim:
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v23:
-    variable: na_pe
-    implemented: false
+    variable: refundable_ctc
+    implemented: true
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "Reserved"
+    text_description: "Additional Child Tax Credit"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
