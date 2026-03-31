@@ -5,8 +5,10 @@ from pathlib import Path
 
 try:
     from ..core.io import write_output
+    from ..core.utils import FIPS_TO_SOI_MAP
 except ImportError:
     from policyengine_taxsim.core.io import write_output
+    from policyengine_taxsim.core.utils import FIPS_TO_SOI_MAP
 
 
 class BaseTaxRunner(ABC):
@@ -38,6 +40,17 @@ class BaseTaxRunner(ABC):
         # year is required by TAXSIM (1960-2023) and PolicyEngine
         if "year" not in self.input_df.columns:
             raise ValueError("Input data must contain a 'year' column")
+
+        # Convert statefip (FIPS) to state (SOI) per row.
+        # Matches TAXSIM-35 behavior: for each record, if state==0
+        # and statefip is set, convert FIPS→SOI.
+        if "statefip" in self.input_df.columns:
+            if "state" not in self.input_df.columns:
+                self.input_df["state"] = 0
+            fips_vals = self.input_df["statefip"].astype(int)
+            soi_from_fips = fips_vals.map(FIPS_TO_SOI_MAP).fillna(0).astype(int)
+            use_fips = (self.input_df["state"] == 0) & (fips_vals > 0)
+            self.input_df.loc[use_fips, "state"] = soi_from_fips[use_fips]
 
         # Auto-assign taxsimid if not present
         if "taxsimid" not in self.input_df.columns:

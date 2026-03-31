@@ -40,7 +40,7 @@ const SAMPLE_DATASETS = [
 const fmt = (n) => Number(n).toLocaleString();
 
 const KNOWN_COLUMNS = new Set([
-  'taxsimid', 'year', 'state', 'mstat', 'page', 'sage',
+  'taxsimid', 'year', 'state', 'statefip', 'mstat', 'page', 'sage',
   'dependent_exemption', 'depx', 'pwages', 'swages',
   'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg',
   'otherprop', 'nonprop', 'pensions', 'gssi',
