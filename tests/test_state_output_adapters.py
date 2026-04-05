@@ -551,6 +551,23 @@ PERSON_LEVEL_JOINT_CASES = [
         },
         "mo_wftc",
     ),
+    # MO: mo_taxable_income is Person-level (separate filing).
+    # Exercises the summing path through the DIRECT v36 adapter.
+    (
+        "v36",
+        {
+            "year": 2024,
+            "state": 26,  # MO
+            "mstat": 2,
+            "page": 40,
+            "sage": 38,
+            "pwages": 50_000.0,
+            "swages": 30_000.0,
+            "taxsimid": 104,
+            "idtl": 2,
+        },
+        "mo_taxable_income",
+    ),
 ]
 
 
@@ -573,3 +590,40 @@ def test_joint_filer_person_level_variables_do_not_crash(
     result = export_household(taxsim_input, situation, False, False)
 
     assert float(result[taxsim_var]) == pytest.approx(expected, abs=0.01)
+
+
+def test_co_joint_filer_sctc_with_person_level_credit():
+    """CO sctc sums co_ctc (TaxUnit) + co_family_affordability_credit (Person).
+    The Person-level credit is per-child and must be summed to tax-unit level.
+    sctc is only available in idtl=5 (text output)."""
+    taxsim_input = {
+        "year": 2024,
+        "state": 6,  # CO
+        "mstat": 2,
+        "page": 35,
+        "sage": 33,
+        "depx": 2,
+        "age1": 3,
+        "age2": 7,
+        "pwages": 40_000.0,
+        "swages": 20_000.0,
+        "taxsimid": 105,
+        "idtl": 5,
+    }
+    situation = generate_household(dict(taxsim_input))
+    simulation = Simulation(situation=situation)
+    year = str(taxsim_input["year"])
+
+    # Expected = co_ctc (TaxUnit, .item()) + co_family_affordability_credit (Person, .sum())
+    co_ctc = float(simulation.calculate("co_ctc", period=year).item())
+    co_fac = float(np.asarray(
+        simulation.calculate("co_family_affordability_credit", period=year),
+        dtype=float,
+    ).sum())
+    expected = co_ctc + co_fac
+
+    text = export_household(taxsim_input, situation, False, False)
+
+    assert isinstance(text, str), "idtl=5 should return text output"
+    actual = _extract_text_value(text, "Child Tax Credit")
+    assert actual == pytest.approx(round(expected, 1))
