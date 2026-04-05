@@ -293,6 +293,14 @@ def _try_calculate_variable(
     array = np.asarray(value, dtype=float)
     if array.ndim == 0:
         return np.full(len(state_codes), float(array), dtype=float)
+
+    expected_len = len(state_codes)
+    if len(array) > expected_len:
+        # Person-level variable: sum to tax-unit level.
+        # Each household is processed with a single tax unit,
+        # so all person values belong to that one unit.
+        return np.array([float(array.sum())])
+
     return array.astype(float, copy=False)
 
 

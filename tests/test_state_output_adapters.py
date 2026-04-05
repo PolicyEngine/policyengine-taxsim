@@ -1,10 +1,12 @@
 import re
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from policyengine_taxsim import export_household, generate_household
 from policyengine_taxsim.core.state_output_resolver import (
+    _try_calculate_variable,
     get_state_specific_variable_name,
 )
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
@@ -437,3 +439,137 @@ def test_combined_state_credit_outputs_do_not_double_count(
 
     total = sum(float(result[var].iloc[0]) for var in taxsim_vars)
     assert total == pytest.approx(expected_total, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# Person-level variable aggregation (issue #814)
+# ---------------------------------------------------------------------------
+
+
+class TestTryCalculateVariableAggregation:
+    """Unit tests for _try_calculate_variable handling of Person-level arrays."""
+
+    def test_tax_unit_level_array_returned_unchanged(self):
+        state_codes = np.array(["MT"])
+        result = _try_calculate_variable(
+            "some_var", state_codes, lambda v: np.array([500.0])
+        )
+        assert result is not None
+        assert len(result) == 1
+        assert result[0] == pytest.approx(500.0)
+
+    def test_person_level_array_summed_to_tax_unit(self):
+        state_codes = np.array(["MT"])
+        # Simulates a head-only Person variable: [credit, 0, 0]
+        result = _try_calculate_variable(
+            "some_var", state_codes, lambda v: np.array([800.0, 0.0, 0.0])
+        )
+        assert result is not None
+        assert len(result) == 1
+        assert result[0] == pytest.approx(800.0)
+
+    def test_person_level_per_person_values_summed(self):
+        state_codes = np.array(["CO"])
+        # Simulates a per-person credit: each person gets a different amount
+        result = _try_calculate_variable(
+            "some_var", state_codes, lambda v: np.array([300.0, 200.0, 50.0])
+        )
+        assert result is not None
+        assert len(result) == 1
+        assert result[0] == pytest.approx(550.0)
+
+    def test_scalar_broadcasts_to_state_codes_length(self):
+        state_codes = np.array(["CA"])
+        result = _try_calculate_variable(
+            "some_var", state_codes, lambda v: 42.0
+        )
+        assert result is not None
+        assert len(result) == 1
+        assert result[0] == pytest.approx(42.0)
+
+    def test_missing_variable_returns_none(self):
+        state_codes = np.array(["MT"])
+        result = _try_calculate_variable(
+            "some_var",
+            state_codes,
+            lambda v: (_ for _ in ()).throw(
+                ValueError("Variable 'x' does not exist")
+            ),
+        )
+        assert result is None
+
+
+# Joint-filer integration tests for states with Person-level variables.
+# These would crash with a broadcasting ValueError before the fix.
+PERSON_LEVEL_JOINT_CASES = [
+    (
+        "v39",
+        {
+            "year": 2024,
+            "state": 27,  # MT
+            "mstat": 2,
+            "page": 40,
+            "sage": 38,
+            "depx": 1,
+            "age1": 5,
+            "pwages": 30_000.0,
+            "swages": 0.0,
+            "taxsimid": 100,
+            "idtl": 2,
+        },
+        "mt_eitc",
+    ),
+    (
+        "v37",
+        {
+            "year": 2024,
+            "state": 27,  # MT
+            "mstat": 2,
+            "page": 70,
+            "sage": 68,
+            "pwages": 10_000.0,
+            "rentpaid": 6_000.0,
+            "taxsimid": 101,
+            "idtl": 2,
+        },
+        "mt_elderly_homeowner_or_renter_credit",
+    ),
+    (
+        "v39",
+        {
+            "year": 2024,
+            "state": 26,  # MO
+            "mstat": 2,
+            "page": 40,
+            "sage": 38,
+            "depx": 1,
+            "age1": 5,
+            "pwages": 30_000.0,
+            "swages": 0.0,
+            "taxsimid": 102,
+            "idtl": 2,
+        },
+        "mo_wftc",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("taxsim_var", "taxsim_input", "pe_variable"), PERSON_LEVEL_JOINT_CASES
+)
+def test_joint_filer_person_level_variables_do_not_crash(
+    taxsim_var, taxsim_input, pe_variable
+):
+    """Regression test for issue #814: Person-level variables must not cause
+    a broadcasting error for joint filers (multiple persons in one tax unit)."""
+    situation = generate_household(dict(taxsim_input))
+    simulation = Simulation(situation=situation)
+    year = str(taxsim_input["year"])
+
+    # Compute expected by summing the person-level array
+    raw = simulation.calculate(pe_variable, period=year)
+    expected = float(np.asarray(raw, dtype=float).sum())
+
+    result = export_household(taxsim_input, situation, False, False)
+
+    assert float(result[taxsim_var]) == pytest.approx(expected, abs=0.01)
