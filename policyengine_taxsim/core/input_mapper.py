@@ -76,6 +76,14 @@ def add_additional_units(state, year, situation, taxsim_vars):
                         str(year): taxsim_vars.get("ssemp", 0)
                     }
 
+            elif field == "sstb_self_employment_income":
+                if "pprofinc" in taxsim_vars:
+                    people_unit["you"][field] = {str(year): taxsim_vars.get("pprofinc", 0)}
+                if "your partner" in people_unit and "sprofinc" in taxsim_vars:
+                    people_unit["your partner"][field] = {
+                        str(year): taxsim_vars.get("sprofinc", 0)
+                    }
+
             elif field == "unemployment_compensation":
                 if "pui" in taxsim_vars:
                     people_unit["you"][field] = {str(year): taxsim_vars.get("pui", 0)}

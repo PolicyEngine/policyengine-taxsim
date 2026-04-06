@@ -77,6 +77,7 @@ KNOWN_COLUMNS = {
     "scorp",
     "pbusinc",
     "pprofinc",
+    "sprofinc",
     "idtl",
     # Dependent ages (TAXSIM-35 format)
     "age1",

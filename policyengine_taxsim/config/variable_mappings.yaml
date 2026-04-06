@@ -822,6 +822,9 @@ taxsim_to_policyengine:
           - scorp
       - qualified_business_income:
           - pbusinc
+      - sstb_self_employment_income:
+          - pprofinc
+          - sprofinc
       - rental_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:
@@ -902,4 +905,7 @@ taxsim_input_definition:
   - pbusinc:
       name: "27. Primary and secondary Taxpayer's active QBI"
   - pprofinc:
-      name: "28. Primary and secondary taxpayer's Specialized Service Trade or Business service"
+      name: "28. Primary taxpayer's SSTB self-employment income"
+      pair: sprofinc
+  - sprofinc:
+      name: "28b. Spouse's SSTB self-employment income"

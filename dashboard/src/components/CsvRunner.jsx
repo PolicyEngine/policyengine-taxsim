@@ -46,7 +46,7 @@ const KNOWN_COLUMNS = new Set([
   'otherprop', 'nonprop', 'pensions', 'gssi',
   'pui', 'sui', 'transfers', 'rentpaid', 'proptax',
   'otheritem', 'childcare', 'mortgage', 'scorp',
-  'pbusinc', 'pprofinc', 'idtl',
+  'pbusinc', 'pprofinc', 'sprofinc', 'idtl',
   // Dependent ages (TAXSIM-35 format)
   'age1', 'age2', 'age3', 'age4', 'age5', 'age6',
   'age7', 'age8', 'age9', 'age10', 'age11',
