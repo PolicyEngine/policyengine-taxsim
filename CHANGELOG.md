@@ -1,3 +1,10 @@
+## [2.18.2] - 2026-04-06
+
+### Fixed
+
+- Sum person-level state variables to tax-unit level in output resolver, fixing broadcasting errors for joint filers in states like MT and CO.
+
+
 ## [2.18.1] - 2026-03-30
 
 ### Fixed
