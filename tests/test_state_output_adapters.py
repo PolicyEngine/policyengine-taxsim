@@ -480,9 +480,7 @@ class TestTryCalculateVariableAggregation:
 
     def test_scalar_broadcasts_to_state_codes_length(self):
         state_codes = np.array(["CA"])
-        result = _try_calculate_variable(
-            "some_var", state_codes, lambda v: 42.0
-        )
+        result = _try_calculate_variable("some_var", state_codes, lambda v: 42.0)
         assert result is not None
         assert len(result) == 1
         assert result[0] == pytest.approx(42.0)
@@ -492,9 +490,7 @@ class TestTryCalculateVariableAggregation:
         result = _try_calculate_variable(
             "some_var",
             state_codes,
-            lambda v: (_ for _ in ()).throw(
-                ValueError("Variable 'x' does not exist")
-            ),
+            lambda v: (_ for _ in ()).throw(ValueError("Variable 'x' does not exist")),
         )
         assert result is None
 
@@ -616,10 +612,12 @@ def test_co_joint_filer_sctc_with_person_level_credit():
 
     # Expected = co_ctc (TaxUnit, .item()) + co_family_affordability_credit (Person, .sum())
     co_ctc = float(simulation.calculate("co_ctc", period=year).item())
-    co_fac = float(np.asarray(
-        simulation.calculate("co_family_affordability_credit", period=year),
-        dtype=float,
-    ).sum())
+    co_fac = float(
+        np.asarray(
+            simulation.calculate("co_family_affordability_credit", period=year),
+            dtype=float,
+        ).sum()
+    )
     expected = co_ctc + co_fac
 
     text = export_household(taxsim_input, situation, False, False)
