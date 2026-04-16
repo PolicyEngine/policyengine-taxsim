@@ -1,3 +1,10 @@
+## [2.19.0] - 2026-04-16
+
+### Added
+
+- Split CTC output into v22 (non-refundable) and actc (refundable) to match TAXSIM convention. For fully-refundable years (e.g. 2021 ARPA), v22 reports the total CTC; for other years, v22 is capped at state tax liability and actc reports the additional refundable portion.
+
+
 ## [2.18.2] - 2026-04-06
 
 ### Fixed
