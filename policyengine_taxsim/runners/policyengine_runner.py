@@ -1309,6 +1309,19 @@ class PolicyEngineRunner(BaseTaxRunner):
                 fiitax_arr = self._calc_tax_unit(sim, "income_tax", year_str) + addl_med
                 columns["fiitax"] = np.round(fiitax_arr, 2)
 
+            # Apply v22 CTC split: TAXSIM v22 reports only the
+            # non-refundable CTC (capped at tax liability) for years
+            # where the CTC is not fully refundable. For fully-refundable
+            # years (e.g. 2021 ARPA), v22 reports the total CTC.
+            if "v22" in columns:
+                p = sim.tax_benefit_system.parameters(year_str)
+                if not p.gov.irs.credits.ctc.refundable.fully_refundable:
+                    ctc_arr = self._calc_tax_unit(sim, "ctc", year_str)
+                    limiting_tax = self._calc_tax_unit(
+                        sim, "ctc_limiting_tax_liability", year_str
+                    )
+                    columns["v22"] = np.round(np.minimum(ctc_arr, limiting_tax), 2)
+
             # Compute marginal rates if any idtl level requests them
             mtr_vars = {"frate", "srate"}
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
