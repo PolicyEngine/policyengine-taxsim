@@ -755,8 +755,9 @@ policyengine_to_taxsim:
       - additional_medicare_tax
   actc:
     variable: refundable_ctc
-    implemented: false
+    implemented: true
     idtl:
+      - full: 2
       - full_text: 5
     text_description: "Refundable Part of CTC"
     group_order: 7

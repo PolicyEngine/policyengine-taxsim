@@ -102,6 +102,20 @@ def generate_non_description_output(
                             {"variable": pe_variable, "value": taxsim_output[key]}
                         )
 
+    # TAXSIM output convention: v22 reports the non-refundable CTC
+    # (capped at tax liability) except in fully-refundable years where
+    # it reports the total. This selects the right PE variable to output.
+    if "v22" in taxsim_output:
+        p = simulation.tax_benefit_system.parameters(year)
+        if not p.gov.irs.credits.ctc.refundable.fully_refundable:
+            ctc_val = simulation.calculate("ctc", period=year)
+            limiting_tax = simulation.calculate(
+                "ctc_limiting_tax_liability", period=year
+            )
+            taxsim_output["v22"] = to_roundedup_number(
+                min(float(ctc_val[0]), float(limiting_tax[0]))
+            )
+
     file_name = f"{taxsim_output['taxsimid']}-{state_name}.yaml"
     generate_pe_tests_yaml(simulation.situation_input, outputs, file_name, logs)
 
