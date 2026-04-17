@@ -63,6 +63,14 @@ const CONVENTIONS = [
     detail:
       'This can affect the reported amount of individual credits when the pre-credit tax liability is consumed by earlier-ordered credits.',
   },
+  {
+    id: 'rebate-timing',
+    title: 'One-time rebate timing convention',
+    summary:
+      'PolicyEngine assigns one-time state rebates to the tax year whose liability determines the rebate amount (the eligibility year), not the trigger year or payout year. TAXSIM conventions have varied by rebate.',
+    detail:
+      'Examples: Georgia HB 112 surplus rebate (issue #716) and Virginia HB 1600 rebate (issue #718). Picking the eligibility year keeps the rebate reflected in the same liability that generated it.',
+  },
 ];
 
 const ModelDifferences = () => {
