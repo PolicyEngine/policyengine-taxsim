@@ -182,6 +182,41 @@ class TaxsimMicrosimDataset(Dataset):
 
         return data
 
+    # Household-level aggregate inputs that should be allocated evenly
+    # between spouses when filing jointly. Matches input_mapper.py.
+    # For non-joint filers the full value stays with the primary filer.
+    _SPLITTABLE_VARIABLES = frozenset(
+        {
+            "taxable_interest_income",
+            "qualified_dividend_income",
+            "long_term_capital_gains",
+            "partnership_s_corp_income",
+            "taxable_private_pension_income",
+            "short_term_capital_gains",
+            "social_security_retirement",
+        }
+    )
+
+    @staticmethod
+    def _make_primary_split(source_field):
+        """Return a callable yielding the primary share of a household input."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            return value / 2 if int(row.get("mstat", 1)) == 2 else value
+
+        return accessor
+
+    @staticmethod
+    def _make_spouse_split(source_field):
+        """Return a callable yielding the spouse share of a household input."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
+
+        return accessor
+
     def _get_taxsim_to_pe_variable_mapping(self) -> dict:
         """
         Get TAXSIM to PolicyEngine variable mappings from existing configuration.
@@ -234,6 +269,15 @@ class TaxsimMicrosimDataset(Dataset):
                             variable_mapping[pe_var] = {
                                 "primary": taxsim_var,
                                 "spouse": spouse_var,
+                                "dependent": 0.0,
+                                "default": 0.0,
+                            }
+                        elif pe_var in self._SPLITTABLE_VARIABLES:
+                            # Household aggregate: allocate evenly between
+                            # spouses for MFJ, otherwise keep on primary.
+                            variable_mapping[pe_var] = {
+                                "primary": self._make_primary_split(taxsim_var),
+                                "spouse": self._make_spouse_split(taxsim_var),
                                 "dependent": 0.0,
                                 "default": 0.0,
                             }
