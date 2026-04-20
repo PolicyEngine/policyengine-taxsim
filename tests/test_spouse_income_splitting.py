@@ -75,9 +75,7 @@ def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amoun
         ("gssi", "social_security_retirement", 40000),
     ],
 )
-def test_single_filer_household_income_stays_on_primary(
-    taxsim_field, pe_var, amount
-):
+def test_single_filer_household_income_stays_on_primary(taxsim_field, pe_var, amount):
     """Single: household income stays fully on the primary (no spouse exists)."""
     df = pd.DataFrame(
         [
@@ -104,9 +102,7 @@ def test_single_filer_household_income_stays_on_primary(
 def test_pension_splits_when_both_spouses_are_60_plus():
     """Pension: when both spouses ≥ 60, allocate 50/50 so both qualify
     for state per-person elderly pension exclusions."""
-    df = pd.DataFrame(
-        [_base_mfj_record(page=65, sage=65, pensions=40000)]
-    )
+    df = pd.DataFrame([_base_mfj_record(page=65, sage=65, pensions=40000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [20000.0, 20000.0])
 
@@ -116,9 +112,7 @@ def test_pension_stays_on_primary_for_mixed_age_couple():
     so the qualifying spouse claims the per-person exclusion. Splitting
     50/50 would push half the pension onto the under-60 spouse and
     eliminate half the exclusion (see #838 validation)."""
-    df = pd.DataFrame(
-        [_base_mfj_record(page=70, sage=50, pensions=40000)]
-    )
+    df = pd.DataFrame([_base_mfj_record(page=70, sage=50, pensions=40000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [40000.0, 0.0])
 
@@ -127,9 +121,7 @@ def test_pension_stays_on_primary_when_both_under_60():
     """Pension: when neither spouse is 60+, state elderly exclusions
     do not apply. Keep on primary to match pre-fix behavior for the
     non-elderly case."""
-    df = pd.DataFrame(
-        [_base_mfj_record(page=45, sage=45, pensions=30000)]
-    )
+    df = pd.DataFrame([_base_mfj_record(page=45, sage=45, pensions=30000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [30000.0, 0.0])
 
@@ -162,4 +154,6 @@ def test_de_elderly_pension_matches_issue_838():
     # Pre-fix was $848; TAXSIM is $386. Guard against a regression
     # past $500 (well below the pre-fix value) without pinning to an
     # exact number that may drift with policyengine-us releases.
-    assert siitax < 500, f"DE elderly pension siitax {siitax} looks like the split regressed"
+    assert siitax < 500, (
+        f"DE elderly pension siitax {siitax} looks like the split regressed"
+    )
