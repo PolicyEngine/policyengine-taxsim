@@ -1,0 +1,1 @@
+Split household aggregate income inputs (intrec, dividends, pensions, gssi, stcg, ltcg, scorp) evenly between spouses in the Microsimulation runner when mstat=2, matching the existing input_mapper.py convention. Closes #665 and #838.

@@ -182,6 +182,78 @@ class TaxsimMicrosimDataset(Dataset):
 
         return data
 
+    # Household aggregate inputs allocated evenly between spouses for MFJ.
+    _SPLITTABLE_VARIABLES = frozenset(
+        {
+            "taxable_interest_income",
+            "qualified_dividend_income",
+            "long_term_capital_gains",
+            "partnership_s_corp_income",
+            "short_term_capital_gains",
+            "social_security_retirement",
+        }
+    )
+
+    # Pension income is split only when both spouses meet the state-pension
+    # eligibility age (60, the lowest common threshold across states such
+    # as DE). When ages are mixed or both under 60, pension stays with the
+    # primary filer so the allocation still matches TAXSIM for records where
+    # age-based state rules don't apply.
+    _PENSION_FIELD = "taxable_private_pension_income"
+    _PENSION_SPLIT_AGE = 60
+
+    @staticmethod
+    def _make_primary_split(source_field):
+        """Return a callable yielding the primary share of a household input."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            return value / 2 if int(row.get("mstat", 1)) == 2 else value
+
+        return accessor
+
+    @staticmethod
+    def _make_spouse_split(source_field):
+        """Return a callable yielding the spouse share of a household input."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
+
+        return accessor
+
+    @classmethod
+    def _make_pension_primary(cls, source_field):
+        """Pension stays on primary unless both spouses are 60 or older."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            if int(row.get("mstat", 1)) != 2:
+                return value
+            both_old = (
+                int(row.get("page", 0)) >= cls._PENSION_SPLIT_AGE
+                and int(row.get("sage", 0)) >= cls._PENSION_SPLIT_AGE
+            )
+            return value / 2 if both_old else value
+
+        return accessor
+
+    @classmethod
+    def _make_pension_spouse(cls, source_field):
+        """Spouse only receives a pension share if both spouses are 60+."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            if int(row.get("mstat", 1)) != 2:
+                return 0.0
+            both_old = (
+                int(row.get("page", 0)) >= cls._PENSION_SPLIT_AGE
+                and int(row.get("sage", 0)) >= cls._PENSION_SPLIT_AGE
+            )
+            return value / 2 if both_old else 0.0
+
+        return accessor
+
     def _get_taxsim_to_pe_variable_mapping(self) -> dict:
         """
         Get TAXSIM to PolicyEngine variable mappings from existing configuration.
@@ -234,6 +306,24 @@ class TaxsimMicrosimDataset(Dataset):
                             variable_mapping[pe_var] = {
                                 "primary": taxsim_var,
                                 "spouse": spouse_var,
+                                "dependent": 0.0,
+                                "default": 0.0,
+                            }
+                        elif pe_var == self._PENSION_FIELD:
+                            # Pension requires the age-aware split (both
+                            # spouses must be 60+ to share the exclusion).
+                            variable_mapping[pe_var] = {
+                                "primary": self._make_pension_primary(taxsim_var),
+                                "spouse": self._make_pension_spouse(taxsim_var),
+                                "dependent": 0.0,
+                                "default": 0.0,
+                            }
+                        elif pe_var in self._SPLITTABLE_VARIABLES:
+                            # Household aggregate: allocate evenly between
+                            # spouses for MFJ, otherwise keep on primary.
+                            variable_mapping[pe_var] = {
+                                "primary": self._make_primary_split(taxsim_var),
+                                "spouse": self._make_spouse_split(taxsim_var),
                                 "dependent": 0.0,
                                 "default": 0.0,
                             }
