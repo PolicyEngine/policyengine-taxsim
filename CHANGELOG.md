@@ -1,3 +1,10 @@
+## [2.20.0] - 2026-04-21
+
+### Added
+
+- Map TAXSIM pprofinc/sprofinc inputs to PolicyEngine sstb_self_employment_income for per-category SSTB QBID computation.
+
+
 ## [2.19.1] - 2026-04-20
 
 ### Fixed
