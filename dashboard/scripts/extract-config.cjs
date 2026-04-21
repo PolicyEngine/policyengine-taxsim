@@ -132,7 +132,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
         }
 
         // Mark certain variables as not available in PolicyEngine
-        const notAvailableVars = ['otherprop', 'nonprop', 'transfers', 'otheritem', 'pprofinc'];
+        const notAvailableVars = ['otherprop', 'nonprop', 'transfers', 'otheritem'];
         if (notAvailableVars.includes(taxsimVar) && policyengineVar === 'Not mapped') {
           policyengineVar = 'na_pe';
           implemented = false;

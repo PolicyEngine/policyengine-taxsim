@@ -169,7 +169,7 @@ export const INPUT_FIELDS = [
 export const INPUT_VARIABLE_CATEGORIES = {
   basicInputs: ['taxsimid', 'year', 'state', 'mstat', 'page', 'sage', 'dependent_exemption', 'depx'],
   incomeInputs: ['pwages', 'swages', 'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui', 'sui'],
-  businessIncomeInputs: ['scorp', 'pbusinc', 'pprofinc'],
+  businessIncomeInputs: ['scorp', 'pbusinc', 'pprofinc', 'sprofinc'],
   expenseInputs: ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem']
 };
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 OUTPUT_ADAPTER_BASE_VARIABLES = {
     "taxsim_v32_state_agi": "state_agi",
     "taxsim_v38_cdcc": "state_cdcc",

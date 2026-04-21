@@ -15,7 +15,6 @@ a single tax bracket for most filers.
 import copy
 from policyengine_us import Simulation
 
-
 DELTA = 100.0  # $100: large enough for float32 precision, small for bracket safety
 
 

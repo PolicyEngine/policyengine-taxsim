@@ -76,6 +76,16 @@ def add_additional_units(state, year, situation, taxsim_vars):
                         str(year): taxsim_vars.get("ssemp", 0)
                     }
 
+            elif field == "sstb_self_employment_income":
+                if "pprofinc" in taxsim_vars:
+                    people_unit["you"][field] = {
+                        str(year): taxsim_vars.get("pprofinc", 0)
+                    }
+                if "your partner" in people_unit and "sprofinc" in taxsim_vars:
+                    people_unit["your partner"][field] = {
+                        str(year): taxsim_vars.get("sprofinc", 0)
+                    }
+
             elif field == "unemployment_compensation":
                 if "pui" in taxsim_vars:
                     people_unit["you"][field] = {str(year): taxsim_vars.get("pui", 0)}
@@ -185,9 +195,11 @@ def form_household_situation(year, state, taxsim_vars):
         dep_name = f"your {get_ordinal(i)} dependent"
         people[dep_name] = {
             "age": {
-                str(year): int(taxsim_vars.get(f"age{i}", 10))
-                if taxsim_vars.get(f"age{i}") is not None
-                else 10
+                str(year): (
+                    int(taxsim_vars.get(f"age{i}", 10))
+                    if taxsim_vars.get(f"age{i}") is not None
+                    else 10
+                )
             },
             "employment_income": {str(year): 0},
             "is_tax_unit_dependent": {str(year): True},
