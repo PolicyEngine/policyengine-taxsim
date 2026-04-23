@@ -1,3 +1,10 @@
+## [2.21.0] - 2026-04-23
+
+### Removed
+
+- Remove `exe.py` PyInstaller entry point and `.spec` file — unused standalone-binary build path. The `export_household` / `generate_household` helpers stay (still used by `tests/test_state_output_adapters.py`).
+
+
 ## [2.20.1] - 2026-04-23
 
 ### Changed
