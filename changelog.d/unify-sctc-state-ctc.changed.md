@@ -1,0 +1,1 @@
+Unify `sctc` output adapter to use pe-us `state_ctc` aggregate (gov.states.household.state_ctcs) instead of duplicated per-state mapping. OK/MN component-split overrides are preserved in the resolver.

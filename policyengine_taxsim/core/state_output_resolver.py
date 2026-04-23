@@ -6,10 +6,10 @@ OUTPUT_ADAPTER_BASE_VARIABLES = {
     "taxsim_v32_state_agi": "state_agi",
     "taxsim_v38_cdcc": "state_cdcc",
     "taxsim_v39_eitc": "state_eitc",
+    "taxsim_sctc": "state_ctc",
 }
 DIRECT_STATE_MAPPING_ADAPTERS = {
     "taxsim_staxbc",
-    "taxsim_sctc",
     "taxsim_v36_taxable_income",
     "taxsim_v37_property_tax_credit",
 }
