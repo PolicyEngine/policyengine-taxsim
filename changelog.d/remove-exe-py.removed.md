@@ -1,0 +1,1 @@
+Remove `exe.py` PyInstaller entry point and `.spec` file — unused standalone-binary build path. The `export_household` / `generate_household` helpers stay (still used by `tests/test_state_output_adapters.py`).
