@@ -678,29 +678,10 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
   sctc:
+    # Value comes from pe-us taxsim_state_ctc (aggregates
+    # gov.states.household.state_ctcs). OK and MN require component splits
+    # handled via OUTPUT_ADAPTER_OVERRIDES in state_output_resolver.py.
     variable: taxsim_sctc
-    state_variables:
-      AZ: az_dependent_tax_credit
-      CA: ca_yctc
-      CO:
-        - co_ctc
-        - co_family_affordability_credit
-      CT: ct_child_tax_rebate
-      DC: dc_ctc
-      ID: id_ctc
-      IL: il_ctc
-      MA: ma_child_and_family_credit
-      MD: md_ctc
-      MN: adapter:mn_child_tax_credit_component
-      NE: ne_refundable_ctc
-      NJ: nj_ctc
-      NM: nm_ctc
-      NY: ny_ctc
-      OK: adapter:ok_child_tax_credit_component
-      OR: or_ctc
-      RI: ri_child_tax_rebate
-      UT: ut_ctc
-      VT: vt_ctc
     implemented: true
     idtl:
       - full_text: 5
