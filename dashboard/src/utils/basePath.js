@@ -6,7 +6,10 @@
  * to public data files (e.g. /data/2024/results.csv).
  */
 
-const BASE_PATH = '/us/taxsim';
+const BASE_PATH =
+  process.env.NEXT_PUBLIC_BASE_PATH !== undefined
+    ? process.env.NEXT_PUBLIC_BASE_PATH
+    : '/us/taxsim';
 
 /** Prefix a public asset path (e.g. /data/2024/results.csv) */
 export function assetUrl(path) {

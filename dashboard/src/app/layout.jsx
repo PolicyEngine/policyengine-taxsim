@@ -2,6 +2,11 @@ import './globals.css';
 import Header from '@/components/Header';
 
 const GA_ID = 'G-2YHG89FY0N';
+const BASE_PATH =
+  process.env.NEXT_PUBLIC_BASE_PATH !== undefined
+    ? process.env.NEXT_PUBLIC_BASE_PATH
+    : '/us/taxsim';
+const ICON_PATH = `${BASE_PATH || ''}/policyengine.png`;
 
 export const metadata = {
   title: 'PolicyEngine TAXSIM — The next chapter of TAXSIM',
@@ -21,8 +26,8 @@ export const metadata = {
       'The next chapter of TAXSIM. Open-source, drop-in compatible tax calculator powered by PolicyEngine.',
   },
   icons: {
-    icon: '/policyengine.png',
-    apple: '/policyengine.png',
+    icon: ICON_PATH,
+    apple: ICON_PATH,
   },
   alternates: {
     canonical: 'https://policyengine.org/us/taxsim',
