@@ -16,6 +16,7 @@ import {
 import { highlightCode } from '../utils/codeHighlight';
 import { loadConfigurationData } from '../utils/configLoader';
 import LoadingSpinner from './common/LoadingSpinner';
+import ModelDifferences from './ModelDifferences';
 import {
   OUTPUT_VARIABLES,
   INPUT_VARIABLE_CATEGORIES,
@@ -465,6 +466,7 @@ policyengine_versions()
               { id: 'installation', label: 'Installation & Usage' },
               { id: 'options', label: 'All Runners & CLI' },
               { id: 'mappings', label: 'Variable Mappings' },
+              { id: 'differences', label: 'Modeling Differences' },
               { id: 'datasets', label: 'Sample Datasets' },
             ].map(({ id, label }) => (
               <button
@@ -946,6 +948,9 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
             </>}
           </section>
         )}
+
+        {/* Modeling Differences */}
+        {activeSection === 'differences' && <ModelDifferences />}
 
         {/* Sample Datasets */}
         {activeSection === 'datasets' && (

@@ -83,6 +83,15 @@ export const getIssuesForState = (issues, stateCode) => {
   });
 };
 
+// Get issues with a specific label
+export const getIssuesByLabel = (issues, labelName) => {
+  if (!labelName) return [];
+
+  return issues.filter(issue =>
+    issue.labels.some(label => label.name === labelName)
+  );
+};
+
 // Format issue data for display
 export const formatIssue = (issue) => {
   return {
