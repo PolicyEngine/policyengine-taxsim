@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@policyengine/design-system": "^0.3.0",
+    "@policyengine/ui-kit": "^0.8.0",
     "@tabler/icons-react": "^3.34.0",
     "file-saver": "^2.0.5",
     "js-yaml": "^4.1.0",
