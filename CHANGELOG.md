@@ -1,3 +1,10 @@
+## [2.21.2] - 2026-05-09
+
+### Changed
+
+- Migrated dashboard from `@policyengine/design-system` to `@policyengine/ui-kit/legacy`.
+
+
 ## [2.21.1] - 2026-04-28
 
 ### Changed
