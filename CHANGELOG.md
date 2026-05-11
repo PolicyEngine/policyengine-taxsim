@@ -1,3 +1,10 @@
+## [2.21.3] - 2026-05-11
+
+### Changed
+
+- Audit and tighten the /diagnose-issue slash command: add Step 0 pre-triage (Q-vs-bug / version compare / existing PE-US tracking), require primary-source fetches for credit/deduction disagreements, mandate direct PE queries (no inference), and drop stale references.
+
+
 ## [2.21.2] - 2026-05-09
 
 ### Changed
