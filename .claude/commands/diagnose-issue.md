@@ -4,9 +4,10 @@ You are helping diagnose discrepancies between PolicyEngine and TAXSIM tax calcu
 
 ## Critical Rules
 
-1. **Always compare ALL THREE systems**: PolicyEngine, TAXSIM, and TaxAct. Never conclude based on just two.
+1. **Compare current PE vs TaxAct.** Only the current PE-US install matters for diagnosis; the reporter's PE version in `output.txt` is useful for triage (Step 0b) but never for the actual comparison. True TAXSIM-proper output is rarely in the bundle — don't pretend to compare against it if it isn't there.
 2. **NEVER post GitHub issues, comments, or PRs without explicit user confirmation.** Always show draft content first and wait for approval.
 3. **Phrase TAXSIM issues as questions** (e.g., "Does TAXSIM-35 incorrectly apply...?" not "TAXSIM-35 incorrectly applies...").
+4. **Verify against primary sources, not search summaries.** When PE and TaxAct disagree on a specific credit or deduction, fetch the actual statute text + current-year form PDF + instructions booklet (see Step 7). Web-search summaries about state tax law are routinely wrong or stale.
 
 ## Repositories
 
@@ -23,9 +24,8 @@ GitHub:
 Each issue at https://github.com/PolicyEngine/policyengine-taxsim/issues contains:
 1. **Title pattern**: `{STATE} {filing_status} {year} {income_description}` (e.g., "NJ joint 2024 elderly 129Kintrec")
 2. **Description/Comments** - Often contains diagnostic hints, suspected root cause, or specific observations from the filer (READ THIS CAREFULLY - it often points to the problem)
-3. **YAML test file** - PolicyEngine situation and expected outputs (attached)
-4. **TaxAct PDF** - The ground truth tax forms (attached)
-5. **TAXSIM reference files** - Available at `taxsim.nber.org/out2psl/{issue_number}/`
+3. **TaxAct PDFs** - Federal 1040, the state form, and any relevant schedules
+4. **TAXSIM reference files** - Available at `taxsim.nber.org/out2psl/{issue_number}/`. Typical contents: `txpydata.csv` (input), `output.txt` (PE emulator output with version banner), `<issue>.txt` (full run log), and one or more PDFs. There is **no YAML file** — don't expect one.
 
 **IMPORTANT**: The issue description often contains the filer's analysis of what's wrong. Start by reading the description carefully before diving into code.
 
@@ -39,7 +39,6 @@ mkdir -p /tmp/taxsim_$ISSUE && cd /tmp/taxsim_$ISSUE
 
 # Batch download all files
 curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/" -o index.html
-curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$ISSUE.yaml" -o $ISSUE.yaml &
 curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/$ISSUE.txt" -o $ISSUE.txt &
 curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/output.txt" -o output.txt &
 curl -sL "http://taxsim.nber.org/out2psl/$ISSUE/txpydata.csv" -o txpydata.csv &
@@ -56,6 +55,45 @@ Then work ENTIRELY from local files - no more network calls to TAXSIM.
 
 ## Diagnostic Steps
 
+### Step 0: Pre-diagnosis triage (DO THIS FIRST — it short-circuits a lot of work)
+
+Three quick checks before any file downloads or PE runs. If any of them fires, you may be done in 5 minutes instead of an hour.
+
+**0a. Is this a bug report or an informational question?**
+
+Read the issue body. If the reporter is asking *what PE does* or *how PE handles X* (e.g., "What does PE use for fuel cost?") without claiming a specific wrong value, this is **informational**. Skip the full diagnosis — answer their question directly with code references, draft a comment, and confirm before posting. Don't file a PE-US issue.
+
+If the body claims a specific discrepancy ("PE returns $X, TaxAct returns $Y, should be $Z"), it's a **bug claim** — continue.
+
+**0b. Is this already fixed in current PE?**
+
+```bash
+# Reporter's PE-US version (printed in <issue>.txt near the top)
+grep -A1 "policyengine-us" /tmp/taxsim_$ISSUE/$ISSUE.txt | head -3
+
+# Local PE-US version
+pip show policyengine-us | grep -i version
+```
+
+If the local version is much newer than the reporter's, grep the changelog for relevant state/feature work in the gap:
+
+```bash
+cd /Users/pavelmakarchuk/policyengine-us && grep -in "<state-name>\|<state-abbrev>" CHANGELOG.md | head -20
+```
+
+If a relevant fix landed between the reporter's version and yours, run a quick PE-direct test with the current version (Step 3) to confirm the issue no longer reproduces. If it doesn't reproduce, close with a brief "after model adjustments, the values now align" comment and stop.
+
+**0c. Is there already an open PE-US issue or PR tracking this?**
+
+```bash
+gh search issues --repo PolicyEngine/policyengine-us "<state> <variable-or-symptom>" --include-prs \
+  --json number,title,state,url
+```
+
+Try a few queries (state name, specific PE variable, taxsim issue number). If there's an existing tracking issue or open PR that addresses this, just cross-link with a short comment ("Will be addressed here: <PR link>") and stop.
+
+Only if all three checks say "still relevant, fresh problem" do you go to Step 1.
+
 ### Step 1: Read the Issue
 - Fetch the issue from GitHub (`gh issue view {number} --repo PolicyEngine/policyengine-taxsim`)
 - Read the description carefully for diagnostic hints
@@ -66,7 +104,7 @@ Then work ENTIRELY from local files - no more network calls to TAXSIM.
 
 Common data entry errors to check:
 - **State code**: TAXSIM uses alphabetical numbering (1-51), NOT FIPS codes!
-- **Filing status (mstat)**: 1=single, 2=joint, 6=dependent
+- **Filing status (mstat)**: `1=single`, `2=joint`, `6=dependent`. Note: TAXSIM has no separate HoH code — **PE infers HoH from `mstat=1` with `depx≥1`**. So `mstat=1, depx=0` is true single; `mstat=1, depx≥1` is HoH. Most recent issues are HoH despite `mstat=1`.
 - **Ages (page/sage)**: Required for age-based provisions
 
 ### Step 3: Test with PolicyEngine Directly
@@ -82,16 +120,17 @@ python policyengine_taxsim/cli.py policyengine /tmp/test.csv -o /tmp/output.csv
 cat /tmp/output.csv
 ```
 
-### Step 4: Three-Way Comparison
-Compare ALL THREE values for each key variable:
+### Step 4: Comparison table
 
-| Variable | PolicyEngine | TAXSIM | TaxAct (PDF) | Who's Right? |
-|----------|-------------|--------|--------------|--------------|
-| siitax   |             |        |              |              |
-| fiitax   |             |        |              |              |
-| v10      |             |        |              |              |
-| v32      |             |        |              |              |
-| v36      |             |        |              |              |
+Compare current PE values against the TaxAct PDF. **Every PE value in the table must come from a direct PE query (Step 3 CSV output or a `Simulation.calculate(...)` call)** — never infer a PE value from gaps between other variables. If you want the pension deduction, query `me_pension_income_deduction` directly; don't subtract AGI − federal AGI.
+
+| Variable | Current PE (queried) | TaxAct (PDF) | Who's right? |
+|----------|----------------------|--------------|--------------|
+| siitax   |                      |              |              |
+| fiitax   |                      |              |              |
+| v10      |                      |              |              |
+| v32      |                      |              |              |
+| v36      |                      |              |              |
 
 **If v32=0 for a state tax issue**: The state isn't being set correctly. Check the state code!
 
@@ -99,17 +138,18 @@ Compare ALL THREE values for each key variable:
 
 **THIS STEP IS CRITICAL AND MUST NOT BE SKIPPED.**
 
-The TaxAct PDF contains the actual filled-out tax forms - this is the ground truth. The YAML expected values may be incorrect, so always verify against the actual PDF.
+The TaxAct PDFs contain the actual filled-out tax forms — this is the ground truth. Issues usually bundle multiple PDFs (federal 1040, the state form, and any relevant schedules). Iterate them:
 
 ```bash
-# Extract text using PyMuPDF (from local downloaded file)
 python3 -c "
-import fitz
-doc = fitz.open('/tmp/taxsim_$ISSUE/form.pdf')
-for page_num in range(len(doc)):
-    page = doc[page_num]
-    print(f'=== Page {page_num + 1} ===')
-    print(page.get_text())
+import fitz, glob
+for path in sorted(glob.glob('/tmp/taxsim_$ISSUE/*.pdf')):
+    print(f'=== FILE: {path} ===')
+    doc = fitz.open(path)
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        print(f'--- Page {page_num + 1} ---')
+        print(page.get_text())
 "
 ```
 
@@ -123,7 +163,7 @@ for page_num in range(len(doc)):
 6. **Tax Due** - The actual tax calculated on the form
 7. **Credits** - Which credits were claimed and amounts
 
-**If YAML expected and PDF differ, the PDF is correct.** The YAML may have been generated incorrectly.
+**If the reporter's claim and the PDF differ, the PDF is correct.** Numeric claims in issue bodies are sometimes paraphrased or based on a stale PE run.
 
 ### Step 6: Deep Dive if Needed
 If the basic test shows incorrect values:
@@ -148,10 +188,18 @@ print("Exclusion:", sim.calculate("{state}_retirement_exclusion", 2024))
 ```
 
 ### Step 7: Research Legal Documentation
-If PE logic appears wrong, verify against official sources:
-- State tax form instructions (primary source)
-- State tax code/statutes
-- Tax Foundation / Tax Policy Center summaries
+
+When PE and TaxAct disagree on a specific credit, deduction, or line item, **fetch the primary sources** — don't rely on web-search summaries. Search summaries are routinely wrong or stale (e.g., a search may claim "State X does not offer credit Y" when the statute clearly establishes it). Use search only to *find* the right primary-source URL, then fetch the document.
+
+For state credits, verify all three of:
+
+1. **Statute text** — `WebFetch` the actual statute (e.g., `https://code.<state>legislature.gov/<section>/`). Quote the relevant language verbatim. Confirms whether the credit exists in law.
+2. **Current-year form PDF** — fetch the current-year state return PDF and check whether the credit actually appears as a line. A statutory credit that hasn't been operationalized on the form may not be claimable in practice for that year.
+3. **Current-year instructions booklet** — fetch the instructions PDF and look for eligibility criteria, income caps, age requirements, or filing prerequisites that PE may not model.
+
+Cross-reference: statute → form line → instructions eligibility. If any of the three says something different, **hedge in your write-up** — don't claim PE is correct just because the statute is on the books, and don't claim PE is wrong just because TaxAct's PDF didn't apply a credit (TaxAct can miss things, too; the bundled PDFs sometimes omit schedules).
+
+For federal items, use IRS publications and Form 1040 instructions directly.
 
 ### Step 8: Check policyengine-us Implementation
 ```bash
@@ -162,16 +210,16 @@ ls /Users/pavelmakarchuk/policyengine-us/policyengine_us/variables/gov/states/{s
 grep -r "variable_name" /Users/pavelmakarchuk/policyengine-us/policyengine_us/
 ```
 
-### Step 9: Document Finding
-Update the tracker in `issue_analysis/README.md`.
+### Step 9: Draft and confirm
 
 If PE needs a fix, **draft** an issue for policyengine-us with:
 1. Summary of the problem
-2. Root cause analysis with code references
-3. Suggested fix
-4. Integration test with correct expected values (from TaxAct PDF, not PE's buggy output)
+2. Link back to the originating taxsim issue
+3. Root cause analysis with code references
+4. Suggested fix
+5. Integration test with correct expected values (from TaxAct PDF, not PE's buggy output)
 
-**Show the draft to the user and wait for approval before posting.**
+**Show the draft to the user and wait for approval before posting.** After posting, cross-link the PE-US issue back from the taxsim issue with a short comment.
 
 ---
 
@@ -214,57 +262,65 @@ print(get_state_code(34))  # Should print "NC"
 | Var | Description | PE Variable |
 |-----|-------------|-------------|
 | fiitax | Federal income tax | income_tax |
-| siitax | State income tax | state_income_tax |
+| siitax | State income tax | `<state>_income_tax` |
 | v10 | Federal AGI | adjusted_gross_income |
 | v13 | Standard Deduction | standard_deduction |
 | v18 | Taxable Income | taxable_income |
 | v22 | Child Tax Credit | ctc_value |
 | v25 | EITC | eitc |
-| v32 | State AGI | {state}_agi |
-| v34 | State Std Deduction | {state}_standard_deduction |
-| v36 | State Taxable Income | {state}_taxable_income |
+| v32 | State AGI | `<state>_agi` |
+| v34 | State Std Deduction | `<state>_standard_deduction` |
+| v36 | State Taxable Income | `<state>_taxable_income` |
 
 ---
 
 ## Common Root Causes
 
-### 1. YAML Expected Value Incorrect
-- YAML expected value doesn't match actual TaxAct PDF form
-- Always verify by extracting and reading the PDF
-- Example: Issue #657 YAML said $147.97 but PDF showed $0
+### 1. Reporter's claim based on stale PE version
+- Reporter ran an older PE-US; the issue is already fixed.
+- Caught by Step 0b (version comparison + changelog grep).
 
-### 2. Data Entry Errors in Issue
+### 2. Already-tracked in policyengine-us
+- An open PE-US issue or PR is in flight covering the same root cause.
+- Caught by Step 0c (`gh search issues`).
+
+### 3. YAML / Reporter's Expected Value Incorrect
+- Numbers cited in the issue body don't match the actual TaxAct PDF form
+- Always verify by extracting and reading the PDFs
+- Example: reporter said "PE allows $502" but PDF showed PTC = $0 and PE returned $0 (the $502 was a max-table value, not what PE returned)
+
+### 4. Data Entry Errors in Issue
 - Wrong state code (FIPS vs TAXSIM alphabetical)
 - Missing or incorrect age (breaks age-based provisions)
-- Wrong filing status
+- Wrong filing status (most commonly: assuming `mstat=1` is single when it's HoH with dependents)
 
-### 3. TAXSIM Bug
+### 5. TAXSIM Bug
 - TAXSIM source code has known bugs (SALT add-back, DTC phaseout, EITC age limits)
-- Compare all three systems to identify
+- Compare current PE vs reporter's PE vs TaxAct to triangulate
 
-### 4. Missing State Provisions in PE
+### 6. Missing State Provisions in PE
 - State credit/deduction not implemented
 - Year-specific parameter not updated
 
-### 5. Missing Optimization in PE
+### 7. Missing Optimization in PE
 - PE uses fixed 50/50 splits for exemptions/deductions
 - Some states (e.g., MS) allow optimal allocation between spouses
 - TaxAct optimizes these allocations automatically
 
-### 6. Input Mapping Issues (policyengine-taxsim)
+### 8. Input Mapping Issues (policyengine-taxsim)
 - Income not being split correctly between spouses
 - Variable not mapped from TAXSIM input to PE situation
 
-### 7. Output Mapping Issues (policyengine-taxsim)
+### 9. Output Mapping Issues (policyengine-taxsim)
 - State variable name not being substituted correctly
 - Variable exists but not in output mapping
 
-### 8. Calculation Logic Issues (policyengine-us)
+### 10. Calculation Logic Issues (policyengine-us)
 - Eligibility criteria wrong
 - Formula doesn't match tax form worksheet
 - Parameter values outdated
 
-### 9. Negative Income Edge Cases
+### 11. Negative Income Edge Cases
 - Credits/taxes not handling negative AGI or capital losses correctly
 - Phantom credits when income is negative
 
@@ -274,15 +330,17 @@ print(get_state_code(34))  # Should print "NC"
 
 When an issue doesn't reproduce as expected:
 
+- [ ] **Did Step 0 (triage) short-circuit?** Already fixed in newer PE, already tracked, or informational only?
 - [ ] **State code correct?** (TAXSIM alphabetical, not FIPS)
 - [ ] **v32 (State AGI) non-zero?** (If 0, state setup is wrong)
+- [ ] **Filing status inference?** (`mstat=1 + depx≥1` → HoH, not single)
 - [ ] **Ages set correctly?** (Many provisions are age-gated)
 - [ ] **Income assigned to right person?** (Joint filers: check both)
 - [ ] **Test with Simulation directly?** (Bypasses taxsim mapping)
 - [ ] **Check existing tests in policyengine-us?** (May show expected behavior)
-- [ ] **PDF form extracted and analyzed?** (YAML expected values may be wrong!)
-- [ ] **PDF tax matches YAML expected?** (If not, use PDF as ground truth)
-- [ ] **All three systems compared?** (PE, TAXSIM, and TaxAct)
+- [ ] **PDFs extracted and analyzed?** (Reporter's expected values may be wrong!)
+- [ ] **Compared current PE vs TaxAct?** Every PE value queried directly (no inference from gaps between variables).
+- [ ] **For credit/deduction disagreements: did you fetch the statute + current-year form + instructions booklet?** (Search summaries are not authoritative.)
 
 ---
 
@@ -293,12 +351,12 @@ When an issue doesn't reproduce as expected:
 - `policyengine_taxsim/core/input_mapper.py` - Converts TAXSIM input to PE situations
 - `policyengine_taxsim/core/output_mapper.py` - Extracts PE results to TAXSIM format
 - `policyengine_taxsim/core/utils.py` - State code mappings (SOI_TO_FIPS_MAP)
-- `issue_analysis/` - Diagnosis tracking and findings
 
 ### policyengine-us
 - `policyengine_us/variables/gov/states/{state}/tax/income/` - State tax variables
 - `policyengine_us/parameters/gov/states/{state}/tax/income/` - State tax parameters
 - `policyengine_us/tests/policy/baseline/gov/states/{state}/` - Existing tests
+- `CHANGELOG.md` - Use to compare reporter's PE version to current and find relevant recent fixes
 
 ---
 
