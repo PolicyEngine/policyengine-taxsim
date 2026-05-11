@@ -4,7 +4,7 @@ You are helping diagnose discrepancies between PolicyEngine and TAXSIM tax calcu
 
 ## Critical Rules
 
-1. **Compare three reference points where possible**: **current PE** (your local install), the **reporter's PE version** (whatever produced `output.txt`), and **TaxAct** (the PDF). True TAXSIM-proper output is rarely in the bundle — don't pretend to compare against it if it isn't there.
+1. **Compare current PE vs TaxAct.** Only the current PE-US install matters for diagnosis; the reporter's PE version in `output.txt` is useful for triage (Step 0b) but never for the actual comparison. True TAXSIM-proper output is rarely in the bundle — don't pretend to compare against it if it isn't there.
 2. **NEVER post GitHub issues, comments, or PRs without explicit user confirmation.** Always show draft content first and wait for approval.
 3. **Phrase TAXSIM issues as questions** (e.g., "Does TAXSIM-35 incorrectly apply...?" not "TAXSIM-35 incorrectly applies...").
 4. **Verify against primary sources, not search summaries.** When PE and TaxAct disagree on a specific credit or deduction, fetch the actual statute text + current-year form PDF + instructions booklet (see Step 7). Web-search summaries about state tax law are routinely wrong or stale.
@@ -121,17 +121,16 @@ cat /tmp/output.csv
 ```
 
 ### Step 4: Comparison table
-Fill in the values for the reference points you actually have. For most issues that's current PE, the reporter's PE (from `output.txt`), and TaxAct (the PDF):
 
-| Variable | Current PE | Reporter's PE | TaxAct (PDF) | Who's right? |
-|----------|-----------|---------------|--------------|--------------|
-| siitax   |           |               |              |              |
-| fiitax   |           |               |              |              |
-| v10      |           |               |              |              |
-| v32      |           |               |              |              |
-| v36      |           |               |              |              |
+Compare current PE values against the TaxAct PDF. **Every PE value in the table must come from a direct PE query (Step 3 CSV output or a `Simulation.calculate(...)` call)** — never infer a PE value from gaps between other variables. If you want the pension deduction, query `me_pension_income_deduction` directly; don't subtract AGI − federal AGI.
 
-If you have access to a true TAXSIM-proper output (rare), add it as a fourth column. Otherwise treat "TAXSIM" and "PE emulator" as the same thing — the bundle's `output.txt` is just PE running through the emulator at the reporter's version.
+| Variable | Current PE (queried) | TaxAct (PDF) | Who's right? |
+|----------|----------------------|--------------|--------------|
+| siitax   |                      |              |              |
+| fiitax   |                      |              |              |
+| v10      |                      |              |              |
+| v32      |                      |              |              |
+| v36      |                      |              |              |
 
 **If v32=0 for a state tax issue**: The state isn't being set correctly. Check the state code!
 
@@ -340,7 +339,7 @@ When an issue doesn't reproduce as expected:
 - [ ] **Test with Simulation directly?** (Bypasses taxsim mapping)
 - [ ] **Check existing tests in policyengine-us?** (May show expected behavior)
 - [ ] **PDFs extracted and analyzed?** (Reporter's expected values may be wrong!)
-- [ ] **Compared current PE vs reporter's PE vs TaxAct?**
+- [ ] **Compared current PE vs TaxAct?** Every PE value queried directly (no inference from gaps between variables).
 - [ ] **For credit/deduction disagreements: did you fetch the statute + current-year form + instructions booklet?** (Search summaries are not authoritative.)
 
 ---
