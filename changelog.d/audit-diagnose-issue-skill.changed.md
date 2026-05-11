@@ -1,0 +1,1 @@
+Audit and tighten the /diagnose-issue slash command: add Step 0 pre-triage (Q-vs-bug / version compare / existing PE-US tracking), require primary-source fetches for credit/deduction disagreements, mandate direct PE queries (no inference), and drop stale references.
