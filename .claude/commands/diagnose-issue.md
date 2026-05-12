@@ -257,6 +257,15 @@ If PE needs a fix, **draft** an issue for policyengine-us with:
 
 **Show the draft to the user and wait for approval before posting.** After posting, cross-link the PE-US issue back from the taxsim issue with a short comment.
 
+#### Comment style (taxsim issues)
+
+Replies on taxsim issues should be **soft, question-shaped, and link-heavy**:
+
+- **Phrase findings as questions, not pronouncements.** "Possible that the hand calc didn't apply X?" beats "Your calculation is wrong because you forgot X." If a number doesn't reproduce, ask whether the case was intended differently rather than asserting the reporter is wrong.
+- **Always link the primary sources you used.** Statute citations → the actual `revisor`/`legis` URL. IRS limits → the relevant Rev. Proc. PDF with page anchor. PE-US logic → a GitHub permalink to the specific variable file. Existing PE-US tracking → the issue/PR number.
+- **Anchor PE behavior to code, not assertion.** Don't write "PE applies X correctly" — write "PE checks X in [`<file>`]<github-link> via `<variable>`."
+- Keep it short and structured. One short paragraph per concern with a bold lead-in (e.g., `**M1CWFC**:`).
+
 ---
 
 ## TAXSIM State Code Reference
