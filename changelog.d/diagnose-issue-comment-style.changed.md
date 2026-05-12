@@ -1,1 +1,0 @@
-Add comment-style guidance to /diagnose-issue Step 9: phrase findings as questions, link primary sources (statute / Rev. Proc. / GitHub permalinks to PE variables), anchor claims to code not assertion.
