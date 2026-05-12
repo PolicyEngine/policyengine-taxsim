@@ -99,6 +99,8 @@ Only if all three checks say "still relevant, fresh problem" do you go to Step 1
 - Read the description carefully for diagnostic hints
 - Note any specific numbers mentioned (PE vs TaxAct values)
 
+Treat the issue body as a *hypothesis*, not as fact. If the reporter cites a specific PE value, confirm it appears in the bundled `output.txt` before building a diagnosis around it. Reporters sometimes mix up cases. If the cited value isn't there, work from what `output.txt` actually shows.
+
 ### Step 2: Verify the Input Parameters
 **CRITICAL**: Before deep-diving into code, verify the TAXSIM input parameters are correct!
 
