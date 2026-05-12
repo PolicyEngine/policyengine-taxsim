@@ -1,0 +1,1 @@
+Add Step 6 input-parity warning to /diagnose-issue skill: when running direct Simulation, map every non-zero TAXSIM input from txpydata.csv before drawing conclusions. Includes the TAXSIM-to-PE variable cross-walk.

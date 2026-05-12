@@ -99,6 +99,8 @@ Only if all three checks say "still relevant, fresh problem" do you go to Step 1
 - Read the description carefully for diagnostic hints
 - Note any specific numbers mentioned (PE vs TaxAct values)
 
+Treat the issue body as a *hypothesis*, not as fact. If the reporter cites a specific PE value, confirm it appears in the bundled `output.txt` before building a diagnosis around it. Reporters sometimes mix up cases. If the cited value isn't there, work from what `output.txt` actually shows.
+
 ### Step 2: Verify the Input Parameters
 **CRITICAL**: Before deep-diving into code, verify the TAXSIM input parameters are correct!
 
@@ -166,26 +168,60 @@ for path in sorted(glob.glob('/tmp/taxsim_$ISSUE/*.pdf')):
 **If the reporter's claim and the PDF differ, the PDF is correct.** Numeric claims in issue bodies are sometimes paraphrased or based on a stale PE run.
 
 ### Step 6: Deep Dive if Needed
-If the basic test shows incorrect values:
+
+If the basic test shows incorrect values, drop into a direct `Simulation` to inspect individual variables.
+
+**WARNING — input parity is critical.** If you write a `Simulation` situation that omits one of the TAXSIM inputs, the simulation will compute different intermediates than the emulator and you'll mis-attribute a real bug to a "framework difference." (Real example: omitting `tax_unit_childcare_expenses` zeroed out the federal CDCC in direct `Simulation`, which changed `tax_liability_if_not_itemizing` by ~$300 and made me think Microsim vs Simulation diverged when they actually agreed.)
+
+**Mandatory TAXSIM-input → PE-variable cross-walk before running:**
+
+| TAXSIM input | PE-US variable | Entity |
+|---|---|---|
+| `pwages`, `swages` | `employment_income` | person |
+| `intrec` | `taxable_interest_income` | person |
+| `pensions` | `taxable_pension_income` | person |
+| `gssi` | `social_security` | person |
+| `proptax` | `real_estate_taxes` | person |
+| `mortgage` | `deductible_mortgage_interest` | person |
+| `rentpaid` | `rent` | person |
+| `childcare` | `tax_unit_childcare_expenses` | **tax_unit** ← easy to miss |
+| `dividends` | `qualified_dividend_income` | person |
+| `stcg` | `short_term_capital_gains` | person |
+| `ltcg` | `long_term_capital_gains` | person |
+
+Always look at the bundle's `txpydata.csv` and map **every non-zero column** before writing the situation. The canonical mapping is in `policyengine_taxsim/config/variable_mappings.yaml` if a column isn't in the table above.
 
 ```python
-# Test with Simulation directly
 from policyengine_us import Simulation
 
+# Example — map EVERY non-zero TAXSIM input from txpydata.csv
 situation = {
     "people": {
-        "person1": {"age": {"2024": 70}, "taxable_interest_income": {"2024": 64500}},
-        "person2": {"age": {"2024": 70}, "taxable_interest_income": {"2024": 64500}},
+        "head": {"age": {"2025": 65},
+                 "employment_income": {"2025": 1571.43},          # pwages
+                 "taxable_pension_income": {"2025": 46265.95},    # pensions
+                 "taxable_interest_income": {"2025": 36.44},      # intrec
+                 "social_security": {"2025": 30000},              # gssi
+                 "real_estate_taxes": {"2025": 30000},            # proptax
+                 "deductible_mortgage_interest": {"2025": 20000}, # mortgage
+                 },
+        "k1": {"age": {"2025": 11}},
+        "k2": {"age": {"2025": 2}},
     },
-    "tax_units": {"tax_unit": {"members": ["person1", "person2"]}},
-    "households": {"household": {"members": ["person1", "person2"], "state_fips": {"2024": 34}}},
-    # ... other units
+    "tax_units": {"tu": {"members": ["head", "k1", "k2"],
+                          "tax_unit_childcare_expenses": {"2025": 3000}}},  # childcare
+    "households": {"hh": {"members": ["head", "k1", "k2"], "state_fips": {"2025": 8}}},
+    "marital_units": {"m": {"members": ["head"]}, "m2": {"members": ["k1"]}, "m3": {"members": ["k2"]}},
+    "families": {"f": {"members": ["head", "k1", "k2"]}},
+    "spm_units": {"s": {"members": ["head", "k1", "k2"]}},
 }
 
 sim = Simulation(situation=situation)
-print("State AGI:", sim.calculate("{state}_agi", 2024))
-print("Exclusion:", sim.calculate("{state}_retirement_exclusion", 2024))
+print("federal AGI:", sim.calculate("adjusted_gross_income", 2025))
+print("State AGI:", sim.calculate("co_agi", 2025))
 ```
+
+**Verify input parity before drawing conclusions**: after building the situation, run the emulator (`policyengine_taxsim/cli.py policyengine ...`) on the same row and check that key intermediates (`adjusted_gross_income`, `cdcc`, `ctc`, federal `income_tax`) match. If they don't, you're missing a TAXSIM input mapping — fix that before going further.
 
 ### Step 7: Research Legal Documentation
 
@@ -336,7 +372,7 @@ When an issue doesn't reproduce as expected:
 - [ ] **Filing status inference?** (`mstat=1 + depx≥1` → HoH, not single)
 - [ ] **Ages set correctly?** (Many provisions are age-gated)
 - [ ] **Income assigned to right person?** (Joint filers: check both)
-- [ ] **Test with Simulation directly?** (Bypasses taxsim mapping)
+- [ ] **Test with Simulation directly?** When you do, **map every non-zero TAXSIM input** (especially `tax_unit_childcare_expenses` from `childcare`, `real_estate_taxes` from `proptax`, `deductible_mortgage_interest` from `mortgage`) — missing inputs will make Simulation diverge from the emulator and you'll mis-attribute the gap to a framework difference. See Step 6.
 - [ ] **Check existing tests in policyengine-us?** (May show expected behavior)
 - [ ] **PDFs extracted and analyzed?** (Reporter's expected values may be wrong!)
 - [ ] **Compared current PE vs TaxAct?** Every PE value queried directly (no inference from gaps between variables).
