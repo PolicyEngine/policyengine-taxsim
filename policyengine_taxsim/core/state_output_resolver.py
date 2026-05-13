@@ -14,6 +14,11 @@ DIRECT_STATE_MAPPING_ADAPTERS = {
     "taxsim_v37_property_tax_credit",
 }
 OUTPUT_ADAPTER_OVERRIDES = {
+    # MT: state_agi reads `gov.states.household.state_agis` which lists
+    # `mt_agi_indiv` (Person, defined only for MFS-on-same-return). For all
+    # other MT filing statuses that returns 0; use the tax-unit-level
+    # `mt_agi_joint` instead (PE-US naming, but applies to joint, single, HoH).
+    "taxsim_v32_state_agi": {"MT": ["mt_agi_joint"]},
     "taxsim_v38_cdcc": {"OK": ["adapter:ok_child_care_credit_component"]},
     "taxsim_v39_eitc": {"MN": ["mn_wfc"]},
     "taxsim_sctc": {

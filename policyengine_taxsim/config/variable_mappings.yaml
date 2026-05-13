@@ -378,7 +378,7 @@ policyengine_to_taxsim:
       MN: adjusted_gross_income
       MO: mo_adjusted_gross_income
       MS: ms_agi
-      MT: mt_agi
+      MT: mt_agi_joint
       NC: adjusted_gross_income
       ND: adjusted_gross_income
       NE: ne_agi
