@@ -2,7 +2,6 @@
 
 import pandas as pd
 import pytest
-from pathlib import Path
 
 from policyengine_taxsim.core.io import read_input, write_output
 
@@ -51,8 +50,7 @@ class TestReadInput:
         # silently drop the data. Strip whitespace from headers on read.
         csv_path = tmp_path / "spaced.csv"
         csv_path.write_text(
-            "taxsimid,year,state,mstat,pwages, ltcg ,idtl\n"
-            "1,2025,5,1,50000,10000,2\n"
+            "taxsimid,year,state,mstat,pwages, ltcg ,idtl\n1,2025,5,1,50000,10000,2\n"
         )
 
         result = read_input(csv_path)
