@@ -112,6 +112,7 @@ def cli(ctx, logs, disable_salt, sample):
 
     try:
         df = pd.read_csv(sys.stdin)
+        df.columns = [c.strip() for c in df.columns]
 
         # Apply sampling if requested
         if sample and sample < len(df):

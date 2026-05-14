@@ -2,7 +2,6 @@
 
 import pandas as pd
 import pytest
-from pathlib import Path
 
 from policyengine_taxsim.core.io import read_input, write_output
 
@@ -44,6 +43,20 @@ class TestReadInput:
 
         result = read_input(txt_path)
         assert len(result) == 2
+
+    def test_read_csv_strips_whitespace_from_headers(self, tmp_path):
+        # taxsim #418: spaces before/after column names (e.g. " ltcg") were
+        # making pandas treat the space-prefixed column as unrecognized and
+        # silently drop the data. Strip whitespace from headers on read.
+        csv_path = tmp_path / "spaced.csv"
+        csv_path.write_text(
+            "taxsimid,year,state,mstat,pwages, ltcg ,idtl\n1,2025,5,1,50000,10000,2\n"
+        )
+
+        result = read_input(csv_path)
+        assert "ltcg" in result.columns
+        assert " ltcg " not in result.columns
+        assert result["ltcg"].iloc[0] == 10_000
 
 
 class TestWriteOutput:
