@@ -1,3 +1,10 @@
+## [2.21.6] - 2026-05-14
+
+### Fixed
+
+- Strip whitespace from CSV column headers on input so columns with leading/trailing spaces (e.g. ` ltcg ,`) are recognized rather than silently dropped, matching what TAXSIM-style users expect.
+
+
 ## [2.21.5] - 2026-05-14
 
 ### Fixed
