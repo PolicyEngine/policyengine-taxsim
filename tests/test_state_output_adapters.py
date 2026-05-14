@@ -123,6 +123,21 @@ DICT_OUTPUT_CASES = [
         },
         ["mn_wfc"],
     ),
+    (
+        "v32",
+        {
+            "year": 2025,
+            "state": 27,  # MT — defaults `state_agi` to `mt_agi_indiv` (Person,
+            # defined only for MFS-on-same-return) and returns 0 for everyone else.
+            # The override on taxsim_v32_state_agi routes MT to `mt_agi_joint`,
+            # the tax-unit-level MT AGI that applies to joint/single/HoH filers.
+            "pwages": 80_000.0,
+            "taxsimid": 11,
+            "idtl": 2,
+            "mstat": 1,
+        },
+        ["mt_agi_joint"],
+    ),
 ]
 
 TEXT_OUTPUT_CASES = [
