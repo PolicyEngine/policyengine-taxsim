@@ -1,3 +1,10 @@
+## [2.21.5] - 2026-05-14
+
+### Fixed
+
+- Fix v32 (State AGI) output returning $0 for Montana — route `taxsim_v32_state_agi` to `mt_agi_joint` (the tax-unit-level MT AGI that applies to joint, single, and HoH filers) instead of the default `state_agi` path, which reads the person-level `mt_agi_indiv` (defined only for MFS-on-same-return) and returns 0 for everyone else.
+
+
 ## [2.21.4] - 2026-05-12
 
 ### Changed
