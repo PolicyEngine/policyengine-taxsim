@@ -44,10 +44,6 @@ class BaseTaxRunner(ABC):
             # Assign sequential IDs starting from 1
             self.input_df["taxsimid"] = range(1, len(self.input_df) + 1)
 
-        # Check for duplicate taxsimids
-        if self.input_df["taxsimid"].duplicated().any():
-            raise ValueError("Input data contains duplicate taxsimid values")
-
     @abstractmethod
     def run(self, show_progress: bool = True) -> pd.DataFrame:
         """
