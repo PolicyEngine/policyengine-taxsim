@@ -107,20 +107,29 @@ def test_pension_splits_when_both_spouses_are_60_plus():
     np.testing.assert_allclose(values, [20000.0, 20000.0])
 
 
-def test_pension_stays_on_primary_for_mixed_age_couple():
-    """Pension: when only one spouse is 60+, keep full pension on primary
-    so the qualifying spouse claims the per-person exclusion. Splitting
-    50/50 would push half the pension onto the under-60 spouse and
-    eliminate half the exclusion (see #838 validation)."""
+def test_pension_goes_to_primary_when_primary_is_older():
+    """Pension: mixed-age, primary older — keep full pension on primary
+    so they claim the per-person elderly exclusion. Splitting 50/50 would
+    push half onto the under-60 spouse and lose half the exclusion
+    (see #838 validation)."""
     df = pd.DataFrame([_base_mfj_record(page=70, sage=50, pensions=40000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [40000.0, 0.0])
 
 
+def test_pension_goes_to_spouse_when_spouse_is_older():
+    """Pension: mixed-age, spouse older — assign full pension to spouse
+    so the qualifying filer claims the exclusion. See taxsim issue #774:
+    IA pension subtraction is age-55+, and with page=54 / sage=55 the
+    older spouse should hold the pension."""
+    df = pd.DataFrame([_base_mfj_record(page=54, sage=55, pensions=40000)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [0.0, 40000.0])
+
+
 def test_pension_stays_on_primary_when_both_under_60():
     """Pension: when neither spouse is 60+, state elderly exclusions
-    do not apply. Keep on primary to match pre-fix behavior for the
-    non-elderly case."""
+    do not apply. Default to primary."""
     df = pd.DataFrame([_base_mfj_record(page=45, sage=45, pensions=30000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [30000.0, 0.0])
@@ -134,19 +143,25 @@ def test_gssi_splits_when_both_spouses_are_60_plus():
     np.testing.assert_allclose(values, [20000.0, 20000.0])
 
 
-def test_gssi_stays_on_primary_for_mixed_age_couple():
-    """gssi: in a mixed-age household (e.g. primary 75, spouse 40),
-    keep full Social Security on the primary so age-based state
-    exclusions (e.g. CO, MD) reach the qualifying spouse. Splitting
-    50/50 would push half onto the under-60 spouse and lose the
-    exclusion on that half. See taxsim issue #924."""
+def test_gssi_goes_to_older_spouse_for_mixed_age_couple():
+    """gssi: mixed-age (primary 75, spouse 40), keep full SS on the older
+    primary so age-based state exclusions (CO, MD) reach the qualifying
+    filer. See taxsim issue #924."""
     df = pd.DataFrame([_base_mfj_record(page=75, sage=40, gssi=40000)])
     values = _run_allocation(df, "social_security_retirement")
     np.testing.assert_allclose(values, [40000.0, 0.0])
 
 
+def test_gssi_goes_to_spouse_when_spouse_is_older():
+    """gssi: mixed-age, spouse older — assign all SS to spouse so they
+    claim the age-based subtraction."""
+    df = pd.DataFrame([_base_mfj_record(page=40, sage=75, gssi=40000)])
+    values = _run_allocation(df, "social_security_retirement")
+    np.testing.assert_allclose(values, [0.0, 40000.0])
+
+
 def test_gssi_stays_on_primary_when_both_under_60():
-    """gssi: when neither spouse is 60+, keep on primary."""
+    """gssi: when neither spouse is 60+, default to primary."""
     df = pd.DataFrame([_base_mfj_record(page=45, sage=45, gssi=40000)])
     values = _run_allocation(df, "social_security_retirement")
     np.testing.assert_allclose(values, [40000.0, 0.0])

@@ -226,33 +226,49 @@ class TaxsimMicrosimDataset(Dataset):
 
     @classmethod
     def _make_age_gated_primary(cls, source_field):
-        """Age-gated income stays on primary unless both spouses are 60+."""
+        """Allocate age-gated income (pension, gssi) to the primary filer's
+        share. Both spouses 60+: 50/50. Mixed-age: assign entirely to the
+        older spouse so age-based state exclusions reach the qualifying
+        filer (see taxsim issues #774 for pensions, #924 for gssi). Both
+        under 60: all to primary by default."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
             if int(row.get("mstat", 1)) != 2:
                 return value
+            page = int(row.get("page", 0))
+            sage = int(row.get("sage", 0))
             both_old = (
-                int(row.get("page", 0)) >= cls._AGE_GATED_SPLIT_AGE
-                and int(row.get("sage", 0)) >= cls._AGE_GATED_SPLIT_AGE
+                page >= cls._AGE_GATED_SPLIT_AGE
+                and sage >= cls._AGE_GATED_SPLIT_AGE
             )
-            return value / 2 if both_old else value
+            if both_old:
+                return value / 2
+            primary_is_older_or_equal = page >= sage
+            return value if primary_is_older_or_equal else 0.0
 
         return accessor
 
     @classmethod
     def _make_age_gated_spouse(cls, source_field):
-        """Spouse only shares age-gated income if both spouses are 60+."""
+        """Spouse's share of age-gated income. Mirror of `_make_age_gated_primary`:
+        50/50 if both 60+, full amount to spouse only when spouse is strictly
+        older than primary in mixed-age cases."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
             if int(row.get("mstat", 1)) != 2:
                 return 0.0
+            page = int(row.get("page", 0))
+            sage = int(row.get("sage", 0))
             both_old = (
-                int(row.get("page", 0)) >= cls._AGE_GATED_SPLIT_AGE
-                and int(row.get("sage", 0)) >= cls._AGE_GATED_SPLIT_AGE
+                page >= cls._AGE_GATED_SPLIT_AGE
+                and sage >= cls._AGE_GATED_SPLIT_AGE
             )
-            return value / 2 if both_old else 0.0
+            if both_old:
+                return value / 2
+            spouse_is_strictly_older = sage > page
+            return value if spouse_is_strictly_older else 0.0
 
         return accessor
 
