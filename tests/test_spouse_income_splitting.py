@@ -6,9 +6,10 @@ these evenly between spouses so that per-person state rules (e.g. DE age 60+
 exclusion, DE pension exclusion) apply to both spouses. See issues #665
 and #838.
 
-Pension income uses an age-aware rule: split only when both spouses are
-60 or older; otherwise the full amount stays with the primary filer to
-preserve state per-person elderly exclusions (GA, MD, NJ, etc.).
+Pension and Social Security income use an age-aware rule: split only when
+both spouses are 60 or older; otherwise the full amount stays with the
+primary filer to preserve state per-person elderly exclusions (CO, GA, MD,
+NJ, etc.). See issue #924.
 """
 
 import numpy as np
@@ -54,7 +55,6 @@ def _base_mfj_record(taxsimid=1, **overrides):
         ("dividends", "qualified_dividend_income", 80000),
         ("ltcg", "long_term_capital_gains", 60000),
         ("stcg", "short_term_capital_gains", 30000),
-        ("gssi", "social_security_retirement", 40000),
         ("scorp", "partnership_s_corp_income", 50000),
     ],
 )
@@ -124,6 +124,32 @@ def test_pension_stays_on_primary_when_both_under_60():
     df = pd.DataFrame([_base_mfj_record(page=45, sage=45, pensions=30000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [30000.0, 0.0])
+
+
+def test_gssi_splits_when_both_spouses_are_60_plus():
+    """gssi: when both spouses ≥ 60, allocate 50/50 so both qualify
+    for state per-person SS exclusions."""
+    df = pd.DataFrame([_base_mfj_record(page=65, sage=65, gssi=40000)])
+    values = _run_allocation(df, "social_security_retirement")
+    np.testing.assert_allclose(values, [20000.0, 20000.0])
+
+
+def test_gssi_stays_on_primary_for_mixed_age_couple():
+    """gssi: in a mixed-age household (e.g. primary 75, spouse 40),
+    keep full Social Security on the primary so age-based state
+    exclusions (e.g. CO, MD) reach the qualifying spouse. Splitting
+    50/50 would push half onto the under-60 spouse and lose the
+    exclusion on that half. See taxsim issue #924."""
+    df = pd.DataFrame([_base_mfj_record(page=75, sage=40, gssi=40000)])
+    values = _run_allocation(df, "social_security_retirement")
+    np.testing.assert_allclose(values, [40000.0, 0.0])
+
+
+def test_gssi_stays_on_primary_when_both_under_60():
+    """gssi: when neither spouse is 60+, keep on primary."""
+    df = pd.DataFrame([_base_mfj_record(page=45, sage=45, gssi=40000)])
+    values = _run_allocation(df, "social_security_retirement")
+    np.testing.assert_allclose(values, [40000.0, 0.0])
 
 
 def test_de_elderly_pension_matches_issue_838():

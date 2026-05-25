@@ -190,17 +190,19 @@ class TaxsimMicrosimDataset(Dataset):
             "long_term_capital_gains",
             "partnership_s_corp_income",
             "short_term_capital_gains",
-            "social_security_retirement",
         }
     )
 
-    # Pension income is split only when both spouses meet the state-pension
-    # eligibility age (60, the lowest common threshold across states such
-    # as DE). When ages are mixed or both under 60, pension stays with the
-    # primary filer so the allocation still matches TAXSIM for records where
-    # age-based state rules don't apply.
-    _PENSION_FIELD = "taxable_private_pension_income"
-    _PENSION_SPLIT_AGE = 60
+    # Pension and Social Security income are split only when both spouses
+    # meet the state-level age threshold (60, the lowest common threshold
+    # across states such as DE). In mixed-age households (e.g. spouse under
+    # 60 while filer is elderly), the income stays with the primary filer so
+    # age-based state exclusions aren't lost on the younger spouse's
+    # incorrectly-allocated share.
+    _AGE_GATED_FIELDS = frozenset(
+        {"taxable_private_pension_income", "social_security_retirement"}
+    )
+    _AGE_GATED_SPLIT_AGE = 60
 
     @staticmethod
     def _make_primary_split(source_field):
@@ -223,32 +225,32 @@ class TaxsimMicrosimDataset(Dataset):
         return accessor
 
     @classmethod
-    def _make_pension_primary(cls, source_field):
-        """Pension stays on primary unless both spouses are 60 or older."""
+    def _make_age_gated_primary(cls, source_field):
+        """Age-gated income stays on primary unless both spouses are 60+."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
             if int(row.get("mstat", 1)) != 2:
                 return value
             both_old = (
-                int(row.get("page", 0)) >= cls._PENSION_SPLIT_AGE
-                and int(row.get("sage", 0)) >= cls._PENSION_SPLIT_AGE
+                int(row.get("page", 0)) >= cls._AGE_GATED_SPLIT_AGE
+                and int(row.get("sage", 0)) >= cls._AGE_GATED_SPLIT_AGE
             )
             return value / 2 if both_old else value
 
         return accessor
 
     @classmethod
-    def _make_pension_spouse(cls, source_field):
-        """Spouse only receives a pension share if both spouses are 60+."""
+    def _make_age_gated_spouse(cls, source_field):
+        """Spouse only shares age-gated income if both spouses are 60+."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
             if int(row.get("mstat", 1)) != 2:
                 return 0.0
             both_old = (
-                int(row.get("page", 0)) >= cls._PENSION_SPLIT_AGE
-                and int(row.get("sage", 0)) >= cls._PENSION_SPLIT_AGE
+                int(row.get("page", 0)) >= cls._AGE_GATED_SPLIT_AGE
+                and int(row.get("sage", 0)) >= cls._AGE_GATED_SPLIT_AGE
             )
             return value / 2 if both_old else 0.0
 
@@ -309,12 +311,14 @@ class TaxsimMicrosimDataset(Dataset):
                                 "dependent": 0.0,
                                 "default": 0.0,
                             }
-                        elif pe_var == self._PENSION_FIELD:
-                            # Pension requires the age-aware split (both
-                            # spouses must be 60+ to share the exclusion).
+                        elif pe_var in self._AGE_GATED_FIELDS:
+                            # Pension and Social Security require the
+                            # age-aware split (both spouses must be 60+
+                            # to share, otherwise it stays with the primary
+                            # filer so age-based exclusions aren't lost).
                             variable_mapping[pe_var] = {
-                                "primary": self._make_pension_primary(taxsim_var),
-                                "spouse": self._make_pension_spouse(taxsim_var),
+                                "primary": self._make_age_gated_primary(taxsim_var),
+                                "spouse": self._make_age_gated_spouse(taxsim_var),
                                 "dependent": 0.0,
                                 "default": 0.0,
                             }
