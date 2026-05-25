@@ -1,3 +1,10 @@
+## [2.21.7] - 2026-05-25
+
+### Fixed
+
+- Allow duplicate `taxsimid` values in input data to support TAXSIM-35 panel and multi-state workflows.
+
+
 ## [2.21.6] - 2026-05-14
 
 ### Fixed
