@@ -239,8 +239,7 @@ class TaxsimMicrosimDataset(Dataset):
             page = int(row.get("page", 0))
             sage = int(row.get("sage", 0))
             both_old = (
-                page >= cls._AGE_GATED_SPLIT_AGE
-                and sage >= cls._AGE_GATED_SPLIT_AGE
+                page >= cls._AGE_GATED_SPLIT_AGE and sage >= cls._AGE_GATED_SPLIT_AGE
             )
             if both_old:
                 return value / 2
@@ -262,8 +261,7 @@ class TaxsimMicrosimDataset(Dataset):
             page = int(row.get("page", 0))
             sage = int(row.get("sage", 0))
             both_old = (
-                page >= cls._AGE_GATED_SPLIT_AGE
-                and sage >= cls._AGE_GATED_SPLIT_AGE
+                page >= cls._AGE_GATED_SPLIT_AGE and sage >= cls._AGE_GATED_SPLIT_AGE
             )
             if both_old:
                 return value / 2
