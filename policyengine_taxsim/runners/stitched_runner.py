@@ -47,6 +47,8 @@ class StitchedRunner(BaseTaxRunner):
             return TaxsimRunner(df)
 
     def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
+        import numpy as np
+
         years = self.input_df["year"].astype(int)
         pe_mask = years >= self.pe_min_year
         taxsim_mask = ~pe_mask
@@ -65,30 +67,39 @@ class StitchedRunner(BaseTaxRunner):
                     taxsim_mask.sum(),
                 )
 
-        frames = []
+        # Capture original positional indices so we can restore input order
+        # without relying on taxsimid being unique (panel and multi-state
+        # workflows legitimately reuse taxsimid).
+        input_df = self.input_df.reset_index(drop=True)
+        pe_subset = input_df[pe_mask.to_numpy()]
+        taxsim_subset = input_df[taxsim_mask.to_numpy()]
 
-        if pe_mask.any():
-            pe_runner = PolicyEngineRunner(self.input_df[pe_mask], **self._pe_kwargs)
+        frames = []
+        frame_positions = []
+
+        if not pe_subset.empty:
+            pe_runner = PolicyEngineRunner(pe_subset, **self._pe_kwargs)
             frames.append(
                 pe_runner.run(show_progress=show_progress, on_progress=on_progress)
             )
+            # PolicyEngineRunner emits rows sorted by year ascending
+            # (stable within a year), so the original positions follow the
+            # same stable sort key.
+            frame_positions.append(
+                pe_subset.sort_values("year", kind="mergesort").index.to_numpy()
+            )
 
-        if taxsim_mask.any():
-            taxsim_runner = self._make_taxsim_runner(self.input_df[taxsim_mask])
+        if not taxsim_subset.empty:
+            taxsim_runner = self._make_taxsim_runner(taxsim_subset)
             frames.append(taxsim_runner.run(show_progress=show_progress))
+            frame_positions.append(taxsim_subset.index.to_numpy())
 
         if not frames:
             return pd.DataFrame(columns=self.input_df.columns)
 
         result = pd.concat(frames, ignore_index=True)
-
-        # Restore original taxsimid order
-        original_order = self.input_df["taxsimid"].tolist()
-        result_ids = result["taxsimid"].tolist()
-        if sorted(result_ids) != sorted(original_order):
-            raise ValueError(
-                f"Runner output taxsimids {sorted(result_ids)} do not match "
-                f"input taxsimids {sorted(original_order)}"
-            )
-        result = result.set_index("taxsimid").loc[original_order].reset_index()
+        positions = np.concatenate(frame_positions)
+        result = result.iloc[np.argsort(positions, kind="mergesort")].reset_index(
+            drop=True
+        )
         return result
