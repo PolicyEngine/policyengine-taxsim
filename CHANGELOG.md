@@ -1,3 +1,14 @@
+## [2.21.8] - 2026-05-25
+
+### Changed
+
+- Suppress benign Hugging Face Hub anonymous-request warnings during CLI runs.
+
+### Fixed
+
+- Allocate Social Security (`gssi`) using the same age-aware rule as pensions: in mixed-age MFJ households, keep the full amount on the primary filer so state per-person SS exclusions (CO, MD, etc.) reach the qualifying spouse.
+
+
 ## [2.21.7] - 2026-05-25
 
 ### Fixed

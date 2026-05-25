@@ -1,1 +1,0 @@
-Allocate Social Security (`gssi`) using the same age-aware rule as pensions: in mixed-age MFJ households, keep the full amount on the primary filer so state per-person SS exclusions (CO, MD, etc.) reach the qualifying spouse.
