@@ -1,7 +1,14 @@
+import logging
+
 import click
 import pandas as pd
 from pathlib import Path
 from io import StringIO
+
+# Suppress benign Hugging Face Hub warnings (e.g., "unauthenticated requests"
+# rate-limit notices) — downloads still succeed under the anonymous limit,
+# and the message confuses TAXSIM users who don't have an HF account.
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 try:
     from .runners.policyengine_runner import PolicyEngineRunner
