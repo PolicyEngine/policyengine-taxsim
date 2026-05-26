@@ -1,3 +1,10 @@
+## [2.21.10] - 2026-05-26
+
+### Fixed
+
+- Update bundled macOS TAXSIM-35 binary to a build that supports TY 2025 (previously failed with `STOP 1`).
+
+
 ## [2.21.9] - 2026-05-26
 
 ### Fixed
