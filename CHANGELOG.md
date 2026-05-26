@@ -1,3 +1,10 @@
+## [2.21.9] - 2026-05-26
+
+### Fixed
+
+- Route CLI status messages (dataset setup, microsim progress, "Results saved") to stderr so they don't contaminate piped CSV output on stdout.
+
+
 ## [2.21.8] - 2026-05-25
 
 ### Changed
