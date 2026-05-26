@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 import numpy as np
 import tempfile
@@ -733,7 +735,7 @@ class TaxsimMicrosimDataset(Dataset):
         self.input_df = self._ensure_required_columns(self.input_df)
 
         # Set defaults and convert TAXSIM32 format (vectorized)
-        print("Setting defaults for TAXSIM records...")
+        print("Setting defaults for TAXSIM records...", file=sys.stderr)
         self.input_df = self._apply_defaults_vectorized(self.input_df)
 
         # Extract years (assuming all records might have different years)
@@ -749,7 +751,7 @@ class TaxsimMicrosimDataset(Dataset):
         data = self._initialize_dataset_structure()
 
         # Process each year separately
-        print("Processing years for dataset generation...")
+        print("Processing years for dataset generation...", file=sys.stderr)
         for year in tqdm(unique_years, desc="Dataset generation by year"):
             year_mask = self.input_df["year"] == year
             year_data = self.input_df[year_mask].copy()
@@ -1005,7 +1007,8 @@ class PolicyEngineRunner(BaseTaxRunner):
         """
         if show_progress:
             print(
-                f"Running PolicyEngine Microsimulation on {len(self.input_df)} records"
+                f"Running PolicyEngine Microsimulation on {len(self.input_df)} records",
+                file=sys.stderr,
             )
 
         # Ensure years are integers to handle decimal values like 2021.0
@@ -1043,7 +1046,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         results_df = pd.concat(frames, ignore_index=True)
 
         if show_progress:
-            print("PolicyEngine Microsimulation completed")
+            print("PolicyEngine Microsimulation completed", file=sys.stderr)
 
         return results_df
 
