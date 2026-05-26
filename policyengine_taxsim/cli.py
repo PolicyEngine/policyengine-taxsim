@@ -197,13 +197,13 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
 
         # Generate YAML files if requested
         if logs:
-            click.echo("Generating PolicyEngine YAML test files...")
+            click.echo("Generating PolicyEngine YAML test files...", err=True)
             _generate_yaml_files(df_with_ids, results_df)
-            click.echo(f"Generated {len(df_with_ids)} YAML test files")
+            click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
         # Save results to output file
         write_output(results_df, output)
-        click.echo(f"Results saved to {output}")
+        click.echo(f"Results saved to {output}", err=True)
 
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)

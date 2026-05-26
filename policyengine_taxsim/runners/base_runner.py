@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Optional, Union
@@ -103,14 +105,14 @@ class BaseTaxRunner(ABC):
         """
         if results_df is None:
             if self.results is None:
-                print("Running calculations to generate results...")
+                print("Running calculations to generate results...", file=sys.stderr)
                 results_df = self.run()
             else:
                 results_df = self.results
 
         output_path = Path(output_path)
         write_output(results_df, output_path)
-        print(f"Results saved to: {output_path}")
+        print(f"Results saved to: {output_path}", file=sys.stderr)
 
     def get_record_count(self) -> int:
         """Get number of records in input data"""
