@@ -1,3 +1,10 @@
+## [2.21.11] - 2026-05-27
+
+### Fixed
+
+- Map the TAXSIM `otherprop` input to PE-US `miscellaneous_income` so "Other Property" income flows into federal AGI (previously silently dropped).
+
+
 ## [2.21.10] - 2026-05-26
 
 ### Fixed
