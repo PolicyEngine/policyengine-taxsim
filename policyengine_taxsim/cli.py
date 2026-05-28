@@ -86,6 +86,55 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
             print(f"Warning: Could not generate YAML for record {idx}: {e}")
 
 
+def _emit_results(input_df, results_df, out_stream):
+    """Write results to ``out_stream``. CSV by default; for any rows
+    with ``idtl=5``, emit TAXSIM-35's labeled-section full-text instead.
+    Mixed-idtl inputs interleave records in original input order."""
+    try:
+        from .core.text_formatter import format_row
+    except ImportError:
+        from policyengine_taxsim.core.text_formatter import format_row
+
+    # Default: no idtl=5 anywhere → write CSV as before.
+    if "idtl" not in input_df.columns or not (input_df["idtl"] == 5).any():
+        results_df.to_csv(out_stream, index=False)
+        return
+
+    # idtl=5 path. Index results by taxsimid for safe lookup since
+    # StitchedRunner may reorder rows from two engines.
+    results_by_id = results_df.set_index("taxsimid")
+    csv_rows = []
+    for _, in_row in input_df.iterrows():
+        idtl = int(float(in_row.get("idtl", 0)))
+        taxsimid = in_row["taxsimid"]
+        try:
+            result_row = results_by_id.loc[taxsimid]
+            if hasattr(result_row, "iloc") and getattr(result_row, "ndim", 1) > 1:
+                # Duplicate taxsimids in result — take the first match.
+                result_row = result_row.iloc[0]
+        except KeyError:
+            continue
+        if idtl == 5:
+            result_dict = result_row.to_dict()
+            # Restore taxsimid (dropped when we set it as index)
+            result_dict.setdefault("taxsimid", taxsimid)
+            text = format_row(in_row.to_dict(), result_dict)
+            out_stream.write(text + "\n")
+        else:
+            row_dict = result_row.to_dict()
+            row_dict.setdefault("taxsimid", taxsimid)
+            csv_rows.append(row_dict)
+
+    if csv_rows:
+        import pandas as pd
+
+        csv_df = pd.DataFrame(csv_rows)
+        # Restore the taxsimid column from index.
+        if "taxsimid" not in csv_df.columns:
+            csv_df.insert(0, "taxsimid", [row.get("taxsimid") for row in csv_rows])
+        csv_df.to_csv(out_stream, index=False)
+
+
 @click.group(invoke_without_command=True)
 @click.option("--logs", is_flag=True, help="Generate PE YAML Tests Logs")
 @click.option(
@@ -142,8 +191,7 @@ def cli(ctx, logs, disable_salt, sample):
             _generate_yaml_files(df_with_ids, results_df)
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
-        # Write results to stdout
-        results_df.to_csv(sys.stdout, index=False)
+        _emit_results(df_with_ids, results_df, sys.stdout)
 
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
