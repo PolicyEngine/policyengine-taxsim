@@ -1,0 +1,1 @@
+Run `--disable-salt` in three passes so PE's federal Schedule A keeps state-tax SALT (matching TAXSIM-35's single-pass methodology) while state computation remains SALT-disabled. Eliminates the iterated-vs-single-pass state-tax mismatch in PE-vs-TAXSIM federal comparisons.
