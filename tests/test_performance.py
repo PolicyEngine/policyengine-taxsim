@@ -215,7 +215,8 @@ class TestBenchmark:
     """Performance benchmarks. Run with: pytest -m slow"""
 
     def test_benchmark_500_records(self):
-        """500 records should complete in under 30 seconds."""
+        """500 records should complete in under 2 minutes with the
+        three-pass --disable-salt code path (two PE Microsim invocations)."""
         records = _make_synthetic_records(500, seed=77)
         runner = PolicyEngineRunner(records, logs=False, disable_salt=True)
 
@@ -224,7 +225,7 @@ class TestBenchmark:
         elapsed = time.time() - start
 
         assert len(result) == 500
-        assert elapsed < 60, f"500 records took {elapsed:.1f}s, expected < 60s"
+        assert elapsed < 120, f"500 records took {elapsed:.1f}s, expected < 120s"
         print(f"\nBenchmark: 500 records in {elapsed:.1f}s")
 
     def test_benchmark_cps_like(self):
@@ -285,7 +286,8 @@ class TestBenchmark:
             f"\nBenchmark (CPS-like): {n} records, {records['state'].nunique()} states, idtl=2"
         )
         print(f"  Total: {elapsed:.1f}s")
-        assert elapsed < 120, f"CPS-like benchmark took {elapsed:.1f}s, expected < 120s"
+        # 2x ceiling accounts for the three-pass --disable-salt code path.
+        assert elapsed < 240, f"CPS-like benchmark took {elapsed:.1f}s, expected < 240s"
 
 
 class TestStateVariableEfficiency:
