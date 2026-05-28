@@ -1,3 +1,11 @@
+## [2.21.12] - 2026-05-28
+
+### Fixed
+
+- Lower the pension/SS age-aware split threshold from 60 to 55 to match Colorado's 55+ pension subtraction (so mixed-age couples ages 55-59 each claim the state per-person exclusion). Higher-threshold states (DE 60, GA 62, MD 65) are unaffected.
+- Run `--disable-salt` in three passes so PE's federal Schedule A keeps state-tax SALT (matching TAXSIM-35's single-pass methodology) while state computation remains SALT-disabled. Eliminates the iterated-vs-single-pass state-tax mismatch in PE-vs-TAXSIM federal comparisons.
+
+
 ## [2.21.11] - 2026-05-27
 
 ### Fixed
