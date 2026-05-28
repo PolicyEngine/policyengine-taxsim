@@ -107,6 +107,18 @@ def test_pension_splits_when_both_spouses_are_60_plus():
     np.testing.assert_allclose(values, [20000.0, 20000.0])
 
 
+def test_pension_splits_when_both_spouses_are_55_plus():
+    """Pension: when both spouses ≥ 55 (CO's threshold), allocate 50/50
+    so each spouse claims the per-person CO pension subtraction. See
+    taxsim issue #933: CO joint, page=58, sage=56 — both qualify for
+    CO's 55-64 $20K subtraction. Pre-fix PE put pension on primary
+    only, giving $20K total subtraction; correct behavior splits 50/50
+    so each spouse claims $20K = $40K total (matching TaxAct)."""
+    df = pd.DataFrame([_base_mfj_record(page=58, sage=56, pensions=40000)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [20000.0, 20000.0])
+
+
 def test_pension_goes_to_primary_when_primary_is_older():
     """Pension: mixed-age, primary older — keep full pension on primary
     so they claim the per-person elderly exclusion. Splitting 50/50 would

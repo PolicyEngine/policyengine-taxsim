@@ -1,0 +1,1 @@
+Lower the pension/SS age-aware split threshold from 60 to 55 to match Colorado's 55+ pension subtraction (so mixed-age couples ages 55-59 each claim the state per-person exclusion). Higher-threshold states (DE 60, GA 62, MD 65) are unaffected.
