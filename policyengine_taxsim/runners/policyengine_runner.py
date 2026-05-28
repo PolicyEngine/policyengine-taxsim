@@ -911,6 +911,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.logs = logs
         self.disable_salt = disable_salt
         self.assume_w2_wages = assume_w2_wages
+        # Per-row state_and_local_sales_or_income_tax override (Pass B of
+        # three-pass --disable-salt). Maps taxsimid -> dollar value.
+        self._state_tax_override = None
         self.mappings = load_variable_mappings()
 
     def _ensure_required_columns(self, df):
@@ -957,14 +960,31 @@ class PolicyEngineRunner(BaseTaxRunner):
             dataset.generate()
             sim = Microsimulation(dataset=dataset)
 
-            if self.disable_salt:
+            # Resolve the state_and_local_sales_or_income_tax override for
+            # this chunk. Possible sources, in priority order:
+            #   1. self._state_tax_override (Pass B of three-pass: per-row
+            #      values produced by Pass A, keyed by taxsimid)
+            #   2. self.disable_salt (zero out for state-only computation)
+            salt_override = None
+            if self._state_tax_override is not None:
+                ids = chunk_df["taxsimid"].astype(float).astype(int).values
+                # Look each id up in the override map; fall back to 0 if
+                # the id is unexpectedly missing.
+                salt_override = np.array(
+                    [self._state_tax_override.get(int(i), 0.0) for i in ids],
+                    dtype=float,
+                )
+            elif self.disable_salt:
+                salt_override = np.zeros(len(chunk_df), dtype=float)
+
+            if salt_override is not None:
                 years = sorted(set(chunk_df["year"].unique()))
                 for year in years:
                     year_mask = chunk_df["year"] == year
-                    n_year_records = year_mask.sum()
+                    year_values = salt_override[year_mask.values]
                     sim.set_input(
                         variable_name="state_and_local_sales_or_income_tax",
-                        value=np.zeros(n_year_records),
+                        value=year_values,
                         period=str(
                             int(year)
                             if isinstance(year, (float, np.floating))
@@ -993,18 +1013,40 @@ class PolicyEngineRunner(BaseTaxRunner):
         finally:
             dataset.cleanup()
 
-    def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
-        """
-        Run PolicyEngine Microsimulation on all records, chunked by year
-        and then by CHUNK_SIZE to avoid memory issues with large datasets.
+    # Columns whose semantics belong to the state-side of PE-US. When
+    # --disable-salt is set, we run PE twice: a full-SALT pass for the
+    # federal side, and a SALT-disabled pass for these state columns.
+    # That preserves the original intent of --disable-salt (matching
+    # TAXSIM's missing state↔federal SALT iteration) without polluting
+    # federal Schedule A on PE's side.
+    _STATE_OUTPUT_COLUMNS = frozenset(
+        {
+            "siitax",
+            "srate",
+            "v32",
+            "v33",
+            "v34",
+            "v35",
+            "v36",
+            "v37",
+            "v38",
+            "v39",
+            "v40",
+            "v41",
+            "v42",
+            "v43",
+            "v44",
+            "staxbc",
+            "srebate",
+            "senergy",
+            "sctc",
+            "sptcr",
+            "samt",
+        }
+    )
 
-        Args:
-            show_progress: Whether to show tqdm progress bar.
-            on_progress: Optional callback(chunks_done, total_chunks, rows_done, total_rows).
-
-        Returns:
-            DataFrame with TAXSIM-formatted output variables
-        """
+    def _run_once(self, show_progress: bool, on_progress) -> pd.DataFrame:
+        """Single PE pass with the current self.disable_salt setting."""
         if show_progress:
             print(
                 f"Running PolicyEngine Microsimulation on {len(self.input_df)} records",
@@ -1014,8 +1056,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Ensure years are integers to handle decimal values like 2021.0
         self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
 
-        # Split by year first (required for correct dataset generation),
-        # then by chunk size within each year.
         frames = []
         years = sorted(self.input_df["year"].unique())
         total_chunks = sum(
@@ -1044,11 +1084,69 @@ class PolicyEngineRunner(BaseTaxRunner):
                         on_progress(chunks_done, total_chunks, rows_done, total_rows)
 
         results_df = pd.concat(frames, ignore_index=True)
-
         if show_progress:
             print("PolicyEngine Microsimulation completed", file=sys.stderr)
-
         return results_df
+
+    def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
+        """
+        Run PolicyEngine Microsimulation on all records.
+
+        When ``disable_salt`` is set, runs PE in three passes to match
+        TAXSIM-35's single-pass state↔federal SALT methodology:
+
+          Pass A: state-side run with state_and_local_sales_or_income_tax
+                  zeroed. Produces state outputs that ignore federal SALT
+                  iteration (matches TAXSIM's state tax computation).
+          Pass B: federal-side run with state_and_local_sales_or_income_tax
+                  set as an explicit input to Pass-A's state_income_tax
+                  per record. PE federal Schedule A then uses that fixed
+                  state-tax value as SALT, without iterating.
+          Stitch: state columns from Pass A, federal columns from Pass B.
+
+        Without ``disable_salt``, runs a single PE pass with PE-US's
+        native (iterative) handling.
+        """
+        if not self.disable_salt:
+            return self._run_once(show_progress, on_progress)
+
+        # Pass A — state-side: zeros SALT internally.
+        state_results = self._run_once(show_progress, on_progress)
+
+        # Build per-taxsimid state_tax override from Pass A's siitax.
+        state_tax_by_id = dict(
+            zip(
+                state_results["taxsimid"].astype(float).astype(int).values,
+                state_results["siitax"].astype(float).values,
+            )
+        )
+
+        # Pass B — federal-side: use Pass-A state tax as fixed SALT input,
+        # no further iteration.
+        original_disable_salt = self.disable_salt
+        original_override = self._state_tax_override
+        try:
+            self.disable_salt = False
+            self._state_tax_override = state_tax_by_id
+            federal_results = self._run_once(show_progress, on_progress)
+        finally:
+            self.disable_salt = original_disable_salt
+            self._state_tax_override = original_override
+
+        # Stitch: federal columns from Pass B, state-side columns from
+        # Pass A (which is the SALT-disabled state pass).
+        combined = federal_results.copy()
+        # Reorder state_results to match combined's taxsimid ordering for
+        # safe column substitution.
+        state_results = (
+            state_results.set_index("taxsimid")
+            .loc[combined["taxsimid"].values]
+            .reset_index()
+        )
+        for col in self._STATE_OUTPUT_COLUMNS:
+            if col in state_results.columns and col in combined.columns:
+                combined[col] = state_results[col].values
+        return combined
 
     def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
         """

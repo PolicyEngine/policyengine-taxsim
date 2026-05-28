@@ -215,7 +215,8 @@ class TestBenchmark:
     """Performance benchmarks. Run with: pytest -m slow"""
 
     def test_benchmark_500_records(self):
-        """500 records should complete in under 30 seconds."""
+        """500 records should complete in under 2 minutes with the
+        three-pass --disable-salt code path (two PE Microsim invocations)."""
         records = _make_synthetic_records(500, seed=77)
         runner = PolicyEngineRunner(records, logs=False, disable_salt=True)
 
@@ -224,7 +225,7 @@ class TestBenchmark:
         elapsed = time.time() - start
 
         assert len(result) == 500
-        assert elapsed < 60, f"500 records took {elapsed:.1f}s, expected < 60s"
+        assert elapsed < 120, f"500 records took {elapsed:.1f}s, expected < 120s"
         print(f"\nBenchmark: 500 records in {elapsed:.1f}s")
 
     def test_benchmark_cps_like(self):
@@ -285,7 +286,8 @@ class TestBenchmark:
             f"\nBenchmark (CPS-like): {n} records, {records['state'].nunique()} states, idtl=2"
         )
         print(f"  Total: {elapsed:.1f}s")
-        assert elapsed < 120, f"CPS-like benchmark took {elapsed:.1f}s, expected < 120s"
+        # 2x ceiling accounts for the three-pass --disable-salt code path.
+        assert elapsed < 240, f"CPS-like benchmark took {elapsed:.1f}s, expected < 240s"
 
 
 class TestStateVariableEfficiency:
@@ -330,12 +332,16 @@ class TestStateVariableEfficiency:
         result = runner.run(show_progress=False)
 
         unique_states = records["state"].nunique()
-        # With unified state vars: ~30-60 _calc_tax_unit calls
-        # With per-state iteration: ~10 state vars * 47 states = 470+ calls
-        assert calc_count["n"] < 100, (
+        # With unified state vars: ~30-60 _calc_tax_unit calls per PE pass.
+        # When `disable_salt=True`, the runner makes two PE passes
+        # (state-side + federal-side, see PolicyEngineRunner.run docstring),
+        # so the expected ceiling roughly doubles.
+        # With per-state iteration: ~10 state vars * 47 states = 470+ calls.
+        assert calc_count["n"] < 200, (
             f"_calc_tax_unit() called {calc_count['n']} times for {n} records "
-            f"across {unique_states} states. Expected < 100 with unified state "
-            f"variables, but got a number suggesting per-state iteration."
+            f"across {unique_states} states. Expected < 200 with unified state "
+            f"variables (×2 for the disable_salt three-pass), but got a number "
+            f"suggesting per-state iteration."
         )
 
     def test_state_variable_values_match(self):
