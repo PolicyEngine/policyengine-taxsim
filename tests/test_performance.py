@@ -330,12 +330,16 @@ class TestStateVariableEfficiency:
         result = runner.run(show_progress=False)
 
         unique_states = records["state"].nunique()
-        # With unified state vars: ~30-60 _calc_tax_unit calls
-        # With per-state iteration: ~10 state vars * 47 states = 470+ calls
-        assert calc_count["n"] < 100, (
+        # With unified state vars: ~30-60 _calc_tax_unit calls per PE pass.
+        # When `disable_salt=True`, the runner makes two PE passes
+        # (state-side + federal-side, see PolicyEngineRunner.run docstring),
+        # so the expected ceiling roughly doubles.
+        # With per-state iteration: ~10 state vars * 47 states = 470+ calls.
+        assert calc_count["n"] < 200, (
             f"_calc_tax_unit() called {calc_count['n']} times for {n} records "
-            f"across {unique_states} states. Expected < 100 with unified state "
-            f"variables, but got a number suggesting per-state iteration."
+            f"across {unique_states} states. Expected < 200 with unified state "
+            f"variables (×2 for the disable_salt three-pass), but got a number "
+            f"suggesting per-state iteration."
         )
 
     def test_state_variable_values_match(self):
