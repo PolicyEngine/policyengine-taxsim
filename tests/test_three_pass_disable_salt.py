@@ -81,12 +81,8 @@ class TestThreePassDisableSalt:
         """Two calls to .run() with disable_salt=True should produce the
         same result — the three-pass shouldn't add nondeterminism."""
         df = _ny_filer_with_mortgage()
-        r1 = PolicyEngineRunner(df.copy(), disable_salt=True).run(
-            show_progress=False
-        )
-        r2 = PolicyEngineRunner(df.copy(), disable_salt=True).run(
-            show_progress=False
-        )
+        r1 = PolicyEngineRunner(df.copy(), disable_salt=True).run(show_progress=False)
+        r2 = PolicyEngineRunner(df.copy(), disable_salt=True).run(show_progress=False)
         for col in ["fiitax", "siitax", "v17", "v18"]:
             assert abs(r1[col].iloc[0] - r2[col].iloc[0]) < 1.0
 

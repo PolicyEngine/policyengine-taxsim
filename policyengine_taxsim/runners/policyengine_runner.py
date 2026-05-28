@@ -1138,9 +1138,11 @@ class PolicyEngineRunner(BaseTaxRunner):
         combined = federal_results.copy()
         # Reorder state_results to match combined's taxsimid ordering for
         # safe column substitution.
-        state_results = state_results.set_index("taxsimid").loc[
-            combined["taxsimid"].values
-        ].reset_index()
+        state_results = (
+            state_results.set_index("taxsimid")
+            .loc[combined["taxsimid"].values]
+            .reset_index()
+        )
         for col in self._STATE_OUTPUT_COLUMNS:
             if col in state_results.columns and col in combined.columns:
                 combined[col] = state_results[col].values
