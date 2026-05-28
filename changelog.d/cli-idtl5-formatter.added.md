@@ -1,1 +1,0 @@
-Restore `idtl=5` (TAXSIM full-text labeled-section output) to the cli stdin/stdout flow. Previously only the legacy `exe.py` entry point handled it; current cli always emitted CSV. Mixed-idtl inputs interleave labeled-text and CSV rows in original input order.
