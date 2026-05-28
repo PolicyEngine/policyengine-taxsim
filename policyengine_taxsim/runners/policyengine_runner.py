@@ -195,16 +195,19 @@ class TaxsimMicrosimDataset(Dataset):
         }
     )
 
-    # Pension and Social Security income are split only when both spouses
-    # meet the state-level age threshold (60, the lowest common threshold
-    # across states such as DE). In mixed-age households (e.g. spouse under
-    # 60 while filer is elderly), the income stays with the primary filer so
-    # age-based state exclusions aren't lost on the younger spouse's
-    # incorrectly-allocated share.
+    # Pension and Social Security income are split between spouses only
+    # when both meet the state-level age threshold (55, the lowest common
+    # threshold across states such as CO whose pension subtraction
+    # qualifies filers 55+). In mixed-age households the income stays
+    # with the older spouse so age-based state exclusions aren't lost on
+    # the younger spouse's incorrectly-allocated share. Higher-threshold
+    # states (DE 60, GA 62, MD 65) are unaffected: 55-59 splits don't
+    # create false exclusions because the filers fail those states' age
+    # gates anyway.
     _AGE_GATED_FIELDS = frozenset(
         {"taxable_private_pension_income", "social_security_retirement"}
     )
-    _AGE_GATED_SPLIT_AGE = 60
+    _AGE_GATED_SPLIT_AGE = 55
 
     @staticmethod
     def _make_primary_split(source_field):
