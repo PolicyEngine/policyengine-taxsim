@@ -15,7 +15,7 @@ export const FIPS_TO_STATE = Object.entries(STATE_TO_FIPS).reduce((acc, [state, 
 }, {});
 
 // Available years for the dashboard
-export const AVAILABLE_YEARS = [2021, 2022, 2023, 2024];
+export const AVAILABLE_YEARS = [2021, 2022, 2023, 2024, 2025];
 
 // GitHub API configuration
 export const GITHUB_CONFIG = {
