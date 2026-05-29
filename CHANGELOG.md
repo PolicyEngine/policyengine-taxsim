@@ -1,3 +1,10 @@
+## [2.23.0] - 2026-05-29
+
+### Added
+
+- Add 2025 comparison results to the dashboard (3,000-record eCPS sample).
+
+
 ## [2.22.0] - 2026-05-28
 
 ### Added
