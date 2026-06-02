@@ -71,8 +71,21 @@ class TaxsimRunner(BaseTaxRunner):
         "idtl",  # Output control
     ]
 
+    # TAXSIM-35 option columns. Pass-through to the binary so callers can
+    # toggle TAXSIM behaviors (e.g., opt1=30, opt1v=1 switches one-time
+    # rebate timing to the liability-year convention PE uses).
+    # See https://taxsim.nber.org/taxsimtest/options.html
+    OPTION_COLUMNS = [
+        "opt1",  # Option selector (e.g., 27 = rebate timing, 30 = PE-aligned umbrella)
+        "opt1v",  # Option value
+    ]
+
     ALL_COLUMNS = (
-        REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + TAXSIM32_COLUMNS + INCOME_COLUMNS
+        REQUIRED_COLUMNS
+        + DEPENDENT_AGE_COLUMNS
+        + TAXSIM32_COLUMNS
+        + INCOME_COLUMNS
+        + OPTION_COLUMNS
     )
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
@@ -173,6 +186,10 @@ class TaxsimRunner(BaseTaxRunner):
 
             # Add income columns (but exclude TAXSIM32 columns since TAXSIM-35 uses individual ages)
             dynamic_columns.extend(self.INCOME_COLUMNS)
+
+            # Add option columns (opt1, opt1v) so callers can toggle
+            # TAXSIM-35 behaviors via the standard TAXSIM input.
+            dynamic_columns.extend(self.OPTION_COLUMNS)
 
             # Create row data with only needed columns
             row_data = {}
