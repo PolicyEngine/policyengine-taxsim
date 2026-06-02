@@ -1,0 +1,1 @@
+PolicyEngineRunner now sets `mn_renters_credit_qualifying_crp = True` for MN tax units with `rentpaid > 0`, matching Minn. Stat. § 290.0693 (the CRP is documentation, not a substantive eligibility gate).
