@@ -1,1 +1,0 @@
-TaxsimRunner now passes through `opt1` and `opt1v` columns to the TAXSIM-35 binary, enabling callers to toggle TAXSIM behaviors (e.g., `opt1=30, opt1v=1` switches one-time rebate timing to PE's liability-year convention).
