@@ -1011,6 +1011,34 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ),
                     )
 
+            # MN Renter's Credit: PE-US gates the credit on a Certificate
+            # of Rent Paid (CRP) input variable that defaults to False. Per
+            # Minn. Stat. § 290.0693, the credit is allowed for renters who
+            # paid rent and meet income criteria; subd. 4 places the CRP
+            # issuance obligation on the landlord (not the renter), and
+            # subd. 9 accepts proof "including but not limited to" the CRP.
+            # TAXSIM input never carries CRP info, so we assume any MN
+            # tax unit with rent > 0 has the supporting documentation.
+            if "rentpaid" in chunk_df.columns and "state" in chunk_df.columns:
+                mn_mask = (chunk_df["state"] == 24) & (chunk_df["rentpaid"] > 0)
+                if mn_mask.any():
+                    years = sorted(set(chunk_df["year"].unique()))
+                    for year in years:
+                        year_mask = (chunk_df["year"] == year) & mn_mask
+                        if year_mask.any():
+                            # qualifying_crp is on TaxUnit; vector aligns
+                            # with the chunk's tax-unit order, one row per
+                            # tax unit.
+                            sim.set_input(
+                                variable_name="mn_renters_credit_qualifying_crp",
+                                value=mn_mask[chunk_df["year"] == year].values,
+                                period=str(
+                                    int(year)
+                                    if isinstance(year, (float, np.floating))
+                                    else year
+                                ),
+                            )
+
             return self._extract_vectorized_results(sim, chunk_df)
 
         finally:
