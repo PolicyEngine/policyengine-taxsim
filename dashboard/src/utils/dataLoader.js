@@ -1,6 +1,33 @@
 import Papa from 'papaparse';
-import { FIPS_TO_STATE } from '../constants';
+import { FIPS_TO_STATE, RELATIVE_TOLERANCE_PCT } from '../constants';
 import { assetUrl } from './basePath';
+
+// Gross-income proxy used as the denominator for relative-tolerance matching.
+// Mirrors the headline TAXSIM input categories that flow into AGI; we use a
+// proxy rather than v10 (AGI) because the dashboard CSV does not always carry
+// the v10 column. Keeping it as a sum-of-inputs means it is identical for the
+// TAXSIM and PolicyEngine rows of the same household, so the denominator is
+// stable across the pair.
+const num = (v) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const grossIncome = (row) =>
+  num(row.pwages) +
+  num(row.swages) +
+  num(row.psemp) +
+  num(row.ssemp) +
+  num(row.intrec) +
+  num(row.dividends) +
+  Math.max(num(row.stcg), 0) +
+  Math.max(num(row.ltcg), 0) +
+  num(row.otherprop) +
+  num(row.nonprop) +
+  num(row.pensions) +
+  0.85 * num(row.gssi) +
+  num(row.pui) +
+  num(row.sui);
 
 // Parse the comparison report text file
 const parseComparisonReport = (text) => {
@@ -158,13 +185,24 @@ export const loadYearData = async (year) => {
         
         // If we don't have a summary report, extract basic stats from consolidated data
         if (summary.totalRecords === 0 && taxsimResults.length > 0) {
+          // Index PolicyEngine rows by taxsimid for pairing with TAXSIM rows.
+          const peByTaxsimid = new Map();
+          policyengineResults.forEach((row) => {
+            if (row.taxsimid !== undefined && row.taxsimid !== null) {
+              peByTaxsimid.set(String(row.taxsimid), row);
+            }
+          });
+
           const totalRecords = taxsimResults.length;
           const federalMatches = taxsimResults.filter(row => row.federal_match === 'True' || row.federal_match === true).length;
           const stateMatches = taxsimResults.filter(row => row.state_match === 'True' || row.state_match === true).length;
-          
+
+          // Track relative-tolerance counts in the same single pass.
+          let federalMatchesRel = 0;
+          let stateMatchesRel = 0;
           // Generate state breakdown from consolidated data
           const stateStats = {};
-          
+
           // Group records by state
           taxsimResults.forEach(row => {
             // Use state_code if available, otherwise fall back to converting numeric state
@@ -173,10 +211,12 @@ export const loadYearData = async (year) => {
               stateStats[state] = {
                 households: 0,
                 federalMatches: 0,
-                stateMatches: 0
+                stateMatches: 0,
+                federalMatchesRel: 0,
+                stateMatchesRel: 0,
               };
             }
-            
+
             stateStats[state].households++;
             if (row.federal_match === 'True' || row.federal_match === true) {
               stateStats[state].federalMatches++;
@@ -184,8 +224,36 @@ export const loadYearData = async (year) => {
             if (row.state_match === 'True' || row.state_match === true) {
               stateStats[state].stateMatches++;
             }
+
+            // Relative-tolerance check: |PE − TAXSIM| < 1% of gross income.
+            // Pairs without a PE counterpart fall back to the boolean flag so
+            // the metric still reports a sensible default.
+            const peRow = peByTaxsimid.get(String(row.taxsimid));
+            const denom = grossIncome(row);
+            if (peRow && denom > 0) {
+              const fedDiff = Math.abs(num(peRow.fiitax) - num(row.fiitax));
+              const stateDiff = Math.abs(num(peRow.siitax) - num(row.siitax));
+              const tol = denom * RELATIVE_TOLERANCE_PCT;
+              if (fedDiff < tol) {
+                federalMatchesRel++;
+                stateStats[state].federalMatchesRel++;
+              }
+              if (stateDiff < tol) {
+                stateMatchesRel++;
+                stateStats[state].stateMatchesRel++;
+              }
+            } else {
+              if (row.federal_match === 'True' || row.federal_match === true) {
+                federalMatchesRel++;
+                stateStats[state].federalMatchesRel++;
+              }
+              if (row.state_match === 'True' || row.state_match === true) {
+                stateMatchesRel++;
+                stateStats[state].stateMatchesRel++;
+              }
+            }
           });
-          
+
           // Convert to array format expected by dashboard
           const stateBreakdown = Object.entries(stateStats).map(([state, stats]) => ({
             state: state,
@@ -193,13 +261,17 @@ export const loadYearData = async (year) => {
             federalMatches: stats.federalMatches,
             stateMatches: stats.stateMatches,
             federalPct: Math.round((stats.federalMatches / stats.households) * 100),
-            statePct: Math.round((stats.stateMatches / stats.households) * 100)
+            statePct: Math.round((stats.stateMatches / stats.households) * 100),
+            federalPctRel: Math.round((stats.federalMatchesRel / stats.households) * 100),
+            statePctRel: Math.round((stats.stateMatchesRel / stats.households) * 100),
           }));
-          
+
           summary = {
             totalRecords: totalRecords,
             federalMatchPct: Math.round((federalMatches / totalRecords) * 100),
             stateMatchPct: Math.round((stateMatches / totalRecords) * 100),
+            federalMatchPctRel: Math.round((federalMatchesRel / totalRecords) * 100),
+            stateMatchPctRel: Math.round((stateMatchesRel / totalRecords) * 100),
             stateBreakdown: stateBreakdown
           };
           // Generated summary with state breakdown from consolidated data
