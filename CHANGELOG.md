@@ -1,3 +1,10 @@
+## [2.25.0] - 2026-06-03
+
+### Added
+
+- Dashboard match-rate toggle for ±$15 vs ±1%-of-gross-income tolerance.
+
+
 ## [2.24.0] - 2026-06-02
 
 ### Added
