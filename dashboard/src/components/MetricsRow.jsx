@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { getBarColor, getBarBg } from '../utils/colors';
+import { TOLERANCE_MODES } from '../constants';
 
 const MetricCard = React.memo(({ title, value, type, description }) => {
   const numericValue = parseFloat(value);
@@ -31,7 +32,7 @@ const MetricCard = React.memo(({ title, value, type, description }) => {
 
 MetricCard.displayName = 'MetricCard';
 
-const MetricsRow = React.memo(({ data, selectedState }) => {
+const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_MODES.ABSOLUTE }) => {
   if (!data || !data.summary) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -46,7 +47,17 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
   }
 
   const { summary } = data;
-  let displayData = summary;
+  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE;
+
+  let displayData = {
+    totalRecords: summary.totalRecords,
+    federalMatchPct: isRel
+      ? summary.federalMatchPctRel ?? summary.federalMatchPct
+      : summary.federalMatchPct,
+    stateMatchPct: isRel
+      ? summary.stateMatchPctRel ?? summary.stateMatchPct
+      : summary.stateMatchPct,
+  };
 
   if (selectedState && summary.stateBreakdown) {
     const stateData = summary.stateBreakdown.find(
@@ -55,11 +66,19 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
     if (stateData) {
       displayData = {
         totalRecords: stateData.households,
-        federalMatchPct: stateData.federalPct,
-        stateMatchPct: stateData.statePct,
+        federalMatchPct: isRel
+          ? stateData.federalPctRel ?? stateData.federalPct
+          : stateData.federalPct,
+        stateMatchPct: isRel
+          ? stateData.statePctRel ?? stateData.statePct
+          : stateData.statePct,
       };
     }
   }
+
+  const toleranceLabel = isRel
+    ? 'Within ±1% of gross income'
+    : 'Within ±$15 tolerance';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -73,13 +92,13 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
         title="Federal Match Rate"
         value={displayData.federalMatchPct.toFixed(1)}
         type="federal"
-        description="Within ±$15 tolerance"
+        description={toleranceLabel}
       />
       <MetricCard
         title="State Match Rate"
         value={displayData.stateMatchPct.toFixed(1)}
         type="state"
-        description="Within ±$15 tolerance"
+        description={toleranceLabel}
       />
     </div>
   );

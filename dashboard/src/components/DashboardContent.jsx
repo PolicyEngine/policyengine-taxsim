@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ErrorMessage from '@/components/common/ErrorMessage';
 import { useYearData } from '@/hooks/useYearData';
 import { exportAllData } from '@/utils/exportData';
+import { TOLERANCE_MODES } from '@/constants';
 
 export default function DashboardContent() {
   const {
@@ -23,6 +24,7 @@ export default function DashboardContent() {
   } = useYearData(2023);
 
   const [selectedState, setSelectedState] = useState(null);
+  const [toleranceMode, setToleranceMode] = useState(TOLERANCE_MODES.ABSOLUTE);
 
   if (loading) {
     return (
@@ -83,6 +85,29 @@ export default function DashboardContent() {
               availableStates={availableStates}
             />
 
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 text-sm" role="group" aria-label="Match tolerance">
+              <button
+                onClick={() => setToleranceMode(TOLERANCE_MODES.ABSOLUTE)}
+                className={`px-3 py-1.5 rounded-md font-medium transition ${
+                  toleranceMode === TOLERANCE_MODES.ABSOLUTE
+                    ? 'bg-primary-500 text-white'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                ±$15
+              </button>
+              <button
+                onClick={() => setToleranceMode(TOLERANCE_MODES.RELATIVE)}
+                className={`px-3 py-1.5 rounded-md font-medium transition ${
+                  toleranceMode === TOLERANCE_MODES.RELATIVE
+                    ? 'bg-primary-500 text-white'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                ±1% of income
+              </button>
+            </div>
+
             <button
               onClick={exportAllData}
               className="inline-flex items-center px-4 py-2.5 rounded-lg bg-primary-500 text-white font-semibold text-sm hover:bg-primary-600 transition shadow-sm"
@@ -96,7 +121,11 @@ export default function DashboardContent() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <MetricsRow data={currentYearData} selectedState={selectedState} />
+        <MetricsRow
+          data={currentYearData}
+          selectedState={selectedState}
+          toleranceMode={toleranceMode}
+        />
 
         <h2 className="text-2xl font-bold text-secondary-900 mb-6 pb-3">
           State-by-state analysis
@@ -107,6 +136,7 @@ export default function DashboardContent() {
           selectedState={selectedState}
           selectedYear={selectedYear}
           onStateSelect={setSelectedState}
+          toleranceMode={toleranceMode}
         />
       </div>
     </div>

@@ -26,7 +26,14 @@ export const GITHUB_CONFIG = {
 };
 
 // Mismatch tolerance
-export const MISMATCH_TOLERANCE = 15; // $15 tolerance for mismatches
+export const MISMATCH_TOLERANCE = 15; // $15 absolute tolerance
+export const RELATIVE_TOLERANCE_PCT = 0.01; // 1% of gross income tolerance
+
+// Available tolerance modes for the dashboard headline metric
+export const TOLERANCE_MODES = {
+  ABSOLUTE: 'absolute',
+  RELATIVE: 'relative',
+};
 
 // Input variables for household comparison
 export const INPUT_VARIABLES = [

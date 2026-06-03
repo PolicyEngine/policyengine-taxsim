@@ -9,11 +9,11 @@ import StateTaxNote from './StateTaxNote';
 import SortableTableHeader from './common/SortableTableHeader';
 import Button from './common/Button';
 import { useHouseholdData } from '../hooks/useHouseholdData';
-import { INPUT_VARIABLES, OUTPUT_VARIABLES } from '../constants';
+import { INPUT_VARIABLES, OUTPUT_VARIABLES, TOLERANCE_MODES } from '../constants';
 import { getProblemAreas } from '../utils/formatters';
 import { sortStateData } from '../utils/dataProcessing';
 
-const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelect }) => {
+const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelect, toleranceMode = TOLERANCE_MODES.ABSOLUTE }) => {
   const [sortField, setSortField] = useState('federalPct');
   const [sortDirection, setSortDirection] = useState('desc');
   const [showHouseholds, setShowHouseholds] = useState(false);
@@ -67,9 +67,20 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
   }
 
   const { stateBreakdown } = data.summary;
-  const filteredData = selectedState
-    ? stateBreakdown.filter(item => item.state === selectedState)
+  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE;
+  // Sort/display always read `federalPct`/`statePct`; remap them to the
+  // relative-tolerance values when that mode is active so the column itself
+  // does not need to branch on mode.
+  const remappedBreakdown = isRel
+    ? stateBreakdown.map((item) => ({
+        ...item,
+        federalPct: item.federalPctRel ?? item.federalPct,
+        statePct: item.statePctRel ?? item.statePct,
+      }))
     : stateBreakdown;
+  const filteredData = selectedState
+    ? remappedBreakdown.filter(item => item.state === selectedState)
+    : remappedBreakdown;
   const sortedData = sortStateData(filteredData, sortField, sortDirection);
 
   const tableHeaders = [
