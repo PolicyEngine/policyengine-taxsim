@@ -92,11 +92,15 @@ class TestRunnerOutputCorrectness:
 
 
 class TestFederalOutputAdjustments:
-    def test_fiitax_includes_additional_medicare_tax_when_precomputed(self):
+    def test_fiitax_uses_income_tax_only_excludes_additional_medicare_tax(self):
         """
-        fiitax is normally populated from the income_tax mapping before the
-        special post-processing step runs. That post-processing still needs to
-        add additional_medicare_tax instead of skipping fiitax entirely.
+        fiitax is populated from the income_tax mapping and must NOT be
+        further adjusted by additional_medicare_tax. NBER TAXSIM-35
+        (`taxsimtest`) reports the Additional Medicare Tax (Form 8959)
+        in a separate `addmed` column per Form 1040 Line 23 /
+        Schedule 2 Line 11 — so the AddMed value never gets added to
+        the fiitax output, and `_calc_tax_unit` is never called for
+        `additional_medicare_tax` during fiitax assembly.
         """
         records = pd.DataFrame(
             {
@@ -138,6 +142,10 @@ class TestFederalOutputAdjustments:
             if var_name == "income_tax":
                 return np.array([1000.0])
             if var_name == "additional_medicare_tax":
+                # We assert below that this branch is never taken,
+                # but return a sentinel so a future regression that
+                # re-introduces the call surfaces obviously rather
+                # than silently using a zero.
                 return np.array([900.0])
             raise AssertionError(f"Unexpected variable: {var_name}")
 
@@ -145,8 +153,12 @@ class TestFederalOutputAdjustments:
 
         result = runner._extract_vectorized_results(fake_sim, runner.input_df)
 
-        assert result["fiitax"].iloc[0] == pytest.approx(1900.0)
-        assert calc_calls == ["income_tax", "additional_medicare_tax"]
+        assert result["fiitax"].iloc[0] == pytest.approx(1000.0)
+        assert "additional_medicare_tax" not in calc_calls, (
+            "fiitax must not call additional_medicare_tax — AddMed flows "
+            "through the separate `addmed` / `v44` output per NBER "
+            "TAXSIM-35 (`taxsimtest`) and Form 1040 Line 23."
+        )
 
 
 class TestGeneratePhaseEfficiency:
