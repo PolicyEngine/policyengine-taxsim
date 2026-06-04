@@ -1011,6 +1011,35 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ),
                     )
 
+            # QBID gate on rental_income (TAXSIM `otherprop`): TAXSIM only
+            # triggers § 199A QBID via the explicit `pbusinc` input and never
+            # treats `otherprop` (Schedule E passive rents/royalties) as
+            # qualified. PE-US's `rental_income_would_be_qualified` defaults
+            # to True, which would generate a 20% QBID on emulator-routed
+            # rental income that TAXSIM does not produce. § 199A(c)(3)(A)
+            # requires the activity to rise to a § 162 trade or business;
+            # passive individual rentals generally do not qualify absent the
+            # § 1.199A-1(b)(14) safe harbor, which TAXSIM input never
+            # signals. We force the gate off for the whole chunk: every
+            # rental_income value in PE here originated as `otherprop` from
+            # TAXSIM, so the override has no side effect on non-emulated
+            # rental income.
+            if "otherprop" in chunk_df.columns and (chunk_df["otherprop"] != 0).any():
+                n_persons = sim.get_variable_population(
+                    "rental_income_would_be_qualified"
+                ).count
+                years = sorted(set(chunk_df["year"].unique()))
+                for year in years:
+                    sim.set_input(
+                        variable_name="rental_income_would_be_qualified",
+                        value=np.zeros(n_persons, dtype=bool),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
             # MN Renter's Credit: PE-US gates the credit on a Certificate
             # of Rent Paid (CRP) input variable that defaults to False. Per
             # Minn. Stat. § 290.0693, the credit is allowed for renters who
