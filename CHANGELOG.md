@@ -1,3 +1,10 @@
+## [2.25.1] - 2026-06-04
+
+### Fixed
+
+- Route TAXSIM `otherprop` to PE-US `rental_income` so passive rents/royalties enter the NIIT base, and suppress the auto-QBID gate to match TAXSIM's convention.
+
+
 ## [2.25.0] - 2026-06-03
 
 ### Added
