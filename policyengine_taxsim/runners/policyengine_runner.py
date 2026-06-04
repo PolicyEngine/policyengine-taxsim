@@ -1267,11 +1267,14 @@ class PolicyEngineRunner(BaseTaxRunner):
         delta = (
             100.0  # $100: large enough for float32 precision, small for bracket safety
         )
-        # Get base tax values from the main simulation
-        # frate must match fiitax definition: income_tax + additional_medicare_tax
-        base_federal = self._calc_tax_unit(
-            sim, "income_tax", year_str
-        ) + self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
+        # Get base tax values from the main simulation.
+        # frate must match fiitax definition. NBER TAXSIM-35
+        # (`taxsimtest`) reports fiitax as income_tax only —
+        # Additional Medicare Tax (Form 8959) flows out in the
+        # separate `addmed` column per Form 1040 Line 23 /
+        # Schedule 2 Line 11. Mirror that here so the marginal rate
+        # doesn't pick up the 0.9% AddMed step above threshold.
+        base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
 
         # Get current employment_income at person level
@@ -1314,10 +1317,8 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Set perturbed employment income
         branch.set_input("employment_income", year_str, emp_income + perturbation)
 
-        # Compute perturbed tax values
-        new_federal = self._calc_tax_unit(
-            branch, "income_tax", year_str
-        ) + self._calc_tax_unit(branch, "additional_medicare_tax", year_str)
+        # Compute perturbed tax values (match base_federal: no AddMed)
+        new_federal = self._calc_tax_unit(branch, "income_tax", year_str)
         new_state = self._calc_tax_unit(branch, "state_income_tax", year_str)
         # Compute rates as percentages: 100 * (new - base) / delta
         frate = 100.0 * (new_federal - base_federal) / delta
@@ -1567,16 +1568,19 @@ class PolicyEngineRunner(BaseTaxRunner):
                             f"Error calculating {pe_var} for {taxsim_var}: {e}"
                         ) from e
 
-            # Apply fiitax special calculation (income_tax + additional_medicare_tax)
-            # TAXSIM includes Additional Medicare Tax (0.9% on wages above
-            # $200K/$250K) in fiitax. PE's income_tax does not include it,
-            # so we add it here.
-            addl_med = self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
-            if "fiitax" in columns:
-                columns["fiitax"] = np.round(columns["fiitax"] + addl_med, 2)
-            else:
-                fiitax_arr = self._calc_tax_unit(sim, "income_tax", year_str) + addl_med
-                columns["fiitax"] = np.round(fiitax_arr, 2)
+            # fiitax = income_tax only. NBER TAXSIM-35 (`taxsimtest`)
+            # reports the Additional Medicare Tax (Form 8959,
+            # IRC § 3101(b)(2) / § 1401(b)(2)) separately in the
+            # `addmed` column rather than rolling it into fiitax —
+            # matching Form 1040 Line 23 / Schedule 2 Line 11.
+            # PE's `income_tax` (which already includes NIIT via
+            # `income_tax_before_refundable_credits`) is the correct
+            # match. AddMed continues to flow through the `v44`
+            # output column (employee_medicare_tax + additional_medicare_tax).
+            if "fiitax" not in columns:
+                columns["fiitax"] = np.round(
+                    self._calc_tax_unit(sim, "income_tax", year_str), 2
+                )
 
             # Apply v22 CTC split: TAXSIM v22 reports only the
             # non-refundable CTC (capped at tax liability) for years
