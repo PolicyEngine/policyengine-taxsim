@@ -1,3 +1,10 @@
+## [2.26.0] - 2026-06-04
+
+### Added
+
+- Bump `policyengine-us` to `>=1.711.0` (picks up the upstream fix that unwires UT Homeowner/Renter Relief from TC-40 refundable credits, per Utah Tax Commission TC-90CB/TC-90H). Add integration test pinning the TAXSIM `otherprop` → PE-US `rental_income` + NIIT routing against IRC § 1411(c)(1)(A)(i) and the TAXSIM-35 binary.
+
+
 ## [2.25.1] - 2026-06-04
 
 ### Fixed
