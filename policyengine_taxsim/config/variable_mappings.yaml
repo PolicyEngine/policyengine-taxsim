@@ -807,8 +807,8 @@ taxsim_to_policyengine:
           - pprofinc
           - sprofinc
       - rental_income:
-      - miscellaneous_income:
           - otherprop
+      - miscellaneous_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:
       - business_is_qualified:
