@@ -1909,7 +1909,7 @@ provides-extras = ["api"]
 [[package]]
 name = "policyengine-us"
 version = "1.722.5"
-source = { git = "https://github.com/PolicyEngine/policyengine-us.git?rev=codex%2Fpartnership-se-semantics#695e6439947fc247d7417caa36e03be69118f2c9" }
+source = { git = "https://github.com/PolicyEngine/policyengine-us.git?rev=codex%2Fpartnership-se-semantics#03cb323fac208db5b819ef3f00f70a31dd923cfd" }
 dependencies = [
     { name = "microdf-python" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
