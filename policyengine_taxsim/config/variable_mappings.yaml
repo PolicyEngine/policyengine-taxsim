@@ -796,6 +796,9 @@ taxsim_to_policyengine:
           - dividends
       - long_term_capital_gains:
           - ltcg
+      # TAXSIM has no separate Schedule K-1 Box 14 partnership
+      # self-employment allocation, so do not populate PolicyEngine's
+      # partnership_se_income from TAXSIM inputs.
       - self_employment_income:
           - psemp
           - ssemp

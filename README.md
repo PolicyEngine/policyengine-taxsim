@@ -280,8 +280,14 @@ The emulator accepts CSV files with the following variables:
 | ssemp     | Spouse self-employment income                                |
 | gssi      | Social security retirement benefits                          |
 | pensions  | Taxable private pension income                               |
-| scorp     | Partnership/S-corp income                                    |
-| pbusinc   | Primary taxpayer business income that qualifies for the QBID |
+| scorp     | S-corp profits                                               |
+| pbusinc   | Primary and secondary taxpayer active QBI                    |
+
+PolicyEngine-US separately supports `partnership_se_income` for partnership
+income subject to self-employment tax from Schedule K-1 Box 14. TAXSIM-35 has
+no separate input for that allocation, so policyengine-taxsim does not populate
+`partnership_se_income`. Use `psemp` and `ssemp` for TAXSIM self-employment
+income, and use `scorp` and `pbusinc` for TAXSIM's S-corp and QBID fields.
 
 
 ### Expenses
