@@ -178,12 +178,15 @@ class TestGeneratePhaseEfficiency:
                 lambda x: int(float(x))
             )
             dataset = TaxsimMicrosimDataset(runner.input_df)
-            t0 = time.time()
+            t0 = time.perf_counter()
             dataset.generate()
-            times[n] = time.time() - t0
+            times[n] = time.perf_counter() - t0
             dataset.cleanup()
 
-        ratio = times[500] / max(times[100], 0.01)
+        # Very small timings are noisy on shared CI runners, especially on
+        # Windows. Keep the scaling guard from overreacting to sub-100ms
+        # denominators while still catching real row-wise regressions.
+        ratio = times[500] / max(times[100], 0.1)
         assert ratio < 5.0, (
             f"Generate phase scaled {ratio:.1f}x for 5x more records "
             f"(100: {times[100]:.2f}s, 500: {times[500]:.2f}s). "
@@ -341,7 +344,7 @@ class TestStateVariableEfficiency:
             return orig_calc_tu(self_runner, sim, var_name, period)
 
         runner._calc_tax_unit = types.MethodType(counted_calc_tu, runner)
-        result = runner.run(show_progress=False)
+        runner.run(show_progress=False)
 
         unique_states = records["state"].nunique()
         # With unified state vars: ~30-60 _calc_tax_unit calls per PE pass.
