@@ -24,6 +24,9 @@ jobs:
         python-version: ["3.10", "3.11"]
     steps:
       - uses: actions/checkout@v6
+      - name: Enable Git long paths on Windows
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
