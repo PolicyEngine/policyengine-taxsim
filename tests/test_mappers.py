@@ -1,6 +1,8 @@
 import pytest
+import pandas as pd
 
 from policyengine_taxsim import generate_household, export_household
+from policyengine_taxsim.runners.policyengine_runner import TaxsimMicrosimDataset
 
 
 @pytest.fixture
@@ -178,6 +180,66 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
 
     result = generate_household(sample_taxsim_input_with_state_eq_0)
     assert result == expected_output
+
+
+def test_business_income_mapping_preserves_taxsim_business_api():
+    taxsim_input = {
+        "year": 2024,
+        "state": 5,
+        "mstat": 2,
+        "page": 45,
+        "sage": 43,
+        "pwages": 50_000,
+        "swages": 40_000,
+        "psemp": 30_000,
+        "ssemp": 7_000,
+        "scorp": 12_000,
+        "pbusinc": 15_000,
+        "taxsimid": 11,
+        "idtl": 2,
+        "depx": 0,
+    }
+
+    result = generate_household(taxsim_input)
+    people = result["people"]
+
+    assert people["you"]["self_employment_income"]["2024"] == 30_000
+    assert people["your partner"]["self_employment_income"]["2024"] == 7_000
+    assert people["you"]["s_corp_income"]["2024"] == 6_000
+    assert people["your partner"]["s_corp_income"]["2024"] == 6_000
+    assert people["you"]["qualified_business_income"]["2024"] == 15_000
+    assert "partnership_self_employment_net_earnings" not in people["you"]
+    assert "partnership_self_employment_net_earnings" not in people["your partner"]
+
+
+def test_vectorized_business_income_mapping_preserves_taxsim_business_api():
+    records = pd.DataFrame(
+        [
+            {
+                "taxsimid": 11,
+                "year": 2024,
+                "state": 5,
+                "mstat": 2,
+                "pwages": 50_000,
+                "swages": 40_000,
+                "psemp": 30_000,
+                "ssemp": 7_000,
+                "scorp": 12_000,
+                "pbusinc": 15_000,
+            }
+        ]
+    )
+    dataset = TaxsimMicrosimDataset(records)
+
+    mapping = dataset._get_taxsim_to_pe_variable_mapping()
+    row = records.iloc[0]
+
+    assert mapping["self_employment_income"]["primary"] == "psemp"
+    assert mapping["self_employment_income"]["spouse"] == "ssemp"
+    assert mapping["s_corp_income"]["primary"](row) == 6_000
+    assert mapping["s_corp_income"]["spouse"](row) == 6_000
+    assert mapping["qualified_business_income"]["primary"] == "pbusinc"
+    assert "partnership_self_employment_net_earnings" not in mapping
 
 
 def test_export_single_household(sample_taxsim_input):

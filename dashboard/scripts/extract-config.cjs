@@ -37,7 +37,7 @@ function generatePolicyEngineGitHubLink(variableName) {
     'taxable_private_pension_income': 'household/income/person/retirement/taxable_private_pension_income.py',
     'social_security_retirement': 'gov/ssa/ss/social_security_retirement.py',
     'unemployment_compensation': 'gov/states/unemployment_compensation.py',
-    'partnership_s_corp_income': 'household/income/person/self_employment/partnership_s_corp_income.py',
+    's_corp_income': 'household/income/person/self_employment/s_corp_income.py',
     'qualified_business_income': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
     
     // Expense/Deduction variables
@@ -247,7 +247,7 @@ function extractIncomeSplittingRules() {
     'taxable_interest_income',
     'qualified_dividend_income',
     'long_term_capital_gains',
-    'partnership_s_corp_income',
+    's_corp_income',
     'taxable_private_pension_income',
     'short_term_capital_gains',
     'social_security_retirement'

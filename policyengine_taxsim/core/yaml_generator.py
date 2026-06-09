@@ -183,7 +183,7 @@ class PETestsYAMLGenerator:
                 "long_term_capital_gains",
                 "short_term_capital_gains",
                 "rental_income",
-                "partnership_s_corp_income",
+                "s_corp_income",
                 "qualified_business_income",
                 "w2_wages_from_qualified_business",
                 "business_is_sstb",

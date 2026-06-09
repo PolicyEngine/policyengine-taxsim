@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "policyengine-us>=1.711.0",
+    "policyengine-us @ git+https://github.com/PolicyEngine/policyengine-us.git@codex/partnership-se-semantics",
     "pandas",
     "PyYAML",
     "click",

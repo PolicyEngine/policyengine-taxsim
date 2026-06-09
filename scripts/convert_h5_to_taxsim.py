@@ -132,13 +132,12 @@ def extract_taxsim_csv(sim, year: int) -> pd.DataFrame:
 
     # Try to get S-corp income (only in ECPS)
     try:
-        scorp_income = sim.calculate("partnership_s_corp_income", period).values
+        scorp_income = sim.calculate("s_corp_income", period).values
     except Exception:
         scorp_income = np.zeros_like(employment_income)
 
     # Household-level
     state_fips = sim.calculate("state_fips", period).values
-    household_weight = sim.calculate("household_weight", period).values
 
     # Person -> household mapping
     person_household_id = sim.calculate("person_household_id", period).values
@@ -162,7 +161,6 @@ def extract_taxsim_csv(sim, year: int) -> pd.DataFrame:
 
     # Build household-level lookups
     hh_state = dict(zip(household_id, state_fips))
-    hh_weight = dict(zip(household_id, household_weight))
     hh_proptax = dict(zip(household_id, real_estate_taxes))
     hh_mortgage = dict(zip(household_id, mortgage_interest))
     hh_rent = dict(zip(household_id, rent))
@@ -295,7 +293,7 @@ def main():
     df.to_csv(args.output, index=False)
 
     # Print summary
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Tax units: {len(df)}")
     print(f"  Single filers: {(df['mstat'] == 1).sum()}")
     print(f"  Joint filers: {(df['mstat'] == 2).sum()}")

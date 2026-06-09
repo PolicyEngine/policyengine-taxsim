@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict
 from tqdm import tqdm
 from .base_runner import BaseTaxRunner
 
@@ -14,8 +14,6 @@ from policyengine_taxsim.core.utils import (
     SOI_TO_FIPS_MAP,
     get_state_code,
     get_state_number,
-    to_roundedup_number,
-    convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.state_output_resolver import (
     calculate_output_adapter,
@@ -24,10 +22,7 @@ from policyengine_taxsim.core.state_output_resolver import (
     has_state_variable_mapping,
     is_output_adapter,
 )
-from policyengine_taxsim.core.input_mapper import (
-    set_taxsim_defaults,
-    get_taxsim_defaults,
-)
+from policyengine_taxsim.core.input_mapper import get_taxsim_defaults
 
 from policyengine_us import Microsimulation
 from policyengine_core.data import Dataset
@@ -190,7 +185,7 @@ class TaxsimMicrosimDataset(Dataset):
             "taxable_interest_income",
             "qualified_dividend_income",
             "long_term_capital_gains",
-            "partnership_s_corp_income",
+            "s_corp_income",
             "short_term_capital_gains",
         }
     )
@@ -570,7 +565,6 @@ class TaxsimMicrosimDataset(Dataset):
                 # Standard variable mapping
                 primary_source = mapping.get("primary")
                 spouse_source = mapping.get("spouse")
-                default_val = mapping.get("default", 0.0)
 
                 # Primary values
                 if (
@@ -732,8 +726,6 @@ class TaxsimMicrosimDataset(Dataset):
 
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
-        n_records = len(self.input_df)
-
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
@@ -743,7 +735,6 @@ class TaxsimMicrosimDataset(Dataset):
 
         # Extract years (assuming all records might have different years)
         # Years should already be converted to integers in the run() method
-        years = self.input_df["year"].values
         unique_years = sorted(self.input_df["year"].unique())
 
         # Use SOI to FIPS mapping from core utils

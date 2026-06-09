@@ -55,7 +55,7 @@ def _base_mfj_record(taxsimid=1, **overrides):
         ("dividends", "qualified_dividend_income", 80000),
         ("ltcg", "long_term_capital_gains", 60000),
         ("stcg", "short_term_capital_gains", 30000),
-        ("scorp", "partnership_s_corp_income", 50000),
+        ("scorp", "s_corp_income", 50000),
     ],
 )
 def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amount):
