@@ -1079,7 +1079,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                       ['gssi', 'social_security_* (all types)', 'Sum retirement + disability + survivors + dependents'],
                       ['pui', 'unemployment_compensation (head)', 'Direct'],
                       ['sui', 'unemployment_compensation (spouse)', 'Direct'],
-                      ['scorp', 'partnership_s_corp_income', 'Sum across tax unit'],
+                      ['scorp', 's_corp_income', 'Sum across tax unit'],
                       ['proptax', 'real_estate_taxes (household)', 'Direct'],
                       ['mortgage', 'deductible_mortgage_interest (household)', 'Direct'],
                       ['rentpaid', 'rent (household)', 'Direct'],

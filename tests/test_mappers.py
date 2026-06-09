@@ -182,7 +182,7 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
     assert result == expected_output
 
 
-def test_business_income_mapping_does_not_infer_partnership_se_income():
+def test_business_income_mapping_preserves_taxsim_business_api():
     taxsim_input = {
         "year": 2024,
         "state": 5,
@@ -205,14 +205,14 @@ def test_business_income_mapping_does_not_infer_partnership_se_income():
 
     assert people["you"]["self_employment_income"]["2024"] == 30_000
     assert people["your partner"]["self_employment_income"]["2024"] == 7_000
-    assert people["you"]["partnership_s_corp_income"]["2024"] == 6_000
-    assert people["your partner"]["partnership_s_corp_income"]["2024"] == 6_000
+    assert people["you"]["s_corp_income"]["2024"] == 6_000
+    assert people["your partner"]["s_corp_income"]["2024"] == 6_000
     assert people["you"]["qualified_business_income"]["2024"] == 15_000
-    assert "partnership_se_income" not in people["you"]
-    assert "partnership_se_income" not in people["your partner"]
+    assert "partnership_self_employment_net_earnings" not in people["you"]
+    assert "partnership_self_employment_net_earnings" not in people["your partner"]
 
 
-def test_vectorized_business_income_mapping_does_not_include_partnership_se_income():
+def test_vectorized_business_income_mapping_preserves_taxsim_business_api():
     records = pd.DataFrame(
         [
             {
@@ -236,10 +236,10 @@ def test_vectorized_business_income_mapping_does_not_include_partnership_se_inco
 
     assert mapping["self_employment_income"]["primary"] == "psemp"
     assert mapping["self_employment_income"]["spouse"] == "ssemp"
-    assert mapping["partnership_s_corp_income"]["primary"](row) == 6_000
-    assert mapping["partnership_s_corp_income"]["spouse"](row) == 6_000
+    assert mapping["s_corp_income"]["primary"](row) == 6_000
+    assert mapping["s_corp_income"]["spouse"](row) == 6_000
     assert mapping["qualified_business_income"]["primary"] == "pbusinc"
-    assert "partnership_se_income" not in mapping
+    assert "partnership_self_employment_net_earnings" not in mapping
 
 
 def test_export_single_household(sample_taxsim_input):

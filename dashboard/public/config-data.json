@@ -142,10 +142,10 @@
     },
     {
       "taxsim": "scorp",
-      "policyengine": "partnership_s_corp_income",
+      "policyengine": "s_corp_income",
       "description": "S-Corp profits",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/self_employment/partnership_s_corp_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/self_employment/s_corp_income.py"
     },
     {
       "taxsim": "pbusinc",
@@ -223,7 +223,7 @@
       "taxable_interest_income",
       "qualified_dividend_income",
       "long_term_capital_gains",
-      "partnership_s_corp_income",
+      "s_corp_income",
       "taxable_private_pension_income",
       "short_term_capital_gains",
       "social_security_retirement"

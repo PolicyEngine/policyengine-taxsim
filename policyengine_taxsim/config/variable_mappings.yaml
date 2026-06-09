@@ -798,11 +798,11 @@ taxsim_to_policyengine:
           - ltcg
       # TAXSIM has no separate Schedule K-1 Box 14 partnership
       # self-employment allocation, so do not populate PolicyEngine's
-      # partnership_se_income from TAXSIM inputs.
+      # partnership_self_employment_net_earnings from TAXSIM inputs.
       - self_employment_income:
           - psemp
           - ssemp
-      - partnership_s_corp_income:
+      - s_corp_income:
           - scorp
       - qualified_business_income:
           - pbusinc
