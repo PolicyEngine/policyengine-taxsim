@@ -170,6 +170,12 @@ class PETestsYAMLGenerator:
                 "commodity_supplemental_food_program": person_data.get(
                     "commodity_supplemental_food_program", {}
                 ).get(year_str, 0),
+                # TAXSIM has no medical-expense input; zero PE's imputed Medicare
+                # Part B premiums so they don't flow into state medical
+                # exemptions/deductions via the federal itemized medical deduction.
+                "medical_expense_health_insurance_premiums": person_data.get(
+                    "medical_expense_health_insurance_premiums", {}
+                ).get(year_str, 0),
             }
 
             # Add optional fields only if they have non-zero values

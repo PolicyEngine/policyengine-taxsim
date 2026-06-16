@@ -225,6 +225,16 @@ def form_household_situation(year, state, taxsim_vars):
             "commodity_supplemental_food_program"
         ] = {str(year): 0}
 
+    # Explicitly set imputed medical expenses to 0 for all people. TAXSIM has no
+    # medical-expense input, so PE's imputed Medicare Part B premiums would
+    # otherwise flow through the federal itemized medical deduction into state
+    # medical exemptions/deductions (e.g. MA Schedule Y, OK Schedule 511-D, OH),
+    # understating state tax relative to TAXSIM/TaxAct.
+    for person_name in household_situation["people"]:
+        household_situation["people"][person_name][
+            "medical_expense_health_insurance_premiums"
+        ] = {str(year): 0}
+
     # Explicitly set SNAP to 0 for all SPM units to prevent PolicyEngine from imputing SNAP benefits
     # TAXSIM does not model SNAP, so we need to ensure it's not automatically calculated
     for spm_unit_name in household_situation["spm_units"]:

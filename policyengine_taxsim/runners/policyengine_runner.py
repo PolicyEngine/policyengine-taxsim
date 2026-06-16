@@ -167,6 +167,7 @@ class TaxsimMicrosimDataset(Dataset):
             "head_start",  # Head Start should be 0 to match TAXSIM (which doesn't model Head Start)
             "early_head_start",  # Early Head Start should be 0 to match TAXSIM (which doesn't model Early Head Start)
             "commodity_supplemental_food_program",  # Commodity supplemental food program should be 0 to match TAXSIM (which doesn't model this program)
+            "medical_expense_health_insurance_premiums",  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
         }
 
         # Combine all variables
@@ -837,6 +838,9 @@ class TaxsimMicrosimDataset(Dataset):
                 data["commodity_supplemental_food_program"][year_int] = np.zeros(
                     total_people_for_year
                 )  # Set commodity supplemental food program to 0 to match TAXSIM (which doesn't model this program)
+                data["medical_expense_health_insurance_premiums"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
 
             # Household data
             data["household_id"][year_int] = year_household_ids
