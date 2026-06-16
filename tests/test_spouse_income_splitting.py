@@ -139,12 +139,16 @@ def test_pension_goes_to_spouse_when_spouse_is_older():
     np.testing.assert_allclose(values, [0.0, 40000.0])
 
 
-def test_pension_stays_on_primary_when_both_under_60():
-    """Pension: when neither spouse is 60+, state elderly exclusions
-    do not apply. Default to primary."""
+def test_pension_splits_when_both_spouses_under_threshold():
+    """Pension: when both spouses are on the same (younger) side of the
+    eligibility line, split 50/50 — matching TAXSIM (which splits the
+    household pension column) and giving age-independent per-person
+    exclusions (KY, OK) to both spouses. See taxsim #965 (KY) / #966 (OK):
+    both filers age 45, where dumping pension on the primary denied the
+    spouse's exclusion. Verified against the NBER binary."""
     df = pd.DataFrame([_base_mfj_record(page=45, sage=45, pensions=30000)])
     values = _run_allocation(df, "taxable_private_pension_income")
-    np.testing.assert_allclose(values, [30000.0, 0.0])
+    np.testing.assert_allclose(values, [15000.0, 15000.0])
 
 
 def test_gssi_splits_when_both_spouses_are_60_plus():
@@ -172,11 +176,13 @@ def test_gssi_goes_to_spouse_when_spouse_is_older():
     np.testing.assert_allclose(values, [0.0, 40000.0])
 
 
-def test_gssi_stays_on_primary_when_both_under_60():
-    """gssi: when neither spouse is 60+, default to primary."""
+def test_gssi_splits_when_both_spouses_under_threshold():
+    """gssi: when both spouses are on the same (younger) side of the
+    eligibility line, split 50/50 — matching TAXSIM. Mirrors the pension
+    rule (see taxsim #924 for the mixed-age -> older convention)."""
     df = pd.DataFrame([_base_mfj_record(page=45, sage=45, gssi=40000)])
     values = _run_allocation(df, "social_security_retirement")
-    np.testing.assert_allclose(values, [40000.0, 0.0])
+    np.testing.assert_allclose(values, [20000.0, 20000.0])
 
 
 def test_de_elderly_pension_matches_issue_838():

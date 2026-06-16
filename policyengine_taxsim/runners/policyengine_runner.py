@@ -232,10 +232,14 @@ class TaxsimMicrosimDataset(Dataset):
     @classmethod
     def _make_age_gated_primary(cls, source_field):
         """Allocate age-gated income (pension, gssi) to the primary filer's
-        share. Both spouses 60+: 50/50. Mixed-age: assign entirely to the
-        older spouse so age-based state exclusions reach the qualifying
-        filer (see taxsim issues #774 for pensions, #924 for gssi). Both
-        under 60: all to primary by default."""
+        share. The income is split 50/50 whenever both spouses fall on the
+        same side of the elderly-eligibility line (both qualify OR both do
+        not); only in mixed-age couples is it assigned entirely to the older
+        spouse, so age-based state exclusions reach the qualifying filer.
+        See taxsim #774 (pensions) and #924 (gssi) for the mixed-age ->
+        older rule, and #965 (KY) / #966 (OK) confirming both-young couples
+        must still split 50/50 (TAXSIM does, and per-person exclusions like
+        KY/OK are age-independent)."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
@@ -243,10 +247,9 @@ class TaxsimMicrosimDataset(Dataset):
                 return value
             page = int(row.get("page", 0))
             sage = int(row.get("sage", 0))
-            both_old = (
-                page >= cls._AGE_GATED_SPLIT_AGE and sage >= cls._AGE_GATED_SPLIT_AGE
-            )
-            if both_old:
+            primary_eligible = page >= cls._AGE_GATED_SPLIT_AGE
+            spouse_eligible = sage >= cls._AGE_GATED_SPLIT_AGE
+            if primary_eligible == spouse_eligible:
                 return value / 2
             primary_is_older_or_equal = page >= sage
             return value if primary_is_older_or_equal else 0.0
@@ -256,8 +259,9 @@ class TaxsimMicrosimDataset(Dataset):
     @classmethod
     def _make_age_gated_spouse(cls, source_field):
         """Spouse's share of age-gated income. Mirror of `_make_age_gated_primary`:
-        50/50 if both 60+, full amount to spouse only when spouse is strictly
-        older than primary in mixed-age cases."""
+        50/50 when both spouses are on the same side of the elderly-eligibility
+        line; in mixed-age couples the full amount goes to the spouse only when
+        the spouse is strictly older than the primary."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
@@ -265,10 +269,9 @@ class TaxsimMicrosimDataset(Dataset):
                 return 0.0
             page = int(row.get("page", 0))
             sage = int(row.get("sage", 0))
-            both_old = (
-                page >= cls._AGE_GATED_SPLIT_AGE and sage >= cls._AGE_GATED_SPLIT_AGE
-            )
-            if both_old:
+            primary_eligible = page >= cls._AGE_GATED_SPLIT_AGE
+            spouse_eligible = sage >= cls._AGE_GATED_SPLIT_AGE
+            if primary_eligible == spouse_eligible:
                 return value / 2
             spouse_is_strictly_older = sage > page
             return value if spouse_is_strictly_older else 0.0
