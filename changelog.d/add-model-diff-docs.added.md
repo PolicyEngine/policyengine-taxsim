@@ -1,0 +1,1 @@
+Add documentation section explaining how PolicyEngine and TAXSIM outputs differ. Renders static output conventions (CTC/ACTC split, state EITC bundling, filing-status auto-detection, spouse income splitting, Additional Medicare Tax, non-refundable credit ordering) plus a live feed of GitHub issues labeled model-difference.
