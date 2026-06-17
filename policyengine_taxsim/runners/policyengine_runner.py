@@ -1152,61 +1152,25 @@ class PolicyEngineRunner(BaseTaxRunner):
         """
         Run PolicyEngine Microsimulation on all records.
 
-        When ``disable_salt`` is set, runs PE in three passes to match
-        TAXSIM-35's single-pass state↔federal SALT methodology:
+        When ``disable_salt`` is set, runs a single SALT-disabled pass:
+        ``state_and_local_sales_or_income_tax`` is zeroed for both the state
+        and federal computation, so PE's federal Schedule A excludes state
+        income/sales tax (property tax via ``real_estate_taxes`` still flows
+        through). This matches TAXSIM-35, which deducts mortgage interest and
+        property tax federally but NOT state income tax — verified against the
+        ``taxsimtest`` binary across states/years (e.g. NY single $84K + $37K
+        mortgage → federal itemized $37K, state tax not deducted).
 
-          Pass A: state-side run with state_and_local_sales_or_income_tax
-                  zeroed. Produces state outputs that ignore federal SALT
-                  iteration (matches TAXSIM's state tax computation).
-          Pass B: federal-side run with state_and_local_sales_or_income_tax
-                  set as an explicit input to Pass-A's state_income_tax
-                  per record. PE federal Schedule A then uses that fixed
-                  state-tax value as SALT, without iterating.
-          Stitch: state columns from Pass A, federal columns from Pass B.
+        A previous three-pass re-introduced the computed state tax as fixed
+        federal SALT, which overshot TAXSIM by the full state-tax amount on
+        every itemizing record (see taxsim #971; ~$1,185 mean federal mismatch
+        on a 60-record itemizing sample, 0/60 within $15). Excluding the state
+        income tax brings PE back onto TAXSIM.
 
-        Without ``disable_salt``, runs a single PE pass with PE-US's
-        native (iterative) handling.
+        Without ``disable_salt``, runs a single PE pass with PE-US's native
+        (iterative, statutorily-correct) SALT handling.
         """
-        if not self.disable_salt:
-            return self._run_once(show_progress, on_progress)
-
-        # Pass A — state-side: zeros SALT internally.
-        state_results = self._run_once(show_progress, on_progress)
-
-        # Build per-taxsimid state_tax override from Pass A's siitax.
-        state_tax_by_id = dict(
-            zip(
-                state_results["taxsimid"].astype(float).astype(int).values,
-                state_results["siitax"].astype(float).values,
-            )
-        )
-
-        # Pass B — federal-side: use Pass-A state tax as fixed SALT input,
-        # no further iteration.
-        original_disable_salt = self.disable_salt
-        original_override = self._state_tax_override
-        try:
-            self.disable_salt = False
-            self._state_tax_override = state_tax_by_id
-            federal_results = self._run_once(show_progress, on_progress)
-        finally:
-            self.disable_salt = original_disable_salt
-            self._state_tax_override = original_override
-
-        # Stitch: federal columns from Pass B, state-side columns from
-        # Pass A (which is the SALT-disabled state pass).
-        combined = federal_results.copy()
-        # Reorder state_results to match combined's taxsimid ordering for
-        # safe column substitution.
-        state_results = (
-            state_results.set_index("taxsimid")
-            .loc[combined["taxsimid"].values]
-            .reset_index()
-        )
-        for col in self._STATE_OUTPUT_COLUMNS:
-            if col in state_results.columns and col in combined.columns:
-                combined[col] = state_results[col].values
-        return combined
+        return self._run_once(show_progress, on_progress)
 
     def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
         """

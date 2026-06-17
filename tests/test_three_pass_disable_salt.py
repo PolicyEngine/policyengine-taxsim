@@ -1,21 +1,20 @@
 """
-Tests for the three-pass --disable-salt mode that aligns PE's federal
-SALT calculation with TAXSIM-35's single-pass methodology.
+Tests for the --disable-salt mode that aligns PE's federal SALT
+calculation with TAXSIM-35.
 
-Background: even after two-pass `--disable-salt` (where PE's federal pass
-keeps SALT), PE's iterated state-tax value differs from TAXSIM's
-single-pass value, producing residual federal mismatches on every record
-where state income tax was the SALT driver.
+TAXSIM-35 deducts mortgage interest and property tax on the federal
+return but does NOT deduct state income tax — verified against the
+taxsimtest binary across states/years (e.g. NY single $84K wages + $37K
+mortgage → federal itemized $37,000, state tax not deducted). So
+--disable-salt runs a single SALT-disabled pass: it zeroes
+state_and_local_sales_or_income_tax for both the state and federal
+computation, excluding state income/sales tax from federal Schedule A
+while still allowing property tax (real_estate_taxes) through.
 
-Three-pass eliminates this:
-  Pass A: PE with disable_salt=True
-          → state_income_tax computed against zero-SALT federal base
-          (matches TAXSIM's first-pass state tax)
-  Pass B: PE with state_and_local_sales_or_income_tax explicitly set
-          to Pass-A state_income_tax — no recomputation
-          (mimics TAXSIM: federal SALT uses fixed state tax, no
-          iteration)
-  Stitch: federal-side outputs from Pass B, state-side from Pass A.
+A previous three-pass instead re-introduced the computed state tax as
+fixed federal SALT, which overshot TAXSIM by the full state-tax amount on
+every itemizing record (see taxsim #971: ~$1,185 mean federal mismatch on
+a 60-record itemizing sample, 0/60 within $15).
 """
 
 import pandas as pd
@@ -55,26 +54,25 @@ class TestThreePassDisableSalt:
         # run via direct API surface — we'll need it to assert.
         assert np.isfinite(with_flag["siitax"].iloc[0])
 
-    def test_federal_salt_uses_pass_a_state_tax(self):
-        """Federal v17 (itemized) should include exactly Pass-A's
-        state_income_tax in SALT, not PE's iterated value. We can detect
-        this by checking that PE's v17 doesn't include any extra iteration:
-        v17 should be <= mortgage + Pass-A siitax (capped at $10K SALT
-        cap)."""
+    def test_federal_salt_excludes_state_income_tax(self):
+        """Federal v17 (itemized) under --disable-salt must EXCLUDE state
+        income tax — only mortgage interest (and property tax) are deducted
+        federally, matching TAXSIM-35. Verified against the taxsimtest
+        binary: NY single $84K wages + $37K mortgage → federal itemized
+        $37,000, with the ~$2,420 NY state tax NOT deducted. (Previously a
+        three-pass deducted the state tax as fixed SALT, overshooting
+        TAXSIM — see taxsim #971.)"""
         df = _ny_filer_with_mortgage()
         result = PolicyEngineRunner(df.copy(), disable_salt=True).run(
             show_progress=False
         )
-        siitax = result["siitax"].iloc[0]
         v17 = result["v17"].iloc[0]
         mortgage = 37000.0
-        salt_cap = 10000.0
-        expected_salt = min(siitax, salt_cap)
-        # v17 should be mortgage + capped state tax (no iteration extra)
-        # Allow $5 tolerance for rounding.
-        assert v17 <= mortgage + expected_salt + 5, (
-            f"v17={v17} exceeds mortgage+capped_state_salt = "
-            f"{mortgage + expected_salt}; suggests iteration leaked in"
+        # Federal itemized = mortgage only (no state income tax in SALT);
+        # this record has no property tax. $5 tolerance for rounding.
+        assert abs(v17 - mortgage) <= 5, (
+            f"v17={v17} should equal the mortgage ({mortgage}) with no state "
+            f"income tax in federal SALT"
         )
 
     def test_results_stable_idempotent(self):
