@@ -233,11 +233,7 @@ class TaxsimRunner(BaseTaxRunner):
             columns_to_use = [
                 c
                 for c in columns_to_use
-                if not (
-                    c.startswith("age")
-                    and c[3:].isdigit()
-                    and int(c[3:]) > 10
-                )
+                if not (c.startswith("age") and c[3:].isdigit() and int(c[3:]) > 10)
             ]
 
             # Write header
