@@ -1,3 +1,10 @@
+## [2.26.4] - 2026-06-22
+
+### Changed
+
+- Redesign the validation dashboard with an instrument-readout visual language: a deep-teal console hero stating the live result, JetBrains Mono tabular figures for all metrics, and a calibration color scale that surfaces diverging states.
+
+
 ## [2.26.3] - 2026-06-22
 
 ### Changed
