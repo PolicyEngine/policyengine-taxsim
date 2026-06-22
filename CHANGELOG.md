@@ -1,3 +1,10 @@
+## [2.26.2] - 2026-06-22
+
+### Fixed
+
+- Cap TAXSIM dependent age columns at age10 (age11+ is rejected by taxsimtest with STOP 901), allowing comparison runs that include records with 11+ dependents.
+
+
 ## [2.26.1] - 2026-06-04
 
 ### Fixed
