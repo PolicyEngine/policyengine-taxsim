@@ -23,7 +23,9 @@ class TaxsimRunner(BaseTaxRunner):
         "depx",  # 6. Number of dependents
     ]
 
-    # Dependent ages come after depx according to official docs
+    # Dependent ages come after depx according to official docs.
+    # TAXSIM-35 (taxsimtest) only recognizes age1..age10; age11 is rejected
+    # with STOP 901 ("not a taxsimtest input variable").
     DEPENDENT_AGE_COLUMNS = [
         "age1",
         "age2",
@@ -35,7 +37,6 @@ class TaxsimRunner(BaseTaxRunner):
         "age8",
         "age9",
         "age10",
-        "age11",
     ]
 
     # TAXSIM32 format columns for dependent counts by age bracket
@@ -179,8 +180,9 @@ class TaxsimRunner(BaseTaxRunner):
             # Start with required columns
             dynamic_columns = self.REQUIRED_COLUMNS.copy()
 
-            # Add only age columns for actual dependents (up to 11 max)
-            for i in range(min(depx, 11)):
+            # Add only age columns for actual dependents (up to 10 max;
+            # TAXSIM-35 rejects age11 and above).
+            for i in range(min(depx, 10)):
                 age_col = f"age{i + 1}"
                 dynamic_columns.append(age_col)
 
@@ -224,6 +226,15 @@ class TaxsimRunner(BaseTaxRunner):
         with open(temp_file.name, "w") as f:
             # Use dynamic columns if available, otherwise fall back to ALL_COLUMNS
             columns_to_use = getattr(self, "_dynamic_columns", self.ALL_COLUMNS)
+
+            # Defensive guard: TAXSIM-35 only recognizes age1..age10. Drop any
+            # higher dependent-age column so a single record with depx >= 11
+            # cannot abort the entire run with STOP 901.
+            columns_to_use = [
+                c
+                for c in columns_to_use
+                if not (c.startswith("age") and c[3:].isdigit() and int(c[3:]) > 10)
+            ]
 
             # Write header
             f.write(",".join(columns_to_use) + "\n")
