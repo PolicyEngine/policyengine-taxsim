@@ -145,22 +145,31 @@ export const loadYearData = async (year) => {
   const baseUrl = assetUrl(`/data/${year}`);
   
   try {
-    // Load comparison report (optional - may not exist in new format)
+    // Prefer a precomputed full-eCPS summary (instant, no client-side parse of
+    // the 100MB+ raw comparison file). When present, this carries the exact
+    // overall + per-state match rates at both tolerances over all records, so
+    // the headline reflects the full population while only a small record
+    // sample is loaded below for the drill-down browser.
     let summary = {};
     try {
-      const reportText = await loadTextData(`${baseUrl}/comparison_report_${year}.txt`);
-      summary = parseComparisonReport(reportText);
-    } catch (reportError) {
-      // Comparison report not found - will extract summary from consolidated data
-      // We can derive basic stats from consolidated data if needed
-      summary = {
-        totalRecords: 0,
-        federalMatchPct: 0,
-        stateMatchPct: 0,
-        stateBreakdown: []
-      };
+      const summaryJson = await loadTextData(`${baseUrl}/summary_${year}.json`);
+      summary = JSON.parse(summaryJson);
+    } catch (summaryError) {
+      // Fall back to the legacy comparison report, else derive from the CSV.
+      try {
+        const reportText = await loadTextData(`${baseUrl}/comparison_report_${year}.txt`);
+        summary = parseComparisonReport(reportText);
+      } catch (reportError) {
+        // No report either - will extract summary from consolidated data below.
+        summary = {
+          totalRecords: 0,
+          federalMatchPct: 0,
+          stateMatchPct: 0,
+          stateBreakdown: []
+        };
+      }
     }
-    
+
     // Load consolidated comparison results (new format)
     let consolidatedResults = [];
     let federalMismatches = [];

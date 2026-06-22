@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { IconDownload } from '@tabler/icons-react';
+import { IconDownload, IconDatabaseExport } from '@tabler/icons-react';
 import YearTabs from '@/components/YearTabs';
 import StateFilter from '@/components/StateFilter';
 import MetricsRow from '@/components/MetricsRow';
@@ -10,7 +10,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ErrorMessage from '@/components/common/ErrorMessage';
 import { useYearData } from '@/hooks/useYearData';
 import { exportAllData } from '@/utils/exportData';
-import { TOLERANCE_MODES } from '@/constants';
+import { TOLERANCE_MODES, fullDataUrl } from '@/constants';
 
 export default function DashboardContent() {
   const {
@@ -24,7 +24,7 @@ export default function DashboardContent() {
   } = useYearData(2023);
 
   const [selectedState, setSelectedState] = useState(null);
-  const [toleranceMode, setToleranceMode] = useState(TOLERANCE_MODES.ABSOLUTE);
+  const [toleranceMode, setToleranceMode] = useState(TOLERANCE_MODES.RELATIVE);
 
   if (loading) {
     return (
@@ -113,8 +113,17 @@ export default function DashboardContent() {
               className="inline-flex items-center px-4 py-2.5 rounded-lg bg-primary-500 text-white font-semibold text-sm hover:bg-primary-600 transition shadow-sm"
             >
               <IconDownload size={16} className="mr-2" />
-              Export all data
+              Export sample
             </button>
+
+            <a
+              href={fullDataUrl(selectedYear)}
+              className="inline-flex items-center px-4 py-2.5 rounded-lg border border-primary-500 text-primary-600 font-semibold text-sm hover:bg-primary-50 transition"
+              title={`Download the complete ${selectedYear} comparison (all 111,347 records) — ~110MB`}
+            >
+              <IconDatabaseExport size={16} className="mr-2" />
+              Download full {selectedYear} data
+            </a>
           </div>
         </div>
       </div>

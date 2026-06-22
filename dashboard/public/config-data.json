@@ -156,9 +156,9 @@
     },
     {
       "taxsim": "pprofinc",
-      "policyengine": "na_pe",
-      "description": "Primary and secondary taxpayer's Specialized Service Trade or Business service",
-      "implemented": false,
+      "policyengine": "sstb_self_employment_income",
+      "description": "Primary taxpayer's SSTB self-employment income",
+      "implemented": true,
       "githubLink": null
     },
     {
@@ -191,9 +191,9 @@
     },
     {
       "taxsim": "otherprop",
-      "policyengine": "na_pe",
+      "policyengine": "rental_income",
       "description": "Other Property",
-      "implemented": false,
+      "implemented": true,
       "githubLink": null
     },
     {
@@ -280,5 +280,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-03-24T15:14:08.434Z"
+  "lastUpdated": "2026-06-22T00:34:33.871Z"
 }
