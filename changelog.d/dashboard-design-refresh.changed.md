@@ -1,0 +1,1 @@
+Redesign the validation dashboard with an instrument-readout visual language: a deep-teal console hero stating the live result, JetBrains Mono tabular figures for all metrics, and a calibration color scale that surfaces diverging states.

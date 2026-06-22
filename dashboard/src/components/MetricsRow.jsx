@@ -1,31 +1,66 @@
 'use client';
 
 import React from 'react';
-import { getBarColor, getBarBg } from '../utils/colors';
+import { getBarColor, getBarBg, getBandLabel } from '../utils/colors';
 import { TOLERANCE_MODES } from '../constants';
 
-const MetricCard = React.memo(({ title, value, type, description }) => {
+const MetricCard = React.memo(({ label, value, type, description }) => {
   const numericValue = parseFloat(value);
   const isPercentage = type !== 'total';
+  const color = isPercentage ? getBarColor(numericValue) : '#0C2426';
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</div>
-      <div className="text-3xl font-bold mt-2" style={isPercentage ? { color: getBarColor(numericValue) } : {}}>
-        {isPercentage ? `${value}%` : Number(value).toLocaleString()}
-      </div>
-      {isPercentage && (
-        <div className="h-2 rounded-full mt-3" style={{ background: getBarBg(numericValue) }}>
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${Math.min(numericValue, 100)}%`,
-              background: getBarColor(numericValue),
-            }}
-          />
+    <div className="relative bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Calibration accent: band-colored rule for rates, brand teal for the count */}
+      <div
+        className="h-1 w-full"
+        style={{ background: isPercentage ? color : '#2C7A7B' }}
+      />
+      <div className="p-6">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+            {label}
+          </span>
+          {isPercentage && (
+            <span
+              className="text-[11px] font-semibold uppercase tracking-[0.08em] px-2 py-0.5 rounded-full"
+              style={{ color, background: getBarBg(numericValue) }}
+            >
+              {getBandLabel(numericValue)}
+            </span>
+          )}
         </div>
-      )}
-      {description && <div className="text-xs text-gray-400 mt-2">{description}</div>}
+
+        <div className="mt-3 flex items-baseline gap-1.5">
+          <span
+            className="tnum font-mono font-semibold leading-none"
+            style={{ fontSize: '2.6rem', color }}
+          >
+            {isPercentage ? Number(value).toFixed(1) : Number(value).toLocaleString()}
+          </span>
+          {isPercentage && (
+            <span className="tnum font-mono text-xl font-medium" style={{ color }}>
+              %
+            </span>
+          )}
+        </div>
+
+        {isPercentage && (
+          <div
+            className="h-2 rounded-full mt-4 overflow-hidden"
+            style={{ background: getBarBg(numericValue) }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${Math.min(numericValue, 100)}%`, background: color }}
+            />
+          </div>
+        )}
+
+        {description && (
+          <div className="text-xs text-gray-400 mt-3">{description}</div>
+        )}
+      </div>
     </div>
   );
 });
@@ -37,9 +72,9 @@ const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-7 animate-pulse">
-            <div className="h-3.5 bg-gray-200 rounded w-3/5 mb-3" />
-            <div className="h-8 bg-gray-200 rounded w-2/5" />
+          <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+            <div className="h-3 bg-gray-200 rounded w-3/5 mb-4" />
+            <div className="h-10 bg-gray-200 rounded w-2/5" />
           </div>
         ))}
       </div>
@@ -78,24 +113,24 @@ const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_
 
   const toleranceLabel = isRel
     ? 'Within ±1% of gross income'
-    : 'Within ±$15 tolerance';
+    : 'Within ±$15';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
       <MetricCard
-        title="Total Records"
+        label={selectedState ? `${selectedState} households` : 'Households compared'}
         value={displayData.totalRecords}
         type="total"
-        description={selectedState ? `Households in ${selectedState}` : 'All households processed'}
+        description={selectedState ? 'In this state' : 'Full eCPS, both engines'}
       />
       <MetricCard
-        title="Federal Match Rate"
+        label="Federal agreement"
         value={displayData.federalMatchPct.toFixed(1)}
         type="federal"
         description={toleranceLabel}
       />
       <MetricCard
-        title="State Match Rate"
+        label="State agreement"
         value={displayData.stateMatchPct.toFixed(1)}
         type="state"
         description={toleranceLabel}

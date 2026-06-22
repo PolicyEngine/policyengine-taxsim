@@ -53,9 +53,9 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
 
   if (!data?.summary?.stateBreakdown) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6">
-          <h2 className="text-lg font-bold text-secondary-900">State-by-State Analysis</h2>
+          <h2 className="text-lg font-bold text-secondary-900">State-by-state agreement</h2>
           <div className="animate-pulse mt-4">
             <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -91,7 +91,7 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -106,8 +106,8 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
                   onSort={handleSort}
                 />
               ))}
-              <th className="bg-gray-100 px-6 py-4 text-left text-xs font-semibold text-secondary-900 uppercase tracking-wider border-b-2 border-gray-200">Problem Areas</th>
-              <th className="bg-gray-100 px-6 py-4 text-left text-xs font-semibold text-secondary-900 uppercase tracking-wider border-b-2 border-gray-200">Actions</th>
+              <th className="bg-gray-50 px-6 py-3 text-left font-mono text-[11px] font-semibold text-gray-500 uppercase tracking-[0.12em] border-b border-gray-200">Problem areas</th>
+              <th className="bg-gray-50 px-6 py-3 text-right font-mono text-[11px] font-semibold text-gray-500 uppercase tracking-[0.12em] border-b border-gray-200" />
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -150,20 +150,20 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
   );
 });
 
-// Memoized State Row Component
+// Agreement readout: mono tabular figure + calibration bar
 const PctCell = ({ value }) => {
-  const getColorClass = (pct) => {
-    if (pct >= 90) return 'text-success font-semibold';
-    if (pct >= 70) return 'text-primary-800 font-semibold';
-    return 'text-error font-semibold';
-  };
   const color = getBarColor(value);
   return (
-    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100">
-      <div>
-        <span className={getColorClass(value)}>{value.toFixed(1)}%</span>
-        <div className="h-1.5 rounded-full mt-1" style={{ background: getBarBg(value) }}>
-          <div className="h-full rounded-full" style={{ width: `${Math.min(value, 100)}%`, background: color }} />
+    <td className="px-6 py-3.5 whitespace-nowrap border-b border-gray-100">
+      <div className="w-28">
+        <span className="tnum font-mono text-sm font-semibold" style={{ color }}>
+          {value.toFixed(1)}<span className="text-xs font-medium">%</span>
+        </span>
+        <div className="h-1.5 rounded-full mt-1.5 overflow-hidden" style={{ background: getBarBg(value) }}>
+          <div
+            className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${Math.min(value, 100)}%`, background: color }}
+          />
         </div>
       </div>
     </td>
@@ -180,16 +180,27 @@ const StateRow = React.memo(({
   return (
     <tr
       onClick={() => onSelect(item.state)}
-      className={`hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}
+      className={`cursor-pointer transition-colors ${
+        isSelected ? 'bg-primary-50' : 'hover:bg-gray-50'
+      }`}
     >
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100 font-medium">{item.state}</td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100">{item.households}</td>
+      <td
+        className="px-6 py-3.5 whitespace-nowrap border-b border-gray-100"
+        style={isSelected ? { boxShadow: 'inset 3px 0 0 #2C7A7B' } : {}}
+      >
+        <span className={`text-sm font-semibold ${isSelected ? 'text-primary-700' : 'text-secondary-900'}`}>
+          {item.state}
+        </span>
+      </td>
+      <td className="px-6 py-3.5 whitespace-nowrap tnum font-mono text-sm text-gray-500 border-b border-gray-100">
+        {Number(item.households).toLocaleString()}
+      </td>
       <PctCell value={item.federalPct} />
       <PctCell value={item.statePct} />
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-b border-gray-100">
+      <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500 border-b border-gray-100">
         {getProblemAreas(item)}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 border-b border-gray-100" onClick={(e) => e.stopPropagation()}>
+      <td className="px-6 py-3.5 whitespace-nowrap text-right border-b border-gray-100" onClick={(e) => e.stopPropagation()}>
         <Button
           onClick={() => onInspect(item.state)}
           variant="secondary"
