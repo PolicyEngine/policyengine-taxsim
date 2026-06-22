@@ -52,23 +52,13 @@ export default function DashboardContent() {
     ? currentYearData.summary.stateBreakdown.map((s) => s.state)
     : [];
 
-  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE;
-  const summary = currentYearData?.summary;
-  const heroFederal = summary
-    ? (isRel ? summary.federalMatchPctRel ?? summary.federalMatchPct : summary.federalMatchPct)
-    : null;
-  const heroTotal = summary?.totalRecords ?? 0;
-  const heroStateCount = availableStates.length;
-  const tolerancePhrase = isRel ? 'within 1% of income' : 'within $15';
-
   return (
     <div>
-      {/* Hero console — the validation result as the thesis */}
+      {/* Hero console */}
       <div className="hero-console text-white">
-        <div className="calib-rule h-1.5 w-full opacity-70" />
-        <div className="max-w-7xl mx-auto px-6 pt-8 pb-9">
+        <div className="max-w-7xl mx-auto px-6 py-9">
           <div className="font-mono text-[11px] tracking-[0.22em] uppercase text-primary-200">
-            Model validation · PolicyEngine&nbsp;×&nbsp;TAXSIM
+            PolicyEngine&nbsp;×&nbsp;TAXSIM
           </div>
 
           <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">
@@ -77,29 +67,6 @@ export default function DashboardContent() {
               <span className="text-primary-200 font-normal"> · {selectedState}</span>
             )}
           </h1>
-
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-white/75">
-            {heroFederal != null ? (
-              <>
-                PolicyEngine reproduces TAXSIM federal income tax for{' '}
-                <span className="tnum font-mono font-semibold text-white">
-                  {heroFederal.toFixed(1)}%
-                </span>{' '}
-                of {selectedState ? `${selectedState} ` : ''}households in {selectedYear},
-                matching {tolerancePhrase}.
-              </>
-            ) : (
-              'Comparing PolicyEngine and TAXSIM tax calculations across states and years.'
-            )}
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-2 font-mono text-[13px] text-white/70">
-            <span><span className="tnum text-white font-semibold">{heroTotal.toLocaleString()}</span> households</span>
-            <span className="h-3 w-px bg-white/20" />
-            <span><span className="tnum text-white font-semibold">{heroStateCount}</span> states</span>
-            <span className="h-3 w-px bg-white/20" />
-            <span><span className="tnum text-white font-semibold">{availableYears?.length ?? 5}</span> tax years</span>
-          </div>
         </div>
       </div>
 
@@ -119,13 +86,13 @@ export default function DashboardContent() {
           />
 
           <div
-            className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 font-mono text-[13px]"
+            className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 font-mono text-xs"
             role="group"
             aria-label="Match tolerance"
           >
             <button
               onClick={() => setToleranceMode(TOLERANCE_MODES.ABSOLUTE)}
-              className={`px-3 py-1.5 rounded-md font-medium transition ${
+              className={`px-2.5 py-1 rounded font-medium transition ${
                 toleranceMode === TOLERANCE_MODES.ABSOLUTE
                   ? 'bg-primary-600 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -135,7 +102,7 @@ export default function DashboardContent() {
             </button>
             <button
               onClick={() => setToleranceMode(TOLERANCE_MODES.RELATIVE)}
-              className={`px-3 py-1.5 rounded-md font-medium transition ${
+              className={`px-2.5 py-1 rounded font-medium transition ${
                 toleranceMode === TOLERANCE_MODES.RELATIVE
                   ? 'bg-primary-600 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -148,18 +115,18 @@ export default function DashboardContent() {
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={exportAllData}
-              className="inline-flex items-center px-3.5 py-2 rounded-lg border border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border border-gray-200 text-gray-700 font-semibold text-[13px] hover:bg-gray-50 transition"
             >
-              <IconDownload size={16} className="mr-2" />
+              <IconDownload size={15} className="mr-1.5" />
               Export sample
             </button>
 
             <a
               href={fullDataUrl(selectedYear)}
-              className="inline-flex items-center px-3.5 py-2 rounded-lg bg-primary-600 text-white font-semibold text-sm hover:bg-primary-700 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary-600 text-white font-semibold text-[13px] hover:bg-primary-700 transition"
               title={`Download the complete ${selectedYear} comparison (all 111,347 records) — ~110MB`}
             >
-              <IconDatabaseExport size={16} className="mr-2" />
+              <IconDatabaseExport size={15} className="mr-1.5" />
               Full {selectedYear} data
             </a>
           </div>

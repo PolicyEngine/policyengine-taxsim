@@ -305,16 +305,6 @@
       radial-gradient(120% 140% at 0% 0%, #285E61 0%, rgba(40, 94, 97, 0) 55%),
       linear-gradient(135deg, #1D4044 0%, #234E52 60%, #2C7A7B 100%);
   }
-  /* Calibration tick rule — a measured scale, drawn as repeating hairlines. */
-  .calib-rule {
-    background-image: repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.45) 0,
-      rgba(255, 255, 255, 0.45) 1px,
-      transparent 1px,
-      transparent 9px
-    );
-  }
 }
 
 /* Respect reduced-motion preference (quality floor). */

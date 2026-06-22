@@ -16,14 +16,14 @@ const MetricCard = React.memo(({ label, value, type, description }) => {
         className="h-1 w-full"
         style={{ background: isPercentage ? color : '#2C7A7B' }}
       />
-      <div className="p-6">
+      <div className="p-5">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
             {label}
           </span>
           {isPercentage && (
             <span
-              className="text-[11px] font-semibold uppercase tracking-[0.08em] px-2 py-0.5 rounded-full"
+              className="text-[10px] font-semibold uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full"
               style={{ color, background: getBarBg(numericValue) }}
             >
               {getBandLabel(numericValue)}
@@ -31,15 +31,15 @@ const MetricCard = React.memo(({ label, value, type, description }) => {
           )}
         </div>
 
-        <div className="mt-3 flex items-baseline gap-1.5">
+        <div className="mt-2 flex items-baseline gap-1">
           <span
             className="tnum font-mono font-semibold leading-none"
-            style={{ fontSize: '2.6rem', color }}
+            style={{ fontSize: '2rem', color }}
           >
             {isPercentage ? Number(value).toFixed(1) : Number(value).toLocaleString()}
           </span>
           {isPercentage && (
-            <span className="tnum font-mono text-xl font-medium" style={{ color }}>
+            <span className="tnum font-mono text-base font-medium" style={{ color }}>
               %
             </span>
           )}
@@ -47,7 +47,7 @@ const MetricCard = React.memo(({ label, value, type, description }) => {
 
         {isPercentage && (
           <div
-            className="h-2 rounded-full mt-4 overflow-hidden"
+            className="h-1.5 rounded-full mt-3 overflow-hidden"
             style={{ background: getBarBg(numericValue) }}
           >
             <div
@@ -58,7 +58,7 @@ const MetricCard = React.memo(({ label, value, type, description }) => {
         )}
 
         {description && (
-          <div className="text-xs text-gray-400 mt-3">{description}</div>
+          <div className="text-[11px] text-gray-400 mt-2.5">{description}</div>
         )}
       </div>
     </div>

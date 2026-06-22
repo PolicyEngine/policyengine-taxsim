@@ -65,7 +65,7 @@ const StateFilter = ({ selectedState, onStateChange, availableStates }) => {
 
   return (
     <div className="flex items-center space-x-2">
-      <label htmlFor="state-filter" className="text-sm font-medium text-gray-700">
+      <label htmlFor="state-filter" className="text-[13px] font-medium text-gray-700">
         State:
       </label>
       <select
@@ -74,7 +74,7 @@ const StateFilter = ({ selectedState, onStateChange, availableStates }) => {
         onChange={(e) => {
           onStateChange(e.target.value || null);
         }}
-        className="px-3 py-2.5 rounded-lg border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50 w-56 font-medium text-secondary-900 transition shadow-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10"
+        className="px-2.5 py-1.5 text-sm rounded-md border border-gray-200 bg-white w-48 font-medium text-secondary-900 transition focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10"
       >
         {states.map((state) => (
           <option key={state.code || 'all'} value={state.code || ''}>
