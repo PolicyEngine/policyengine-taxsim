@@ -1,3 +1,10 @@
+## [2.26.3] - 2026-06-22
+
+### Changed
+
+- Default the validation dashboard to the 1%-of-income tolerance, serve precomputed full-eCPS summary metrics, and link full per-year comparison CSVs from a GitHub Release.
+
+
 ## [2.26.2] - 2026-06-22
 
 ### Fixed
