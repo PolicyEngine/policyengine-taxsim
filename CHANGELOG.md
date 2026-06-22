@@ -1,3 +1,14 @@
+## [2.26.5] - 2026-06-22
+
+### Changed
+
+- Recolor the PolicyEngine favicon/app icon from the legacy blue mark to the current teal brand, keeping the white rounded-card frame.
+
+### Fixed
+
+- Fix the dashboard favicon: prefix the icon path with the basePath so the PolicyEngine icon resolves under /us/taxsim instead of 404ing at the domain root.
+
+
 ## [2.26.4] - 2026-06-22
 
 ### Changed
