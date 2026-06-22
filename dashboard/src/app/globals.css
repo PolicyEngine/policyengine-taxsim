@@ -291,6 +291,33 @@
   }
 }
 
+/* Instrument-readout utilities (validation dashboard) */
+@layer utilities {
+  /* Tabular, lining figures for all data so columns of numbers align and
+     don't jitter as values change. */
+  .tnum {
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  /* Deep-teal console ground for the validation hero. */
+  .hero-console {
+    background:
+      radial-gradient(120% 140% at 0% 0%, #285E61 0%, rgba(40, 94, 97, 0) 55%),
+      linear-gradient(135deg, #1D4044 0%, #234E52 60%, #2C7A7B 100%);
+  }
+}
+
+/* Respect reduced-motion preference (quality floor). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Animations */
 @keyframes spin {
   from { transform: rotate(0deg); }

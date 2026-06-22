@@ -54,91 +54,105 @@ export default function DashboardContent() {
 
   return (
     <div>
-      {/* Dashboard header */}
-      <div className="bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 px-6 py-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold text-secondary-900">
-            TAXSIM validation dashboard
+      {/* Hero console */}
+      <div className="hero-console text-white">
+        <div className="max-w-7xl mx-auto px-6 py-9">
+          <div className="font-mono text-[11px] tracking-[0.22em] uppercase text-primary-200">
+            PolicyEngine&nbsp;×&nbsp;TAXSIM
+          </div>
+
+          <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">
+            TAXSIM validation
             {selectedState && (
-              <span className="text-primary-500 font-normal">
-                {' '}
-                - {selectedState}
-              </span>
+              <span className="text-primary-200 font-normal"> · {selectedState}</span>
             )}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Comparing PolicyEngine and TAXSIM tax calculations across states and
-            years
-          </p>
+        </div>
+      </div>
 
-          {/* Controls */}
-          <div className="flex flex-wrap items-center gap-3 mt-4">
-            <YearTabs
-              selectedYear={selectedYear}
-              onYearChange={setSelectedYear}
-              availableYears={availableYears}
-            />
+      {/* Control bar */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex flex-wrap items-center gap-3">
+          <YearTabs
+            selectedYear={selectedYear}
+            onYearChange={setSelectedYear}
+            availableYears={availableYears}
+          />
 
-            <StateFilter
-              selectedState={selectedState}
-              onStateChange={setSelectedState}
-              availableStates={availableStates}
-            />
+          <StateFilter
+            selectedState={selectedState}
+            onStateChange={setSelectedState}
+            availableStates={availableStates}
+          />
 
-            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 text-sm" role="group" aria-label="Match tolerance">
-              <button
-                onClick={() => setToleranceMode(TOLERANCE_MODES.ABSOLUTE)}
-                className={`px-3 py-1.5 rounded-md font-medium transition ${
-                  toleranceMode === TOLERANCE_MODES.ABSOLUTE
-                    ? 'bg-primary-500 text-white'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                ±$15
-              </button>
-              <button
-                onClick={() => setToleranceMode(TOLERANCE_MODES.RELATIVE)}
-                className={`px-3 py-1.5 rounded-md font-medium transition ${
-                  toleranceMode === TOLERANCE_MODES.RELATIVE
-                    ? 'bg-primary-500 text-white'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                ±1% of income
-              </button>
-            </div>
+          <div
+            className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 font-mono text-xs"
+            role="group"
+            aria-label="Match tolerance"
+          >
+            <button
+              onClick={() => setToleranceMode(TOLERANCE_MODES.ABSOLUTE)}
+              className={`px-2.5 py-1 rounded font-medium transition ${
+                toleranceMode === TOLERANCE_MODES.ABSOLUTE
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              ±$15
+            </button>
+            <button
+              onClick={() => setToleranceMode(TOLERANCE_MODES.RELATIVE)}
+              className={`px-2.5 py-1 rounded font-medium transition ${
+                toleranceMode === TOLERANCE_MODES.RELATIVE
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              ±1% income
+            </button>
+          </div>
 
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={exportAllData}
-              className="inline-flex items-center px-4 py-2.5 rounded-lg bg-primary-500 text-white font-semibold text-sm hover:bg-primary-600 transition shadow-sm"
+              className="inline-flex items-center px-3 py-1.5 rounded-md border border-gray-200 text-gray-700 font-semibold text-[13px] hover:bg-gray-50 transition"
             >
-              <IconDownload size={16} className="mr-2" />
+              <IconDownload size={15} className="mr-1.5" />
               Export sample
             </button>
 
             <a
               href={fullDataUrl(selectedYear)}
-              className="inline-flex items-center px-4 py-2.5 rounded-lg border border-primary-500 text-primary-600 font-semibold text-sm hover:bg-primary-50 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary-600 text-white font-semibold text-[13px] hover:bg-primary-700 transition"
               title={`Download the complete ${selectedYear} comparison (all 111,347 records) — ~110MB`}
             >
-              <IconDatabaseExport size={16} className="mr-2" />
-              Download full {selectedYear} data
+              <IconDatabaseExport size={15} className="mr-1.5" />
+              Full {selectedYear} data
             </a>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <MetricsRow
           data={currentYearData}
           selectedState={selectedState}
           toleranceMode={toleranceMode}
         />
 
-        <h2 className="text-2xl font-bold text-secondary-900 mb-6 pb-3">
-          State-by-state analysis
-        </h2>
+        <div className="mt-10 mb-5">
+          <div className="font-mono text-[11px] tracking-[0.18em] uppercase text-gray-400">
+            By jurisdiction
+          </div>
+          <h2 className="mt-1 text-2xl font-bold text-secondary-900 tracking-tight">
+            State-by-state agreement
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Sorted by federal agreement. Bars are color-coded by calibration band —
+            <span className="text-[#E5484D] font-medium"> coral</span> flags states that diverge.
+          </p>
+        </div>
 
         <StateTable
           data={currentYearData}

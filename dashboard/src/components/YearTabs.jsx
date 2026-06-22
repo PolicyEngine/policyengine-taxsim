@@ -17,7 +17,7 @@ const YearTabs = ({ selectedYear, onYearChange, availableYears = [] }) => {
             key={year}
             onClick={() => isAvailable && onYearChange(year)}
             disabled={!isAvailable}
-            className={`px-5 py-3 rounded-lg font-semibold border-2 border-transparent cursor-pointer transition mr-2 ${
+            className={`px-3 py-1.5 text-sm rounded-md font-semibold border border-transparent cursor-pointer transition ${
               isSelected
                 ? 'bg-primary-500 text-white'
                 : isAvailable

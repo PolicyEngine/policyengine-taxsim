@@ -19,7 +19,7 @@ const SortableTableHeader = ({
 
   return (
     <th
-      className="bg-gray-100 px-6 py-4 text-left text-xs font-semibold text-secondary-900 uppercase tracking-wider border-b-2 border-gray-200 cursor-pointer hover:bg-gray-200 transition"
+      className="bg-gray-50 px-6 py-3 text-left font-mono text-[11px] font-semibold text-gray-500 uppercase tracking-[0.12em] border-b border-gray-200 cursor-pointer hover:text-gray-900 transition select-none"
       onClick={() => onSort(field)}
     >
       <div className="flex items-center">
