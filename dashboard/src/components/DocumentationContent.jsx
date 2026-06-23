@@ -943,6 +943,52 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                 <span className="text-blue-600 font-bold">*</span> Adjusted to match TAXSIM methodology: perturbs employment income (wages) only, splits perturbation proportionally between spouses, and uses a $100 delta for numerical stability with PolicyEngine&apos;s float32 internals.
               </p>
             )}
+
+            {activeTab === 'input' && (
+              <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  Spousal income allocation (married filing jointly)
+                </h3>
+                <p className="text-[15px] leading-relaxed text-gray-600 mb-4">
+                  TAXSIM provides several income types as a single household total with no
+                  per-spouse split. For joint filers, the emulator allocates them between
+                  spouses before PolicyEngine computes per-person state provisions:
+                </p>
+                <ul className="space-y-2 text-[15px] text-gray-700 mb-4">
+                  <li>
+                    <strong>Interest, dividends, capital gains, S-corp income</strong> &rarr;
+                    always split <strong>50/50</strong>.
+                  </li>
+                  <li>
+                    <strong>Pensions &amp; Social Security</strong> &rarr; age-aware:
+                    when both spouses are on the <strong>same side</strong> of the
+                    elderly-eligibility line (both qualify, or both do not) &rarr;
+                    <strong> 50/50</strong>; in <strong>mixed-age</strong> couples the whole
+                    amount goes to the <strong>older spouse</strong>, so age-based state
+                    exclusions (CO&nbsp;55, DE&nbsp;60, GA&nbsp;62, MD&nbsp;65) reach the
+                    qualifying filer.
+                  </li>
+                </ul>
+                <div className="bg-blue-50/60 rounded-lg px-5 py-4 text-sm text-gray-600 leading-relaxed">
+                  <strong className="text-gray-900">Known alignment caveats.</strong> The
+                  pension/Social Security split uses a single age-55 threshold, while TAXSIM
+                  keys off each state&apos;s actual exclusion structure. Two cases can
+                  therefore differ from the NBER binary:
+                  <ul className="mt-2 space-y-1 list-disc pl-5">
+                    <li>
+                      <strong>Age-independent</strong> per-person exclusions (e.g. KY&nbsp;$31,110,
+                      OK&nbsp;$10,000) in mixed-age couples &mdash; TAXSIM effectively splits
+                      50/50, while the convention assigns the income to the older spouse.
+                    </li>
+                    <li>
+                      <strong>Higher-threshold</strong> states (DE/GA/MD) where both spouses are
+                      55+ but straddle the state&apos;s line &mdash; the convention splits 50/50,
+                      while TAXSIM assigns it to the older spouse.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
             </>}
           </section>
         )}
