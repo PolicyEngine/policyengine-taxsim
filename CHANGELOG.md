@@ -1,3 +1,10 @@
+## [2.26.8] - 2026-06-23
+
+### Changed
+
+- Document the MFJ spousal income allocation rule (50/50 for interest/dividends/capital gains/S-corp; age-aware for pensions and Social Security) and its TAXSIM-alignment caveats on the dashboard Variable Mappings (input) page.
+
+
 ## [2.26.7] - 2026-06-23
 
 ### Fixed
