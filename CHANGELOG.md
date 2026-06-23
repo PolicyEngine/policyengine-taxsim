@@ -1,3 +1,10 @@
+## [2.26.6] - 2026-06-23
+
+### Fixed
+
+- Fix --disable-salt to exclude state income tax from the federal SALT deduction, matching TAXSIM-35 (which deducts mortgage interest and property tax federally but not state income tax). The previous three-pass re-introduced the computed state tax as fixed federal SALT, overshooting TAXSIM by the full state-tax amount on every itemizing record. On a 60-record itemizing sample this cut the mean federal mismatch from ~$1,185 (0/60 within $15) to $0 (60/60 exact).
+
+
 ## [2.26.5] - 2026-06-22
 
 ### Changed
