@@ -1,3 +1,10 @@
+## [2.26.7] - 2026-06-23
+
+### Fixed
+
+- Fix both-young MFJ pension/Social Security split: the Microsimulation runner now splits these 50/50 when both spouses are on the same side of the elderly-eligibility line (previously it dumped them on the primary filer when both were under the threshold), restoring per-person state exclusions for age-independent states (e.g. KY, OK). Mixed-age allocation to the older spouse is unchanged.
+
+
 ## [2.26.6] - 2026-06-23
 
 ### Fixed
