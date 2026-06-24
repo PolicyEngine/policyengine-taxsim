@@ -1,3 +1,10 @@
+## [2.26.9] - 2026-06-24
+
+### Fixed
+
+- Description: Zero PE's imputed Medicare Part B premiums (medical_expense_health_insurance_premiums) so they don't inflate state medical exemptions/deductions, restoring TAXSIM/TaxAct parity for elderly itemizers (MA, OK, OH).
+
+
 ## [2.26.8] - 2026-06-23
 
 ### Changed
