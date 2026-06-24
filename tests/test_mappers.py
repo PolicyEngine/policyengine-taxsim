@@ -94,6 +94,7 @@ def test_import_single_household(sample_taxsim_input):
                 "head_start": {"2021": 0},
                 "early_head_start": {"2021": 0},
                 "commodity_supplemental_food_program": {"2021": 0},
+                "medical_expense_health_insurance_premiums": {"2021": 0},
             }
         },
         "spm_units": {
@@ -128,6 +129,7 @@ def test_import_single_household_without_state(sample_taxsim_input_without_state
                 "head_start": {"2021": 0},
                 "early_head_start": {"2021": 0},
                 "commodity_supplemental_food_program": {"2021": 0},
+                "medical_expense_health_insurance_premiums": {"2021": 0},
             }
         },
         "spm_units": {
@@ -162,6 +164,7 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
                 "head_start": {"2021": 0},
                 "early_head_start": {"2021": 0},
                 "commodity_supplemental_food_program": {"2021": 0},
+                "medical_expense_health_insurance_premiums": {"2021": 0},
             }
         },
         "spm_units": {
@@ -250,6 +253,7 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your partner": {
                 "age": {"2023": 40},
@@ -259,6 +263,7 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your first dependent": {
                 "age": {"2023": 10},
@@ -270,6 +275,7 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your second dependent": {
                 "age": {"2023": 10},
@@ -281,6 +287,7 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
         },
         "spm_units": {
@@ -356,6 +363,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your partner": {
                 "age": {"2023": 40},
@@ -365,6 +373,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your first dependent": {
                 "age": {"2023": 4},
@@ -376,6 +385,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your second dependent": {
                 "age": {"2023": 10},
@@ -387,6 +397,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
         },
         "spm_units": {
@@ -455,6 +466,7 @@ def test_household_with_dependent_single_parent(
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your first dependent": {
                 "age": {"2023": 4},
@@ -466,6 +478,7 @@ def test_household_with_dependent_single_parent(
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
             "your second dependent": {
                 "age": {"2023": 10},
@@ -477,6 +490,7 @@ def test_household_with_dependent_single_parent(
                 "head_start": {"2023": 0},
                 "early_head_start": {"2023": 0},
                 "commodity_supplemental_food_program": {"2023": 0},
+                "medical_expense_health_insurance_premiums": {"2023": 0},
             },
         },
         "spm_units": {
