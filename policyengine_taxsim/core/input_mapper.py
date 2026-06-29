@@ -225,6 +225,17 @@ def form_household_situation(year, state, taxsim_vars):
             "commodity_supplemental_food_program"
         ] = {str(year): 0}
 
+    # Explicitly set the Massachusetts SSI state supplement to 0 so PolicyEngine
+    # does not impute it. TAXSIM does not model it, and Massachusetts counts cash
+    # public assistance (including SSI) in the Senior Circuit Breaker "total
+    # income" (MGL c.62 s.6(k)), so an imputed supplement understates the credit.
+    # See PolicyEngine/policyengine-taxsim#1031.
+    if state.upper() == "MA":
+        for person_name in household_situation["people"]:
+            household_situation["people"][person_name]["ma_state_supplement"] = {
+                str(year): 0
+            }
+
     # Explicitly set imputed medical expenses to 0 for all people. TAXSIM has no
     # medical-expense input, so PE's imputed Medicare Part B premiums would
     # otherwise flow through the federal itemized medical deduction into state

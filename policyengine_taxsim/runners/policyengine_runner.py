@@ -159,6 +159,7 @@ class TaxsimMicrosimDataset(Dataset):
             "ak_energy_relief",
             "ak_permanent_fund_dividend",
             "ssi",  # SSI should be 0 to match TAXSIM (which doesn't model SSI)
+            "ma_state_supplement",  # MA SSI state supplement should be 0 to match TAXSIM (which doesn't model it); it feeds the MA Senior Circuit Breaker income
             "wic",  # WIC should be 0 to match TAXSIM (which doesn't model WIC)
             "snap",  # SNAP should be 0 to match TAXSIM (which doesn't model SNAP)
             "tanf",  # TANF should be 0 to match TAXSIM (which doesn't model TANF)
@@ -829,6 +830,9 @@ class TaxsimMicrosimDataset(Dataset):
                 data["ssi"][year_int] = np.zeros(
                     total_people_for_year
                 )  # Set SSI to 0 to match TAXSIM (which doesn't model SSI)
+                data["ma_state_supplement"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # Set MA SSI state supplement to 0 to match TAXSIM; it feeds the MA Senior Circuit Breaker total income (MGL c.62 s.6(k)). See issue #1031.
                 data["wic"][year_int] = np.zeros(
                     total_people_for_year
                 )  # Set WIC to 0 to match TAXSIM (which doesn't model WIC)
