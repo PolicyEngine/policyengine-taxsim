@@ -4,10 +4,13 @@ You are helping diagnose discrepancies between PolicyEngine and TAXSIM tax calcu
 
 ## Critical Rules
 
-1. **Compare current PE vs TaxAct.** Only the current PE-US install matters for diagnosis; the reporter's PE version in `output.txt` is useful for triage (Step 0b) but never for the actual comparison. True TAXSIM-proper output is rarely in the bundle — don't pretend to compare against it if it isn't there.
+1. **ALWAYS compare all THREE systems: PE, TAXSIM, and TaxAct — every time, no exceptions.** TaxAct (the bundled PDF forms, anchored to statute) is co-equal ground truth, never a side-note. Run the current PE-US install, run the TAXSIM-35 binary, and read the TaxAct PDFs — then build the full three-way table (see Step 4). Use the current PE-US install for the comparison (the reporter's PE version in `output.txt` is for triage only, Step 0b).
+   - **The "PE == TAXSIM" trap — do NOT fall into it.** PE agreeing with TAXSIM is **never** proof there's no bug. PE and TAXSIM frequently share the *same* gap (a missing modification, an age-boundary rule, a per-person income cap), and **TaxAct is the one that's right**. Whenever **PE == TAXSIM but both differ from TaxAct**, that is a *live finding requiring statute-level resolution*, not a "no bug" — go to Step 7 and determine, from the statute + current-year form, whether TaxAct is correct and the two engines are both wrong.
+   - Symmetrically, do not conclude "PE is buggy" just because TAXSIM and TaxAct happen to agree. Engine outputs are evidence; the statute + current-year form are proof.
+   - When a discrepancy traces to an **input convention** (e.g. a Jan-1 birthdate that TaxAct treats as age 65 under the "born Jan 1 → considered 65 at prior year-end" rule, vs an integer `page` the emulator receives), still resolve *who is correct per statute* and state it explicitly — don't dismiss TaxAct's value as a mere "convention artifact."
 2. **NEVER post GitHub issues, comments, or PRs without explicit user confirmation.** Always show draft content first and wait for approval.
 3. **Phrase TAXSIM issues as questions** (e.g., "Does TAXSIM-35 incorrectly apply...?" not "TAXSIM-35 incorrectly applies...").
-4. **Verify against primary sources, not search summaries.** When PE and TaxAct disagree on a specific credit or deduction, fetch the actual statute text + current-year form PDF + instructions booklet (see Step 7). Web-search summaries about state tax law are routinely wrong or stale.
+4. **Verify against primary sources, not search summaries.** When any of the three systems disagree on a specific credit or deduction, fetch the actual statute text + current-year form PDF + instructions booklet (see Step 7). Web-search summaries about state tax law are routinely wrong or stale.
 
 ## Repositories
 
@@ -122,17 +125,28 @@ python policyengine_taxsim/cli.py policyengine /tmp/test.csv -o /tmp/output.csv
 cat /tmp/output.csv
 ```
 
-### Step 4: Comparison table
+### Step 4: Three-way comparison table (PE + TAXSIM + TaxAct)
 
-Compare current PE values against the TaxAct PDF. **Every PE value in the table must come from a direct PE query (Step 3 CSV output or a `Simulation.calculate(...)` call)** — never infer a PE value from gaps between other variables. If you want the pension deduction, query `me_pension_income_deduction` directly; don't subtract AGI − federal AGI.
+Build the **full three-way table every time**. All three columns are mandatory — never collapse to a two-way PE-vs-X comparison.
 
-| Variable | Current PE (queried) | TaxAct (PDF) | Who's right? |
-|----------|----------------------|--------------|--------------|
-| siitax   |                      |              |              |
-| fiitax   |                      |              |              |
-| v10      |                      |              |              |
-| v32      |                      |              |              |
-| v36      |                      |              |              |
+- **PE**: from a direct PE query (Step 3 CSV output or `Simulation.calculate(...)`). **Never** infer a PE value from gaps between other variables — query the exact variable (e.g. `wv_senior_citizen_disability_deduction`, not AGI − taxable income).
+- **TAXSIM**: run the binary `resources/taxsimtest/taxsimtest-osx.exe < input.csv` (report the `cdate-` md5/date). Don't rely on the reporter's pasted numbers.
+- **TaxAct**: read the value off the bundled PDF form line (Step 5). This is the statute-anchored ground truth.
+
+| Variable | PE (queried) | TAXSIM (binary) | TaxAct (PDF line) | Who's right (per statute)? |
+|----------|--------------|-----------------|-------------------|----------------------------|
+| siitax   |              |                 |                   |                            |
+| fiitax   |              |                 |                   |                            |
+| v10 (fed AGI) |         |                 |                   |                            |
+| v32 (state AGI) |       |                 |                   |                            |
+| v36 (state taxable) |   |                 |                   |                            |
+| <the disputed line item> | |              |                   |                            |
+
+**Read the table, don't just fill it in:**
+- **All three agree** → likely fine; spot-check the reporter's specific concern.
+- **PE == TAXSIM, both ≠ TaxAct** → **NOT "no bug."** This is the most common shared-gap signature. Go to Step 7 and resolve from statute + current-year form whether TaxAct is right and *both engines* are missing something. Only after that can you say where the bug lives (often pe-us; sometimes it's a genuine input-convention difference that you still characterize explicitly).
+- **PE alone differs** → usual pe-us / emulator investigation.
+- **TaxAct alone differs** → TaxAct may have mis-entered or omitted a schedule; verify against statute before trusting it, but don't dismiss it.
 
 **If v32=0 for a state tax issue**: The state isn't being set correctly. Check the state code!
 
