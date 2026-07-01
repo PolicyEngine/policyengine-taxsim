@@ -179,6 +179,27 @@ def test_pension_splits_for_ga_couple_55_to_61_both_below_62():
     np.testing.assert_allclose(values, [40000.0, 40000.0])
 
 
+def test_pension_splits_for_ky_mixed_age_independent_exclusion():
+    """Pension, age-independent state: Kentucky's $31,110 retirement exclusion
+    is per-person with no age requirement (split age 0), so a mixed-age couple
+    still splits 50/50. Routing to the older spouse would strand the younger
+    spouse's exclusion — TAXSIM and TaxAct give both (taxsim #965, #1026).
+    state=18 is KY."""
+    df = pd.DataFrame([_base_mfj_record(state=18, page=59, sage=37, pensions=71414.92)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [35707.46, 35707.46])
+
+
+def test_pension_splits_for_ok_mixed_age_independent_exclusion():
+    """Pension, age-independent state: Oklahoma's $10,000 retirement exclusion
+    is per-person with no age requirement (split age 0), so a mixed-age couple
+    splits 50/50 rather than routing to the older spouse (taxsim #966).
+    state=37 is OK."""
+    df = pd.DataFrame([_base_mfj_record(state=37, page=59, sage=37, pensions=40000)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [20000.0, 20000.0])
+
+
 def test_gssi_ignores_per_state_pension_age_for_ga_straddle():
     """gssi: the per-state pension age (GA 62) applies to the pension field
     only, NOT to Social Security. A GA 65/61 couple straddles GA's 62

@@ -212,6 +212,12 @@ class TaxsimMicrosimDataset(Dataset):
     # age, e.g. GA), so gssi always uses the default age; routing it on the
     # higher pension age over-allocates SS to the older spouse and diverges
     # from TAXSIM (eCPS record #27269: GA 68/60, SS over-excluded at a 62 gate).
+    #
+    # A threshold of 0 marks a state whose per-person pension exclusion is
+    # *age-independent* (KY, OK): every filer qualifies, so spouses are always
+    # on the same side and the pension always splits 50/50 — never routed to
+    # the older spouse. Routing would strand the younger spouse's exclusion,
+    # diverging from TAXSIM and TaxAct (taxsim #965 KY, #966 OK, #1026 KY).
     _AGE_GATED_FIELDS = frozenset(
         {"taxable_private_pension_income", "social_security_retirement"}
     )
@@ -221,6 +227,13 @@ class TaxsimMicrosimDataset(Dataset):
         # 65+. A 65/61 couple must route the pension to the 65-year-old or
         # the 61-year-old's half is stranded (taxsim #1027).
         "GA": 62,
+        # KRS §141.019: Kentucky exempts up to $31,110 of retirement income
+        # per person with no age requirement — always split 50/50 so both
+        # spouses claim it (taxsim #965, #1026).
+        "KY": 0,
+        # 68 O.S. §2358: Oklahoma exempts up to $10,000 of retirement income
+        # per person with no age requirement — always split 50/50 (taxsim #966).
+        "OK": 0,
     }
     # TAXSIM source column for pension income (the per-state age applies here
     # only; gssi and any other age-gated field use the default).

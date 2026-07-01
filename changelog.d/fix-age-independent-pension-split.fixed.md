@@ -1,0 +1,1 @@
+Split KY and OK pension 50/50 for mixed-age couples: their retirement exclusions are per-person and age-independent, so routing the whole pension to the older spouse stranded the younger spouse's exclusion. Adds KY and OK to the per-state split-age table with age 0 (taxsim #965/#966/#1026).
