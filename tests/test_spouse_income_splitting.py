@@ -157,9 +157,7 @@ def test_pension_routes_to_older_spouse_when_straddling_ga_age_62():
     GA's 62 gate, so the pension routes entirely to the 65-year-old; a 50/50
     split would strand the 61-year-old's half, which GA cannot exclude under
     62 (taxsim #1027). state=11 is GA."""
-    df = pd.DataFrame(
-        [_base_mfj_record(state=11, page=65, sage=61, pensions=77954)]
-    )
+    df = pd.DataFrame([_base_mfj_record(state=11, page=65, sage=61, pensions=77954)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [77954.0, 0.0])
 
@@ -167,9 +165,7 @@ def test_pension_routes_to_older_spouse_when_straddling_ga_age_62():
 def test_pension_splits_for_ga_couple_both_over_62():
     """Pension, per-state age: a GA couple both ≥62 are on the qualifying
     side of GA's 62 gate, so split 50/50."""
-    df = pd.DataFrame(
-        [_base_mfj_record(state=11, page=66, sage=64, pensions=80000)]
-    )
+    df = pd.DataFrame([_base_mfj_record(state=11, page=66, sage=64, pensions=80000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [40000.0, 40000.0])
 
@@ -178,9 +174,7 @@ def test_pension_splits_for_ga_couple_55_to_61_both_below_62():
     """Pension, per-state age: a GA couple both in 55-61 are both below
     GA's 62 gate (same, non-qualifying side), so split 50/50 — neither
     qualifies for GA's exclusion regardless of allocation."""
-    df = pd.DataFrame(
-        [_base_mfj_record(state=11, page=60, sage=58, pensions=80000)]
-    )
+    df = pd.DataFrame([_base_mfj_record(state=11, page=60, sage=58, pensions=80000)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [40000.0, 40000.0])
 
