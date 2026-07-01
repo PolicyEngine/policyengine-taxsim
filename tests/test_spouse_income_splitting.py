@@ -151,6 +151,46 @@ def test_pension_splits_when_both_spouses_under_threshold():
     np.testing.assert_allclose(values, [15000.0, 15000.0])
 
 
+def test_pension_routes_to_older_spouse_when_straddling_ga_age_62():
+    """Pension, per-state age: Georgia's retirement exclusion qualifies at
+    62 (not the 55 default). A GA 65/61 couple are both ≥55 but straddle
+    GA's 62 gate, so the pension routes entirely to the 65-year-old; a 50/50
+    split would strand the 61-year-old's half, which GA cannot exclude under
+    62 (taxsim #1027). state=11 is GA."""
+    df = pd.DataFrame([_base_mfj_record(state=11, page=65, sage=61, pensions=77954)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [77954.0, 0.0])
+
+
+def test_pension_splits_for_ga_couple_both_over_62():
+    """Pension, per-state age: a GA couple both ≥62 are on the qualifying
+    side of GA's 62 gate, so split 50/50."""
+    df = pd.DataFrame([_base_mfj_record(state=11, page=66, sage=64, pensions=80000)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [40000.0, 40000.0])
+
+
+def test_pension_splits_for_ga_couple_55_to_61_both_below_62():
+    """Pension, per-state age: a GA couple both in 55-61 are both below
+    GA's 62 gate (same, non-qualifying side), so split 50/50 — neither
+    qualifies for GA's exclusion regardless of allocation."""
+    df = pd.DataFrame([_base_mfj_record(state=11, page=60, sage=58, pensions=80000)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [40000.0, 40000.0])
+
+
+def test_gssi_ignores_per_state_pension_age_for_ga_straddle():
+    """gssi: the per-state pension age (GA 62) applies to the pension field
+    only, NOT to Social Security. A GA 65/61 couple straddles GA's 62
+    pension gate, so the *pension* routes to the older spouse — but SS is
+    exempt regardless of age, so gssi still splits 50/50 on the default 55
+    gate. Routing gssi on the 62 gate over-excluded SS and diverged from
+    TAXSIM (eCPS regression record #27269, GA 68/60)."""
+    df = pd.DataFrame([_base_mfj_record(state=11, page=65, sage=61, gssi=40000)])
+    values = _run_allocation(df, "social_security_retirement")
+    np.testing.assert_allclose(values, [20000.0, 20000.0])
+
+
 def test_gssi_splits_when_both_spouses_are_60_plus():
     """gssi: when both spouses ≥ 60, allocate 50/50 so both qualify
     for state per-person SS exclusions."""

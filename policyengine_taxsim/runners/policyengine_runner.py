@@ -196,19 +196,50 @@ class TaxsimMicrosimDataset(Dataset):
         }
     )
 
-    # Pension and Social Security income are split between spouses only
-    # when both meet the state-level age threshold (55, the lowest common
-    # threshold across states such as CO whose pension subtraction
-    # qualifies filers 55+). In mixed-age households the income stays
-    # with the older spouse so age-based state exclusions aren't lost on
-    # the younger spouse's incorrectly-allocated share. Higher-threshold
-    # states (DE 60, GA 62, MD 65) are unaffected: 55-59 splits don't
-    # create false exclusions because the filers fail those states' age
-    # gates anyway.
+    # Pension and Social Security income are split 50/50 between spouses when
+    # both are on the same side of the relevant state's exclusion-eligibility
+    # age (both qualify OR both do not); in mixed-age households straddling
+    # that age the income stays with the older spouse so the age-based state
+    # exclusion reaches the qualifying filer.
+    #
+    # A single global threshold cannot match every state: CO's pension
+    # subtraction qualifies at 55 but GA at 62, MD at 65, etc.
+    # _PENSION_SPLIT_AGE_BY_STATE holds the age at/above which a filer
+    # qualifies for a state's *pension/retirement* exclusion where it differs
+    # from the default. States absent from the table use the default (55).
+    # The override applies to the pension field ONLY — Social Security is
+    # governed by separate state rules (often a full exemption regardless of
+    # age, e.g. GA), so gssi always uses the default age; routing it on the
+    # higher pension age over-allocates SS to the older spouse and diverges
+    # from TAXSIM (eCPS record #27269: GA 68/60, SS over-excluded at a 62 gate).
     _AGE_GATED_FIELDS = frozenset(
         {"taxable_private_pension_income", "social_security_retirement"}
     )
-    _AGE_GATED_SPLIT_AGE = 55
+    _DEFAULT_PENSION_SPLIT_AGE = 55
+    _PENSION_SPLIT_AGE_BY_STATE = {
+        # O.C.G.A. §48-7-27: $0 exclusion under 62, $35k at 62-64, $65k at
+        # 65+. A 65/61 couple must route the pension to the 65-year-old or
+        # the 61-year-old's half is stranded (taxsim #1027).
+        "GA": 62,
+    }
+    # TAXSIM source column for pension income (the per-state age applies here
+    # only; gssi and any other age-gated field use the default).
+    _PENSION_SOURCE_FIELD = "pensions"
+
+    @classmethod
+    def _split_age_for_field(cls, row, source_field):
+        """Age at/above which a filer qualifies, for allocating ``source_field``
+        (the TAXSIM column name). Per-state pension-exclusion age for the
+        pension column; the default elderly-eligibility age (55) otherwise."""
+        if source_field != cls._PENSION_SOURCE_FIELD:
+            return cls._DEFAULT_PENSION_SPLIT_AGE
+        try:
+            state = get_state_code(int(row.get("state", 0)))
+        except (TypeError, ValueError):
+            state = None
+        return cls._PENSION_SPLIT_AGE_BY_STATE.get(
+            state, cls._DEFAULT_PENSION_SPLIT_AGE
+        )
 
     @staticmethod
     def _make_primary_split(source_field):
@@ -248,8 +279,9 @@ class TaxsimMicrosimDataset(Dataset):
                 return value
             page = int(row.get("page", 0))
             sage = int(row.get("sage", 0))
-            primary_eligible = page >= cls._AGE_GATED_SPLIT_AGE
-            spouse_eligible = sage >= cls._AGE_GATED_SPLIT_AGE
+            threshold = cls._split_age_for_field(row, source_field)
+            primary_eligible = page >= threshold
+            spouse_eligible = sage >= threshold
             if primary_eligible == spouse_eligible:
                 return value / 2
             primary_is_older_or_equal = page >= sage
@@ -270,8 +302,9 @@ class TaxsimMicrosimDataset(Dataset):
                 return 0.0
             page = int(row.get("page", 0))
             sage = int(row.get("sage", 0))
-            primary_eligible = page >= cls._AGE_GATED_SPLIT_AGE
-            spouse_eligible = sage >= cls._AGE_GATED_SPLIT_AGE
+            threshold = cls._split_age_for_field(row, source_field)
+            primary_eligible = page >= threshold
+            spouse_eligible = sage >= threshold
             if primary_eligible == spouse_eligible:
                 return value / 2
             spouse_is_strictly_older = sage > page

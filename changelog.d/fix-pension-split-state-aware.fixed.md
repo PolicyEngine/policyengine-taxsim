@@ -1,0 +1,1 @@
+Route MFJ pension to the older spouse when spouses straddle the state's pension-exclusion age (GA 62, default 55), instead of a flat 55 that stranded the exclusion for a GA 65/61 couple. Scoped to the pension field; gssi keeps the default age.
