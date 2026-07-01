@@ -179,6 +179,17 @@ def test_pension_splits_for_ga_couple_55_to_61_both_below_62():
     np.testing.assert_allclose(values, [40000.0, 40000.0])
 
 
+def test_pension_splits_for_ky_mixed_age_independent_exclusion():
+    """Pension, age-independent state: Kentucky's $31,110 retirement exclusion
+    is per-person with no age requirement (Schedule P), and kytax caps the
+    combined pension at $31,110*nret == the 50/50-split result. So a mixed-age
+    KY couple splits 50/50 rather than routing to the older spouse, which would
+    strand the younger spouse's exclusion (taxsim #1026). state=18 is KY."""
+    df = pd.DataFrame([_base_mfj_record(state=18, page=59, sage=37, pensions=71414.92)])
+    values = _run_allocation(df, "taxable_private_pension_income")
+    np.testing.assert_allclose(values, [35707.46, 35707.46])
+
+
 def test_gssi_ignores_per_state_pension_age_for_ga_straddle():
     """gssi: the per-state pension age (GA 62) applies to the pension field
     only, NOT to Social Security. A GA 65/61 couple straddles GA's 62
