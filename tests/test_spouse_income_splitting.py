@@ -55,7 +55,7 @@ def _base_mfj_record(taxsimid=1, **overrides):
         ("dividends", "qualified_dividend_income", 80000),
         ("ltcg", "long_term_capital_gains", 60000),
         ("stcg", "short_term_capital_gains", 30000),
-        ("scorp", "partnership_s_corp_income", 50000),
+        ("scorp", "s_corp_income", 50000),
     ],
 )
 def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amount):
@@ -65,6 +65,18 @@ def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amoun
     # Two people (primary + spouse). Each should get half.
     assert len(values) == 2
     np.testing.assert_allclose(values, [amount / 2, amount / 2])
+
+
+def test_scorp_maps_to_s_corp_income_not_partnership():
+    """TAXSIM `scorp` is S-corporation income, which is not subject to
+    self-employment tax. It must map to the `s_corp_income` leaf, not the
+    partnership leaf (taxsim #977, coordinating with policyengine-us#8613).
+    `partnership_income` should stay 0."""
+    df = pd.DataFrame([_base_mfj_record(scorp=50000)])
+    s_corp = _run_allocation(df, "s_corp_income")
+    partnership = _run_allocation(df, "partnership_income")
+    np.testing.assert_allclose(s_corp, [25000.0, 25000.0])
+    np.testing.assert_allclose(partnership, [0.0, 0.0])
 
 
 @pytest.mark.parametrize(

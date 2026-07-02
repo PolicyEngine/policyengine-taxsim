@@ -191,7 +191,7 @@ class TaxsimMicrosimDataset(Dataset):
             "taxable_interest_income",
             "qualified_dividend_income",
             "long_term_capital_gains",
-            "partnership_s_corp_income",
+            "s_corp_income",
             "short_term_capital_gains",
         }
     )

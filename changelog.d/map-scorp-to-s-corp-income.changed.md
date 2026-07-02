@@ -1,0 +1,1 @@
+Map TAXSIM scorp to the s_corp_income leaf instead of the combined partnership_s_corp_income variable, coordinating with policyengine-us#8613 (which split pass-through income into partnership_income and s_corp_income). S-corp income is not subject to self-employment tax, so it must map to the S-corp leaf; partnership_income stays 0 (taxsim #977).
