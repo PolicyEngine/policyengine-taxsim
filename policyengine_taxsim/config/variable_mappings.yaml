@@ -55,7 +55,7 @@ policyengine_to_taxsim:
     full_text_group: "Basic Output"
     group_column: 1
   fica:
-    variable: na_pe
+    variable: taxsim_fica
     implemented: true
     idtl:
       - standard: 0
