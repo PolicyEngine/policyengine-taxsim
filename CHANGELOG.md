@@ -1,3 +1,10 @@
+## [2.26.11] - 2026-07-02
+
+### Fixed
+
+- Split KY pension 50/50 for mixed-age couples: KY's $31,110 exclusion is per-person and age-independent (KRS §141.019), and TAXSIM's kytax combined cap equals the 50/50 result, so routing to the older spouse stranded the younger spouse's exclusion (taxsim #1026).
+
+
 ## [2.26.10] - 2026-07-01
 
 ### Fixed
