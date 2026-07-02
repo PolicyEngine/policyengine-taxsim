@@ -1,3 +1,10 @@
+## [2.26.13] - 2026-07-02
+
+### Fixed
+
+- Map the `fica` output column to the PolicyEngine-US `taxsim_fica` variable (combined employee + employer FICA) instead of the na_pe sentinel, which always emitted 0.0.
+
+
 ## [2.26.12] - 2026-07-02
 
 ### Changed
