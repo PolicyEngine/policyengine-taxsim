@@ -27,7 +27,7 @@ def add_additional_units(state, year, situation, taxsim_vars):
         "taxable_interest_income",
         "qualified_dividend_income",
         "long_term_capital_gains",
-        "partnership_s_corp_income",
+        "s_corp_income",
         "taxable_private_pension_income",
         "short_term_capital_gains",
         "social_security_retirement",
