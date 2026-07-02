@@ -221,6 +221,12 @@ class TaxsimMicrosimDataset(Dataset):
         # 65+. A 65/61 couple must route the pension to the 65-year-old or
         # the 61-year-old's half is stranded (taxsim #1027).
         "GA": 62,
+        # KRS §141.019: Kentucky exempts up to $31,110 of retirement income
+        # per person with no age requirement (Schedule P). TAXSIM's kytax caps
+        # the combined pension at $31,110*nret, which equals a 50/50 split with
+        # the per-person cap — so KY must split 50/50 at every age rather than
+        # route to the older spouse (taxsim #1026). Age 0 = always same-side.
+        "KY": 0,
     }
     # TAXSIM source column for pension income (the per-state age applies here
     # only; gssi and any other age-gated field use the default).
