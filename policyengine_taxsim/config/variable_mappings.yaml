@@ -826,6 +826,14 @@ taxsim_to_policyengine:
       - unemployment_compensation:
           - pui
           - sui
+      # TAXSIM `transfers` (#19) is non-taxable transfer income (welfare,
+      # workers comp, veterans benefits, child support) that affects state
+      # property-tax-rebate eligibility but is not federally taxable. Map it
+      # to `general_assistance` — a non-taxable input variable counted in
+      # state household-income tests (e.g. MI household resources) with no
+      # dependent/child-support side effects. See taxsim #455.
+      - general_assistance:
+          - transfers
 
 taxsim_input_definition:
   - taxsimid:
