@@ -75,14 +75,14 @@
       "policyengine": "self_employment_income",
       "description": "Self-employment income of primary taxpayer",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/self_employment_income.py"
     },
     {
       "taxsim": "ssemp",
       "policyengine": "self_employment_income",
       "description": "Self-employment income of secondary taxpayer",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/self_employment_income.py"
     },
     {
       "taxsim": "dividends",
@@ -149,17 +149,17 @@
     },
     {
       "taxsim": "pbusinc",
-      "policyengine": "qualified_business_income",
-      "description": "Primary and secondary Taxpayer's active QBI",
+      "policyengine": "self_employment_income",
+      "description": "Primary taxpayer's active QBI",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/self_employment_income.py"
     },
     {
       "taxsim": "pprofinc",
       "policyengine": "sstb_self_employment_income",
       "description": "Primary taxpayer's SSTB self-employment income",
       "implemented": true,
-      "githubLink": null
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/sstb_self_employment_income.py"
     },
     {
       "taxsim": "rentpaid",
@@ -280,5 +280,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-06-22T00:34:33.871Z"
+  "lastUpdated": "2026-07-05T15:19:19.288Z"
 }

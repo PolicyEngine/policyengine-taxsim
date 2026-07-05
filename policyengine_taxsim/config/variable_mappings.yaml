@@ -796,13 +796,33 @@ taxsim_to_policyengine:
           - dividends
       - long_term_capital_gains:
           - ltcg
+      # psemp/ssemp (self-employment) and pbusinc/sbusinc (active QBI) both
+      # map to self_employment_income: active-participation income subject to
+      # SECA that flows into the § 199A QBID without the SSTB phaseout. Per
+      # Dan Feenberg's spec, businc is identical to semp (active + SECA +
+      # QBID-without-phaseout), so they share one PolicyEngine variable.
+      # Do NOT map to qualified_business_income: that PE variable is COMPUTED
+      # (from self_employment_income et al. via the QBI income_definition), so
+      # supplying it as a dataset input holds it at that value and zeroes every
+      # other record's non-SSTB QBI. Per-person routing (psemp+pbusinc ->
+      # primary, ssemp+sbusinc -> spouse) is handled in the mapper code.
       - self_employment_income:
           - psemp
           - ssemp
-      - s_corp_income:
-          - scorp
-      - qualified_business_income:
           - pbusinc
+          - sbusinc
+      # scorp maps to partnership_s_corp_income, the variable named in the QBI
+      # income_definition (it adds partnership_income + s_corp_income). Mapping
+      # to the leaf s_corp_income instead held it as a dataset input, which
+      # suppressed its uprating formula; and with qualified_business_income also
+      # held at 0, S-corp income produced correct AGI but no QBID.
+      - partnership_s_corp_income:
+          - scorp
+      # pprofinc/sprofinc (SSTB professional-service income) map to
+      # sstb_self_employment_income: subject to SECA, QBID WITH the
+      # § 199A(d)(3) applicable-percentage phaseout. PE tracks SSTB income in
+      # this dedicated input so the phaseout reduces only the SSTB component;
+      # no business_is_sstb flag is needed on this path.
       - sstb_self_employment_income:
           - pprofinc
           - sprofinc
@@ -894,7 +914,10 @@ taxsim_input_definition:
   - scorp:
       name: "26. S-Corp profits"
   - pbusinc:
-      name: "27. Primary and secondary Taxpayer's active QBI"
+      name: "27. Primary taxpayer's active QBI"
+      pair: sbusinc
+  - sbusinc:
+      name: "27b. Spouse's active QBI"
   - pprofinc:
       name: "28. Primary taxpayer's SSTB self-employment income"
       pair: sprofinc

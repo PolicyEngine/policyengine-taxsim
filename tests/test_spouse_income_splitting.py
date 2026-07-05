@@ -55,7 +55,7 @@ def _base_mfj_record(taxsimid=1, **overrides):
         ("dividends", "qualified_dividend_income", 80000),
         ("ltcg", "long_term_capital_gains", 60000),
         ("stcg", "short_term_capital_gains", 30000),
-        ("scorp", "s_corp_income", 50000),
+        ("scorp", "partnership_s_corp_income", 50000),
     ],
 )
 def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amount):
@@ -67,15 +67,28 @@ def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amoun
     np.testing.assert_allclose(values, [amount / 2, amount / 2])
 
 
-def test_scorp_maps_to_s_corp_income_not_partnership():
-    """TAXSIM `scorp` is S-corporation income, which is not subject to
-    self-employment tax. It must map to the `s_corp_income` leaf, not the
-    partnership leaf (taxsim #977, coordinating with policyengine-us#8613).
-    `partnership_income` should stay 0."""
+def test_scorp_maps_to_partnership_s_corp_income():
+    """TAXSIM `scorp` maps to `partnership_s_corp_income`, the variable named
+    in the § 199A QBI `income_definition`, so S-corp income earns the QBID.
+
+    Previously `scorp` mapped to the `s_corp_income` leaf. In the emulator's
+    dataset every mapped PE variable is set as an input, so holding the leaf
+    (a) suppressed its own uprating formula and (b) — combined with
+    `qualified_business_income` also being held at 0 by the old `pbusinc`
+    mapping — produced correct AGI but *no* QBID for S-corp income (Dan
+    Feenberg's 2026-06-30 five-source comparison; taxsim #943/#1004/#1018).
+
+    `partnership_s_corp_income` `adds` partnership_income + s_corp_income, so
+    setting it as an input leaves both leaves at 0 while the aggregate carries
+    the value into the QBI base. S-corp income remains free of self-employment
+    tax (no SECA), consistent with the earlier taxsim #977 intent that scorp
+    not be treated as active partnership income."""
     df = pd.DataFrame([_base_mfj_record(scorp=50000)])
-    s_corp = _run_allocation(df, "s_corp_income")
+    partnership_s_corp = _run_allocation(df, "partnership_s_corp_income")
     partnership = _run_allocation(df, "partnership_income")
-    np.testing.assert_allclose(s_corp, [25000.0, 25000.0])
+    np.testing.assert_allclose(partnership_s_corp, [25000.0, 25000.0])
+    # The value lives in the aggregate; the partnership leaf stays 0 so scorp
+    # is never misclassified as active partnership income subject to SECA.
     np.testing.assert_allclose(partnership, [0.0, 0.0])
 
 

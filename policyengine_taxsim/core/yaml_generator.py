@@ -189,8 +189,12 @@ class PETestsYAMLGenerator:
                 "long_term_capital_gains",
                 "short_term_capital_gains",
                 "rental_income",
-                "s_corp_income",
-                "qualified_business_income",
+                # scorp -> partnership_s_corp_income (QBID-bearing aggregate);
+                # pprofinc/sprofinc -> sstb_self_employment_income (QBID with
+                # SSTB phaseout). pbusinc now folds into self_employment_income,
+                # so qualified_business_income is no longer set as an input.
+                "partnership_s_corp_income",
+                "sstb_self_employment_income",
                 "w2_wages_from_qualified_business",
                 "business_is_sstb",
                 "business_is_qualified",

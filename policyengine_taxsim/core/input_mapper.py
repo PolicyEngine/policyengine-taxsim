@@ -27,7 +27,7 @@ def add_additional_units(state, year, situation, taxsim_vars):
         "taxable_interest_income",
         "qualified_dividend_income",
         "long_term_capital_gains",
-        "s_corp_income",
+        "partnership_s_corp_income",
         "taxable_private_pension_income",
         "short_term_capital_gains",
         "social_security_retirement",
@@ -69,12 +69,24 @@ def add_additional_units(state, year, situation, taxsim_vars):
                 continue
 
             if field == "self_employment_income":
-                if "psemp" in taxsim_vars:
-                    people_unit["you"][field] = {str(year): taxsim_vars.get("psemp", 0)}
-                if "your partner" in people_unit and "ssemp" in taxsim_vars:
-                    people_unit["your partner"][field] = {
-                        str(year): taxsim_vars.get("ssemp", 0)
-                    }
+                # psemp (self-employment) and pbusinc (active QBI) both feed the
+                # primary's self_employment_income; ssemp and sbusinc feed the
+                # spouse's. Both income types are active-participation, SECA-
+                # bearing, and QBID-eligible without the SSTB phaseout, so they
+                # share one PolicyEngine variable (Dan Feenberg: businc is, by
+                # his spec, identical to semp). Summing here — rather than
+                # giving pbusinc a second field — keeps one input from
+                # overwriting the other.
+                primary_se = taxsim_vars.get("psemp", 0) + taxsim_vars.get("pbusinc", 0)
+                if "psemp" in taxsim_vars or "pbusinc" in taxsim_vars:
+                    people_unit["you"][field] = {str(year): primary_se}
+                if "your partner" in people_unit and (
+                    "ssemp" in taxsim_vars or "sbusinc" in taxsim_vars
+                ):
+                    spouse_se = taxsim_vars.get("ssemp", 0) + taxsim_vars.get(
+                        "sbusinc", 0
+                    )
+                    people_unit["your partner"][field] = {str(year): spouse_se}
 
             elif field == "sstb_self_employment_income":
                 if "pprofinc" in taxsim_vars:

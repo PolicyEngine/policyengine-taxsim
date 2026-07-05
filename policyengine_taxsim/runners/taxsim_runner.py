@@ -69,6 +69,10 @@ class TaxsimRunner(BaseTaxRunner):
         "childcare",  # Child care expenses
         "mortgage",  # Mortgage interest
         "scorp",  # S-Corp profits
+        "pbusinc",  # Primary taxpayer's active QBI (QBID, no SSTB phaseout)
+        "sbusinc",  # Spouse's active QBI
+        "pprofinc",  # Primary taxpayer's SSTB self-employment income
+        "sprofinc",  # Spouse's SSTB self-employment income
         "idtl",  # Output control
     ]
 
