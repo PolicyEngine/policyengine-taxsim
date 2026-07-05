@@ -16,7 +16,9 @@ from click.testing import CliRunner
 from policyengine_taxsim.cli import cli
 
 
-def _row(state: int, transfers: float, extra: str = "pwages", extra_val: float = 30000.0):
+def _row(
+    state: int, transfers: float, extra: str = "pwages", extra_val: float = 30000.0
+):
     record = (
         f"taxsimid,year,state,mstat,page,sage,depx,{extra},transfers,idtl\n"
         f"1,2025,{state},1,67,0,0,{extra_val},{transfers},2\n"
