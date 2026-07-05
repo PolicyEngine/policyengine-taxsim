@@ -1,1 +1,0 @@
-Zero PE-imputed means-tested transfers (SSI, SNAP, TANF, WIC, and state SSI supplements) via set_input so they don't leak into state calculations that count cash public assistance as income (e.g. the Massachusetts Senior Circuit Breaker).

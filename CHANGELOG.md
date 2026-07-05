@@ -1,3 +1,14 @@
+## [2.28.0] - 2026-07-05
+
+### Added
+
+- Map TAXSIM transfers (#19) to general_assistance so non-taxable transfer income flows into state property-tax-rebate household-income tests without affecting federal tax.
+
+### Fixed
+
+- Zero PE-imputed means-tested transfers (SSI, SNAP, TANF, WIC, and state SSI supplements) via set_input so they don't leak into state calculations that count cash public assistance as income (e.g. the Massachusetts Senior Circuit Breaker).
+
+
 ## [2.27.0] - 2026-07-05
 
 ### Added
