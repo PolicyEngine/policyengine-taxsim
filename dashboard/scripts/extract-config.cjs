@@ -29,7 +29,8 @@ function generatePolicyEngineGitHubLink(variableName) {
   const variablePathMap = {
     // Income variables
     'employment_income': 'input/employment_income.py',
-    'self_employment_income': 'household/income/self_employment/self_employment_income.py',
+    'self_employment_income': 'input/self_employment_income.py',
+    'sstb_self_employment_income': 'input/sstb_self_employment_income.py',
     'qualified_dividend_income': 'household/income/person/dividends/qualified_dividend_income.py',
     'taxable_interest_income': 'household/income/person/interest/taxable_interest_income.py',
     'short_term_capital_gains': 'household/income/person/capital_gains/short_term_capital_gains.py',
