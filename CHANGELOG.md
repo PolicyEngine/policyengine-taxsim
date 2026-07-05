@@ -1,3 +1,10 @@
+## [2.27.0] - 2026-07-05
+
+### Added
+
+- Preserve TAXSIM option columns (`opt1`, `opt1v`) for hosted TAXSIM runs.
+
+
 ## [2.26.13] - 2026-07-02
 
 ### Fixed
