@@ -33,6 +33,29 @@ from policyengine_us import Microsimulation
 from policyengine_core.data import Dataset
 
 
+# Means-tested transfers that PE imputes but TAXSIM has no input column for.
+# They must be forced to 0 (via set_input, after the sim is built — the
+# dataset-level zeroing of these formula-based variables is silently
+# recomputed by the Microsimulation) so PE's imputed benefits do not leak
+# into state calculations that count cash public assistance as income
+# (e.g. the MA Senior Circuit Breaker; taxsim #1031). Includes the federal
+# programs and every state SSI supplement PE models.
+_ZERO_IMPUTED_TRANSFERS = frozenset(
+    {
+        "ssi",
+        "snap",
+        "tanf",
+        "wic",
+        "ma_state_supplement",
+        "ca_state_supplement",
+        "co_state_supplement",
+        "nm_ssi_state_supplement",
+        "sc_ssi_state_supplement",
+        "tx_ssi_state_supplement",
+    }
+)
+
+
 class TaxsimMicrosimDataset(Dataset):
     """Custom dataset for TAXSIM data using PolicyEngine Microsimulation."""
 
@@ -1113,6 +1136,33 @@ class PolicyEngineRunner(BaseTaxRunner):
                                     else year
                                 ),
                             )
+
+            # PE imputes means-tested transfers (SSI, SNAP, TANF, WIC, and
+            # state SSI supplements) from the microsimulation's low-income
+            # records. TAXSIM has no input columns for any of these, so they
+            # must be zeroed to match TAXSIM's transfer-free world — otherwise
+            # PE's imputed benefits leak into state calculations that count
+            # cash public assistance as income (e.g. the MA Senior Circuit
+            # Breaker base, MGL c.62 §6(k); taxsim #1031). These are
+            # formula-based benefit variables, so the dataset-level zeroing is
+            # silently recomputed by the Microsimulation; they must be forced
+            # off with set_input after the sim is built (same mechanism as the
+            # overrides above), which set_input holds as a fixed input.
+            years = sorted(set(chunk_df["year"].unique()))
+            for var in _ZERO_IMPUTED_TRANSFERS:
+                if var not in sim.tax_benefit_system.variables:
+                    continue
+                n_entities = sim.get_variable_population(var).count
+                for year in years:
+                    sim.set_input(
+                        variable_name=var,
+                        value=np.zeros(n_entities),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
 
             return self._extract_vectorized_results(sim, chunk_df)
 
