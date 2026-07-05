@@ -1,0 +1,1 @@
+Map TAXSIM pass-through inputs (psemp/ssemp, pbusinc/sbusinc, scorp, pprofinc/sprofinc) to QBID-bearing PolicyEngine variables so S-corp, active QBI, and self-employment income earn the qualified business income deduction.

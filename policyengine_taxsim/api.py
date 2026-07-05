@@ -76,6 +76,7 @@ KNOWN_COLUMNS = {
     "mortgage",
     "scorp",
     "pbusinc",
+    "sbusinc",
     "pprofinc",
     "sprofinc",
     "idtl",

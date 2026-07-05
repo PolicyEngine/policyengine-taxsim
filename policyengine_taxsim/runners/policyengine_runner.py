@@ -191,7 +191,7 @@ class TaxsimMicrosimDataset(Dataset):
             "taxable_interest_income",
             "qualified_dividend_income",
             "long_term_capital_gains",
-            "s_corp_income",
+            "partnership_s_corp_income",
             "short_term_capital_gains",
         }
     )
@@ -264,6 +264,20 @@ class TaxsimMicrosimDataset(Dataset):
         def accessor(row):
             value = float(row.get(source_field, 0))
             return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
+
+        return accessor
+
+    @staticmethod
+    def _make_sum(*source_fields):
+        """Return a callable summing several TAXSIM columns for one person.
+
+        Used where two per-person TAXSIM inputs feed a single PolicyEngine
+        variable — e.g. psemp (self-employment) + pbusinc (active QBI) both
+        populate the primary's self_employment_income. Each column is already
+        per-person in TAXSIM-35, so no MFJ splitting is applied here."""
+
+        def accessor(row):
+            return sum(float(row.get(f, 0)) for f in source_fields)
 
         return accessor
 
@@ -358,6 +372,21 @@ class TaxsimMicrosimDataset(Dataset):
             if isinstance(item, dict):
                 for pe_var, taxsim_vars in item.items():
                     if not taxsim_vars:  # Skip empty mappings
+                        continue
+
+                    if pe_var == "self_employment_income":
+                        # psemp + pbusinc feed the primary's self_employment_income;
+                        # ssemp + sbusinc feed the spouse's. Both are per-person
+                        # TAXSIM columns (no household splitting), so sum each
+                        # spouse's own pair. Handled explicitly because the
+                        # generic length-based branches below only read the first
+                        # one or two columns of the list.
+                        variable_mapping[pe_var] = {
+                            "primary": self._make_sum("psemp", "pbusinc"),
+                            "spouse": self._make_sum("ssemp", "sbusinc"),
+                            "dependent": 0.0,
+                            "default": 0.0,
+                        }
                         continue
 
                     if len(taxsim_vars) == 1:
