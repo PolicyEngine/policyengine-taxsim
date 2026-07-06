@@ -206,9 +206,9 @@ class TestExtractResultsStructure:
         orig_extract = runner._extract_vectorized_results.__func__
         extract_time = {}
 
-        def timed_extract(self_runner, sim, input_df):
+        def timed_extract(self_runner, sim, input_df, *args, **kwargs):
             t0 = time.time()
-            result = orig_extract(self_runner, sim, input_df)
+            result = orig_extract(self_runner, sim, input_df, *args, **kwargs)
             extract_time["t"] = time.time() - t0
             return result
 
