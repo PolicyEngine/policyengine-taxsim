@@ -1193,6 +1193,32 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ),
                     )
 
+            # Maryland county/local income tax: TAXSIM's MD `siitax` is
+            # state-only — it applies no county tax when the input carries no
+            # locality (verified against the binary: TAXSIM MD siitax equals
+            # PE's state-only MD tax to the dollar). PE, by contrast, applies
+            # MD's *residence-based* county tax (~2.25-3.20%) to every MD
+            # resident even with no county specified, systematically
+            # over-stating MD siitax vs TAXSIM. The TAXSIM input has no county,
+            # so zero PE's MD local income tax to match TAXSIM's coverage. MD
+            # is the only state affected: every other local-income-tax state
+            # (OH/PA/IN/KY/MI/NYC/…) requires a locality PE isn't given, so
+            # those already compute $0 local and match TAXSIM.
+            if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
+                var = "md_local_income_tax_before_credits"
+                if var in sim.tax_benefit_system.variables:
+                    n_md = sim.get_variable_population(var).count
+                    for year in years:
+                        sim.set_input(
+                            variable_name=var,
+                            value=np.zeros(n_md),
+                            period=str(
+                                int(year)
+                                if isinstance(year, (float, np.floating))
+                                else year
+                            ),
+                        )
+
             return self._extract_vectorized_results(sim, chunk_df)
 
         finally:
