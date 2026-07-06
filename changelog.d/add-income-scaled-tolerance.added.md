@@ -1,0 +1,1 @@
+Add an income-scaled match tolerance option (--rel-tolerance) to the compare command so negligible tax differences on extreme-magnitude records (e.g. large S-corp income/losses) are not flagged as mismatches; default preserves the flat $15 absolute tolerance.

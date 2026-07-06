@@ -309,7 +309,28 @@ def taxsim(input_file, output, sample, taxsim_path):
     default=False,
     help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
 )
-def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_wages):
+@click.option(
+    "--rel-tolerance",
+    type=float,
+    default=0.0,
+    help=(
+        "Income-scaled match tolerance as a fraction of |AGI| (e.g. 0.001 = "
+        "0.1%). A record matches if the tax difference is within "
+        "max($15, rel-tolerance * |AGI|), avoiding false mismatches on "
+        "extreme-magnitude records (e.g. large S-corp income/losses). "
+        "Default 0 uses the flat $15 absolute tolerance."
+    ),
+)
+def compare(
+    input_file,
+    sample,
+    output_dir,
+    year,
+    disable_salt,
+    logs,
+    assume_w2_wages,
+    rel_tolerance,
+):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
@@ -365,7 +386,15 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_
 
         # Compare results
         click.echo("Comparing results...")
-        config = ComparisonConfig(federal_tolerance=15.0, state_tolerance=15.0)
+        config = ComparisonConfig(
+            federal_tolerance=15.0,
+            state_tolerance=15.0,
+            relative_tolerance=rel_tolerance,
+        )
+        if rel_tolerance > 0:
+            click.echo(
+                f"Using income-scaled tolerance: max($15, {rel_tolerance:.3%} of |AGI|)"
+            )
 
         comparator = TaxComparator(taxsim_results, pe_results, config)
         comparison_results = comparator.compare()
