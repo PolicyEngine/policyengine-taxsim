@@ -321,6 +321,18 @@ def taxsim(input_file, output, sample, taxsim_path):
         "Default 0 uses the flat $15 absolute tolerance."
     ),
 )
+@click.option(
+    "--net-of-rebates",
+    is_flag=True,
+    default=False,
+    help=(
+        "Score state tax net of one-time rebates: compare siitax + srebate "
+        "on both sides. Removes the timing-convention difference between "
+        "TAXSIM (rebates in the payout year) and PolicyEngine (rebates in "
+        "the liability year) without changing either engine. Federal "
+        "comparison is unaffected."
+    ),
+)
 def compare(
     input_file,
     sample,
@@ -330,6 +342,7 @@ def compare(
     logs,
     assume_w2_wages,
     rel_tolerance,
+    net_of_rebates,
 ):
     """Compare PolicyEngine and TAXSIM results"""
     try:
@@ -390,10 +403,16 @@ def compare(
             federal_tolerance=15.0,
             state_tolerance=15.0,
             relative_tolerance=rel_tolerance,
+            net_of_rebates=net_of_rebates,
         )
         if rel_tolerance > 0:
             click.echo(
                 f"Using income-scaled tolerance: max($15, {rel_tolerance:.3%} of |AGI|)"
+            )
+        if net_of_rebates:
+            click.echo(
+                "Scoring state tax net of one-time rebates (siitax + srebate "
+                "on both sides)"
             )
 
         comparator = TaxComparator(taxsim_results, pe_results, config)

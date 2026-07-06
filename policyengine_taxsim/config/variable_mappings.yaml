@@ -551,6 +551,23 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+  srebate:
+    # One-time state rebates that PE nets into state_income_tax for the
+    # year. TAXSIM reports these in `srebate` (payout-year convention,
+    # included in siitax); PE books them to the liability year inside
+    # state_income_tax. Computed as a difference — state_income_tax with the
+    # ONE_TIME_REBATE_VARIABLES (core/state_output_resolver.py) zeroed minus
+    # actual state_income_tax — so it equals exactly what PE netted into
+    # siitax. See taxsim #1068 / convention #716.
+    variable: srebate_computed
+    implemented: true
+    idtl:
+      - full: 2
+      - full_text: 5
+    text_description: "State One-Time Rebate"
+    group_order: 4
+    full_text_group: "State Tax Calculation"
+    group_column: 1
   v41:
     variable: na_pe
     implemented: false

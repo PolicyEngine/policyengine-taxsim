@@ -4,6 +4,7 @@ from .utils import (
     to_roundedup_number,
 )
 from .state_output_resolver import (
+    ONE_TIME_REBATE_VARIABLES,
     calculate_output_adapter,
     get_state_mapped_variables,
     get_state_specific_variable_name,
@@ -15,6 +16,35 @@ from .yaml_generator import generate_pe_tests_yaml
 from .marginal_rates import compute_marginal_rates_single
 
 disable_salt_variable = False
+
+
+def compute_srebate_single(simulation, year):
+    """One-time state rebates PE netted into state_income_tax this year.
+
+    Computed as a difference: a twin simulation with the one-time rebate
+    variables forced to zero minus the actual simulation. This equals
+    exactly the rebate amount included in siitax (non-refundable caps,
+    credit pooling, and floors are handled automatically). TAXSIM reports
+    the same concept in `srebate` under its payout-year convention.
+    """
+    try:
+        twin = Simulation(situation=simulation.situation_input)
+        if disable_salt_variable:
+            twin.set_input(
+                variable_name="state_and_local_sales_or_income_tax",
+                value=0.0,
+                period=year,
+            )
+        for variable in ONE_TIME_REBATE_VARIABLES:
+            if twin.tax_benefit_system.variables.get(variable) is None:
+                continue
+            twin.set_input(variable_name=variable, value=0.0, period=year)
+
+        actual_tax = float(simulation.calculate("state_income_tax", period=year)[0])
+        rebate_free_tax = float(twin.calculate("state_income_tax", period=year)[0])
+        return to_roundedup_number(rebate_free_tax - actual_tax)
+    except Exception:
+        return 0.00
 
 
 def resolve_output_variable(simulation, variable, state_name):
@@ -59,6 +89,10 @@ def generate_non_description_output(
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
                         taxsim_output[key] = mtr_results.get(key, 0.0)
+            elif each_item.get("variable") == "srebate_computed":
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = compute_srebate_single(simulation, year)
             elif is_output_adapter(each_item.get("variable", "")):
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
@@ -186,6 +220,8 @@ def generate_text_description_output(
                             mtr_results = {"frate": 0.0, "srate": 0.0, "ficar": 0.0}
                         mtr_computed = True
                     value = mtr_results.get(var_name, 0.0)
+                elif each_item.get("variable") == "srebate_computed":
+                    value = compute_srebate_single(simulation, year)
                 elif is_output_adapter(each_item.get("variable", "")):
                     value = to_roundedup_number(
                         calculate_output_adapter(

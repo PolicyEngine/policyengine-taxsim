@@ -13,6 +13,37 @@ DIRECT_STATE_MAPPING_ADAPTERS = {
     "taxsim_v36_taxable_income",
     "taxsim_v37_property_tax_credit",
 }
+# PE-US one-time state rebate variables (tax_unit level). TAXSIM reports
+# these in `srebate` (payout-year convention, included in siitax); PE books
+# them to the liability year inside state_income_tax. The emulator's srebate
+# is computed as a difference — state_income_tax with these zeroed minus
+# actual state_income_tax — so it equals exactly the amount PE netted into
+# siitax (wiring, non-refundable caps, and floors are handled automatically).
+# Only one-time rebates belong here; recurring annual rebates (e.g.
+# nm_low_income_comprehensive_tax_rebate, nm_property_tax_rebate,
+# pa_property_tax_or_rent_rebate, mt_property_tax_rebate) are excluded.
+# See taxsim #1068 / convention #716.
+ONE_TIME_REBATE_VARIABLES = (
+    "az_families_tax_rebate",
+    "co_tabor_cash_back",
+    "ct_child_tax_rebate",
+    "de_relief_rebate",
+    "ga_surplus_tax_rebate",
+    "hi_act_115_rebate",
+    "id_2022_rebate",
+    "id_special_season_rebate",
+    "il_income_tax_rebate",
+    "in_automatic_refund_rebate",
+    "ma_taxpayer_refund_rebate",
+    "me_relief_rebate",
+    "mt_income_tax_rebate",
+    "nm_2021_income_rebate",
+    "nm_additional_2021_income_rebate",
+    "nm_supplemental_2021_income_rebate",
+    "ri_child_tax_rebate",
+    "sc_2022_rebate",
+    "va_rebate",
+)
 OUTPUT_ADAPTER_OVERRIDES = {
     # MT: state_agi reads `gov.states.household.state_agis` which lists
     # `mt_agi_indiv` (Person, defined only for MFS-on-same-return). For all
