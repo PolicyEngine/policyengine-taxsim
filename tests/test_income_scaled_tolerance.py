@@ -38,16 +38,12 @@ def test_income_scaled_tolerance_absorbs_negligible_diff():
     tolerance, so it matches; a genuinely large diff still fails."""
     # negligible: $500 on $10M
     tx, pe = _frames([1], [10_000_000], [1_000_000], [1_000_500])
-    r = TaxComparator(
-        tx, pe, ComparisonConfig(relative_tolerance=0.001)
-    ).compare()
+    r = TaxComparator(tx, pe, ComparisonConfig(relative_tolerance=0.001)).compare()
     assert r.federal_match_percentage == 100.0
 
     # material: $50k diff on $10M (0.5%) exceeds the 0.1% floor -> mismatch
     tx2, pe2 = _frames([1], [10_000_000], [1_000_000], [1_050_000])
-    r2 = TaxComparator(
-        tx2, pe2, ComparisonConfig(relative_tolerance=0.001)
-    ).compare()
+    r2 = TaxComparator(tx2, pe2, ComparisonConfig(relative_tolerance=0.001)).compare()
     assert r2.federal_match_percentage == 0.0
 
 
@@ -56,7 +52,5 @@ def test_absolute_floor_preserved_for_small_income():
     tolerance never lowers it below $15)."""
     # $20 diff on $1,000 AGI: 0.1% of AGI = $1, so floor stays $15 -> mismatch
     tx, pe = _frames([1], [1_000], [100], [120])
-    r = TaxComparator(
-        tx, pe, ComparisonConfig(relative_tolerance=0.001)
-    ).compare()
+    r = TaxComparator(tx, pe, ComparisonConfig(relative_tolerance=0.001)).compare()
     assert r.federal_match_percentage == 0.0
