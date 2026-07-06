@@ -192,6 +192,7 @@ class TaxsimMicrosimDataset(Dataset):
             "early_head_start",  # Early Head Start should be 0 to match TAXSIM (which doesn't model Early Head Start)
             "commodity_supplemental_food_program",  # Commodity supplemental food program should be 0 to match TAXSIM (which doesn't model this program)
             "medical_expense_health_insurance_premiums",  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
+            "me_affordability_payment",  # Maine's 2025 affordability payment (HP 1491 Part T) is a direct payment mailed by the assessor in 2026-27, not a 1040ME line; PE models it as a refundable credit, which would land in siitax
         }
 
         # Combine all variables
@@ -905,6 +906,9 @@ class TaxsimMicrosimDataset(Dataset):
             data["ok_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Oklahoma use tax calculations
+            data["me_affordability_payment"][year_int] = np.zeros(
+                n_year_records
+            )  # Maine's 2025 affordability payment (HP 1491 Part T, $300/adult) is a direct payment mailed in 2026-27 based on the 2025 return, not a 1040ME line item; TAXSIM/TaxAct never report it, so keep it out of siitax
 
             # Set person-level variables that need to be set per person, not per tax unit
             total_people_for_year = len(person_data.get("person_id", []))
