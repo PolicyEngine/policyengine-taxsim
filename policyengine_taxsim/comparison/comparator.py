@@ -18,6 +18,14 @@ class ComparisonConfig:
     state_tax_col: str = "siitax"
     federal_tolerance: float = 15.0  # $15 absolute tolerance
     state_tolerance: float = 15.0  # $15 absolute tolerance
+    # Optional income-scaled tolerance: a record matches if the tax difference
+    # is within max(absolute_tolerance, relative_tolerance * |AGI|). This avoids
+    # flagging negligible differences on extreme-magnitude records (e.g. large
+    # S-corp income/losses), where PE and TAXSIM agree to a tiny fraction of
+    # income but exceed a flat $15. Default 0.0 preserves the absolute-only
+    # behavior. `agi_col` is the column used for scaling (federal AGI, v10).
+    relative_tolerance: float = 0.0
+    agi_col: str = "v10"
     id_col: str = "taxsimid"
 
 
@@ -133,11 +141,22 @@ class TaxComparator:
             # Return empty results if column doesn't exist
             return np.array([]), mismatches
 
-        # Compare with tolerance
+        # Effective per-record tolerance: absolute, optionally raised to an
+        # income-scaled floor (relative_tolerance * |AGI|) so negligible
+        # differences at extreme income magnitudes are not flagged.
+        eff_tol = tolerance
+        rel = getattr(self.config, "relative_tolerance", 0.0) or 0.0
+        if rel > 0 and self.config.agi_col in self.taxsim_results.columns:
+            agi = self.taxsim_results[self.config.agi_col].abs().fillna(0)
+            eff_tol = np.maximum(tolerance, rel * agi.to_numpy())
+
+        # Compare with tolerance. np.isclose applies atol elementwise when atol
+        # is an array, giving the per-record income-scaled tolerance.
         matches = np.isclose(
             self.taxsim_results[col_name],
             self.policyengine_results[col_name],
-            atol=tolerance,
+            atol=eff_tol,
+            rtol=0.0,
             equal_nan=True,
         )
 
