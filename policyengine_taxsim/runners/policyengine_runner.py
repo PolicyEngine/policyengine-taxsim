@@ -18,6 +18,7 @@ from policyengine_taxsim.core.utils import (
     convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.state_output_resolver import (
+    ONE_TIME_REBATE_VARIABLES,
     calculate_output_adapter,
     calculate_state_mapped_output,
     get_state_specific_variable_name,
@@ -1059,159 +1060,122 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         try:
             dataset.generate()
-            sim = Microsimulation(dataset=dataset)
+            sim = self._build_configured_sim(dataset, chunk_df)
 
-            # Resolve the state_and_local_sales_or_income_tax override for
-            # this chunk. Possible sources, in priority order:
-            #   1. self._state_tax_override (Pass B of three-pass: per-row
-            #      values produced by Pass A, keyed by taxsimid)
-            #   2. self.disable_salt (zero out for state-only computation)
-            salt_override = None
-            if self._state_tax_override is not None:
-                ids = chunk_df["taxsimid"].astype(float).astype(int).values
-                # Look each id up in the override map; fall back to 0 if
-                # the id is unexpectedly missing.
-                salt_override = np.array(
-                    [self._state_tax_override.get(int(i), 0.0) for i in ids],
-                    dtype=float,
-                )
-            elif self.disable_salt:
-                salt_override = np.zeros(len(chunk_df), dtype=float)
+            def rebate_free_sim_factory():
+                # Twin sim, identically configured, with the one-time state
+                # rebate variables forced to zero (set_input before any
+                # calculate). state_income_tax(twin) - state_income_tax(sim)
+                # is exactly the rebate amount PE netted into siitax.
+                twin = self._build_configured_sim(dataset, chunk_df)
+                self._zero_one_time_rebates(twin, chunk_df)
+                return twin
 
-            if salt_override is not None:
-                years = sorted(set(chunk_df["year"].unique()))
-                for year in years:
-                    year_mask = chunk_df["year"] == year
-                    year_values = salt_override[year_mask.values]
-                    sim.set_input(
-                        variable_name="state_and_local_sales_or_income_tax",
-                        value=year_values,
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
+            return self._extract_vectorized_results(
+                sim, chunk_df, rebate_free_sim_factory
+            )
 
-            if self.assume_w2_wages:
-                n_persons = sim.get_variable_population(
-                    "w2_wages_from_qualified_business"
-                ).count
-                years = sorted(set(chunk_df["year"].unique()))
-                for year in years:
-                    sim.set_input(
-                        variable_name="w2_wages_from_qualified_business",
-                        value=np.full(n_persons, 1e9),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
+        finally:
+            dataset.cleanup()
 
-            # QBID gate on rental_income (TAXSIM `otherprop`): TAXSIM only
-            # triggers § 199A QBID via the explicit `pbusinc` input and never
-            # treats `otherprop` (Schedule E passive rents/royalties) as
-            # qualified. PE-US's `rental_income_would_be_qualified` defaults
-            # to True, which would generate a 20% QBID on emulator-routed
-            # rental income that TAXSIM does not produce. § 199A(c)(3)(A)
-            # requires the activity to rise to a § 162 trade or business;
-            # passive individual rentals generally do not qualify absent the
-            # § 1.199A-1(b)(14) safe harbor, which TAXSIM input never
-            # signals. We force the gate off for the whole chunk: every
-            # rental_income value in PE here originated as `otherprop` from
-            # TAXSIM, so the override has no side effect on non-emulated
-            # rental income.
-            if "otherprop" in chunk_df.columns and (chunk_df["otherprop"] != 0).any():
-                n_persons = sim.get_variable_population(
-                    "rental_income_would_be_qualified"
-                ).count
-                years = sorted(set(chunk_df["year"].unique()))
-                for year in years:
-                    sim.set_input(
-                        variable_name="rental_income_would_be_qualified",
-                        value=np.zeros(n_persons, dtype=bool),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
+    def _build_configured_sim(self, dataset, chunk_df: pd.DataFrame):
+        """Build a Microsimulation from the chunk dataset and apply all
+        emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
+        imputed-transfer zeroing, MD local tax zeroing)."""
+        sim = Microsimulation(dataset=dataset)
 
-            # MN Renter's Credit: PE-US gates the credit on a Certificate
-            # of Rent Paid (CRP) input variable that defaults to False. Per
-            # Minn. Stat. § 290.0693, the credit is allowed for renters who
-            # paid rent and meet income criteria; subd. 4 places the CRP
-            # issuance obligation on the landlord (not the renter), and
-            # subd. 9 accepts proof "including but not limited to" the CRP.
-            # TAXSIM input never carries CRP info, so we assume any MN
-            # tax unit with rent > 0 has the supporting documentation.
-            if "rentpaid" in chunk_df.columns and "state" in chunk_df.columns:
-                mn_mask = (chunk_df["state"] == 24) & (chunk_df["rentpaid"] > 0)
-                if mn_mask.any():
-                    years = sorted(set(chunk_df["year"].unique()))
-                    for year in years:
-                        year_mask = (chunk_df["year"] == year) & mn_mask
-                        if year_mask.any():
-                            # qualifying_crp is on TaxUnit; vector aligns
-                            # with the chunk's tax-unit order, one row per
-                            # tax unit.
-                            sim.set_input(
-                                variable_name="mn_renters_credit_qualifying_crp",
-                                value=mn_mask[chunk_df["year"] == year].values,
-                                period=str(
-                                    int(year)
-                                    if isinstance(year, (float, np.floating))
-                                    else year
-                                ),
-                            )
+        # Resolve the state_and_local_sales_or_income_tax override for
+        # this chunk. Possible sources, in priority order:
+        #   1. self._state_tax_override (Pass B of three-pass: per-row
+        #      values produced by Pass A, keyed by taxsimid)
+        #   2. self.disable_salt (zero out for state-only computation)
+        salt_override = None
+        if self._state_tax_override is not None:
+            ids = chunk_df["taxsimid"].astype(float).astype(int).values
+            # Look each id up in the override map; fall back to 0 if
+            # the id is unexpectedly missing.
+            salt_override = np.array(
+                [self._state_tax_override.get(int(i), 0.0) for i in ids],
+                dtype=float,
+            )
+        elif self.disable_salt:
+            salt_override = np.zeros(len(chunk_df), dtype=float)
 
-            # PE imputes means-tested transfers (SSI, SNAP, TANF, WIC, and
-            # state SSI supplements) from the microsimulation's low-income
-            # records. TAXSIM has no input columns for any of these, so they
-            # must be zeroed to match TAXSIM's transfer-free world — otherwise
-            # PE's imputed benefits leak into state calculations that count
-            # cash public assistance as income (e.g. the MA Senior Circuit
-            # Breaker base, MGL c.62 §6(k); taxsim #1031). These are
-            # formula-based benefit variables, so the dataset-level zeroing is
-            # silently recomputed by the Microsimulation; they must be forced
-            # off with set_input after the sim is built (same mechanism as the
-            # overrides above), which set_input holds as a fixed input.
+        if salt_override is not None:
             years = sorted(set(chunk_df["year"].unique()))
-            for var in _ZERO_IMPUTED_TRANSFERS:
-                if var not in sim.tax_benefit_system.variables:
-                    continue
-                n_entities = sim.get_variable_population(var).count
-                for year in years:
-                    sim.set_input(
-                        variable_name=var,
-                        value=np.zeros(n_entities),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
+            for year in years:
+                year_mask = chunk_df["year"] == year
+                year_values = salt_override[year_mask.values]
+                sim.set_input(
+                    variable_name="state_and_local_sales_or_income_tax",
+                    value=year_values,
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
 
-            # Maryland county/local income tax: TAXSIM's MD `siitax` is
-            # state-only — it applies no county tax when the input carries no
-            # locality (verified against the binary: TAXSIM MD siitax equals
-            # PE's state-only MD tax to the dollar). PE, by contrast, applies
-            # MD's *residence-based* county tax (~2.25-3.20%) to every MD
-            # resident even with no county specified, systematically
-            # over-stating MD siitax vs TAXSIM. The TAXSIM input has no county,
-            # so zero PE's MD local income tax to match TAXSIM's coverage. MD
-            # is the only state affected: every other local-income-tax state
-            # (OH/PA/IN/KY/MI/NYC/…) requires a locality PE isn't given, so
-            # those already compute $0 local and match TAXSIM.
-            if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
-                var = "md_local_income_tax_before_credits"
-                if var in sim.tax_benefit_system.variables:
-                    n_md = sim.get_variable_population(var).count
-                    for year in years:
+        if self.assume_w2_wages:
+            n_persons = sim.get_variable_population(
+                "w2_wages_from_qualified_business"
+            ).count
+            years = sorted(set(chunk_df["year"].unique()))
+            for year in years:
+                sim.set_input(
+                    variable_name="w2_wages_from_qualified_business",
+                    value=np.full(n_persons, 1e9),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+        # QBID gate on rental_income (TAXSIM `otherprop`): TAXSIM only
+        # triggers § 199A QBID via the explicit `pbusinc` input and never
+        # treats `otherprop` (Schedule E passive rents/royalties) as
+        # qualified. PE-US's `rental_income_would_be_qualified` defaults
+        # to True, which would generate a 20% QBID on emulator-routed
+        # rental income that TAXSIM does not produce. § 199A(c)(3)(A)
+        # requires the activity to rise to a § 162 trade or business;
+        # passive individual rentals generally do not qualify absent the
+        # § 1.199A-1(b)(14) safe harbor, which TAXSIM input never
+        # signals. We force the gate off for the whole chunk: every
+        # rental_income value in PE here originated as `otherprop` from
+        # TAXSIM, so the override has no side effect on non-emulated
+        # rental income.
+        if "otherprop" in chunk_df.columns and (chunk_df["otherprop"] != 0).any():
+            n_persons = sim.get_variable_population(
+                "rental_income_would_be_qualified"
+            ).count
+            years = sorted(set(chunk_df["year"].unique()))
+            for year in years:
+                sim.set_input(
+                    variable_name="rental_income_would_be_qualified",
+                    value=np.zeros(n_persons, dtype=bool),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+        # MN Renter's Credit: PE-US gates the credit on a Certificate
+        # of Rent Paid (CRP) input variable that defaults to False. Per
+        # Minn. Stat. § 290.0693, the credit is allowed for renters who
+        # paid rent and meet income criteria; subd. 4 places the CRP
+        # issuance obligation on the landlord (not the renter), and
+        # subd. 9 accepts proof "including but not limited to" the CRP.
+        # TAXSIM input never carries CRP info, so we assume any MN
+        # tax unit with rent > 0 has the supporting documentation.
+        if "rentpaid" in chunk_df.columns and "state" in chunk_df.columns:
+            mn_mask = (chunk_df["state"] == 24) & (chunk_df["rentpaid"] > 0)
+            if mn_mask.any():
+                years = sorted(set(chunk_df["year"].unique()))
+                for year in years:
+                    year_mask = (chunk_df["year"] == year) & mn_mask
+                    if year_mask.any():
+                        # qualifying_crp is on TaxUnit; vector aligns
+                        # with the chunk's tax-unit order, one row per
+                        # tax unit.
                         sim.set_input(
-                            variable_name=var,
-                            value=np.zeros(n_md),
+                            variable_name="mn_renters_credit_qualifying_crp",
+                            value=mn_mask[chunk_df["year"] == year].values,
                             period=str(
                                 int(year)
                                 if isinstance(year, (float, np.floating))
@@ -1219,10 +1183,76 @@ class PolicyEngineRunner(BaseTaxRunner):
                             ),
                         )
 
-            return self._extract_vectorized_results(sim, chunk_df)
+        # PE imputes means-tested transfers (SSI, SNAP, TANF, WIC, and
+        # state SSI supplements) from the microsimulation's low-income
+        # records. TAXSIM has no input columns for any of these, so they
+        # must be zeroed to match TAXSIM's transfer-free world — otherwise
+        # PE's imputed benefits leak into state calculations that count
+        # cash public assistance as income (e.g. the MA Senior Circuit
+        # Breaker base, MGL c.62 §6(k); taxsim #1031). These are
+        # formula-based benefit variables, so the dataset-level zeroing is
+        # silently recomputed by the Microsimulation; they must be forced
+        # off with set_input after the sim is built (same mechanism as the
+        # overrides above), which set_input holds as a fixed input.
+        years = sorted(set(chunk_df["year"].unique()))
+        for var in _ZERO_IMPUTED_TRANSFERS:
+            if var not in sim.tax_benefit_system.variables:
+                continue
+            n_entities = sim.get_variable_population(var).count
+            for year in years:
+                sim.set_input(
+                    variable_name=var,
+                    value=np.zeros(n_entities),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
 
-        finally:
-            dataset.cleanup()
+        # Maryland county/local income tax: TAXSIM's MD `siitax` is
+        # state-only — it applies no county tax when the input carries no
+        # locality (verified against the binary: TAXSIM MD siitax equals
+        # PE's state-only MD tax to the dollar). PE, by contrast, applies
+        # MD's *residence-based* county tax (~2.25-3.20%) to every MD
+        # resident even with no county specified, systematically
+        # over-stating MD siitax vs TAXSIM. The TAXSIM input has no county,
+        # so zero PE's MD local income tax to match TAXSIM's coverage. MD
+        # is the only state affected: every other local-income-tax state
+        # (OH/PA/IN/KY/MI/NYC/…) requires a locality PE isn't given, so
+        # those already compute $0 local and match TAXSIM.
+        if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
+            var = "md_local_income_tax_before_credits"
+            if var in sim.tax_benefit_system.variables:
+                n_md = sim.get_variable_population(var).count
+                for year in years:
+                    sim.set_input(
+                        variable_name=var,
+                        value=np.zeros(n_md),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
+        return sim
+
+    def _zero_one_time_rebates(self, sim, chunk_df: pd.DataFrame) -> None:
+        """Force the one-time state rebate variables to zero. These are
+        formula variables, so they must be pinned with set_input before any
+        calculate on the sim (same mechanism as the transfer zeroing)."""
+        years = sorted(set(chunk_df["year"].unique()))
+        for var in ONE_TIME_REBATE_VARIABLES:
+            if var not in sim.tax_benefit_system.variables:
+                continue
+            n_entities = sim.get_variable_population(var).count
+            for year in years:
+                sim.set_input(
+                    variable_name=var,
+                    value=np.zeros(n_entities),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
 
     # Columns whose semantics belong to the state-side of PE-US. When
     # --disable-salt is set, we run PE twice: a full-SALT pass for the
@@ -1448,17 +1478,25 @@ class PolicyEngineRunner(BaseTaxRunner):
         }
 
     def _extract_vectorized_results(
-        self, sim: Microsimulation, input_df: pd.DataFrame
+        self,
+        sim: Microsimulation,
+        input_df: pd.DataFrame,
+        rebate_free_sim_factory=None,
     ) -> pd.DataFrame:
         """Extract results from Microsimulation and format as TAXSIM output.
 
         Uses vectorized sim.calculate() calls (one per variable, not per row)
         and builds the output DataFrame from arrays directly.
+
+        ``rebate_free_sim_factory`` lazily builds a twin sim with the
+        one-time state rebate variables zeroed; the srebate output is the
+        state_income_tax difference between the twin and the actual sim.
         """
         input_df = self._ensure_required_columns(input_df)
         pe_to_taxsim = self.mappings["policyengine_to_taxsim"]
         years = sorted(set(input_df["year"].unique()))
         year_frames = []
+        rebate_free_sim = None
 
         for year in tqdm(years, desc="Processing years"):
             year_str = str(year)
@@ -1533,6 +1571,23 @@ class PolicyEngineRunner(BaseTaxRunner):
 
                 if pe_var == "marginal_rate_computed":
                     # Marginal rates are computed specially after this loop
+                    continue
+
+                if pe_var == "srebate_computed":
+                    # srebate = state_income_tax with one-time rebates
+                    # zeroed minus actual state_income_tax — exactly the
+                    # amount PE netted into siitax this year (handles
+                    # non-refundable caps, pooling, and floors).
+                    if rebate_free_sim_factory is None:
+                        columns[taxsim_var] = np.zeros(n)
+                        continue
+                    if rebate_free_sim is None:
+                        rebate_free_sim = rebate_free_sim_factory()
+                    actual_tax = self._calc_tax_unit(sim, "state_income_tax", year_str)
+                    rebate_free_tax = self._calc_tax_unit(
+                        rebate_free_sim, "state_income_tax", year_str
+                    )
+                    columns[taxsim_var] = np.round(rebate_free_tax - actual_tax, 2)
                     continue
 
                 try:
