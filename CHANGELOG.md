@@ -1,3 +1,10 @@
+## [2.29.1] - 2026-07-06
+
+### Fixed
+
+- Zero PolicyEngine's Maryland county/local income tax in the emulator to match TAXSIM, whose MD siitax is state-only (it applies no county tax when the input carries no locality). MD is the only state with a residence-based local tax; other local-tax states already read $0 without a locality.
+
+
 ## [2.29.0] - 2026-07-06
 
 ### Added
