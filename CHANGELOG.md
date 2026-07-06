@@ -1,3 +1,10 @@
+## [2.30.0] - 2026-07-06
+
+### Added
+
+- Emit PolicyEngine one-time state rebates in the srebate output column and add a --net-of-rebates compare option that scores state tax as siitax plus srebate on both sides, removing the TAXSIM payout-year vs PolicyEngine liability-year rebate timing difference.
+
+
 ## [2.29.1] - 2026-07-06
 
 ### Fixed
