@@ -205,9 +205,9 @@
     },
     {
       "taxsim": "transfers",
-      "policyengine": "na_pe",
+      "policyengine": "general_assistance",
       "description": "Non-taxable Transfers",
-      "implemented": false,
+      "implemented": true,
       "githubLink": null
     },
     {
@@ -280,5 +280,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-07-05T15:19:19.288Z"
+  "lastUpdated": "2026-07-07T03:17:44.593Z"
 }

@@ -110,6 +110,17 @@ export default function DashboardContent() {
             >
               ±1% income
             </button>
+            <button
+              onClick={() => setToleranceMode(TOLERANCE_MODES.RELATIVE_NET)}
+              className={`px-2.5 py-1 rounded font-medium transition ${
+                toleranceMode === TOLERANCE_MODES.RELATIVE_NET
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="±1% of income, with one-time state rebates netted out of state tax on both sides — removes the TAXSIM payout-year vs PolicyEngine liability-year rebate timing difference (issue #1068)"
+            >
+              ±1% net of rebates
+            </button>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

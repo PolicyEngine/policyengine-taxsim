@@ -82,16 +82,30 @@ const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_
   }
 
   const { summary } = data;
-  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE;
+  const isNet = toleranceMode === TOLERANCE_MODES.RELATIVE_NET;
+  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE || isNet;
+
+  // Federal tax is unaffected by state rebate timing, so the net-of-rebates
+  // mode only swaps the state metric (falling back to the plain relative
+  // metric for summaries generated before the srebate column existed).
+  const stateField = (obj, relKey, netKey, flatKey) =>
+    isNet
+      ? obj[netKey] ?? obj[relKey] ?? obj[flatKey]
+      : isRel
+        ? obj[relKey] ?? obj[flatKey]
+        : obj[flatKey];
 
   let displayData = {
     totalRecords: summary.totalRecords,
     federalMatchPct: isRel
       ? summary.federalMatchPctRel ?? summary.federalMatchPct
       : summary.federalMatchPct,
-    stateMatchPct: isRel
-      ? summary.stateMatchPctRel ?? summary.stateMatchPct
-      : summary.stateMatchPct,
+    stateMatchPct: stateField(
+      summary,
+      'stateMatchPctRel',
+      'stateMatchPctRelNet',
+      'stateMatchPct'
+    ),
   };
 
   if (selectedState && summary.stateBreakdown) {
@@ -104,16 +118,21 @@ const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_
         federalMatchPct: isRel
           ? stateData.federalPctRel ?? stateData.federalPct
           : stateData.federalPct,
-        stateMatchPct: isRel
-          ? stateData.statePctRel ?? stateData.statePct
-          : stateData.statePct,
+        stateMatchPct: stateField(
+          stateData,
+          'statePctRel',
+          'statePctRelNet',
+          'statePct'
+        ),
       };
     }
   }
 
-  const toleranceLabel = isRel
-    ? 'Within ±1% of gross income'
-    : 'Within ±$15';
+  const toleranceLabel = isNet
+    ? 'Within ±1% of gross income, one-time state rebates netted out'
+    : isRel
+      ? 'Within ±1% of gross income'
+      : 'Within ±$15';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

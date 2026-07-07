@@ -1,0 +1,1 @@
+Refresh the validation dashboard with full-eCPS data regenerated on current main (all July fixes), add a net-of-rebates tolerance mode that removes the rebate-timing convention from the state metric, and point full-data downloads at the 2026.07.07 release.
