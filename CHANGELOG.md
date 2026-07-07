@@ -1,3 +1,14 @@
+## [2.30.1] - 2026-07-07
+
+### Changed
+
+- Refresh the validation dashboard with full-eCPS data regenerated on current main (all July fixes), add a net-of-rebates tolerance mode that removes the rebate-timing convention from the state metric, and point full-data downloads at the 2026.07.07 release.
+
+### Fixed
+
+- Floor the generate-phase performance test's timing denominator at 100ms so scheduler noise on fast CI runners no longer flakes the 5x scaling assertion.
+
+
 ## [2.30.0] - 2026-07-06
 
 ### Added
