@@ -333,6 +333,20 @@ def taxsim(input_file, output, sample, taxsim_path):
         "comparison is unaffected."
     ),
 )
+@click.option(
+    "--taxsim-opt30",
+    is_flag=True,
+    default=False,
+    help=(
+        "Run the TAXSIM binary in its PSL-conformance test mode by setting "
+        "global option 30=1 (which sets opt 27/88/91: rebates booked in the "
+        "eligible year like PolicyEngine, no smoothing, no federal-state "
+        "iteration, plus per-state concessions such as the MI heating "
+        "credit). This is the mode NBER uses when testing PolicyEngine "
+        "records; without it the binary runs in default production mode. "
+        "See https://taxsim.nber.org/taxsimtest/options.html"
+    ),
+)
 def compare(
     input_file,
     sample,
@@ -343,6 +357,7 @@ def compare(
     assume_w2_wages,
     rel_tolerance,
     net_of_rebates,
+    taxsim_opt30,
 ):
     """Compare PolicyEngine and TAXSIM results"""
     try:
@@ -394,6 +409,14 @@ def compare(
         click.echo("Running TAXSIM...")
         taxsim_input = df.copy()
         taxsim_input["taxsimid"] = df_with_ids["taxsimid"].values
+        if taxsim_opt30:
+            # TAXSIM options are global: setting opt(30)=1 on the records
+            # switches the whole run into PSL-conformance mode. Only add the
+            # columns when the input doesn't already carry option columns.
+            if "opt1" not in taxsim_input.columns:
+                taxsim_input["opt1"] = 30
+                taxsim_input["opt1v"] = 1
+            click.echo("Running TAXSIM with opt(30)=1 (PSL-conformance test mode)")
         taxsim_runner = TaxsimRunner(taxsim_input)
         taxsim_results = taxsim_runner.run()
 
