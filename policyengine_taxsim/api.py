@@ -49,6 +49,7 @@ KNOWN_COLUMNS = {
     "taxsimid",
     "year",
     "state",
+    "statefip",
     "mstat",
     "page",
     "sage",
