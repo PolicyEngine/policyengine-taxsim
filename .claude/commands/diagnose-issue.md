@@ -8,6 +8,11 @@ You are helping diagnose discrepancies between PolicyEngine and TAXSIM tax calcu
 2. **NEVER post GitHub issues, comments, or PRs without explicit user confirmation.** Always show draft content first and wait for approval.
 3. **Phrase TAXSIM issues as questions** (e.g., "Does TAXSIM-35 incorrectly apply...?" not "TAXSIM-35 incorrectly applies...").
 4. **Verify against primary sources, not search summaries.** When PE and TaxAct disagree on a specific credit or deduction, fetch the actual statute text + current-year form PDF + instructions booklet (see Step 7). Web-search summaries about state tax law are routinely wrong or stale.
+5. **No filing without a verbatim, mechanically-extracted quote.** Every primary-source claim in an issue/PR (a form lists X, line N says Y, the law changed in year Z) must be backed by the operative language extracted with a tool (`pdftotext`, statute HTML) and pasted into the filing as a blockquote, with the document + page identified. A citation link is NOT evidence — a link can point at a page that refutes the claim (that literally happened: pe-us #8830/#8911 asserted the 2021 OK Form 511 omitted IRC §401 plans while citing the exact page that lists §401 as the first qualifying source; merged, later reverted in #9009). If extraction fails, the claim is UNVERIFIED — say so in the draft and do not present it as fact.
+6. **Negative and year-change claims carry the highest proof burden.** "X is not listed / does not exist" must be proven by extracting the FULL relevant list or section and showing the absence — never by failing to notice presence. "X was added/removed in year Z" requires extracting BOTH the year-before and year-after documents and diffing the passage side by side in the draft.
+7. **Engine behavior is a hypothesis generator, never evidence.** TAXSIM-35, TaxAct, and PE agreeing or disagreeing suggests where to look; it proves nothing about the law. Do not backfill a legal narrative to explain an engine's behavior (the #8830 failure: TAXSIM's age-gating of the OK exclusion got narrativized into a nonexistent 2022 law change).
+8. **Expected test values must come from an external ground truth** — the TaxAct PDF, the TAXSIM binary, or a worked example in the official instructions — never from the hypothesis being encoded or from PE's own (possibly buggy) output. A test derived from the premise is circular: it passes when the code implements the mistake ("11/11 pass" on #8911 proved nothing).
+9. **Verify each quote's scope, not just its existence.** State which section/heading the quoted lines sit under and who that section applies to — a real quote attributed to the wrong section can carry a false claim (pe-us #8831/#8875 quoted genuine Schedule IN-EIC lines but labeled Section A lines as "Section B", spawning an unsupported childless carve-out that merged and needed a same-day fix, #8902). When extracting, print the section heading together with the lines.
 
 ## Repositories
 
@@ -237,6 +242,13 @@ Cross-reference: statute → form line → instructions eligibility. If any of t
 
 For federal items, use IRS publications and Form 1040 instructions directly.
 
+#### Mechanical extraction (how, exactly)
+
+- PDFs: `curl -sL -o doc.pdf "<url>"` then `file -b doc.pdf` (state sites sometimes return HTML error pages with a 200), then `/opt/homebrew/bin/pdftotext -layout doc.pdf -` (poppler lives in `/opt/homebrew/bin`, not on PATH). Grep for the line item, then print the surrounding section and read it whole — not just the matching line.
+- Statutes: fetch the official legislature/revisor URL. If the live site 404s or the section was repealed/terminated (e.g., temporary rebate statutes), pull the year-appropriate edition via `curl` from `web.archive.org` (`https://web.archive.org/web/<year>id_/<url>`), or the enacted session law.
+- Historical state forms: NBER mirrors many at `taxsim.nber.org/historical_state_tax_forms/<ST>/<year>/`.
+- Quote the operative sentence(s) verbatim in your notes AND in the eventual filing. If you catch yourself writing "the form does not list..." without having the extracted section in front of you, stop — that is the #8830 failure mode.
+
 ### Step 8: Check policyengine-us Implementation
 ```bash
 # Find state variables
@@ -251,9 +263,18 @@ grep -r "variable_name" /Users/pavelmakarchuk/policyengine-us/policyengine_us/
 If PE needs a fix, **draft** an issue for policyengine-us with:
 1. Summary of the problem
 2. Link back to the originating taxsim issue
-3. Root cause analysis with code references
-4. Suggested fix
-5. Integration test with correct expected values (from TaxAct PDF, not PE's buggy output)
+3. **Evidence section: the verbatim primary-source quote(s)** as blockquotes, each labeled with document, year, and page (e.g., "2021 Form 511 Packet, p. 17"). For negative/year-change claims, include both years' extracts side by side.
+4. Root cause analysis with code references
+5. Suggested fix
+6. Integration test with correct expected values (from TaxAct PDF / binary / official worked example — never from the hypothesis or PE's buggy output)
+
+**Pre-filing gate — answer all five before showing the draft; if any is "no", go back:**
+
+- [ ] Every legal claim in the draft has a verbatim extracted quote next to it (not just a link).
+- [ ] Any "not listed / added in year Y" claim shows both years' extracted text.
+- [ ] The expected test values trace to an external artifact (TaxAct PDF page, binary output, instructions example) named in the draft.
+- [ ] The hypothesis did not originate from engine behavior alone — or if it did, the quote independently establishes it.
+- [ ] You re-read the cited page AFTER writing the draft and it still supports the claim (the #8830 citation pointed at a page refuting the issue).
 
 **Show the draft to the user and wait for approval before posting.** After posting, cross-link the PE-US issue back from the taxsim issue with a short comment.
 
@@ -369,6 +390,14 @@ print(get_state_code(34))  # Should print "NC"
 - Credits/taxes not handling negative AGI or capital losses correctly
 - Phantom credits when income is negative
 
+### 12. Our Own Prior Fix Was Wrong
+- If the diff traces to a PE-US change that originated from an earlier taxsim diagnosis (check `git log`/blame on the variable and the parameter's `reference`), re-verify the ORIGINAL premise from primary sources before defending the current behavior.
+- Real case: pe-us #8911 encoded a nonexistent 2022 OK law change; Dan's #1083 record exposed it. The fix is a revert, not a workaround layered on top.
+
+### 13. Parameter Time-Scoping Leak (backward-leak)
+- Brackets/values first defined at a later date (e.g., `2024-01-01`) resolve to those values at EARLIER instants, silently applying a new-law schedule to years before enactment.
+- Real case: CT pension phase-out (PA 23-204, TY2024) leaked into 2019–2023 (pe-us #9008). When a fix adds year-N brackets, always add explicit earlier-dated zeros/values.
+
 ---
 
 ## Debugging Checklist
@@ -386,6 +415,8 @@ When an issue doesn't reproduce as expected:
 - [ ] **PDFs extracted and analyzed?** (Reporter's expected values may be wrong!)
 - [ ] **Compared current PE vs TaxAct?** Every PE value queried directly (no inference from gaps between variables).
 - [ ] **For credit/deduction disagreements: did you fetch the statute + current-year form + instructions booklet?** (Search summaries are not authoritative.)
+- [ ] **Is every legal claim in the write-up backed by a verbatim extracted quote?** Links alone don't count; negative claims need the full extracted list; year-change claims need both years.
+- [ ] **Do the test's expected values trace to an external artifact** (TaxAct PDF / binary / instructions example) rather than the hypothesis?
 
 ---
 
