@@ -941,10 +941,8 @@ class TaxsimMicrosimDataset(Dataset):
                 data["medical_expense_health_insurance_premiums"][year_int] = np.zeros(
                     total_people_for_year
                 )  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
-                data["ma_covid_19_essential_employee_premium_pay_program"][
-                    year_int
-                ] = np.zeros(
-                    total_people_for_year
+                data["ma_covid_19_essential_employee_premium_pay_program"][year_int] = (
+                    np.zeros(total_people_for_year)
                 )  # MA premium pay (Ch. 102, Acts of 2021, $500/worker) was mailed by check in 2022 and never appears on Form 1; TAXSIM/TaxAct don't report it, and leaving it in also shrinks the 62F rebate base
 
             # Household data
