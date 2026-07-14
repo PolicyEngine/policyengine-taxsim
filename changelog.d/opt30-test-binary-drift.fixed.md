@@ -1,0 +1,1 @@
+Mark the opt30 rebate-timing test xfail while NBER clarifies a taxsim-latest behavior change (VA 2021 rebate no longer booked in the eligible year under opt 30; taxsim #1089); keep asserting the flag plumbing.
