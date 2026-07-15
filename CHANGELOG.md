@@ -1,3 +1,18 @@
+## [2.31.0] - 2026-07-15
+
+### Added
+
+- Add a --taxsim-opt30 option to the compare command that runs the TAXSIM binary in its PSL-conformance test mode (option 30=1: rebates booked in the eligible year, no smoothing, no federal-state iteration), the mode NBER uses when testing PolicyEngine records.
+
+### Changed
+
+- Add concise verdict-tagged comment format to the diagnose-issue workflow so TAXSIM issue replies lead with whether action is needed.
+
+### Fixed
+
+- Update bundled Linux and Windows taxsimtest binaries to current NBER builds; the Aug 2025 builds predated TAXSIM's opt(30) liability-year rebate handling and broke the opt30 conformance test on those platforms. Every TAXSIM run now reports the binary's build date, the opt30 test failure message explains how to check for a stale binary, and resources/taxsimtest/README.md documents the update procedure.
+
+
 ## [2.30.1] - 2026-07-07
 
 ### Changed
