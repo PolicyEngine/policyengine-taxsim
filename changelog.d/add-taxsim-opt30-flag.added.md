@@ -1,1 +1,0 @@
-Add a --taxsim-opt30 option to the compare command that runs the TAXSIM binary in its PSL-conformance test mode (option 30=1: rebates booked in the eligible year, no smoothing, no federal-state iteration), the mode NBER uses when testing PolicyEngine records.

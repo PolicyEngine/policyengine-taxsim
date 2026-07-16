@@ -43,6 +43,11 @@ def test_opt30_aligns_rebate_timing(tmp_path):
     assert "opt(30)=1" in output
     # Binary books the $500 rebate in the eligible year -> matches PE.
     assert abs(taxsim["siitax"] - pe["siitax"]) < 1.0, (
-        f"opt30 run should align: TAXSIM {taxsim['siitax']} vs PE {pe['siitax']}"
+        f"opt30 run should align: TAXSIM {taxsim['siitax']} vs PE {pe['siitax']}. "
+        "Before suspecting an upstream TAXSIM change, check the bundled "
+        "binary's build date in the 'TAXSIM completed successfully "
+        f"(binary build ...)' line of the compare output below — a stale "
+        "resources/taxsimtest binary produces exactly this failure "
+        f"(see #1089 and resources/taxsimtest/README.md).\n{output}"
     )
     assert taxsim["srebate"] > 400  # the rebate is reported in-year
