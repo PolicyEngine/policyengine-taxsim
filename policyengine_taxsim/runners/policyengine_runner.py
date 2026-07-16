@@ -192,6 +192,8 @@ class TaxsimMicrosimDataset(Dataset):
             "early_head_start",  # Early Head Start should be 0 to match TAXSIM (which doesn't model Early Head Start)
             "commodity_supplemental_food_program",  # Commodity supplemental food program should be 0 to match TAXSIM (which doesn't model this program)
             "medical_expense_health_insurance_premiums",  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
+            "me_affordability_payment",  # Maine's 2025 affordability payment (HP 1491 Part T) is a direct payment mailed by the assessor in 2026-27, not a 1040ME line; PE models it as a refundable credit, which would land in siitax
+            "ma_covid_19_essential_employee_premium_pay_program",  # MA premium pay (Ch. 102, Acts of 2021) is $500/worker mailed by check in 2022, not a Form 1 line; PE models it as a 2021 refundable credit, which lands in siitax and shrinks the 62F rebate base
         }
 
         # Combine all variables
@@ -905,6 +907,9 @@ class TaxsimMicrosimDataset(Dataset):
             data["ok_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Oklahoma use tax calculations
+            data["me_affordability_payment"][year_int] = np.zeros(
+                n_year_records
+            )  # Maine's 2025 affordability payment (HP 1491 Part T, $300/adult) is a direct payment mailed in 2026-27 based on the 2025 return, not a 1040ME line item; TAXSIM/TaxAct never report it, so keep it out of siitax
 
             # Set person-level variables that need to be set per person, not per tax unit
             total_people_for_year = len(person_data.get("person_id", []))
@@ -936,6 +941,9 @@ class TaxsimMicrosimDataset(Dataset):
                 data["medical_expense_health_insurance_premiums"][year_int] = np.zeros(
                     total_people_for_year
                 )  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
+                data["ma_covid_19_essential_employee_premium_pay_program"][year_int] = (
+                    np.zeros(total_people_for_year)
+                )  # MA premium pay (Ch. 102, Acts of 2021, $500/worker) was mailed by check in 2022 and never appears on Form 1; TAXSIM/TaxAct don't report it, and leaving it in also shrinks the 62F rebate base
 
             # Household data
             data["household_id"][year_int] = year_household_ids
