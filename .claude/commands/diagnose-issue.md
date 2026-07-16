@@ -319,8 +319,8 @@ Replies on taxsim issues should be **soft, question-shaped, and link-heavy**:
 | CA | 5 | 6 |
 | CO | 6 | 8 |
 | CT | 7 | 9 |
-| DC | 8 | 11 |
-| DE | 9 | 10 |
+| DE | 8 | 10 |
+| DC | 9 | 11 |
 | FL | 10 | 12 |
 | ... | ... | ... |
 | NJ | **31** | 34 |
