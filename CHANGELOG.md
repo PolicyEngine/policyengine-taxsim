@@ -1,3 +1,15 @@
+## [2.31.1] - 2026-07-16
+
+### Changed
+
+- Tighten issue-filing evidence rules: verbatim extraction, scope verification, both-years diffs, external-ground-truth tests (from the #8830/#8911 and #8831 incidents).
+
+### Fixed
+
+- Zero Massachusetts' COVID-19 Essential Employee Premium Pay Program (Ch. 102, Acts of 2021 direct payment, modeled in PolicyEngine as a 2021 refundable credit) so it stays out of siitax and the 62F rebate base for MA comparisons.
+- Zero Maine's 2025 affordability payment (HP 1491 Part T direct payment, modeled in PolicyEngine as a refundable credit) so it stays out of siitax for ME comparisons.
+
+
 ## [2.31.0] - 2026-07-15
 
 ### Added

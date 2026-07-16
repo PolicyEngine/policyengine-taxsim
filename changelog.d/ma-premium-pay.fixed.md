@@ -1,1 +1,0 @@
-Zero Massachusetts' COVID-19 Essential Employee Premium Pay Program (Ch. 102, Acts of 2021 direct payment, modeled in PolicyEngine as a 2021 refundable credit) so it stays out of siitax and the 62F rebate base for MA comparisons.
