@@ -280,6 +280,23 @@ If PE needs a fix, **draft** an issue for policyengine-us with:
 
 #### Comment style (taxsim issues)
 
+**These comments are read by Dan (NBER/TAXSIM). Keep them SHORT — key info only, no narration of your diagnostic process.**
+
+**The first line must be a bold verdict tag** so Dan immediately knows whether he needs to act:
+
+- `**Verdict: Question — no action needed.**` — informational; the answer follows.
+- `**Verdict: PolicyEngine adjustment.**` — PE-US or the emulator needs a fix; nothing for Dan to do. Link the tracking issue/PR.
+- `**Verdict: Possible TAXSIM issue?**` — phrased as a question; Dan may want to look at TAXSIM.
+- `**Verdict: Possible TaxAct discrepancy?**` — the bundled PDF appears off; Dan/reporter may want to re-check the return.
+- `**Verdict: Data entry / input question.**` — the input row looks wrong (state code, mstat, ages); ask, don't assert.
+
+After the verdict line:
+1. **One or two sentences** stating the root cause (or the open question).
+2. **Only the decisive numbers** — a minimal table (2–4 rows max) or inline figures. Not the full comparison table.
+3. **Links**: primary source(s) and any PE-US issue/PR. No code walkthroughs — a single permalink suffices.
+
+Aim for under ~10 lines total. Cut anything Dan doesn't need to decide whether to act.
+
 Replies on taxsim issues should be **soft, question-shaped, and link-heavy**:
 
 - **Phrase findings as questions, not pronouncements.** "Possible that the hand calc didn't apply X?" beats "Your calculation is wrong because you forgot X." If a number doesn't reproduce, ask whether the case was intended differently rather than asserting the reporter is wrong.

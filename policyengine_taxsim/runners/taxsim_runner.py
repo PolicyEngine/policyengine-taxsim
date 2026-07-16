@@ -311,6 +311,14 @@ class TaxsimRunner(BaseTaxRunner):
             # First, try to read as CSV (for idtl values like 2)
             output_df = pd.read_csv(output_file)
 
+            # The binary stamps its build date into the last header column
+            # (e.g. "cdate-2025Dec24"). Stash it so run() can report which
+            # build produced the results — a stale bundled binary looks
+            # exactly like an upstream behavior change otherwise (see #1089).
+            cdate_cols = [c for c in output_df.columns if c.startswith("cdate-")]
+            if cdate_cols:
+                self.binary_build_date = cdate_cols[0][len("cdate-") :]
+
             # Convert numeric columns
             for col in output_df.columns:
                 if col != "state_name":  # Keep state name as string
@@ -470,7 +478,8 @@ class TaxsimRunner(BaseTaxRunner):
             results_df = self._parse_taxsim_output(output_file)
 
             if show_progress:
-                print(f"\nTAXSIM completed successfully")
+                build = getattr(self, "binary_build_date", "unknown")
+                print(f"\nTAXSIM completed successfully (binary build {build})")
 
             return results_df
 
