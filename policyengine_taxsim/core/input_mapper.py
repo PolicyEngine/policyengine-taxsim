@@ -18,6 +18,16 @@ def add_additional_units(state, year, situation, taxsim_vars):
     tax_unit = situation["tax_units"]["your tax unit"]
     people_unit = situation["people"]
 
+    # Maine's property tax fairness credit excludes any heat/utilities included
+    # in rent before taking 15% of rent (Schedule PTFC/STFC line 5b/5c). TAXSIM's
+    # rentpaid is gross rent that includes utilities, so flag it for Maine; with
+    # no separate utility amount supplied, PolicyEngine applies the worksheet's
+    # 15%-of-rent default. Maine is the only state where this distinction affects
+    # the result, and utilities_included_in_rent also feeds Michigan's home
+    # heating credit, so this is scoped to Maine only.
+    if state.lower() == "me" and taxsim_vars.get("rentpaid", 0) > 0:
+        tax_unit["utilities_included_in_rent"] = {str(year): True}
+
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
     is_married_filing_jointly = mstat == 2
