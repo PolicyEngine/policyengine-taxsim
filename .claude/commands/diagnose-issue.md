@@ -202,21 +202,30 @@ from policyengine_us import Simulation
 # Example — map EVERY non-zero TAXSIM input from txpydata.csv
 situation = {
     "people": {
-        "head": {"age": {"2025": 65},
-                 "employment_income": {"2025": 1571.43},          # pwages
-                 "taxable_pension_income": {"2025": 46265.95},    # pensions
-                 "taxable_interest_income": {"2025": 36.44},      # intrec
-                 "social_security": {"2025": 30000},              # gssi
-                 "real_estate_taxes": {"2025": 30000},            # proptax
-                 "deductible_mortgage_interest": {"2025": 20000}, # mortgage
-                 },
+        "head": {
+            "age": {"2025": 65},
+            "employment_income": {"2025": 1571.43},  # pwages
+            "taxable_pension_income": {"2025": 46265.95},  # pensions
+            "taxable_interest_income": {"2025": 36.44},  # intrec
+            "social_security": {"2025": 30000},  # gssi
+            "real_estate_taxes": {"2025": 30000},  # proptax
+            "deductible_mortgage_interest": {"2025": 20000},  # mortgage
+        },
         "k1": {"age": {"2025": 11}},
         "k2": {"age": {"2025": 2}},
     },
-    "tax_units": {"tu": {"members": ["head", "k1", "k2"],
-                          "tax_unit_childcare_expenses": {"2025": 3000}}},  # childcare
+    "tax_units": {
+        "tu": {
+            "members": ["head", "k1", "k2"],
+            "tax_unit_childcare_expenses": {"2025": 3000},
+        }
+    },  # childcare
     "households": {"hh": {"members": ["head", "k1", "k2"], "state_fips": {"2025": 8}}},
-    "marital_units": {"m": {"members": ["head"]}, "m2": {"members": ["k1"]}, "m3": {"members": ["k2"]}},
+    "marital_units": {
+        "m": {"members": ["head"]},
+        "m2": {"members": ["k1"]},
+        "m3": {"members": ["k2"]},
+    },
     "families": {"f": {"members": ["head", "k1", "k2"]}},
     "spm_units": {"s": {"members": ["head", "k1", "k2"]}},
 }
@@ -334,6 +343,7 @@ Common confusion: NJ FIPS=34, but TAXSIM code=31. NC TAXSIM=34.
 To verify state code mapping:
 ```python
 from policyengine_taxsim.core.utils import get_state_code, SOI_TO_FIPS_MAP
+
 print(get_state_code(31))  # Should print "NJ"
 print(get_state_code(34))  # Should print "NC"
 ```
