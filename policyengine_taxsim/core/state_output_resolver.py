@@ -59,6 +59,7 @@ OUTPUT_ADAPTER_OVERRIDES = {
 }
 COMPONENT_ADAPTERS = {
     "adapter:mn_child_tax_credit_component",
+    "adapter:mt_income_tax_before_non_refundable_credits",
     "adapter:ok_child_care_credit_component",
     "adapter:ok_child_tax_credit_component",
 }
@@ -223,6 +224,44 @@ def _calculate_component_adapter(
         if variable == "adapter:ok_child_care_credit_component":
             return child_care_credit
         return child_tax_credit
+
+    if variable == "adapter:mt_income_tax_before_non_refundable_credits":
+        # PE-US has no unit-level MT "before non-refundable credits"
+        # variable — only _indiv (Person, MFS-on-same-return recombination)
+        # and _joint (TaxUnit). PE's mt_income_tax_before_refundable_credits
+        # _unit picks min(indiv, joint) AFTER non-refundable credits, which
+        # nets the 2021 income tax rebate and made MT `staxbc` print 0.00
+        # (taxsim #1122). Report the before-credit tax of the filing mode PE
+        # actually chose: argmin of the after-credit amounts when
+        # MFS-on-same-return is allowed, joint otherwise.
+        joint_before = calculate_named_output(
+            "mt_income_tax_before_non_refundable_credits_joint",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        mfs_on_same_return_allowed = parameter_values.gov.states.mt.tax.income.married_filing_separately_on_same_return_allowed
+        if not mfs_on_same_return_allowed:
+            return joint_before
+        indiv_before = calculate_named_output(
+            "mt_income_tax_before_non_refundable_credits_indiv",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        indiv_after = calculate_named_output(
+            "mt_income_tax_before_refundable_credits_indiv",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        joint_after = calculate_named_output(
+            "mt_income_tax_before_refundable_credits_joint",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        return np.where(indiv_after < joint_after, indiv_before, joint_before)
 
     if variable == "adapter:mn_child_tax_credit_component":
         combined_credit = calculate_named_output(

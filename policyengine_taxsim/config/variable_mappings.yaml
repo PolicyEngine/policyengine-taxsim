@@ -519,7 +519,11 @@ policyengine_to_taxsim:
       MN: mn_income_tax_before_credits
       MO: mo_income_tax_before_credits
       MS: ms_income_tax_before_credits_unit
-      MT: mt_income_tax_before_refundable_credits_unit
+      # Unit-level "before non-refundable credits" (taxsim #1122): the PE
+      # _unit variable is after non-refundable credits (nets the 2021 rebate
+      # to zero); the adapter recombines the _indiv/_joint before-credit
+      # variables per PE's filing-mode choice.
+      MT: adapter:mt_income_tax_before_non_refundable_credits
       NC: nc_income_tax_before_credits
       ND: nd_income_tax_before_credits
       NE: ne_income_tax_before_credits
@@ -587,6 +591,10 @@ policyengine_to_taxsim:
       ME: me_property_tax_fairness_credit
       MI: mi_homestead_property_tax_credit
       MO: mo_property_tax_credit
+      # Form M1PR Homestead Credit Refund (homeowners). TAXSIM reports it in
+      # v37 (and, as of 20260521, also nets it into siitax — see taxsim #968);
+      # PE keeps siitax = Form M1 liability, so v37 is where it surfaces.
+      MN: mn_homestead_credit_refund
       MT: mt_elderly_homeowner_or_renter_credit
       NJ: nj_property_tax_credit
       NM: nm_property_tax_rebate
