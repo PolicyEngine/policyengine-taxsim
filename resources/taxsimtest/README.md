@@ -38,6 +38,13 @@ returns a small HTML 404 page for wrong paths. Note the NBER pages sometimes
 lag: in July 2026 the osx download there was older than our bundled copy, so
 compare `cdate` stamps before overwriting a newer binary.
 
+Dan also publishes fresh builds at `taxsim.nber.org/out2psl/{osx,linux}` —
+in August 2026 those were newer (cd2026081819) than the stata-page osx (a
+2025 build). **Do not use `out2psl/windows`**: in August 2026 it served a
+stale 32-bit PE32 build (cd2026062510), older than the canonical
+`taxsimtest/taxsimtest.exe` (cd2026081318, PE32+). Whatever the source,
+always compare `cdate` stamps across all three platforms before committing.
+
 Verify behavior before committing — the VA 2021 opt(30) record is the
 canonical probe (expect `siitax=2068.05`, `srebate=500`; a stale binary gives
 `siitax=2568.05`, `srebate=0`):

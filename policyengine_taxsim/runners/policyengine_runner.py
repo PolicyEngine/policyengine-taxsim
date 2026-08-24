@@ -1746,6 +1746,23 @@ class PolicyEngineRunner(BaseTaxRunner):
                             f"Error calculating {pe_var} for {taxsim_var}: {e}"
                         ) from e
 
+            # v40 "Total Credits" reports credits actually applied. The raw
+            # sum of the state credit lists includes one-time rebates at
+            # their uncapped list values (e.g. MT 2021: the full $1,250
+            # rebate inflated v40 to 2,291.45 while TAXSIM reports 1,041.45
+            # — taxsim #1122). TAXSIM keeps those rebates out of v40 and
+            # reports them in `srebate`, so recompute v40 on the rebate-free
+            # twin (which zeroes ONE_TIME_REBATE_VARIABLES) whenever it
+            # exists; `srebate` continues to carry the netted rebate amount.
+            if "v40" in columns and rebate_free_sim is not None:
+                v40_variables = vars_to_compute["v40"]["mapping"].get("variables", [])
+                rebate_free_total = np.zeros(n)
+                for var in v40_variables:
+                    rebate_free_total += self._calc_tax_unit(
+                        rebate_free_sim, var, year_str
+                    )
+                columns["v40"] = np.round(rebate_free_total, 2)
+
             # fiitax = income_tax only. NBER TAXSIM-35 (`taxsimtest`)
             # reports the Additional Medicare Tax (Form 8959,
             # IRC § 3101(b)(2) / § 1401(b)(2)) separately in the
