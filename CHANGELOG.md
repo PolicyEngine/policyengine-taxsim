@@ -1,3 +1,10 @@
+## [2.31.2] - 2026-08-24
+
+### Fixed
+
+- Fix MT `staxbc` (report tax before non-refundable credits via a unit-level adapter instead of the after-credit variable that printed 0.00), exclude one-time rebates' uncapped list values from `v40` Total Credits (recomputed on the rebate-free twin; the netted amount stays in `srebate`), map the MN Form M1PR Homestead Credit Refund into `v37`, and refresh the bundled taxsimtest binaries (all platforms) to the current NBER 2026-08-18 build.
+
+
 ## [2.31.1] - 2026-07-16
 
 ### Changed
