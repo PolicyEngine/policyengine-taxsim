@@ -47,6 +47,38 @@ def compute_srebate_single(simulation, year):
         return 0.00
 
 
+def compute_de_staxbc_single(simulation, year):
+    """Delaware tax before non-refundable credits on the ELECTED filing path.
+
+    `de_income_tax_before_non_refundable_credits_unit` always reflects the
+    joint (single-column) computation: it must stay joint to cap non-refundable
+    credits and to drive the combined-separate election without a circular
+    dependency. When a married couple elects combined separate (Filing Status
+    4) the tax before credits is instead the sum of the two per-column
+    liabilities, so `staxbc` should report that rather than the joint figure.
+    Falls back to the joint figure on any error.
+    """
+    joint = to_roundedup_number(
+        float(
+            simulation.calculate(
+                "de_income_tax_before_non_refundable_credits_unit", period=year
+            ).sum()
+        )
+    )
+    try:
+        elects_separate = bool(
+            simulation.calculate("de_files_separately", period=year)[0]
+        )
+        if elects_separate:
+            per_column = simulation.calculate(
+                "de_income_tax_before_non_refundable_credits_indv", period=year
+            )
+            return to_roundedup_number(float(per_column.sum()))
+    except Exception:
+        return joint
+    return joint
+
+
 def resolve_output_variable(simulation, variable, state_name):
     if simulation.tax_benefit_system.variables.get(variable) is not None:
         return variable
@@ -93,6 +125,12 @@ def generate_non_description_output(
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
                         taxsim_output[key] = compute_srebate_single(simulation, year)
+            elif key == "staxbc" and state_name.upper() == "DE":
+                # Delaware combined-separate (FS4) tax before credits is the
+                # sum of the two per-column liabilities, not the joint figure.
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = compute_de_staxbc_single(simulation, year)
             elif is_output_adapter(each_item.get("variable", "")):
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
@@ -222,6 +260,10 @@ def generate_text_description_output(
                     value = mtr_results.get(var_name, 0.0)
                 elif each_item.get("variable") == "srebate_computed":
                     value = compute_srebate_single(simulation, year)
+                elif var_name == "staxbc" and state_name.upper() == "DE":
+                    # Delaware combined-separate (FS4) tax before credits is the
+                    # sum of the two per-column liabilities, not the joint figure.
+                    value = compute_de_staxbc_single(simulation, year)
                 elif is_output_adapter(each_item.get("variable", "")):
                     value = to_roundedup_number(
                         calculate_output_adapter(
