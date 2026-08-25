@@ -466,7 +466,7 @@ policyengine_versions()
               { id: 'options', label: 'All Runners & CLI' },
               { id: 'mappings', label: 'Variable Mappings' },
               { id: 'datasets', label: 'Sample Datasets' },
-              { id: 'maintenance', label: 'Maintenance & Roadmap' },
+              { id: 'maintenance', label: 'Future Plans' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -1194,15 +1194,24 @@ python scripts/convert_h5_to_taxsim.py \\
           </section>
         )}
 
-        {/* Maintenance & Roadmap */}
+        {/* Future Plans & Maintenance */}
         {activeSection === 'maintenance' && (
           <section className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h2 className="text-xl font-bold text-gray-900">Maintenance</h2>
+              <h2 className="text-xl font-bold text-gray-900">Future plans</h2>
               <p className="text-gray-600">
-                PolicyEngine maintains and develops policyengine-taxsim. The repository is public
-                and open source, and releases keep the model current as federal and state tax law
-                changes.
+                When PolicyEngine moves its rules engine to the{' '}
+                <a href="https://axiom.org" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  Axiom
+                </a>{' '}
+                backend — a new rules engine that follows the law exactly — the TAXSIM emulator
+                moves with it. The surfaces below stay stable, and we will make the transition as
+                invisible as possible.
+              </p>
+              <p className="text-gray-600">
+                Using PolicyEngine directly adds capabilities beyond the TAXSIM format (benefit
+                programs, and more accurate tax calculations from variables TAXSIM doesn&apos;t
+                support). Axiom will add substantially more.
               </p>
             </div>
 
@@ -1237,19 +1246,10 @@ python scripts/convert_h5_to_taxsim.py \\
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">The Axiom backend</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Maintenance</h3>
               <p className="text-gray-600">
-                When PolicyEngine migrates its rules engine to the{' '}
-                <a href="https://axiom.org" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                  Axiom
-                </a>{' '}
-                backend, the TAXSIM emulator moves with it. The surfaces above stay stable, and we
-                will make the transition as invisible as possible.
-              </p>
-              <p className="text-gray-600">
-                Using PolicyEngine directly adds capabilities beyond the TAXSIM format (benefit
-                programs, and more accurate tax calculations from variables TAXSIM doesn&apos;t
-                support). Axiom will add substantially more: it follows the law exactly.
+                policyengine-taxsim is MIT-licensed open source, and releases keep the model
+                current as federal and state tax law changes.
               </p>
             </div>
           </section>

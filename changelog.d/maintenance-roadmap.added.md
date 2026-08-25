@@ -1,1 +1,1 @@
-Add Maintenance & Roadmap docs (site + README) stating the maintenance commitment, the stable public surfaces, and the Axiom backend roadmap, with a contract test pinning the PolicyEngineRunner import path and run() DataFrame contract.
+Add Future Plans & Maintenance docs (site + README) describing the Axiom backend roadmap, the stable public surfaces, and maintenance, with a contract test pinning the PolicyEngineRunner import path and run() DataFrame contract.
