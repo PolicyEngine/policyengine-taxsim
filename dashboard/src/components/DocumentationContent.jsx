@@ -460,12 +460,13 @@ policyengine_versions()
 
         {/* Section Tabs */}
         <section className="pb-0">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg max-w-2xl mx-auto mb-8">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg max-w-3xl mx-auto mb-8">
             {[
               { id: 'installation', label: 'Installation & Usage' },
               { id: 'options', label: 'All Runners & CLI' },
               { id: 'mappings', label: 'Variable Mappings' },
               { id: 'datasets', label: 'Sample Datasets' },
+              { id: 'maintenance', label: 'Maintenance & Roadmap' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -1189,6 +1190,67 @@ python scripts/convert_h5_to_taxsim.py \\
                   The full Enhanced CPS has ~80,000 tax units but is too large to serve as a static file.
                 </li>
               </ul>
+            </div>
+          </section>
+        )}
+
+        {/* Maintenance & Roadmap */}
+        {activeSection === 'maintenance' && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h2 className="text-xl font-bold text-gray-900">Maintenance</h2>
+              <p className="text-gray-600">
+                PolicyEngine maintains and develops policyengine-taxsim. The repository is public
+                and open source, and releases keep the model current as federal and state tax law
+                changes.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Stable surfaces</h3>
+              <p className="text-gray-600">
+                Pipelines build on these surfaces, and CI pins each one with a contract test:
+              </p>
+              <ul className="space-y-3">
+                <li className="flex gap-3">
+                  <IconCheck size={18} className="flex-shrink-0 mt-0.5 text-primary-600" />
+                  <span className="text-sm text-gray-600">
+                    The <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">policyengine-taxsim</code> CLI:
+                    TAXSIM-format CSV in, TAXSIM-format CSV out.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <IconCheck size={18} className="flex-shrink-0 mt-0.5 text-primary-600" />
+                  <span className="text-sm text-gray-600">
+                    The Python import path:{' '}
+                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">from policyengine_taxsim.runners import PolicyEngineRunner</code>.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <IconCheck size={18} className="flex-shrink-0 mt-0.5 text-primary-600" />
+                  <span className="text-sm text-gray-600">
+                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">PolicyEngineRunner(df).run()</code>:
+                    accepts a TAXSIM-format DataFrame and returns a TAXSIM-format DataFrame.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">The Axiom backend</h3>
+              <p className="text-gray-600">
+                When PolicyEngine migrates its rules engine to the{' '}
+                <a href="https://axiom.org" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  Axiom
+                </a>{' '}
+                backend, the TAXSIM emulator moves with it. The surfaces above stay stable, and we
+                will make the transition as invisible as possible.
+              </p>
+              <p className="text-gray-600">
+                Using PolicyEngine directly adds capabilities beyond the TAXSIM format (benefit
+                programs, and more accurate tax calculations from variables TAXSIM doesn&apos;t
+                support). Axiom will add substantially more: it follows the law exactly.
+              </p>
             </div>
           </section>
         )}
