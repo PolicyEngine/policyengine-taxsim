@@ -1,1 +1,1 @@
-Exclude the New York Additional Empire State child credit payment and inflation refund from siitax and the state child credit column, matching TAXSIM's return-based coverage.
+Exclude New York's supplemental earned income payment (a fall-2022 separate check) from siitax and v39, alongside the Additional Empire State child credit payment and inflation refund (taxsim #1154, #1185).

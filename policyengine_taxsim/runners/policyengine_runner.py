@@ -57,18 +57,22 @@ _ZERO_IMPUTED_TRANSFERS = frozenset(
 )
 
 # New York payments PE books to the return year but that are not lines on Form
-# IT-201: the Additional Empire State child credit payment (a separate check,
-# tax.ny.gov/pit/empire-child-credit-payments) and the inflation refund (checks
-# mailed later, based on the return-year filing). TAXSIM's siitax excludes both
-# (verified against the binary: NY 2023 siitax equals PE's NY tax net of these).
+# IT-201: the Additional Empire State child credit payment and the supplemental
+# earned income payment (both separate checks, tax.ny.gov/pit/child-earned-
+# payments) and the inflation refund (checks mailed later, based on the return-
+# year filing). TAXSIM's siitax excludes all three (verified against the binary:
+# NY 2023 siitax equals PE's NY tax net of these; NY 2021 siitax equals PE's NY
+# tax net of the Additional ESC + supplemental EIC payments — taxsim #1185).
 # PE models them as refundable credits for the eligibility year, so force them
 # to 0 in the emulator's sim to match TAXSIM's return-based coverage. Zeroing
 # also drops the Additional ESC payment out of the sctc (state child credit)
-# column, leaving the Empire State child credit itself.
+# column and the supplemental EIC payment out of the v39 (state EITC) column,
+# leaving the Empire State child credit and NY earned income credit themselves.
 _ZERO_NY_SEPARATE_PAYMENTS = frozenset(
     {
         "ny_additional_ctc",
         "ny_inflation_refund_credit",
+        "ny_supplemental_eitc",
     }
 )
 
