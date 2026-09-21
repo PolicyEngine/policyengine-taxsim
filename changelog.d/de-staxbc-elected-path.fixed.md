@@ -1,1 +1,0 @@
-Report Delaware tax before credits (staxbc) on the elected filing path: when a married couple elects combined separate (Filing Status 4), staxbc is now the sum of the two per-column liabilities rather than the joint single-column figure.

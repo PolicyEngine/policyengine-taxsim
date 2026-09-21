@@ -1,3 +1,15 @@
+## [2.31.3] - 2026-09-21
+
+### Changed
+
+- Include the Illinois 2022 property tax rebate (il_property_tax_rebate) in srebate.
+- Add a reproducible, memory-bounded remote dashboard data refresh with checkpoints, pinned model dependencies and provenance. Constrain spm-calculator to its compatible API on Python 3.10. Ignore known TAXSIM d3/d4 debug lines when parsing batch results. Refresh all 2021–2025 dashboard samples, summaries and full-data downloads with September 21 results, and display generation date/model metadata.
+
+### Fixed
+
+- Report Delaware tax before credits (staxbc) on the elected filing path: when a married couple elects combined separate (Filing Status 4), staxbc is now the sum of the two per-column liabilities rather than the joint single-column figure.
+
+
 ## [2.31.2] - 2026-08-24
 
 ### Fixed
