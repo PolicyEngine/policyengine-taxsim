@@ -4,6 +4,7 @@ import csv
 import gzip
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -65,6 +66,7 @@ class RefreshTests(unittest.TestCase):
 
 
 class ResourceLimitTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "Refresh workers use POSIX process groups")
     def test_memory_limit_terminates_worker_group(self):
         child = Mock(pid=123, returncode=None)
         child.poll.return_value = None

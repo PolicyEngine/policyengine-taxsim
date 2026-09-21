@@ -11,12 +11,6 @@ on:
         description: Optional failed run to restore checkpoints from (same code and settings)
         type: string
         default: ''
-  push:
-    branches: [codex/refresh-dashboard-data]
-    paths:
-      - '.github/workflows/refresh-dashboard.yml'
-      - 'scripts/refresh_dashboard.py'
-      - 'scripts/dashboard-refresh*'
 
 permissions:
   contents: read

@@ -1,1 +1,1 @@
-Add a reproducible, memory-bounded remote dashboard data refresh with checkpoints, pinned model dependencies and provenance. Constrain spm-calculator to its compatible API on Python 3.10.
+Add a reproducible, memory-bounded remote dashboard data refresh with checkpoints, pinned model dependencies and provenance. Constrain spm-calculator to its compatible API on Python 3.10. Ignore known TAXSIM d3/d4 debug lines when parsing batch results.

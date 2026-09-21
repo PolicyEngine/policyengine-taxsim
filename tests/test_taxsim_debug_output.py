@@ -1,13 +1,13 @@
-"""Repeated TAXSIM CSV headers are not household records."""
+"""TAXSIM debug counters are not household records."""
 
 import pandas as pd
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 
 
-def test_repeated_header_rows_are_removed(tmp_path):
+def test_known_debug_lines_are_removed(tmp_path):
     output = tmp_path / "taxsim.csv"
     output.write_text(
-        "taxsimid,fiitax,siitax,cdate-test\n1,100,20,0\ntaxsimid,fiitax,siitax,cdate-test\n2,200,40,0\n"
+        "taxsimid,fiitax,siitax,cdate-test\n1,100,20,0\n d3        1257\n d4        1257           0\n2,200,40,0\n"
     )
     runner = TaxsimRunner.__new__(TaxsimRunner)
     result = runner._parse_taxsim_output(str(output))
