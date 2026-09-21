@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -309,7 +310,14 @@ class TaxsimRunner(BaseTaxRunner):
         """Parse TAXSIM output file into DataFrame"""
         try:
             # First, try to read as CSV (for idtl values like 2)
-            output_df = pd.read_csv(output_file)
+            # The August 2026 binary prints d3/d4 debug counters to stdout.
+            # Skip only those exact non-CSV diagnostics, not malformed records.
+            debug_line = re.compile(r"^\s*d(?:3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$")
+            with open(output_file) as stream:
+                skip_rows = [
+                    i for i, line in enumerate(stream) if debug_line.fullmatch(line)
+                ]
+            output_df = pd.read_csv(output_file, skiprows=skip_rows)
 
             # The binary stamps its build date into the last header column
             # (e.g. "cdate-2025Dec24"). Stash it so run() can report which
