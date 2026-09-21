@@ -67,6 +67,13 @@ export default function DashboardContent() {
               <span className="text-primary-200 font-normal"> · {selectedState}</span>
             )}
           </h1>
+          {currentYearData.summary?.metadata?.generatedAt && (
+            <p className="mt-2 text-sm text-primary-200">
+              Data updated {currentYearData.summary.metadata.generatedAt.slice(0, 10)}
+              {' · '}PolicyEngine US {currentYearData.summary.metadata.policyengineUsVersion}
+              {' · '}{currentYearData.summary.totalRecords.toLocaleString()} households
+            </p>
+          )}
         </div>
       </div>
 

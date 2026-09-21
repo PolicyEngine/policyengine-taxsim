@@ -352,7 +352,21 @@ def main():
         reader = csv.DictReader(stream)
         rows = (row for row in reader if row["source"] == "taxsim")
         if args.limit:
-            rows = itertools.islice(rows, args.limit)
+            # Cover every state in the smoke test; the source is state-sorted.
+            per_state = {}
+            quota = math.ceil(args.limit / len(STATES))
+            for row in rows:
+                bucket = per_state.setdefault(row["state"], [])
+                if len(bucket) < quota:
+                    bucket.append(row)
+            rows = iter(
+                [
+                    bucket[i]
+                    for i in range(quota)
+                    for bucket in per_state.values()
+                    if i < len(bucket)
+                ][: args.limit]
+            )
         while batch := list(itertools.islice(rows, args.batch_size)):
             part = work / f"part-{len(parts):04}.csv.gz"
             check = part.with_suffix(".json")
@@ -399,8 +413,8 @@ def main():
         "assumeW2Wages": True,
         "disableSalt": False,
         "policyengineOutputDetail": 5,
-        "taxsimBinarySha256": digest(ROOT / "resources/taxsimtest/taxsimtest-linux")
-        if (ROOT / "resources/taxsimtest/taxsimtest-linux").exists()
+        "taxsimBinarySha256": digest(ROOT / "resources/taxsimtest/taxsimtest-linux.exe")
+        if (ROOT / "resources/taxsimtest/taxsimtest-linux.exe").exists()
         else None,
     }
     actual = summarize(parts, work / "output", args.year, metadata, sample_ids)

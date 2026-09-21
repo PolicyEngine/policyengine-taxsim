@@ -27,8 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Keep the initial deployment to a smoke test until its outputs are reviewed.
-  FULL_REFRESH: 'false'
+  FULL_REFRESH: 'true'
   OPENBLAS_NUM_THREADS: '1'
   OMP_NUM_THREADS: '1'
   MKL_NUM_THREADS: '1'
@@ -96,14 +95,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RESUME_RUN: ${{ inputs.resume_run_id }}
           YEAR: ${{ matrix.year }}
-        run: gh run download "$RESUME_RUN" --name "checkpoint-$YEAR" --dir work
+        run: |
+          NAMES=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN/artifacts" --paginate --jq '.artifacts[].name')
+          if printf '%s\n' "$NAMES" | grep -Fxq "checkpoint-$YEAR"; then
+            gh run download "$RESUME_RUN" --name "checkpoint-$YEAR" --dir work
+          fi
       - name: Regenerate one year in isolated batches
         if: steps.mode.outputs.enabled == 'true'
         env:
           YEAR: ${{ matrix.year }}
         run: python scripts/refresh_dashboard.py --year "$YEAR" --batch-size 5000 --max-memory-gb 5 --min-disk-gb 4 --work-dir work
       - name: Retain checkpoints if the job fails
-        if: failure() && steps.mode.outputs.enabled == 'true'
+        if: always() && !success() && steps.mode.outputs.enabled == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: checkpoint-${{ matrix.year }}
@@ -148,7 +151,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="full-ecps-comparison-$(date -u +%Y.%m.%d)-$GITHUB_RUN_ID"
+          TAG="full-ecps-comparison-run-$GITHUB_RUN_ID"
           printf 'Full eCPS comparison, 111,347 households per year, 2021–2025. Generated on GitHub Actions in memory-bounded, isolated batches. Identical household inputs to the July 7 release; --assume-w2-wages, native SALT. Model versions, source hashes, output hashes and resource measurements are included in each provenance JSON. Run: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.txt
           gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Full eCPS comparison $(date -u +%Y-%m-%d)" --notes-file release-notes.txt release-data/*
           echo "Draft release: $TAG" >> "$GITHUB_STEP_SUMMARY"
