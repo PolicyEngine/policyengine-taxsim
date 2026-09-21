@@ -4,6 +4,7 @@ from .utils import (
     get_ordinal,
     convert_taxsim32_dependents,
 )
+from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
 
 
@@ -151,6 +152,17 @@ def add_additional_units(state, year, situation, taxsim_vars):
                     people_unit["your partner"][field] = {str(year): split_value}
                 else:
                     people_unit["you"][field] = {str(year): total_value}
+
+    # New York separate-payment programs (Additional Empire State child credit
+    # payment, supplemental earned income payment, inflation refund): not on
+    # Form IT-201 and excluded from TAXSIM's siitax. The batch PolicyEngineRunner
+    # zeroes them on its Microsimulation; zero them here in the single-household
+    # situation too so both execution paths match TAXSIM's coverage consistently
+    # (taxsim #1154 / #1185). Pinning them to 0 in the situation also carries
+    # into the srebate twin, which is rebuilt from this situation input.
+    if state.lower() == "ny":
+        for var in NY_SEPARATE_PAYMENT_VARIABLES:
+            tax_unit[var] = {str(year): 0}
 
     return situation
 

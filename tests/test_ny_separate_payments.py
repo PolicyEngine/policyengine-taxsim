@@ -17,6 +17,15 @@ the $400 inflation refund).
 import pandas as pd
 
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
+from policyengine_taxsim.core.input_mapper import form_household_situation
+from policyengine_taxsim.core.output_mapper import export_household
+from policyengine_taxsim.core.utils import get_state_code
+
+_COLUMNS = (
+    "taxsimid,year,state,mstat,page,sage,depx,pwages,psemp,swages,ssemp,"
+    "dividends,intrec,stcg,ltcg,otherprop,nonprop,pensions,gssi,pui,sui,"
+    "transfers,rentpaid,proptax,otheritem,childcare,mortgage,scorp,idtl"
+).split(",")
 
 
 def _run_1154():
@@ -151,4 +160,120 @@ def test_ny_2021_siitax_excludes_supplemental_payments():
     assert -750 < row["siitax"] < -650, (
         f"NY 2021 siitax {row['siitax']} looks like it still includes the "
         "supplemental EIC and/or Additional ESC payment (expected ~ -700.73)"
+    )
+
+
+# --- Cross-path consistency ------------------------------------------------
+#
+# The batch PolicyEngineRunner path (exercised above) and the public
+# single-household path (form_household_situation -> export_household) must
+# exclude the NY separate payments identically. The runner zeros them on its
+# Microsimulation; input_mapper zeros them in the single-household situation.
+# Both draw the variable list from NY_SEPARATE_PAYMENT_VARIABLES, so these
+# tests guard against the two paths drifting apart again.
+
+_VALUES_1154 = [
+    5024033,
+    2023,
+    33,
+    2,
+    43,
+    49,
+    1,
+    14666.667,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    6794.4863,
+    0,
+    0,
+    0,
+    0,
+    5,
+]
+_VALUES_1185 = [
+    9326633,
+    2021,
+    33,
+    1,
+    24,
+    0,
+    1,
+    24097.709,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1524.1686,
+    0,
+    0,
+    0,
+    0,
+    5,
+]
+
+
+def _single_household_siitax(values):
+    """Run one record through the public single-household path, the
+    counterpart to the batch PolicyEngineRunner path used above."""
+    record = dict(zip(_COLUMNS, values))
+    record["idtl"] = 2  # standard numeric output (dict of TAXSIM variables)
+    state = get_state_code(int(record["state"]))
+    year = int(record["year"])
+    situation = form_household_situation(year, state, record)
+    output = export_household(record, situation, logs=False, disable_salt=False)
+    return output["siitax"]
+
+
+def test_ny_1154_siitax_consistent_across_paths():
+    """taxsim #1154: the single-household path must exclude the Additional ESC
+    payment and inflation refund exactly like the batch path, so both siitax
+    figures land in the same band and agree."""
+    batch_siitax = _run_1154()["siitax"]
+    single_siitax = _single_household_siitax(_VALUES_1154)
+    assert -1600 < single_siitax < -1550, (
+        f"single-household siitax {single_siitax} still looks like it includes "
+        "the separate NY payments"
+    )
+    assert abs(batch_siitax - single_siitax) < 1, (
+        f"NY 2023 siitax differs across paths: batch {batch_siitax} vs "
+        f"single-household {single_siitax}"
+    )
+
+
+def test_ny_1185_siitax_consistent_across_paths():
+    """taxsim #1185: the single-household path must exclude the supplemental
+    EIC payment and Additional ESC payment exactly like the batch path."""
+    batch_siitax = _run_1185()["siitax"]
+    single_siitax = _single_household_siitax(_VALUES_1185)
+    assert -750 < single_siitax < -650, (
+        f"single-household siitax {single_siitax} still looks like it includes "
+        "the separate NY payments"
+    )
+    assert abs(batch_siitax - single_siitax) < 1, (
+        f"NY 2021 siitax differs across paths: batch {batch_siitax} vs "
+        f"single-household {single_siitax}"
     )

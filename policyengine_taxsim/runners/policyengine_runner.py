@@ -18,6 +18,7 @@ from policyengine_taxsim.core.utils import (
     convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.state_output_resolver import (
+    NY_SEPARATE_PAYMENT_VARIABLES,
     ONE_TIME_REBATE_VARIABLES,
     calculate_output_adapter,
     calculate_state_mapped_output,
@@ -53,26 +54,6 @@ _ZERO_IMPUTED_TRANSFERS = frozenset(
         "nm_ssi_state_supplement",
         "sc_ssi_state_supplement",
         "tx_ssi_state_supplement",
-    }
-)
-
-# New York payments PE books to the return year but that are not lines on Form
-# IT-201: the Additional Empire State child credit payment and the supplemental
-# earned income payment (both separate checks, tax.ny.gov/pit/child-earned-
-# payments) and the inflation refund (checks mailed later, based on the return-
-# year filing). TAXSIM's siitax excludes all three (verified against the binary:
-# NY 2023 siitax equals PE's NY tax net of these; NY 2021 siitax equals PE's NY
-# tax net of the Additional ESC + supplemental EIC payments — taxsim #1185).
-# PE models them as refundable credits for the eligibility year, so force them
-# to 0 in the emulator's sim to match TAXSIM's return-based coverage. Zeroing
-# also drops the Additional ESC payment out of the sctc (state child credit)
-# column and the supplemental EIC payment out of the v39 (state EITC) column,
-# leaving the Empire State child credit and NY earned income credit themselves.
-_ZERO_NY_SEPARATE_PAYMENTS = frozenset(
-    {
-        "ny_additional_ctc",
-        "ny_inflation_refund_credit",
-        "ny_supplemental_eitc",
     }
 )
 
@@ -1291,7 +1272,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         # credit payment, inflation refund): not on Form IT-201, excluded from
         # TAXSIM's siitax. NY is state code 33.
         if "state" in chunk_df.columns and (chunk_df["state"] == 33).any():
-            for var in _ZERO_NY_SEPARATE_PAYMENTS:
+            for var in NY_SEPARATE_PAYMENT_VARIABLES:
                 if var not in sim.tax_benefit_system.variables:
                     continue
                 n_entities = sim.get_variable_population(var).count
