@@ -24,8 +24,8 @@ constant, and all summary denominators use the complete population.
   jobs upload checkpoint artifacts for seven days. Select the same code ref
   and pass that run ID as `resume_run_id` to continue. Checkpoints with a
   different source, code revision, lockfile, batch size or limit are rejected.
-  Resume individual failed matrix jobs from the Actions UI only if no previous
-  checkpoints are needed; standard reruns otherwise start those jobs afresh.
+  Rerunning failed jobs from the Actions UI automatically restores checkpoints
+  from that same run when available.
 - Full results and small site data are separate artifacts, retained for seven
   days. Download only `site-data-*` to the laptop. The release job uploads the
   full CSVs directly from its ephemeral runner to a draft GitHub release.

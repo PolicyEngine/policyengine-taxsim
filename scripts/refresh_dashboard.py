@@ -97,16 +97,40 @@ def worker(input_path, output_path):
     sys.path.insert(0, str(ROOT))
     import pandas as pd
     from policyengine_taxsim.runners import PolicyEngineRunner, TaxsimRunner
+    from policyengine_taxsim.core.utils import get_state_code
 
     data = pd.read_csv(input_path)
+
+    class LoggedTaxsimRunner(TaxsimRunner):
+        def _execute_taxsim(self, input_file, output_file):
+            result = super()._execute_taxsim(input_file, output_file)
+            if result.stderr:
+                print("TAXSIM stderr:", result.stderr, flush=True)
+            return result
+
+    ts = LoggedTaxsimRunner(data).run(show_progress=False)
+    expected_ids = set(data.taxsimid)
+    if ts.taxsimid.duplicated().any() or set(ts.taxsimid) != expected_ids:
+        missing = expected_ids - set(ts.taxsimid)
+        print(
+            "TAXSIM returned",
+            len(ts),
+            "rows; extra IDs",
+            list(set(ts.taxsimid) - expected_ids)[:10],
+            flush=True,
+        )
+        print(
+            "Missing input records:",
+            data[data.taxsimid.isin(missing)].head(5).to_json(orient="records"),
+            flush=True,
+        )
+        raise ValueError("TAXSIM lost or duplicated household IDs")
     pe_input = data.copy()
     # Request detailed PE output (including staxbc), without changing tax inputs.
     pe_input["idtl"] = 5
     pe = PolicyEngineRunner(
         pe_input, logs=False, assume_w2_wages=True, disable_salt=False
     ).run(show_progress=False)
-    ts = TaxsimRunner(data).run(show_progress=False)
-    expected_ids = set(data.taxsimid)
     for name, result in [("PolicyEngine", pe), ("TAXSIM", ts)]:
         if result.taxsimid.duplicated().any() or set(result.taxsimid) != expected_ids:
             raise ValueError(f"{name} lost or duplicated household IDs")
@@ -123,7 +147,7 @@ def worker(input_path, output_path):
                 **results[key],
                 **raw,
                 "source": source,
-                "state_code": STATES[int(raw["state"]) - 1],
+                "state_code": get_state_code(int(raw["state"])),
             }
             rows.append(row)
         flags = match_flags(*rows)
@@ -234,7 +258,8 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
                         if key in sample_ids:
                             writers[1].writerow(row)
                             sampled_ids.add(key)
-    if len(sampled_ids) != len(sample_ids & seen):
+    expected_sample_ids = sample_ids & seen if metadata.get("limit", 0) else sample_ids
+    if sampled_ids != expected_sample_ids:
         raise ValueError("Incomplete drill-down sample")
 
     def percentages(tally):

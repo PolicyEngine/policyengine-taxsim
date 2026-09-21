@@ -58,10 +58,11 @@ jobs:
           name: refresh-smoke
           path: smoke/output
           retention-days: 7
+          overwrite: true
 
   refresh:
     needs: smoke
-    if: ${{ (github.event_name == 'workflow_dispatch' && !inputs.smoke_only) || github.event_name == 'push' }}
+    if: ${{ !inputs.smoke_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -90,10 +91,10 @@ jobs:
           pip install --no-deps -e .
           pip check
       - name: Restore requested checkpoints
-        if: steps.mode.outputs.enabled == 'true' && inputs.resume_run_id != ''
+        if: steps.mode.outputs.enabled == 'true' && (inputs.resume_run_id != '' || github.run_attempt > 1)
         env:
           GH_TOKEN: ${{ github.token }}
-          RESUME_RUN: ${{ inputs.resume_run_id }}
+          RESUME_RUN: ${{ inputs.resume_run_id || github.run_id }}
           YEAR: ${{ matrix.year }}
         run: |
           NAMES=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN/artifacts" --paginate --jq '.artifacts[].name')
@@ -131,6 +132,7 @@ jobs:
           name: site-data-${{ matrix.year }}
           path: work/output/site
           retention-days: 7
+          overwrite: true
 
   stage-release:
     needs: refresh

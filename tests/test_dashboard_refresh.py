@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 spec = importlib.util.spec_from_file_location(
     "refresh_dashboard", Path(__file__).parents[1] / "scripts/refresh_dashboard.py"
@@ -60,3 +62,47 @@ class RefreshTests(unittest.TestCase):
             self.assertEqual(summary["stateMatchPctRelNet"], 100)
             with self.assertRaises(ValueError):
                 refresh.summarize([part, part], base / "bad", 2021, {}, {"2"})
+
+
+class ResourceLimitTests(unittest.TestCase):
+    def test_memory_limit_terminates_worker_group(self):
+        child = Mock(pid=123, returncode=None)
+        child.poll.return_value = None
+        process = Mock()
+        process.memory_info.return_value = SimpleNamespace(rss=6 * 1024**3)
+        process.children.return_value = []
+        psutil = SimpleNamespace(
+            Process=lambda pid: process, NoSuchProcess=ProcessLookupError
+        )
+        with (
+            patch.dict("sys.modules", {"psutil": psutil}),
+            patch.object(refresh.subprocess, "Popen", return_value=child),
+            patch.object(refresh.os, "killpg") as kill,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "memory budget"):
+                refresh.run_bounded(Path("input.csv"), Path("output.csv.gz"), 5, 4)
+            kill.assert_called_once()
+            child.wait.assert_called_once()
+
+    def test_missing_drilldown_ids_are_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            part = base / "part.csv.gz"
+            rows = [
+                dict(
+                    taxsimid=1,
+                    source=source,
+                    state_code="IL",
+                    pwages=10000,
+                    fiitax=100,
+                    siitax=0,
+                    srebate=0,
+                )
+                for source in ("taxsim", "policyengine")
+            ]
+            with gzip.open(part, "wt", newline="") as stream:
+                writer = csv.DictWriter(stream, rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
+            with self.assertRaisesRegex(ValueError, "sample"):
+                refresh.summarize([part], base / "output", 2021, {"limit": 0}, {"2"})
