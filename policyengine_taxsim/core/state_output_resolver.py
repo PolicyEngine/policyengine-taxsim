@@ -33,6 +33,7 @@ ONE_TIME_REBATE_VARIABLES = (
     "id_2022_rebate",
     "id_special_season_rebate",
     "il_income_tax_rebate",
+    "il_property_tax_rebate",
     "in_automatic_refund_rebate",
     "ma_taxpayer_refund_rebate",
     "me_relief_rebate",
