@@ -23,6 +23,8 @@ classifiers = [
 ]
 dependencies = [
     "policyengine-us>=1.711.0",
+    # Python 3.10 resolves PE-US 1.x, which imports the pre-1.0 geoadj module.
+    'spm-calculator<1; python_version < "3.11"',
     "pandas",
     "PyYAML",
     "click",
