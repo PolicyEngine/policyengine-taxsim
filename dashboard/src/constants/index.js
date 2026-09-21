@@ -43,7 +43,7 @@ export const TOLERANCE_MODES = {
 // the browser, so the dashboard shows a sample + precomputed summary and
 // links to the complete per-year CSVs hosted as a GitHub Release asset.
 export const FULL_DATA_RELEASE_BASE =
-  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-2026.07.07';
+  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35633580408';
 
 export const fullDataUrl = (year) =>
   `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv`;

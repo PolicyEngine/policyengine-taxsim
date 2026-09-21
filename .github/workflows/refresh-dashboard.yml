@@ -21,7 +21,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FULL_REFRESH: 'true'
   OPENBLAS_NUM_THREADS: '1'
   OMP_NUM_THREADS: '1'
   MKL_NUM_THREADS: '1'
@@ -66,26 +65,16 @@ jobs:
         year: [2021, 2022, 2023, 2024, 2025]
     steps:
       - uses: actions/checkout@v6
-      - name: Decide whether full refresh is enabled
-        id: mode
-        run: |
-          if [ "$FULL_REFRESH" = true ] || [ "$EVENT" = workflow_dispatch ]; then
-            echo 'enabled=true' >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          EVENT: ${{ github.event_name }}
       - uses: actions/setup-python@v6
-        if: steps.mode.outputs.enabled == 'true'
         with:
           python-version: '3.11'
       - name: Install locked refresh environment
-        if: steps.mode.outputs.enabled == 'true'
         run: |
           pip install -r scripts/dashboard-refresh-requirements.txt
           pip install --no-deps -e .
           pip check
       - name: Restore requested checkpoints
-        if: steps.mode.outputs.enabled == 'true' && (inputs.resume_run_id != '' || github.run_attempt > 1)
+        if: (inputs.resume_run_id != '' || github.run_attempt > 1)
         env:
           GH_TOKEN: ${{ github.token }}
           RESUME_RUN: ${{ inputs.resume_run_id || github.run_id }}
@@ -96,12 +85,11 @@ jobs:
             gh run download "$RESUME_RUN" --name "checkpoint-$YEAR" --dir work
           fi
       - name: Regenerate one year in isolated batches
-        if: steps.mode.outputs.enabled == 'true'
         env:
           YEAR: ${{ matrix.year }}
         run: python scripts/refresh_dashboard.py --year "$YEAR" --batch-size 5000 --max-memory-gb 5 --min-disk-gb 4 --work-dir work
       - name: Retain checkpoints if the job fails
-        if: always() && !success() && steps.mode.outputs.enabled == 'true'
+        if: always() && !success()
         uses: actions/upload-artifact@v4
         with:
           name: checkpoint-${{ matrix.year }}
@@ -112,7 +100,6 @@ jobs:
           retention-days: 7
           overwrite: true
       - uses: actions/upload-artifact@v4
-        if: success() && steps.mode.outputs.enabled == 'true'
         with:
           name: full-data-${{ matrix.year }}
           path: |
@@ -120,8 +107,8 @@ jobs:
             work/output/provenance_*.json
           compression-level: 6
           retention-days: 7
+          overwrite: true
       - uses: actions/upload-artifact@v4
-        if: success() && steps.mode.outputs.enabled == 'true'
         with:
           name: site-data-${{ matrix.year }}
           path: work/output/site
@@ -136,14 +123,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download completed full data
-        if: env.FULL_REFRESH == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/download-artifact@v4
         with:
           pattern: full-data-*
           merge-multiple: true
           path: release-data
       - name: Stage a draft release for review
-        if: env.FULL_REFRESH == 'true' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
