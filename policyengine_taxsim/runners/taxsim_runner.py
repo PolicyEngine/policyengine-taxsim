@@ -311,6 +311,15 @@ class TaxsimRunner(BaseTaxRunner):
             # First, try to read as CSV (for idtl values like 2)
             output_df = pd.read_csv(output_file)
 
+            # TAXSIM can repeat its CSV header within a multi-record result.
+            # Remove only literal header rows before numeric conversion; real
+            # malformed records must remain visible to callers' validation.
+            if "taxsimid" in output_df.columns:
+                repeated_header = (
+                    output_df["taxsimid"].astype(str).str.strip().eq("taxsimid")
+                )
+                output_df = output_df.loc[~repeated_header].reset_index(drop=True)
+
             # The binary stamps its build date into the last header column
             # (e.g. "cdate-2025Dec24"). Stash it so run() can report which
             # build produced the results — a stale bundled binary looks
