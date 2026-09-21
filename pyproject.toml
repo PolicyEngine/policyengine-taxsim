@@ -22,7 +22,12 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "policyengine-us>=1.711.0",
+    # >=2.6.17: earlier policyengine-us imports the spm_calculator.geoadj module,
+    # which spm-calculator 1.0.0 removed. policyengine-us 2.x pins
+    # spm-calculator>=1.0.0, so any older policyengine-us that pip backtracks to
+    # (e.g. 1.783.0) fails at import with ModuleNotFoundError. 2.6.17 dropped the
+    # geoadj import, making the dependency tree resolvable again (PE-US #9442).
+    "policyengine-us>=2.6.17",
     # Python 3.10 resolves PE-US 1.x, which imports the pre-1.0 geoadj module.
     'spm-calculator<1; python_version < "3.11"',
     "pandas",
