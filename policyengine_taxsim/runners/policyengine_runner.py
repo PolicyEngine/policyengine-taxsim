@@ -1386,6 +1386,31 @@ class PolicyEngineRunner(BaseTaxRunner):
             and year < year_restricted_variables[variable_name]
         )
 
+    def _apply_de_staxbc_elected_path(self, result, state_codes, sim, year_str):
+        """Report Delaware tax before credits on the elected filing path.
+
+        `de_income_tax_before_non_refundable_credits_unit` (the variable
+        `staxbc` maps to for DE) always reflects the joint single-column
+        computation -- it must, to cap non-refundable credits and drive the
+        combined-separate election without a circular dependency. When a
+        married couple elects combined separate (Filing Status 4), the tax
+        before credits is instead the sum of the two per-column liabilities,
+        so report that for DE rows. Other states and DE joint filers are
+        unchanged.
+        """
+        de_mask = np.array(
+            [str(code).upper() == "DE" for code in np.atleast_1d(state_codes)]
+        )
+        if not de_mask.any():
+            return result
+        separately = self._calc_tax_unit(sim, "de_files_separately", year_str).astype(
+            bool
+        )
+        per_column = self._calc_tax_unit(
+            sim, "de_income_tax_before_non_refundable_credits_indv", year_str
+        )
+        return np.where(de_mask & separately, per_column, result)
+
     def _calc_tax_unit(self, sim, var_name, period):
         """Calculate a variable and ensure result is at tax_unit level.
 
@@ -1600,17 +1625,19 @@ class PolicyEngineRunner(BaseTaxRunner):
 
                 try:
                     if is_output_adapter(pe_var):
-                        columns[taxsim_var] = np.round(
-                            calculate_output_adapter(
-                                mapping,
-                                state_codes,
-                                lambda variable: self._calc_tax_unit(
-                                    sim, variable, year_str
-                                ),
-                                sim.tax_benefit_system.parameters(year_str),
+                        adapter_result = calculate_output_adapter(
+                            mapping,
+                            state_codes,
+                            lambda variable: self._calc_tax_unit(
+                                sim, variable, year_str
                             ),
-                            2,
+                            sim.tax_benefit_system.parameters(year_str),
                         )
+                        if taxsim_var == "staxbc":
+                            adapter_result = self._apply_de_staxbc_elected_path(
+                                adapter_result, state_codes, sim, year_str
+                            )
+                        columns[taxsim_var] = np.round(adapter_result, 2)
                         continue
 
                     if has_state_variable_mapping(mapping):
