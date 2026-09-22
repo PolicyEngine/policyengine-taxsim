@@ -31,6 +31,8 @@ from policyengine_taxsim.core.input_mapper import (
 )
 
 from policyengine_us import Microsimulation
+from ..core.scorp import validate_scorp_treatment
+from ..core.scorp_reform import ScorpNIITCompatibility
 from policyengine_core.data import Dataset
 
 
@@ -1016,11 +1018,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         logs: bool = False,
         disable_salt: bool = False,
         assume_w2_wages: bool = False,
+        scorp_treatment: str = "passive",
     ):
         super().__init__(input_df)
         self.logs = logs
         self.disable_salt = disable_salt
         self.assume_w2_wages = assume_w2_wages
+        self.scorp_treatment = validate_scorp_treatment(scorp_treatment)
         # Per-row state_and_local_sales_or_income_tax override (Pass B of
         # three-pass --disable-salt). Maps taxsimid -> dollar value.
         self._state_tax_override = None
@@ -1090,7 +1094,16 @@ class PolicyEngineRunner(BaseTaxRunner):
         """Build a Microsimulation from the chunk dataset and apply all
         emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
         imputed-transfer zeroing, MD local tax zeroing)."""
-        sim = Microsimulation(dataset=dataset)
+        sim = Microsimulation(dataset=dataset, reform=ScorpNIITCompatibility)
+
+        for year in sorted(set(chunk_df["year"].astype(int))):
+            period = str(year)
+            income = sim.calculate("partnership_s_corp_income", period=period)
+            sim.set_input(
+                "passive_partnership_s_corp_income",
+                period,
+                income if self.scorp_treatment == "passive" else np.zeros_like(income),
+            )
 
         # Resolve the state_and_local_sales_or_income_tax override for
         # this chunk. Possible sources, in priority order:

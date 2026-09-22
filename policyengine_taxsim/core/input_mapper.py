@@ -5,6 +5,7 @@ from .utils import (
     convert_taxsim32_dependents,
 )
 import copy
+from .scorp import classify_scorp, validate_scorp_treatment
 
 
 def add_additional_units(state, year, situation, taxsim_vars):
@@ -334,7 +335,7 @@ def get_taxsim_defaults(year: int = 2021) -> dict:
     }
 
 
-def generate_household(taxsim_vars):
+def generate_household(taxsim_vars, scorp_treatment="passive"):
     """
     Convert TAXSIM input variables to a PolicyEngine situation.
 
@@ -345,6 +346,7 @@ def generate_household(taxsim_vars):
         dict: PolicyEngine situation dictionary
     """
 
+    validate_scorp_treatment(scorp_treatment)
     year = str(
         int(float(taxsim_vars.get("year", 2021)))
     )  # Ensure year is an integer string, handling decimals
@@ -358,4 +360,4 @@ def generate_household(taxsim_vars):
 
     situation = form_household_situation(year, state, taxsim_vars)
 
-    return situation
+    return classify_scorp(situation, scorp_treatment)

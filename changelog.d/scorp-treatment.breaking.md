@@ -1,0 +1,1 @@
+Default emulator S-corp NIIT classification to passive, matching TAXSIM, and add scorp_treatment/--scorp-treatment active to retain prior behavior. Preserve QBI eligibility and expose the assumption in refresh provenance and dashboard metadata.

@@ -60,3 +60,14 @@ uv pip compile pyproject.toml scripts/dashboard-refresh.in --python-version 3.11
 Separately, Python 3.10 users resolve an older PolicyEngine-US version that
 imports `spm_calculator.geoadj`; its compatibility constraint is in
 `pyproject.toml`. The Python 3.11 refresh uses the current model/API.
+
+## S-corp assumption
+
+Choose `scorp_treatment` when dispatching the workflow, or pass
+`--scorp-treatment passive|active` to the refresh script. Default: `passive`.
+The setting is part of checkpoint identity and output provenance, and is shown
+on the dashboard. TAXSIM itself remains in its default mode.
+
+The September 21, 2026 published snapshot used `active` on the PE side. Its
+summaries are labelled accordingly; introducing the switch does not recompute
+or relabel those results as passive. A new refresh is required for new scores.

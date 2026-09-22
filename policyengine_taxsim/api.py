@@ -12,6 +12,7 @@ Local (no Modal):
 """
 
 import modal
+from typing import Literal
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -162,6 +163,7 @@ def _run_taxsim(
     idtl,
     on_progress=None,
     use_remote_taxsim=False,
+    scorp_treatment="passive",
 ):
     """Shared logic for both Modal and local endpoints."""
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
@@ -176,6 +178,7 @@ def _run_taxsim(
         logs=False,
         disable_salt=disable_salt,
         assume_w2_wages=assume_w2_wages,
+        scorp_treatment=scorp_treatment,
     )
     if use_remote_taxsim:
         runner_kwargs["use_remote_taxsim"] = True
@@ -277,6 +280,7 @@ def _build_modal_app():
         csv: str
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Literal["passive", "active"] = "passive"
         idtl: Optional[int] = None
 
     class EmailRunRequest(BaseModel):
@@ -285,6 +289,7 @@ def _build_modal_app():
         filename: str = "input.csv"
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Literal["passive", "active"] = "passive"
         idtl: Optional[int] = None
         subscribe: bool = True
 
@@ -295,6 +300,7 @@ def _build_modal_app():
                 req.csv,
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
+                scorp_treatment=req.scorp_treatment,
                 idtl=req.idtl,
             )
         except ValueError as e:
@@ -331,6 +337,7 @@ def _build_modal_app():
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
+                        scorp_treatment=req.scorp_treatment,
                         idtl=req.idtl,
                         on_progress=on_progress,
                     )
@@ -373,6 +380,7 @@ def _build_modal_app():
                 req.csv,
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
+                scorp_treatment=req.scorp_treatment,
                 idtl=req.idtl,
             )
         except Exception as e:
@@ -433,6 +441,7 @@ def _build_local_app():
         csv: str
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Literal["passive", "active"] = "passive"
         idtl: Optional[int] = None
 
     class EmailRunRequest(BaseModel):
@@ -441,6 +450,7 @@ def _build_local_app():
         filename: str = "input.csv"
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Literal["passive", "active"] = "passive"
         idtl: Optional[int] = None
         subscribe: bool = True
 
@@ -451,6 +461,7 @@ def _build_local_app():
                 req.csv,
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
+                scorp_treatment=req.scorp_treatment,
                 idtl=req.idtl,
                 use_remote_taxsim=True,
             )
@@ -488,6 +499,7 @@ def _build_local_app():
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
+                        scorp_treatment=req.scorp_treatment,
                         idtl=req.idtl,
                         on_progress=on_progress,
                         use_remote_taxsim=True,
@@ -538,6 +550,7 @@ def _build_local_app():
                     req.csv,
                     disable_salt=req.disable_salt,
                     assume_w2_wages=req.assume_w2_wages,
+                    scorp_treatment=req.scorp_treatment,
                     idtl=req.idtl,
                     use_remote_taxsim=True,
                 )
