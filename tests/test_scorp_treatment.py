@@ -11,7 +11,7 @@ from policyengine_us import Simulation
 
 from policyengine_taxsim import generate_household, export_household
 from policyengine_taxsim.cli import cli
-from policyengine_taxsim.core.scorp_reform import ScorpNIITCompatibility
+from policyengine_taxsim.core.scorp_reform import scorp_tax_benefit_system
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
 
 
@@ -118,7 +118,7 @@ def test_default_and_validation():
 
 def test_compatibility_reform_does_not_double_count():
     situation = generate_household(record())
-    sim = Simulation(situation=situation, reform=ScorpNIITCompatibility)
+    sim = Simulation(situation=situation, tax_benefit_system=scorp_tax_benefit_system())
     assert sim.calculate("adjusted_gross_income", "2025")[0] == pytest.approx(300000)
     assert sim.calculate("net_investment_income", "2025")[0] == pytest.approx(300000)
     assert sim.calculate("net_investment_income_tax", "2025")[0] == pytest.approx(3800)

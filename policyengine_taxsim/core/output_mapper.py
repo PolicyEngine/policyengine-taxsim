@@ -12,7 +12,7 @@ from .state_output_resolver import (
     is_output_adapter,
 )
 from policyengine_us import Simulation
-from .scorp_reform import ScorpNIITCompatibility
+from .scorp_reform import scorp_tax_benefit_system
 from .yaml_generator import generate_pe_tests_yaml
 from .marginal_rates import compute_marginal_rates_single
 
@@ -30,7 +30,8 @@ def compute_srebate_single(simulation, year):
     """
     try:
         twin = Simulation(
-            situation=simulation.situation_input, reform=ScorpNIITCompatibility
+            situation=simulation.situation_input,
+            tax_benefit_system=scorp_tax_benefit_system(),
         )
         if disable_salt_variable:
             twin.set_input(
@@ -430,7 +431,7 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
     ]
 
     simulation = Simulation(
-        situation=policyengine_situation, reform=ScorpNIITCompatibility
+        situation=policyengine_situation, tax_benefit_system=scorp_tax_benefit_system()
     )
 
     # If state and local taxes should be set to zero, set it once on the simulation instance with the required period

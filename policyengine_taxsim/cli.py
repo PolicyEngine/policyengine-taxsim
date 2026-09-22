@@ -79,7 +79,7 @@ def _generate_yaml_files(
             # Convert TAXSIM32 dependent format if present
             taxsim_data = convert_taxsim32_dependents(taxsim_data)
 
-            from .core.scorp import classify_scorp
+            from policyengine_taxsim.core.scorp import classify_scorp
 
             household = classify_scorp(
                 form_household_situation(year, state, taxsim_data), scorp_treatment

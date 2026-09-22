@@ -32,7 +32,7 @@ from policyengine_taxsim.core.input_mapper import (
 
 from policyengine_us import Microsimulation
 from ..core.scorp import validate_scorp_treatment
-from ..core.scorp_reform import ScorpNIITCompatibility
+from ..core.scorp_reform import scorp_tax_benefit_system
 from policyengine_core.data import Dataset
 
 
@@ -1094,7 +1094,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         """Build a Microsimulation from the chunk dataset and apply all
         emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
         imputed-transfer zeroing, MD local tax zeroing)."""
-        sim = Microsimulation(dataset=dataset, reform=ScorpNIITCompatibility)
+        sim = Microsimulation(
+            dataset=dataset, tax_benefit_system=scorp_tax_benefit_system()
+        )
 
         for year in sorted(set(chunk_df["year"].astype(int))):
             period = str(year)

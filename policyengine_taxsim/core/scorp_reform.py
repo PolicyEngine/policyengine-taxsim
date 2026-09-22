@@ -36,3 +36,15 @@ class ScorpNIITCompatibility(Reform):
         if "passive_partnership_s_corp_income" not in self.variables:
             self.add_variable(passive_partnership_s_corp_income)
             self.replace_variable(net_investment_income)
+
+
+def scorp_tax_benefit_system():
+    """Construct the compatible system before loading any situation inputs.
+
+    Passing a structural reform to Simulation creates an unreformed baseline
+    branch in older core releases. That branch cannot hold the new input.
+    Supplying the already-configured system avoids that invalid baseline.
+    """
+    from policyengine_us import CountryTaxBenefitSystem
+
+    return CountryTaxBenefitSystem(reform=ScorpNIITCompatibility)
