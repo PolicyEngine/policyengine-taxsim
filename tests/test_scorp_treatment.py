@@ -117,6 +117,7 @@ def test_default_and_validation():
 
 
 def test_compatibility_reform_does_not_double_count():
+    assert scorp_tax_benefit_system() is scorp_tax_benefit_system()
     situation = generate_household(record())
     sim = Simulation(situation=situation, tax_benefit_system=scorp_tax_benefit_system())
     assert sim.calculate("adjusted_gross_income", "2025")[0] == pytest.approx(300000)
