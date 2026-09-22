@@ -75,15 +75,30 @@ def main():
             **usage,
         }
     residuals, improved, regressed = [], 0, 0
+    violations = []
+    match_columns = {"federal_match", "state_match", "overall_match"}
     for key, (ts, passive) in output["passive"].items():
         old_ts, active = output["active"][key]
-        assert ts == old_ts, "Comparator changed between modes"
+        # These annotations describe PE/TAXSIM agreement, not TAXSIM output.
+        # They must be allowed to change when the PE classification changes.
+        comparator_changes = {
+            column: [old_ts[column], ts[column]]
+            for column in ts
+            if column not in match_columns and old_ts[column] != ts[column]
+        }
+        if comparator_changes:
+            violations.append({"taxsimid": key, "comparator": comparator_changes})
         # NIIT classification must preserve income, QBI and payroll tax.
         for column in ("v10", "qbid", "fica"):
-            assert abs(number(active[column]) - number(passive[column])) <= 1, (
-                key,
-                column,
-            )
+            if abs(number(active[column]) - number(passive[column])) > 1:
+                violations.append(
+                    {
+                        "taxsimid": key,
+                        "column": column,
+                        "active": number(active[column]),
+                        "passive": number(passive[column]),
+                    }
+                )
         before = match_flags(ts, active)[2]
         after = match_flags(ts, passive)[2]
         improved += after and not before
@@ -104,6 +119,7 @@ def main():
         "sampleHouseholds": 3000,
         "assumeW2Wages": True,
         "metrics": metrics,
+        "invarianceViolations": violations,
         "newFederalMatches": improved,
         "lostFederalMatches": regressed,
         "largestResiduals": sorted(
@@ -117,6 +133,7 @@ def main():
         json.dumps({k: v for k, v in report.items() if k != "largestResiduals"}),
         flush=True,
     )
+    assert not violations, violations[:5]
     assert (
         metrics["passive"]["federalRelativeMatches"]
         > metrics["active"]["federalRelativeMatches"]
