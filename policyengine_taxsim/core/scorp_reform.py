@@ -20,6 +20,7 @@ class passive_partnership_s_corp_income(Variable):
 class net_investment_income(Variable):
     value_type = float
     entity = TaxUnit
+    label = "Net investment income including passive pass-through income"
     definition_period = YEAR
     unit = USD
 
