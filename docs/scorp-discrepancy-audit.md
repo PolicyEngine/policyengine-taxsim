@@ -2,6 +2,8 @@
 
 **Decision: do not merge.** The passive S-corp switch improves TAXSIM agreement but exposes an EITC regression. Passing interface tests and a higher match rate do not establish tax-law correctness. PR #1199 remains draft; no production dashboard refresh or model behavior change was made during this audit.
 
+**Source re-review:** [verified findings, corrections and tax-year-specific sources](scorp-source-review.md). This supersedes broad bug labels below.
+
 ## Scope and evidence
 
 - Pinned PolicyEngine-US 2.6.17; same bundled TAXSIM executable used by the dashboard.
@@ -20,7 +22,7 @@
 
 The other three lost federal matches are the same Alaska household **111323** in 2021–2023. Correcting $74,713.47 of NIIT exposes pre-existing QBI and Additional Medicare discrepancies that previously partly cancelled. Those are not evidence that its old NIIT treatment was correct.
 
-## Confirmed federal findings
+## Federal findings (see source verification for confidence and qualifications)
 
 ### QBI loss netting: both models need attention
 
@@ -55,7 +57,7 @@ PE omits allocable deductions from its NIIT base. TAXSIM makes deductions, but i
 - $300,000 wages + $100,000 interest, no state tax: both $3,800 NIIT.
 - Same income in CA/MA/NY in 2022: TAXSIM $3,705; PE $3,800. With $50,000 mortgage expense, the $95 deduction is consistent with allocating $2,500 of the deductible $10,000 SALT to investment income. Without mortgage, TAXSIM still subtracts $95 despite taking the standard deduction.
 - Texas 2022: TAXSIM $3,778.22, reflecting a sales-tax allocation; PE $3,800. Sales tax is not deductible for NIIT.
-- CA 2025: TAXSIM still uses a $10,000 SALT amount for NIIT even when regular-tax itemization uses the higher 2025 cap. PE still omits the allocation altogether.
+- CA 2025: the NIIT output is consistent with the former $10,000 SALT cap despite higher regular-tax deductions. The internal cap is inferred, not proven, and reasonable allocation methods can differ. PE omits the allocation altogether.
 
 [Form 8960](https://www.irs.gov/instructions/i8960) allows properly deductible expenses allocated reasonably to investment income and expressly excludes sales taxes. Both model changes and explicit assumptions are needed; subtracting all SALT would be wrong.
 
@@ -72,7 +74,7 @@ PE omits allocable deductions from its NIIT base. TAXSIM makes deductions, but i
 - **2021 TAXSIM other-dependent credit behaves as refundable.** Household 5062 has zero taxable income and an 18-year-old dependent: TAXSIM gives $500, PE zero. The other-dependent credit remains nonrefundable. [IRS 2021 guidance](https://www.irs.gov/irb/2021-29_IRB).
 - **CDCC:** household 111323 gets $600 from TAXSIM but zero from PE; spouse has negative SE income. Inspect the spouse earned-income limit and any assumed student/disability status rather than assume the higher credit is right.
 - **Deduction choice:** household 77471, DC 2025, TAXSIM uses $10,000 itemized deductions despite reporting $34,700 standard deduction; PE uses standard. Moving the identical TAXSIM case to state 0 makes it use standard and removes the $9,139 regular-tax gap. This is state-dependent deduction selection; determining whether it reflects combined federal/state optimization needs further validation.
-- **AMT:** household 53450, CA 2025, TAXSIM has $11,239.16 AMT; PE zero. Income and regular taxable income agree. Hosted internal probes trace an upstream worksheet defect: `dwks09` includes qualified dividends in the capital-gain amount and `dwks10` adds them again when positive short-term gains leave room. Here `dwks13` is $1,424,101.63 instead of the $1,341,864.75 qualified-dividend/LTCG amount, double-counting $82,236.83 of dividends. This understates ordinary AMT income. The exact corrected AMT and any residual TAXSIM difference still need a Form 6251 calculation. This case has no S-corp income.
+- **AMT:** household 53450, CA 2025, TAXSIM has $11,239.16 AMT; PE zero. Income and regular taxable income agree. Hosted internal probes trace an upstream worksheet defect: `dwks09` includes qualified dividends in the capital-gain amount and `dwks10` adds them again when positive short-term gains leave room. Here `dwks13` is $1,424,101.63 instead of the $1,341,864.75 qualified-dividend/LTCG amount, double-counting $82,236.83 of dividends. This understates ordinary AMT income. The subsequent independent Form 6251 calculation gives $9,131.71 AMT: neither zero nor TAXSIM's $11,239.16 is correct. See the source review for the calculation. This case has no S-corp income.
 - Output columns such as `v19` are not necessarily identical concepts in both models. At very high incomes PE float32 rounding also produces several-dollar differences. Do not count every nonzero intermediate-column delta as a distinct legal error.
 
 ## State inventory and disposition
