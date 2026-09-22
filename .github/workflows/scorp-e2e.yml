@@ -38,7 +38,7 @@ jobs:
         if: always()
         with:
           name: scorp-alignment-${{ matrix.year }}
-          path: validation/*.json
+          path: validation/*.json*
           retention-days: 7
   interfaces:
     runs-on: ubuntu-latest

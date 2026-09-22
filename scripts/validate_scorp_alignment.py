@@ -74,6 +74,20 @@ def main():
             ),
             **usage,
         }
+    # Keep the small fixed sample for forensic analysis. Full-population
+    # output is never downloaded or retained by this validation workflow.
+    with gzip.open(args.output / f"details-{args.year}.json.gz", "wt") as stream:
+        json.dump(
+            [
+                {
+                    "taxsim": ts,
+                    "active": output["active"][key][1],
+                    "passive": pe,
+                }
+                for key, (ts, pe) in output["passive"].items()
+            ],
+            stream,
+        )
     residuals, improved, regressed = [], 0, 0
     violations = []
     match_columns = {"federal_match", "state_match", "overall_match"}
