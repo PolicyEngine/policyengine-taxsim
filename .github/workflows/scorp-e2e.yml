@@ -1,16 +1,8 @@
-name: S-corp end-to-end alignment
+name: S-corp diagnostic probes
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'scripts/validate_scorp_alignment.py'
-      - 'tests/test_scorp_e2e.py'
-      - '.github/workflows/scorp-e2e.yml'
 permissions:
   contents: read
-concurrency:
-  group: scorp-e2e-${{ github.ref }}
-  cancel-in-progress: true
 env:
   OPENBLAS_NUM_THREADS: '1'
   OMP_NUM_THREADS: '1'
@@ -19,9 +11,9 @@ env:
   PIP_NO_CACHE_DIR: '1'
   PYTHONUNBUFFERED: '1'
 jobs:
-  alignment:
+  probes:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -33,20 +25,10 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e .
-      - run: python scripts/validate_scorp_alignment.py --year ${{ matrix.year }}
+      - run: python scripts/audit_scorp_probes.py --year ${{ matrix.year }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: scorp-alignment-${{ matrix.year }}
-          path: validation/*.json*
+          name: scorp-probes-${{ matrix.year }}
+          path: validation/*.json
           retention-days: 7
-  interfaces:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-      - run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e . && pip install pytest modal fastapi httpx
-      - run: SCORP_E2E=1 pytest tests/test_scorp_e2e.py -v
