@@ -34,16 +34,34 @@ def main():
     with source.open() as f:
         inputs = [r for r in csv.DictReader(f) if r["source"] == "taxsim"]
     assert len(inputs) == 3000
-    input_file = work / "input.csv"
-    with input_file.open("w", newline="") as f:
-        writer = csv.DictWriter(f, INPUT_COLUMNS)
-        writer.writeheader()
-        writer.writerows({k: r.get(k, "") for k in INPUT_COLUMNS} for r in inputs)
     output, metrics = {}, {}
     for mode in ("active", "passive"):
-        path = work / f"{mode}.csv.gz"
-        usage = run_bounded(input_file, path, 5, 4, mode)
-        output[mode] = pairs(path)
+        output[mode] = {}
+        peak, seconds = 0, 0
+        # A mixed-state sample loads far more state formulas than the
+        # state-sorted full refresh. Keep each fresh worker to 500 records.
+        for start in range(0, len(inputs), 500):
+            input_file = work / "input.csv"
+            with input_file.open("w", newline="") as f:
+                writer = csv.DictWriter(f, INPUT_COLUMNS)
+                writer.writeheader()
+                writer.writerows(
+                    {k: r.get(k, "") for k in INPUT_COLUMNS}
+                    for r in inputs[start : start + 500]
+                )
+            path = work / f"{mode}-{start}.csv.gz"
+            usage = run_bounded(input_file, path, 5, 4, mode)
+            batch = pairs(path)
+            assert len(batch) == 500
+            assert not output[mode].keys() & batch.keys()
+            output[mode].update(batch)
+            peak = max(peak, usage["peakRssMiB"])
+            seconds += usage["seconds"]
+            path.unlink()
+            print(
+                f"{args.year} {mode}: {start + 500}/3000, peak {peak} MiB", flush=True
+            )
+        usage = {"peakRssMiB": peak, "seconds": round(seconds, 1)}
         assert len(output[mode]) == 3000
         flags = [match_flags(ts, pe) for ts, pe in output[mode].values()]
         metrics[mode] = {
