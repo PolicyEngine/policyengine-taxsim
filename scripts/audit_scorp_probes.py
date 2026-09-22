@@ -19,7 +19,11 @@ state_sales_tax itemized_taxable_income_deductions tax_unit_itemizes
 income_tax_before_credits income_tax_main_rates capital_gains_tax
 employee_social_security_tax employer_social_security_tax employee_medicare_tax
 employer_medicare_tax additional_medicare_tax self_employment_tax
-partnership_s_corp_income total_self_employment_income""".split()
+partnership_s_corp_income total_self_employment_income
+employee_state_payroll_tax amt_income amt_income_less_exemptions amt_exemption
+amt_tax_including_cg amt_base_tax alternative_minimum_tax regular_tax_before_credits
+dwks10 dwks13 dwks14 dwks19 dwks43 tax_unit_itemizes
+min_head_spouse_earned cdcc_relevant_expenses""".split()
 
 
 def cases(year):
