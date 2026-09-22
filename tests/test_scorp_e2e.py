@@ -50,10 +50,19 @@ def verify(text, expected, mode):
         assert float(row["fiitax"]) == pytest.approx(
             float(expected[key]["fiitax"]) + delta, abs=1
         )
-        for field in ("qbid", "fica", "v10"):
+        for field in ("qbid", "v10"):
             assert float(row[field]) == pytest.approx(
                 float(expected[key][field]), abs=1
             )
+        # Keep this independent discrepancy explicit: the bundled TAXSIM
+        # reports 39,118.20 FICA on $300k wages; PE reports 31,436.40.
+        # The $7,681.80 gap is .062 * (300000 - 176100), consistent with
+        # an uncapped employer SS component in TAXSIM. NIIT mode must not
+        # be used to conceal or compensate for this payroll discrepancy.
+        known_fica_gap = 7681.80 if key == 4 else 0
+        assert float(row["fica"]) == pytest.approx(
+            float(expected[key]["fica"]) - known_fica_gap, abs=1
+        )
 
 
 @pytest.mark.parametrize("mode", ["passive", "active"])
