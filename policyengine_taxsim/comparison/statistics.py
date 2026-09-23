@@ -1,7 +1,7 @@
 from typing import Dict, Any
 import pandas as pd
 from .comparator import ComparisonResults
-from ..core.utils import get_state_code
+from ..core.utils import get_state_label
 
 
 class ComparisonStatistics:
@@ -98,26 +98,25 @@ class ComparisonStatistics:
         if "state" in self.input_data.columns:
             state_counts = self.input_data["state"].value_counts().to_dict()
 
-            for state_fips, total_households in state_counts.items():
+            for state, total_households in state_counts.items():
                 # Count federal mismatches for this state
                 federal_mismatches = sum(
                     1
                     for m in self.results.federal_mismatches
-                    if hasattr(m, "state") and m.state == state_fips
+                    if hasattr(m, "state") and m.state == state
                 )
 
                 # Count state mismatches for this state
                 state_mismatches = sum(
                     1
                     for m in self.results.state_mismatches
-                    if hasattr(m, "state") and m.state == state_fips
+                    if hasattr(m, "state") and m.state == state
                 )
 
-                # Convert FIPS to state code
-                state_code = get_state_code(state_fips)
-
-                breakdown[state_code] = {
-                    "state_fips": state_fips,
+                # Label by SOI state; state 0 (no state tax) gets its own row
+                # rather than colliding with a real state such as TX.
+                breakdown[get_state_label(state)] = {
+                    "state": state,
                     "total_households": total_households,
                     "federal_mismatches": federal_mismatches,
                     "state_mismatches": state_mismatches,

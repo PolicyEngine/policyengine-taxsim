@@ -4,9 +4,13 @@ The **Refresh dashboard data** GitHub Actions workflow regenerates the five
 2021–2025 comparisons on hosted Linux runners. It does not run simulations on
 the operator's laptop. There is no schedule; start it manually when needed.
 
-The source is the July 7, 2026 full comparison release. Only the original
-TAXSIM input rows are reused, preserving the 111,347 households per year. Both
-models are rerun. Flags remain `assume_w2_wages=True` and `disable_salt=False`.
+The source is `cps_households.csv`: TAXSIM inputs for the 111,347 eCPS tax
+units, reused for every tax year (the year column is set per run). Before any
+model runs, the refresh rejects a source with state code 0 or any other
+invalid code, or with no households in some state. TAXSIM reads state 0 as
+"no state tax". Before September 2026, the 1,155 Alabama households were coded
+0, because the converter that built the file had no Alabama entry. They were
+scored without state income tax and reported under TX. Both models are rerun. Flags remain `assume_w2_wages=True` and `disable_salt=False`.
 PolicyEngine output detail is 5 so the detailed output columns are populated;
 TAXSIM retains the original output setting. Drill-down household IDs are held
 constant, and all summary denominators use the complete population.

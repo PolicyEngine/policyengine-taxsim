@@ -143,6 +143,19 @@ def _validate_csv(csv_text):
                 "All input variables must be numbers."
             )
 
+    # State must be a TAXSIM SOI code; TAXSIM aborts the whole run otherwise
+    if "state" in df.columns:
+        from policyengine_taxsim.core.utils import validate_state_number
+
+        for row_number, state in enumerate(df["state"], start=1):
+            try:
+                validate_state_number(state)
+            except ValueError as error:
+                raise ValueError(
+                    f"Row {row_number}: {error}. Use a TAXSIM SOI state code "
+                    "from 1 to 51, or 0 for no state tax."
+                ) from None
+
     # Warn about unrecognized columns (they'll be silently ignored)
     warnings = []
     unknown = set(df.columns) - KNOWN_COLUMNS

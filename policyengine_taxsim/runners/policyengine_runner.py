@@ -11,11 +11,11 @@ from .base_runner import BaseTaxRunner
 # Import core functions needed for microsimulation
 from policyengine_taxsim.core.utils import (
     load_variable_mappings,
-    SOI_TO_FIPS_MAP,
-    get_state_code,
-    get_state_number,
+    get_calculation_fips,
+    get_calculation_state_code,
     to_roundedup_number,
     convert_taxsim32_dependents,
+    validate_state_number,
 )
 from policyengine_taxsim.core.state_output_resolver import (
     ONE_TIME_REBATE_VARIABLES,
@@ -266,8 +266,8 @@ class TaxsimMicrosimDataset(Dataset):
         if source_field != cls._PENSION_SOURCE_FIELD:
             return cls._DEFAULT_PENSION_SPLIT_AGE
         try:
-            state = get_state_code(int(row.get("state", 0)))
-        except (TypeError, ValueError):
+            state = get_calculation_state_code(row.get("state"))
+        except ValueError:
             state = None
         return cls._PENSION_SPLIT_AGE_BY_STATE.get(
             state, cls._DEFAULT_PENSION_SPLIT_AGE
@@ -742,9 +742,9 @@ class TaxsimMicrosimDataset(Dataset):
 
     def _apply_defaults_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized."""
-        # Vectorized set_taxsim_defaults: fill falsy values with defaults
+        # Vectorized set_taxsim_defaults: fill falsy values with defaults.
+        # State 0 stays 0 (no state tax); the FIPS mapping applies the proxy.
         defaults = {
-            "state": 44,
             "depx": 0,
             "mstat": 1,
             "taxsimid": 0,
@@ -950,10 +950,7 @@ class TaxsimMicrosimDataset(Dataset):
             data["household_weight"][year_int] = np.ones(n_year_records)
             # Convert SOI codes to FIPS codes for PolicyEngine
             data["state_fips"][year_int] = np.array(
-                [
-                    SOI_TO_FIPS_MAP.get(int(float(s)), 6)
-                    for s in year_data["state"].values
-                ]
+                [get_calculation_fips(s) for s in year_data["state"].values]
             )
 
             # Tax unit data
@@ -1025,6 +1022,23 @@ class PolicyEngineRunner(BaseTaxRunner):
         # three-pass --disable-salt). Maps taxsimid -> dollar value.
         self._state_tax_override = None
         self.mappings = load_variable_mappings()
+
+    def _validate_input(self):
+        """Reject invalid state codes before any simulation, as TAXSIM does.
+
+        A missing state is 0 (no state tax). TaxsimRunner skips this check
+        because TAXSIM itself accepts -1 (compute every state).
+        """
+        super()._validate_input()
+        if "state" not in self.input_df.columns:
+            return
+        states = []
+        for taxsimid, state in zip(self.input_df["taxsimid"], self.input_df["state"]):
+            try:
+                states.append(validate_state_number(state))
+            except ValueError as error:
+                raise ValueError(f"Record {taxsimid}: {error}") from None
+        self.input_df["state"] = states
 
     def _ensure_required_columns(self, df):
         """
@@ -1541,12 +1555,16 @@ class PolicyEngineRunner(BaseTaxRunner):
             if n == 0:
                 continue
 
-            # Pre-compute state codes for all rows in this year (vectorized)
+            # Pre-compute state codes for all rows in this year (vectorized).
+            # state_codes are the simulated states (Texas for state 0); the
+            # output echoes the input number, so state 0 stays 0 as in TAXSIM.
             state_numbers = year_data["state"].values
-            state_codes = np.array([get_state_code(s) for s in state_numbers])
+            state_codes = np.array(
+                [get_calculation_state_code(s) for s in state_numbers]
+            )
             state_initials = np.char.lower(state_codes)
             output_state_numbers = np.array(
-                [get_state_number(sc) for sc in state_codes]
+                [validate_state_number(s) for s in state_numbers]
             )
 
             # Start building the result columns

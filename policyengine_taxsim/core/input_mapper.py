@@ -1,8 +1,10 @@
 from .utils import (
     load_variable_mappings,
-    get_state_code,
+    get_calculation_state_code,
     get_ordinal,
     convert_taxsim32_dependents,
+    NO_STATE,
+    validate_state_number,
 )
 import copy
 
@@ -286,7 +288,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         dict: Updated dictionary with default values set where needed
 
     Default values:
-        - state: 44 (Texas)
+        - state: 0 (no state tax; invalid state codes raise ValueError)
         - depx: 0 (Number of dependents)
         - mstat: 1 (Marital status)
         - taxsimid: 0 (TAXSIM ID)
@@ -296,7 +298,6 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         - sage: 40 (Age of secondary taxpayer)
     """
     DEFAULTS = {
-        "state": 44,  # Texas
         "depx": 0,  # Number of dependents
         "mstat": 1,  # Marital status
         "taxsimid": 0,  # TAXSIM ID
@@ -308,6 +309,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
 
     for key, default_value in DEFAULTS.items():
         taxsim_vars[key] = int(taxsim_vars.get(key, default_value) or default_value)
+    taxsim_vars["state"] = validate_state_number(taxsim_vars.get("state"))
 
     return taxsim_vars
 
@@ -325,7 +327,7 @@ def get_taxsim_defaults(year: int = 2021) -> dict:
     return {
         "taxsimid": 0,
         "year": year,
-        "state": 44,  # Texas
+        "state": NO_STATE,  # No state tax, as when TAXSIM gets no state column
         "mstat": 1,  # Single
         "depx": 0,  # Number of dependents
         "idtl": 0,  # Output flag
@@ -354,7 +356,7 @@ def generate_household(taxsim_vars):
 
     taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
 
-    state = get_state_code(taxsim_vars["state"])
+    state = get_calculation_state_code(taxsim_vars["state"])
 
     situation = form_household_situation(year, state, taxsim_vars)
 

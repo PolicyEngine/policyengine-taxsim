@@ -67,16 +67,82 @@ STATE_MAPPING = {
 }
 
 
+STATE_NUMBERS = {code: number for number, code in STATE_MAPPING.items()}
+
+# TAXSIM state 0 means no state tax; its full text output (idtl=5) prints
+# "State not specified" in place of a state.
+NO_STATE = 0
+NO_STATE_LABEL = "State not specified"
+# PolicyEngine always simulates a household in some state, so a state-0 record
+# is simulated in Texas, which levies no individual income tax. This is a
+# calculation proxy only: state-0 records are never reported or echoed as TX.
+NO_STATE_TAX_PROXY = 44
+
+
+def validate_state_number(state_number):
+    """Return a TAXSIM SOI state number (0-51) as an int.
+
+    A missing value is state 0, as in TAXSIM. Any other value outside 0-51
+    raises ValueError; TAXSIM aborts the whole run on an invalid state code.
+    """
+    if state_number is None or (
+        isinstance(state_number, str) and not state_number.strip()
+    ):
+        return NO_STATE
+    try:
+        number = float(state_number)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"TAXSIM state code must be a number, got {state_number!r}"
+        ) from None
+    if np.isnan(number):
+        return NO_STATE
+    if not number.is_integer():
+        raise ValueError(f"TAXSIM state code must be an integer, got {number:g}")
+    if number == -1:
+        raise ValueError("TAXSIM state -1 (compute every state) is not supported")
+    if not NO_STATE <= number <= max(STATE_MAPPING):
+        raise ValueError(f"{number:g} is not a valid TAXSIM SOI state code (0-51)")
+    return int(number)
+
+
 def get_state_code(state_number):
-    """Convert state number to state code."""
-    # For invalid state codes (including 0), default to Texas (consistent with set_taxsim_defaults)
-    return STATE_MAPPING.get(state_number, "TX")
+    """Postal code of a TAXSIM SOI state number, or None for state 0.
+
+    For labels and reports: state 0 (no state tax) has no postal code and is
+    never attributed to a real state. Invalid numbers raise ValueError.
+    """
+    number = validate_state_number(state_number)
+    return None if number == NO_STATE else STATE_MAPPING[number]
+
+
+def get_state_label(state_number):
+    """Postal code of a TAXSIM SOI state number, or TAXSIM's wording for 0."""
+    return get_state_code(state_number) or NO_STATE_LABEL
+
+
+def get_calculation_state_code(state_number):
+    """Postal code of the state PolicyEngine simulates for a TAXSIM record.
+
+    State 0 (no state tax) uses NO_STATE_TAX_PROXY. Use only to build or read
+    a simulation, never to label output.
+    """
+    return STATE_MAPPING[validate_state_number(state_number) or NO_STATE_TAX_PROXY]
+
+
+def get_calculation_fips(state_number):
+    """FIPS code of the state PolicyEngine simulates for a TAXSIM record."""
+    return SOI_TO_FIPS_MAP[validate_state_number(state_number) or NO_STATE_TAX_PROXY]
 
 
 def get_state_number(state_code):
-    """Convert state code to state number."""
-    state_mapping_reverse = {v: k for k, v in STATE_MAPPING.items()}
-    return state_mapping_reverse.get(state_code, 0)  # Return 0 for invalid state codes
+    """TAXSIM SOI state number of a postal code; None (no state) is 0."""
+    if state_code is None:
+        return NO_STATE
+    try:
+        return STATE_NUMBERS[str(state_code).upper()]
+    except KeyError:
+        raise ValueError(f"Unknown state code {state_code!r}") from None
 
 
 def is_date(string):

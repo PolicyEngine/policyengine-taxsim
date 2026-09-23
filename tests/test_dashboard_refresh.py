@@ -65,6 +65,51 @@ class RefreshTests(unittest.TestCase):
                 refresh.summarize([part, part], base / "bad", 2021, {}, {"2"})
 
 
+class SourceTests(unittest.TestCase):
+    def write_source(self, folder, states):
+        path = Path(folder) / "source.csv"
+        with path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, refresh.INPUT_COLUMNS)
+            writer.writeheader()
+            for i, state in enumerate(states, 1):
+                writer.writerow({"taxsimid": i, "year": 2021, "state": state})
+        return path
+
+    def test_checked_in_source_has_every_state(self):
+        self.assertEqual(refresh.check_source(refresh.SOURCE), refresh.EXPECTED_RECORDS)
+
+    def test_state_zero_is_rejected(self):
+        # TAXSIM reads state 0 as "no state tax"; Alabama was once coded 0.
+        with tempfile.TemporaryDirectory() as folder:
+            states = [0, *range(2, 52)]
+            with self.assertRaisesRegex(
+                ValueError, r"invalid TAXSIM state codes \[0\]"
+            ):
+                refresh.check_source(self.write_source(folder, states))
+
+    def test_missing_state_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "no households in AL$"):
+                refresh.check_source(self.write_source(folder, range(2, 52)))
+            path = self.write_source(folder, range(1, 52))
+            self.assertEqual(refresh.check_source(path), 51)
+
+    def test_summary_rejects_rows_without_a_state(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            part = base / "part.csv.gz"
+            rows = [
+                dict(taxsimid=1, source=source, state_code="", fiitax=0, siitax=0)
+                for source in ("taxsim", "policyengine")
+            ]
+            with gzip.open(part, "wt", newline="") as stream:
+                writer = csv.DictWriter(stream, rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
+            with self.assertRaisesRegex(ValueError, "no valid state"):
+                refresh.summarize([part], base / "output", 2021, {}, set())
+
+
 class ResourceLimitTests(unittest.TestCase):
     @unittest.skipIf(os.name == "nt", "Refresh workers use POSIX process groups")
     def test_memory_limit_terminates_worker_group(self):
