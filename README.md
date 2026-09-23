@@ -298,7 +298,9 @@ The emulator accepts CSV files with the following variables:
 `deductible_mortgage_interest`. The `taxsimtest` binary deducts both in full on
 Schedule A (no AGI floor, outside the SALT cap) and adds neither back to AMT
 income, even though the TAXSIM documentation describes `otheritem` as an AMT
-preference.
+preference. One known difference remains: in AR, DE, IA (2020–2022), KS, ME, MS,
+NC and WI (2023+), `taxsimtest` leaves `otheritem` (but not `mortgage`) out of
+the state itemized deduction, while the emulator treats the two alike.
 
 ### Output Types
 

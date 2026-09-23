@@ -13,16 +13,22 @@ TAXSIM-35 takes two lump-sum itemized-deduction inputs besides `proptax`:
 Ground truth is the bundled `taxsimtest` binary, not the documentation. On
 the federal return the binary treats the two columns identically: each is
 deducted in full on Schedule A (no AGI floor, outside the SALT cap), and
-neither is added back to AMT income (v26), in every tax year the emulator
-covers. The emulator therefore sums both into PolicyEngine's
-`deductible_mortgage_interest`, which flows through `interest_deduction` with
-no floor or cap and is not an AMT add-back.
+neither is added back to AMT income (v26 = AGI - mortgage - otheritem -
+QBID), in every tax year the emulator covers. Dan Feenberg describes
+`otheritem` as Schedule A line 16 ("Other--from list in instructions"), not
+subject to the 2% floor (taxsim #484). The emulator therefore sums both into
+PolicyEngine's `deductible_mortgage_interest`, which flows through
+`interest_deduction` with no floor or cap and is not an AMT add-back.
 
-Before this change the emulator ignored `otheritem` entirely (taxsim #484).
-BLS's Consumer Expenditure Survey fills `otheritem` for roughly half of its
-tax units (Curtin 2017, "Calculating Inputs for the NBER TAXSIM model, using
-the CE PUMD"), so dropping it overstated federal and state tax for
-itemizers.
+Before this change the emulator ignored `otheritem` entirely (#484). BLS's
+Consumer Expenditure Survey NTAXI files carry a nonzero AMTDEDCT -- the CE
+variable Curtin (2017) feeds to `otheritem` -- for about half of 2021-2023
+tax units, so dropping it overstated federal tax for itemizers.
+
+Known divergence: in AR, DE, IA (2020-2022), KS, ME, MS, NC and WI (2023+)
+taxsimtest leaves `otheritem` out of the state itemized deduction while it
+keeps `mortgage` in; the emulator treats the two alike there too. See
+`test_state_otheritem_exclusion_not_emulated`.
 
 Most records use Pennsylvania (SOI 39): PA has no state itemized deductions
 and a flat rate, so the federal comparison is not confounded by state
@@ -197,3 +203,45 @@ class TestSingleHouseholdPath:
         people = situation["people"]
         assert people["you"]["deductible_mortgage_interest"] == {"2023": 24_000}
         assert "deductible_mortgage_interest" not in people["your partner"]
+
+
+KS = 17
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Known divergence: in AR, DE, IA (2020-2022), KS, ME, MS, NC and WI "
+        "(2023+) taxsimtest excludes `otheritem` from the state itemized "
+        "deduction but not `mortgage`; the emulator treats them alike."
+    ),
+)
+def test_state_otheritem_exclusion_not_emulated():
+    """Kansas single filer, 2023, $60K wages, $2K property tax, $18K of
+    `otheritem`. taxsimtest's KS itemized deduction (v35) is the $2,000 of
+    property tax alone and siitax is $2,634.75; with the same $18K in
+    `mortgage` v35 is $20,000 and siitax $1,694.25, which the emulator
+    reproduces for both records. Strict, so emulating the exclusion flips
+    this test and forces the docs to be updated."""
+    df = pd.DataFrame(
+        [
+            dict(
+                taxsimid=1,
+                year=2023,
+                state=KS,
+                mstat=1,
+                page=45,
+                sage=0,
+                depx=0,
+                pwages=60_000,
+                proptax=2_000,
+                otheritem=18_000,
+                idtl=2,
+            )
+        ]
+    )
+    taxsim = _by_id(TaxsimRunner(df.copy()).run(show_progress=False))
+    emulator = _by_id(
+        PolicyEngineRunner(df.copy(), logs=False).run(show_progress=False)
+    )
+    assert emulator.loc[1, "siitax"] == pytest.approx(taxsim.loc[1, "siitax"], abs=1.0)
