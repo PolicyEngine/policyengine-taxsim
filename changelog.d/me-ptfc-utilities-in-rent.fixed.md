@@ -1,1 +1,0 @@
-Treat TAXSIM rentpaid as gross rent that includes heat and utilities for the Maine property tax fairness credit, matching TaxAct's Schedule PTFC/STFC handling. Scoped to Maine so it does not affect Michigan's home heating credit.
