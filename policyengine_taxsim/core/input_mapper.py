@@ -206,6 +206,17 @@ def form_household_situation(year, state, taxsim_vars):
         "is_tax_unit_head": {str(year): True},
     }
 
+    if mstat == 8:
+        # Dependent taxpayer: PolicyEngine's dependent standard deduction
+        # keys off this flag; the EITC (IRC § 32(c)(1)(A)(ii)(III)) and the
+        # 2021 recovery rebate (IRC § 6428B(c)(2)) do not, so deny them here
+        # as PolicyEngineRunner._apply_dependent_filer_rules does.
+        people["you"]["claimed_as_dependent_on_another_return"] = {str(year): True}
+        household_situation["tax_units"]["your tax unit"]["eitc_eligible"] = {
+            str(year): False
+        }
+        household_situation["tax_units"]["your tax unit"]["rrc_arpa"] = {str(year): 0}
+
     if mstat == 2:
         people["your partner"] = {
             "age": {str(year): int(taxsim_vars.get("sage") or 40)},
