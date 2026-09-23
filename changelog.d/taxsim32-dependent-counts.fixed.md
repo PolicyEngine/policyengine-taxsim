@@ -1,0 +1,1 @@
+Honor TAXSIM-32 dependent counts (`dep13`, `dep17`, `dep18`) in the PolicyEngine microsimulation runner. The input was padded with zero-filled `age1..age10` before conversion, so the counts were ignored and every dependent became age 10; adult dependents (`depx` above `dep18`) received the EITC and refundable CTC that taxsimtest denies them.
