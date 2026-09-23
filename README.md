@@ -289,9 +289,16 @@ The emulator accepts CSV files with the following variables:
 | Variable  | Description                    |
 |-----------|--------------------------------|
 | rentpaid  | Amount of rent paid            |
-| mortgage  | Deductible mortgage interest   |
+| mortgage  | Other itemized deductions not in `proptax`/`otheritem` (mortgage interest, charity, medical above the floor, etc.) |
+| otheritem | Other itemized deductions (other state/local taxes, medical preference share, miscellaneous) |
 | proptax   | Real Estate Taxes              |
 | childcare | Childcare expenses             |
+
+`mortgage` and `otheritem` are both summed into PolicyEngine's
+`deductible_mortgage_interest`. The `taxsimtest` binary deducts both in full on
+Schedule A (no AGI floor, outside the SALT cap) and adds neither back to AMT
+income, even though the TAXSIM documentation describes `otheritem` as an AMT
+preference.
 
 ### Output Types
 
