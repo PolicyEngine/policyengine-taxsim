@@ -1242,6 +1242,31 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ),
                     )
 
+        # Maine property tax fairness credit: TAXSIM's `rentpaid` is gross rent
+        # that includes heat/utilities, which Maine excludes before taking 15%
+        # of rent (Schedule PTFC/STFC line 5b/5c). Flag Maine (SOI code 20)
+        # renters so PE-US applies the worksheet's 15%-of-rent default rather
+        # than counting the full gross rent. `utilities_included_in_rent` also
+        # feeds Michigan's home heating credit, so this is scoped to Maine.
+        # Mirrors input_mapper.add_additional_units for the single-household
+        # path so both execution paths agree (taxsim #1126/#1128).
+        if "state" in chunk_df.columns and "rentpaid" in chunk_df.columns:
+            me_mask = (chunk_df["state"] == 20) & (chunk_df["rentpaid"] > 0)
+            var = "utilities_included_in_rent"
+            if me_mask.any() and var in sim.tax_benefit_system.variables:
+                for year in years:
+                    year_mask = chunk_df["year"] == year
+                    if (me_mask & year_mask).any():
+                        sim.set_input(
+                            variable_name=var,
+                            value=me_mask[year_mask].values,
+                            period=str(
+                                int(year)
+                                if isinstance(year, (float, np.floating))
+                                else year
+                            ),
+                        )
+
         return sim
 
     def _zero_one_time_rebates(self, sim, chunk_df: pd.DataFrame) -> None:
