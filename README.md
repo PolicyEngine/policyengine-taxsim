@@ -212,7 +212,8 @@ The project includes a comprehensive React-based interactive dashboard for visua
 
 ### Dashboard Features
 
-- **Multi-Year Analysis**: Compare results across tax years 2021-2024 with year-over-year trends
+- **Multi-Year Analysis**: Compare results across tax years 2021-2025
+- **Two populations**: Populace US 2024 by default, or the archived Enhanced CPS for high-income coverage
 - **State-by-State Breakdown**: Detailed analysis by all 50 US states plus DC
 - **Interactive Filtering**: Advanced filtering by state, match status, and household characteristics
 - **Variable-Level Comparisons**: Drill down to see differences in specific tax variables (v10, v32, etc.)
@@ -226,19 +227,23 @@ The project includes a comprehensive React-based interactive dashboard for visua
 
 ### Data Management
 
-The dashboard loads comparison data from `public/data/YYYY/comparison_results_YYYY.csv` files. To update:
+The dashboard compares the emulator with NBER's taxsimtest binary on two
+populations of TAXSIM records, one per tax unit, scored under each year's law
+for 2021-2025:
 
-1. **Generate new comparison data:**
-   ```bash
-   policyengine-taxsim compare your_data.csv --year 2024
-   ```
+- **Populace US 2024** (default), `populace_households.csv`: every tax unit
+  in the build policyengine.py certifies (`populace-us-2024-spm-20260915`),
+  read with the certified policyengine-us 2.2.1 by
+  `scripts/convert_h5_to_taxsim.py`.
+- **Enhanced CPS (archived)**, `cps_households.csv`: the 111,347 records used
+  through September 2026, kept because the Populace build lacks their
+  high-income tail.
 
-2. **Copy results to dashboard:**
-   ```bash
-   cp comparison_output/comparison_results_2024.csv dashboard/public/data/2024/
-   ```
-
-3. **Restart dashboard** to load new data
+The rates are PolicyEngine's own comparison; NBER has not endorsed them as
+error statistics. Each year's summary and drill-down sample live in
+`dashboard/public/data/<dataset>/<year>/`, and the full comparisons are GitHub
+release assets. Regenerate them with the **Refresh dashboard data** workflow;
+see [docs/dashboard-refresh.md](docs/dashboard-refresh.md).
 
 **Production Build:**
 ```bash

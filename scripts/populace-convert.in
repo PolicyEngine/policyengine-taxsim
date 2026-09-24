@@ -1,0 +1,7 @@
+# Environment for scripts/convert_h5_to_taxsim.py on the certified Populace
+# build: the model versions policyengine.py certifies for it.
+policyengine-us==2.2.1
+policyengine-core==3.32.5
+huggingface-hub
+pandas
+tables

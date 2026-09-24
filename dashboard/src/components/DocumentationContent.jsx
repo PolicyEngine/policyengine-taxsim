@@ -24,6 +24,21 @@ import {
   getMultipleVariables
 } from '../constants';
 
+// Unweighted coverage of the two benchmark populations, from
+// populace_households.json and scripts/convert_h5_to_taxsim.py's coverage()
+// applied to cps_households.csv (tests/test_populace_inputs.py pins both).
+export const DATASET_COVERAGE = [
+  ['Records (tax units)', '79,477', '111,347'],
+  ['Total income of $1 million or more', '1,293', '11,454'],
+  ['Total income of $10 million or more', '3', '6,867'],
+  ['Largest total income', '$14.7 million', '$348.0 million'],
+  ['Long-term capital gains', '8,524', '34,552'],
+  ['S-corp or partnership income', '4,571', '26,162'],
+  ['Property tax (proptax)', '17,195', '0'],
+  ['Mortgage and other non-AMT deductions (mortgage)', '38,599', '0'],
+  ['AMT-preference deductions (otheritem)', '14,088', '0'],
+];
+
 const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year', 'marginal_rate_computed'];
 const ADJUSTED_VARIABLES = ['federal_marginal_tax_rate', 'state_marginal_tax_rate', 'fica_marginal_tax_rate'];
 
@@ -465,7 +480,7 @@ policyengine_versions()
               { id: 'installation', label: 'Installation & Usage' },
               { id: 'options', label: 'All Runners & CLI' },
               { id: 'mappings', label: 'Variable Mappings' },
-              { id: 'datasets', label: 'Sample Datasets' },
+              { id: 'datasets', label: 'Datasets' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -993,106 +1008,111 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
           </section>
         )}
 
-        {/* Sample Datasets */}
+        {/* Datasets */}
         {activeSection === 'datasets' && (
           <section className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h2 className="text-xl font-bold text-gray-900">Sample Datasets</h2>
+              <h2 className="text-xl font-bold text-gray-900">Datasets</h2>
               <p className="text-gray-600">
-                The web runner includes pre-built sample datasets derived from the{' '}
-                <a href="https://policyengine.github.io/policyengine-us-data/" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                  Enhanced Current Population Survey (Enhanced CPS)
-                </a>
-                , published by PolicyEngine on{' '}
-                <a href="https://huggingface.co/policyengine/policyengine-us-data" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                  HuggingFace
-                </a>.
-                These are real, representative tax filing units converted into TAXSIM input format.
+                The validation dashboard scores two populations of TAXSIM records, each converted from
+                PolicyEngine microdata with one record per tax unit. The same records are scored under
+                each tax year&apos;s law, 2021&ndash;2025.
+              </p>
+              <ul className="text-gray-600 list-disc ml-5 space-y-2">
+                <li>
+                  <strong>Populace US 2024</strong> (default): 79,477 records from the build that{' '}
+                  <a href="https://github.com/PolicyEngine/policyengine.py" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                    policyengine.py
+                  </a>{' '}
+                  certifies,{' '}
+                  <a href="https://huggingface.co/datasets/policyengine/populace-us/tree/populace-us-2024-spm-20260915" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                    populace-us-2024-spm-20260915
+                  </a>
+                  . The H5 is read with policyengine-us 2.2.1, the version certified for it.
+                </li>
+                <li>
+                  <strong>Enhanced CPS (archived)</strong>: the 111,347 records the benchmark used through
+                  September 2026. policyengine-us-data archived the Enhanced CPS in July 2026. It stays
+                  on the dashboard because it covers the top of the income distribution, which the
+                  Populace build does not yet.
+                </li>
+              </ul>
+              <p className="text-sm text-gray-500">
+                Agreement rates on either population are PolicyEngine&apos;s own comparison against
+                NBER&apos;s taxsimtest binary on identical inputs. NBER has not endorsed them as error
+                statistics.
               </p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Enhanced CPS 2024 (868 tax units)</h3>
-              <p className="text-gray-600">
-                A representative sample of US tax filing units drawn from the Enhanced CPS — the Census
-                Current Population Survey augmented with IRS Public Use File (PUF) imputations and
-                reweighted to match IRS Statistics of Income targets.
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'Tax units', value: '868' },
-                  { label: 'Single filers', value: '560' },
-                  { label: 'Joint filers', value: '308' },
-                  { label: 'States', value: '50' },
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-gray-50 rounded-lg p-3 text-center">
-                    <div className="text-lg font-bold text-primary-600">{value}</div>
-                    <div className="text-xs text-gray-500">{label}</div>
-                  </div>
-                ))}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 pb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Coverage</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Unweighted record counts. Total income is the sum of the 16 TAXSIM income fields.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-y border-gray-200">
+                      <th className="text-left px-6 py-3 font-semibold text-gray-700">Records with</th>
+                      <th className="text-right px-6 py-3 font-semibold text-gray-700">Populace US 2024</th>
+                      <th className="text-right px-6 py-3 font-semibold text-gray-700">Enhanced CPS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {DATASET_COVERAGE.map(([label, populace, ecps], i) => (
+                      <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                        <td className="px-6 py-2.5 text-gray-700">{label}</td>
+                        <td className="px-6 py-2.5 text-right font-mono text-xs text-gray-900">{populace}</td>
+                        <td className="px-6 py-2.5 text-right font-mono text-xs text-gray-900">{ecps}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">How datasets are constructed</h3>
-              <p className="text-gray-600">
-                The conversion from PolicyEngine&apos;s H5 microdata format to TAXSIM CSV is a multi-step process:
-              </p>
-
+              <h3 className="text-lg font-semibold text-gray-900">How the Populace records are built</h3>
               <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">1</div>
-                  <div>
-                    <p className="font-medium text-gray-900">Load the H5 dataset via PolicyEngine</p>
-                    <p className="text-sm text-gray-500">
-                      The Enhanced CPS H5 file is loaded using <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">policyengine-us</code>&apos;s
-                      Microsimulation engine, which computes derived variables like <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">is_tax_unit_head</code> and{' '}
-                      <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">is_tax_unit_spouse</code> that aren&apos;t stored in the raw data.
-                    </p>
+                {[
+                  [
+                    'Load the certified build',
+                    'The converter downloads the H5 at its pinned Hugging Face commit, checks its sha256, and refuses to run unless policyengine-us and policyengine-core are the certified versions. PolicyEngine then computes derived variables such as tax-unit roles and deductions for 2024.',
+                  ],
+                  [
+                    'One record per return',
+                    'Each tax unit with a filer becomes one record: the head is the primary taxpayer, a spouse makes it a joint return (mstat 2), and every other unit is mstat 1, from which TAXSIM infers head of household. Units made only of dependents have no filer and are dropped.',
+                  ],
+                  [
+                    'Filers’ incomes, units’ expenses',
+                    'Incomes are the primary taxpayer’s and spouse’s; dependents’ own income belongs on their own returns. Expenses such as rent and property tax are summed over the tax unit’s members, so tax units sharing a household do not double count them.',
+                  ],
+                  [
+                    'Itemized deductions as TAXSIM defines them',
+                    'proptax is real estate taxes. mortgage is deductions that are not AMT preferences, as net deductible amounts: deductible mortgage interest, medical expenses above the floor, charitable contributions after AGI limits and casualty losses. otheritem is AMT-preference deductions, which for 2021–2025 means investment interest.',
+                  ],
+                  [
+                    'State codes',
+                    'FIPS state codes are converted to TAXSIM’s SOI codes. An unknown code stops the conversion instead of becoming state 0, which TAXSIM reads as “no state tax”.',
+                  ],
+                ].map(([title, body], i) => (
+                  <div key={title} className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">{i + 1}</div>
+                    <div>
+                      <p className="font-medium text-gray-900">{title}</p>
+                      <p className="text-sm text-gray-500">{body}</p>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">2</div>
-                  <div>
-                    <p className="font-medium text-gray-900">Group persons into tax units</p>
-                    <p className="text-sm text-gray-500">
-                      Each person is linked to a tax unit via <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">person_tax_unit_id</code>.
-                      Within each tax unit, we identify the head (primary filer), spouse, and dependents.
-                      Each tax unit becomes one row in the TAXSIM CSV.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">3</div>
-                  <div>
-                    <p className="font-medium text-gray-900">Map PolicyEngine variables to TAXSIM columns</p>
-                    <p className="text-sm text-gray-500">
-                      Person-level income (wages, self-employment) is assigned to the primary or secondary filer.
-                      Investment income (dividends, interest, capital gains) is summed across all persons in the tax unit.
-                      Household-level variables (state, property tax, rent) are looked up from the household entity.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">4</div>
-                  <div>
-                    <p className="font-medium text-gray-900">Convert state codes</p>
-                    <p className="text-sm text-gray-500">
-                      The CPS uses FIPS state codes (e.g. 6 = California) while TAXSIM uses SOI codes (e.g. 5 = California).
-                      All state codes are converted from FIPS to SOI format.
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-6 pb-3">
                 <h3 className="text-lg font-semibold text-gray-900">Variable mapping</h3>
-                <p className="text-sm text-gray-500 mt-1">PolicyEngine variable → TAXSIM input column</p>
+                <p className="text-sm text-gray-500 mt-1">PolicyEngine variable → TAXSIM input column (Populace records)</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1106,30 +1126,30 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                   <tbody className="divide-y divide-gray-100">
                     {[
                       ['taxsimid', 'tax_unit_id', 'Direct'],
-                      ['year', '(argument)', 'Set to 2024'],
-                      ['state', 'state_fips (household)', 'FIPS → SOI conversion'],
-                      ['mstat', 'is_tax_unit_spouse present', '1=single, 2=joint'],
-                      ['page', 'age (head)', 'Direct'],
-                      ['sage', 'age (spouse)', 'Direct, 0 if no spouse'],
+                      ['year', '(set per run)', 'Each of 2021–2025'],
+                      ['state', 'state_fips (head’s household)', 'FIPS → SOI conversion'],
+                      ['mstat', 'is_tax_unit_spouse present', '2 = joint, otherwise 1'],
+                      ['page', 'age (head)', 'Whole years'],
+                      ['sage', 'age (spouse)', 'Whole years, 0 if no spouse'],
                       ['depx', 'is_tax_unit_dependent', 'Count of dependents'],
-                      ['pwages', 'employment_income (head)', 'Direct'],
-                      ['swages', 'employment_income (spouse)', 'Direct'],
-                      ['psemp', 'self_employment_income (head)', 'Direct'],
-                      ['ssemp', 'self_employment_income (spouse)', 'Direct'],
-                      ['dividends', 'qualified_dividend_income', 'Sum across tax unit'],
-                      ['intrec', 'taxable_interest_income', 'Sum across tax unit'],
-                      ['stcg', 'short_term_capital_gains', 'Sum across tax unit'],
-                      ['ltcg', 'long_term_capital_gains', 'Sum across tax unit'],
-                      ['otherprop', 'rental_income', 'Sum across tax unit'],
-                      ['pensions', 'taxable_private_pension_income', 'Sum across tax unit'],
-                      ['gssi', 'social_security_* (all types)', 'Sum retirement + disability + survivors + dependents'],
-                      ['pui', 'unemployment_compensation (head)', 'Direct'],
-                      ['sui', 'unemployment_compensation (spouse)', 'Direct'],
-                      ['scorp', 'partnership_s_corp_income', 'Sum across tax unit'],
-                      ['proptax', 'real_estate_taxes (household)', 'Direct'],
-                      ['mortgage', 'deductible_mortgage_interest (household)', 'Direct'],
-                      ['rentpaid', 'rent (household)', 'Direct'],
-                      ['age1–age11', 'age (each dependent)', 'Direct, up to 11'],
+                      ['age1–age11', 'age (each dependent)', 'Youngest first; infants coded 1'],
+                      ['pwages / swages', 'employment_income', 'Head / spouse'],
+                      ['psemp / ssemp', 'self_employment_income', 'Head / spouse'],
+                      ['dividends', 'qualified_dividend_income', 'Head + spouse'],
+                      ['intrec', 'taxable_interest_income + non_qualified_dividend_income', 'Head + spouse'],
+                      ['stcg / ltcg', 'short_term_capital_gains / long_term_capital_gains', 'Head + spouse'],
+                      ['otherprop', 'rental_income', 'Head + spouse'],
+                      ['nonprop', '—', 'Zero: the emulator does not map it'],
+                      ['pensions', 'taxable_pension_income + taxable_retirement_distributions', 'Head + spouse'],
+                      ['gssi', 'social_security', 'Head + spouse'],
+                      ['pui / sui', 'unemployment_compensation', 'Head / spouse'],
+                      ['transfers', 'veterans_benefits + workers_compensation + child_support_received', 'Tax unit'],
+                      ['scorp', 'partnership_s_corp_income', 'Head + spouse'],
+                      ['rentpaid', 'rent', 'Tax unit'],
+                      ['proptax', 'real_estate_taxes', 'Tax unit'],
+                      ['mortgage', 'deductible_mortgage_interest + medical_expense_deduction + charitable_deduction + casualty_loss_deduction', 'Tax unit'],
+                      ['otheritem', 'non_mortgage_interest (investment interest)', 'Tax unit'],
+                      ['childcare', 'tax_unit_childcare_expenses', 'Tax unit'],
                     ].map(([taxsim, pe, agg], i) => (
                       <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                         <td className="px-6 py-2.5 font-mono text-xs text-gray-900">{taxsim}</td>
@@ -1143,29 +1163,22 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Regenerating datasets</h3>
-              <p className="text-gray-600">
-                The conversion script is included in the repository. To regenerate or create new datasets:
-              </p>
+              <h3 className="text-lg font-semibold text-gray-900">Regenerating the records</h3>
               <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 text-sm font-mono overflow-x-auto">
-{`# Install dependencies
-pip install policyengine-us huggingface_hub
+{`# The certified model environment
+uv venv --python 3.11 .venv-populace
+VIRTUAL_ENV=.venv-populace uv pip install -r scripts/populace-convert-requirements.txt
 
-# Generate from the pinned small Enhanced CPS snapshot (868 tax units)
-python scripts/convert_h5_to_taxsim.py
+# Writes populace_households.csv and populace_households.json (provenance)
+.venv-populace/bin/python scripts/convert_h5_to_taxsim.py
 
-# Custom dataset and output path
-python scripts/convert_h5_to_taxsim.py \\
-  --dataset enhanced_cps_2024 \\
-  --year 2024 \\
-  --output my_output.csv`}
+# Any other PolicyEngine-US H5, without the certification check
+python scripts/convert_h5_to_taxsim.py --h5 data.h5 --output my_output.csv`}
               </pre>
               <p className="text-sm text-gray-500">
-                The script supports any H5 dataset published on PolicyEngine&apos;s HuggingFace repository.
-                To request additional pre-built datasets in TAXSIM format, please{' '}
-                <a href="https://github.com/PolicyEngine/policyengine-taxsim/issues" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                  open a GitHub issue
-                </a>.
+                The web runner offers both populations as sample input files. See{' '}
+                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">docs/dashboard-refresh.md</code>{' '}
+                for how the comparisons are rerun.
               </p>
             </div>
 
@@ -1173,20 +1186,21 @@ python scripts/convert_h5_to_taxsim.py \\
               <h3 className="text-base font-semibold text-amber-800">Limitations</h3>
               <ul className="text-sm text-amber-700 space-y-1 list-disc ml-5">
                 <li>
-                  Household-level variables (state, property tax, mortgage, rent) are shared across
-                  all tax units within the same household — if two tax units share a household, they
-                  get the same values for these fields.
+                  The Populace build has 3 records with $10 million or more of total income (the
+                  Enhanced CPS has 6,867), so the benchmark does not test the top of the distribution
+                  on Populace.
                 </li>
                 <li>
-                  <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">childcare</code>,{' '}
-                  <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">pbusinc</code> (qualified business income),
-                  and <code className="text-xs bg-amber-100 px-1 py-0.5 rounded">otheritem</code> (other itemized deductions)
-                  are not currently extracted from the H5.
+                  Records are 2024 data scored under each year&apos;s law, without uprating. Deductions
+                  are PolicyEngine&apos;s 2024 amounts.
                 </li>
                 <li>
-                  The sample uses the <em>small</em> Enhanced CPS (1,000 households → 868 tax units)
-                  pinned to a specific Hugging Face revision for reproducibility.
-                  The full Enhanced CPS has ~80,000 tax units but is too large to serve as a static file.
+                  Married couples filing separately and surviving spouses are coded mstat 1, and
+                  dependents who would file their own returns are not represented.
+                </li>
+                <li>
+                  In the Enhanced CPS records, proptax, mortgage, otheritem, otherprop, nonprop and
+                  transfers are zero, and infants are coded 0.
                 </li>
               </ul>
             </div>

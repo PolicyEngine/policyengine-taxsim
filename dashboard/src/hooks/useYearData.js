@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { loadYearData } from '../utils/dataLoader';
-import { AVAILABLE_YEARS } from '../constants';
+import { AVAILABLE_YEARS, DEFAULT_DATASET } from '../constants';
 
-export const useYearData = (initialYear = 2023) => {
+export const useYearData = (initialYear = 2023, initialDataset = DEFAULT_DATASET) => {
   const [selectedYear, setSelectedYear] = useState(initialYear);
+  const [dataset, setDataset] = useState(initialDataset);
   const [allYearData, setAllYearData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,7 +20,7 @@ export const useYearData = (initialYear = 2023) => {
         // Load all years in parallel
         const loadPromises = AVAILABLE_YEARS.map(async (year) => {
           try {
-            const yearData = await loadYearData(year);
+            const yearData = await loadYearData(year, dataset);
             return { year, data: yearData };
           } catch (err) {
             console.warn(`Failed to load data for year ${year}:`, err);
@@ -58,7 +59,7 @@ export const useYearData = (initialYear = 2023) => {
     };
 
     fetchAllData();
-  }, []); // Only run once on mount
+  }, [dataset]); // Reload when the dataset changes
 
   const currentYearData = allYearData[selectedYear] || null;
   const availableYears = Object.keys(allYearData).map(Number);
@@ -66,6 +67,8 @@ export const useYearData = (initialYear = 2023) => {
   return {
     selectedYear,
     setSelectedYear,
+    dataset,
+    setDataset,
     currentYearData,
     allYearData,
     availableYears,

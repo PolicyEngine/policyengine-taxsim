@@ -22,9 +22,55 @@ import time
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
-# TAXSIM inputs for every eCPS tax unit; the tax year is set per run.
-SOURCE = ROOT / "cps_households.csv"
-EXPECTED_RECORDS = 111347
+# TAXSIM input sources: one row per tax unit, reused for every tax year (the
+# year column is set per run). Populace is the benchmark population. The
+# archived Enhanced CPS stays available as a secondary dataset because the
+# Populace build it replaced lacks the eCPS's high-income tail.
+DATASETS = {
+    "populace": {
+        "label": "Populace US 2024",
+        "source": ROOT / "populace_households.csv",
+        # Written by scripts/convert_h5_to_taxsim.py: build id, Hugging Face
+        # revision and sha256, and the certified model used to read the H5.
+        "provenance": ROOT / "populace_households.json",
+        "records": 79477,
+        # Drill-down IDs are a hash-ranked, state-stratified draw from the
+        # source, so they are stable across years and refreshes.
+        "heldSample": False,
+    },
+    "ecps": {
+        "label": "Enhanced CPS (archived)",
+        "source": ROOT / "cps_households.csv",
+        "provenance": None,
+        "records": 111347,
+        # Drill-down IDs are held at the published dashboard sample.
+        "heldSample": True,
+        "description": (
+            "TAXSIM inputs built in April 2025 (4ccfead, vectorized_validation.py) "
+            "from the Enhanced CPS, which policyengine-us-data archived on "
+            "2026-07-02; Alabama recoded from state 0 to 1 in September 2026."
+        ),
+    },
+}
+DEFAULT_DATASET = "populace"
+COMPARISON_NOTE = (
+    "PolicyEngine's own comparison of its TAXSIM emulator against NBER's "
+    "taxsimtest binary on identical inputs. Agreement rates are not error "
+    "statistics endorsed by NBER or Dan Feenberg."
+)
+SAMPLE_SIZE = 3000
+SAMPLE_STATE_MINIMUM = 20
+# Headline agreement rates, in the order match_flags returns them.
+RATE_KEYS = (
+    "federalMatchPct",
+    "stateMatchPct",
+    "federalMatchPctRel",
+    "stateMatchPctRel",
+    "stateMatchPctRelNet",
+)
+# Kept for callers that predate multiple datasets.
+SOURCE = DATASETS["ecps"]["source"]
+EXPECTED_RECORDS = DATASETS["ecps"]["records"]
 STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split()
 INPUT_COLUMNS = (
     "taxsimid year state mstat page sage depx pwages psemp swages ssemp dividends intrec stcg ltcg otherprop nonprop pensions gssi pui sui transfers rentpaid proptax otheritem childcare mortgage scorp idtl "
@@ -75,6 +121,72 @@ def check_source(path):
     if missing:
         raise ValueError(f"Source has no households in {' '.join(missing)}")
     return sum(counts.values())
+
+
+def drilldown_sample(path, size=SAMPLE_SIZE, minimum=SAMPLE_STATE_MINIMUM):
+    """Deterministic drill-down sample of taxsimids from a source CSV.
+
+    Each state contributes its proportional share of ``size`` (at least
+    ``minimum`` households, or all of them if fewer), taking the records with
+    the smallest sha256 rank of their taxsimid. The draw depends only on the
+    source, so every year and every rerun shows the same households.
+    """
+    by_state = {}
+    with Path(path).open(newline="") as stream:
+        for row in csv.DictReader(stream):
+            key = str(int(float(row["taxsimid"])))
+            rank = hashlib.sha256(f"taxsim-drilldown:{key}".encode()).hexdigest()
+            by_state.setdefault(int(float(row["state"])), []).append((rank, key))
+    total = sum(len(items) for items in by_state.values())
+    chosen = set()
+    for items in by_state.values():
+        items.sort()
+        quota = max(minimum, round(size * len(items) / total))
+        chosen.update(key for _, key in items[:quota])
+    return chosen
+
+
+def dataset_metadata(name):
+    """Provenance of a dataset's TAXSIM inputs, recorded in every summary."""
+    spec = DATASETS[name]
+    source = spec["source"]
+    meta = {
+        "id": name,
+        "label": spec["label"],
+        "source": source.name,
+        "sourceSha256": digest(source),
+        "records": spec["records"],
+    }
+    if spec.get("description"):
+        meta["description"] = spec["description"]
+    if spec["provenance"] is not None:
+        provenance = json.loads(spec["provenance"].read_text())
+        if provenance.get("outputSha256") != meta["sourceSha256"]:
+            raise ValueError(
+                f"{spec['provenance'].name} does not describe {source.name}; "
+                "regenerate both with scripts/convert_h5_to_taxsim.py"
+            )
+        if provenance.get("records") != spec["records"]:
+            raise ValueError(f"{spec['provenance'].name} record count differs")
+        meta.update(
+            {
+                k: provenance[k]
+                for k in (
+                    "buildId",
+                    "hfRepo",
+                    "hfRevision",
+                    "hfCommit",
+                    "h5File",
+                    "h5Sha256",
+                    "dataYear",
+                    "certifiedBy",
+                    "conversionModel",
+                    "converterSha256",
+                )
+                if k in provenance
+            }
+        )
+    return meta
 
 
 def match_flags(taxsim, pe):
@@ -248,6 +360,12 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
             for field in csv.DictReader(stream).fieldnames:
                 if field not in fields:
                     fields.append(field)
+    # taxsimtest prints its build stamp (e.g. cd2026081819) as an output column.
+    builds = sorted(
+        f for f in fields if len(f) == 12 and f[:2] == "cd" and f[2:].isdigit()
+    )
+    if builds:
+        metadata = {**metadata, "taxsimtestBuild": builds[-1]}
     full = output_dir / f"comparison_results_{year}.csv"
     site = output_dir / "site" / str(year)
     site.mkdir(parents=True, exist_ok=True)
@@ -291,18 +409,7 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
     def percentages(tally):
         return [round(100 * n / tally[0], 1) for n in tally[1:]]
 
-    summary = dict(
-        zip(
-            [
-                "federalMatchPct",
-                "stateMatchPct",
-                "federalMatchPctRel",
-                "stateMatchPctRel",
-                "stateMatchPctRelNet",
-            ],
-            percentages(counts),
-        )
-    )
+    summary = dict(zip(RATE_KEYS, percentages(counts)))
     summary.update(
         totalRecords=counts[0], metadata=metadata, sampleRecords=len(sampled_ids)
     )
@@ -330,7 +437,12 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
     atomic_json(site / f"summary_{year}.json", summary)
     atomic_json(
         output_dir / f"provenance_{year}.json",
-        {**metadata, "records": counts[0], "outputSha256": digest(full)},
+        {
+            **metadata,
+            "records": counts[0],
+            "outputSha256": digest(full),
+            "rates": {k: summary[k] for k in RATE_KEYS},
+        },
     )
     print(
         json.dumps({k: v for k, v in summary.items() if k != "stateBreakdown"}),
@@ -339,10 +451,91 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
     return counts[0]
 
 
+def _release_provenance(folder):
+    records = [
+        json.loads(path.read_text())
+        for path in sorted(Path(folder).glob("provenance_*.json"))
+    ]
+    if not records:
+        raise ValueError(f"No provenance_*.json files in {folder}")
+    for key in ("dataset", "emulatorCommit", "policyengineUsVersion"):
+        if len({json.dumps(r.get(key), sort_keys=True) for r in records}) != 1:
+            raise ValueError(f"Provenance files disagree on {key}")
+    return records
+
+
+def release_title(folder):
+    """Title of a staged comparison release."""
+    first = _release_provenance(folder)[0]
+    return (
+        f"TAXSIM comparison: {first['dataset']['label']}, {first['generatedAt'][:10]}"
+    )
+
+
+def release_notes(folder, run_url=""):
+    """Markdown notes for a staged comparison release, from its provenance files."""
+    records = _release_provenance(folder)
+    first = records[0]
+    data = first["dataset"]
+    years = sorted(r["year"] for r in records)
+    lines = [
+        f"**{COMPARISON_NOTE}**",
+        "",
+        f"**Population.** {data['label']}: {data['records']:,} TAXSIM records, one "
+        f"per tax unit, scored under each tax year's law ({years[0]}–{years[-1]}).",
+    ]
+    if "buildId" in data:
+        lines.append(
+            f"Built from `{data['buildId']}`: `{data['hfRepo']}` at revision "
+            f"`{data['hfRevision']}` (commit `{data['hfCommit']}`), file "
+            f"`{data['h5File']}`, sha256 `{data['h5Sha256']}`. The H5 was read with "
+            + ", ".join(f"{k} {v}" for k, v in data["conversionModel"].items())
+            + f", the model version {data['certifiedBy']} certifies for this build."
+        )
+    elif data.get("description"):
+        lines.append(data["description"])
+    lines += [
+        f"TAXSIM inputs: `{data['source']}`, sha256 `{data['sourceSha256']}`.",
+        "",
+        "**Environment.** "
+        f"PolicyEngine US {first['policyengineUsVersion']}, PolicyEngine Core "
+        f"{first['policyengineCoreVersion']}, emulator commit "
+        f"`{first['emulatorCommit']}`; NBER taxsimtest "
+        f"{first.get('taxsimtestBuild', '(build not reported)')}, sha256 "
+        f"`{first['taxsimBinarySha256']}`. Flags: assume_w2_wages="
+        f"{first['assumeW2Wages']}, disable_salt={first['disableSalt']}.",
+        "",
+        "| Year | Federal, within $15 | State, within $15 | Federal, within 1% "
+        "of income | State, within 1% of income | State net of rebates, within 1% |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in sorted(records, key=lambda r: r["year"]):
+        rates = r["rates"]
+        lines.append(
+            f"| {r['year']} | "
+            + " | ".join(f"{rates[k]:.1f}%" for k in RATE_KEYS)
+            + " |"
+        )
+    lines += [
+        "",
+        "Income is the dashboard's gross-income proxy; records with no positive "
+        "income use the $15 tolerance. Each CSV has two rows per record "
+        "(`source` = `taxsim` / `policyengine`); each provenance JSON records "
+        "model versions, input and output hashes, and resource use.",
+    ]
+    if run_url:
+        lines += ["", f"[Generation run]({run_url})"]
+    return "\n".join(lines) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", nargs=2)
+    parser.add_argument("--release-notes", type=Path, metavar="DIR")
+    parser.add_argument("--release-title", type=Path, metavar="DIR")
+    parser.add_argument("--run-url", default="")
     parser.add_argument("--year", type=int, choices=range(2021, 2026))
+    parser.add_argument("--dataset", choices=sorted(DATASETS), default=DEFAULT_DATASET)
     parser.add_argument("--work-dir", type=Path, default=Path("refresh-work"))
     parser.add_argument("--batch-size", type=int, default=5000)
     parser.add_argument(
@@ -357,18 +550,27 @@ def main():
     if args.worker:
         worker(*args.worker)
         return
+    if args.release_notes:
+        sys.stdout.write(release_notes(args.release_notes, args.run_url))
+        return
+    if args.release_title:
+        print(release_title(args.release_title))
+        return
     if args.year is None or not 1 <= args.batch_size <= 10000 or args.limit < 0:
         parser.error("A year, batch size 1–10000, and nonnegative limit are required")
     work = args.work_dir
     work.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(work).free < args.min_disk_gb * 1024**3:
         raise RuntimeError("Insufficient free disk space")
-    source = SOURCE
-    if check_source(source) != EXPECTED_RECORDS:
-        raise ValueError(f"Expected {EXPECTED_RECORDS} source households")
+    spec = DATASETS[args.dataset]
+    source = spec["source"]
+    expected_records = spec["records"]
+    if check_source(source) != expected_records:
+        raise ValueError(f"Expected {expected_records} source households")
     identity = {
         "source": source.name,
         "sourceSha256": digest(source),
+        "dataset": dataset_metadata(args.dataset),
         "year": args.year,
         "emulatorCommit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
@@ -386,10 +588,18 @@ def main():
             "Checkpoint configuration differs; use a fresh work directory"
         )
     atomic_json(manifest, identity)
-    with (
-        ROOT / f"dashboard/public/data/{args.year}/comparison_results_{args.year}.csv"
-    ).open() as f:
-        sample_ids = {str(int(float(row["taxsimid"]))) for row in csv.DictReader(f)}
+    if spec["heldSample"]:
+        held = (
+            ROOT
+            / "dashboard/public/data"
+            / args.dataset
+            / str(args.year)
+            / f"comparison_results_{args.year}.csv"
+        )
+        with held.open() as f:
+            sample_ids = {str(int(float(row["taxsimid"]))) for row in csv.DictReader(f)}
+    else:
+        sample_ids = drilldown_sample(source)
     parts = []
     processed = 0
     peak = 0
@@ -441,7 +651,7 @@ def main():
                 f"Checkpoint: {args.year} {processed} households, peak worker {peak} MiB",
                 flush=True,
             )
-    expected = min(args.limit, EXPECTED_RECORDS) if args.limit else EXPECTED_RECORDS
+    expected = min(args.limit, expected_records) if args.limit else expected_records
     if processed != expected:
         raise ValueError(f"Expected {expected} source households, got {processed}")
     metadata = {
@@ -457,6 +667,9 @@ def main():
         "taxsimBinarySha256": digest(ROOT / "resources/taxsimtest/taxsimtest-linux.exe")
         if (ROOT / "resources/taxsimtest/taxsimtest-linux.exe").exists()
         else None,
+        # These rates compare PolicyEngine with NBER's taxsimtest binary on
+        # identical inputs. NBER has not endorsed them as error statistics.
+        "comparisonNote": COMPARISON_NOTE,
     }
     actual = summarize(parts, work / "output", args.year, metadata, sample_ids)
     if actual != expected:

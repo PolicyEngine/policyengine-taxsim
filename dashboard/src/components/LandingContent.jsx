@@ -279,8 +279,10 @@ const LandingContent = () => {
           </h2>
           <p className="text-gray-500 text-center text-lg mb-10 max-w-3xl mx-auto">
             PolicyEngine and TAXSIM have been cross-validated against each other
-            since 2021, comparing results across thousands of CPS households.
-            That work led to a formal partnership with NBER.
+            since 2021. The validation dashboard now compares both engines on
+            every tax unit in PolicyEngine&apos;s Populace US microdata, with the
+            archived Enhanced CPS kept for high incomes. That work led to a
+            formal partnership with NBER.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 hover:shadow-md transition">
@@ -421,7 +423,7 @@ const LandingContent = () => {
                 rel="noopener noreferrer"
                 className="text-primary-500 hover:text-primary-600 underline"
               >
-                Enhanced CPS
+                Populace microdata
               </a>
               , which integrates and calibrates multiple survey datasets.
             </p>

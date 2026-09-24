@@ -1,15 +1,15 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { assetUrl } from './basePath';
+import { AVAILABLE_YEARS, DEFAULT_DATASET } from '../constants';
+import { yearDataPath } from './dataLoader';
 
-export const exportAllData = async () => {
+export const exportAllData = async (dataset = DEFAULT_DATASET) => {
   try {
     const zip = new JSZip();
 
-    const years = [2021, 2022, 2023, 2024, 2025];
-
-    for (const year of years) {
-      const dataPath = assetUrl(`/data/${year}/comparison_results_${year}.csv`);
+    for (const year of AVAILABLE_YEARS) {
+      const dataPath = assetUrl(`${yearDataPath(year, dataset)}/comparison_results_${year}.csv`);
       
       try {
         const response = await fetch(dataPath);
@@ -27,7 +27,7 @@ export const exportAllData = async () => {
     const content = await zip.generateAsync({ type: 'blob' });
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    saveAs(content, `policyengine-taxsim-data-${timestamp}.zip`);
+    saveAs(content, `policyengine-taxsim-${dataset}-sample-${timestamp}.zip`);
     
   } catch (error) {
     console.error('Error exporting data:', error);
@@ -35,9 +35,9 @@ export const exportAllData = async () => {
   }
 };
 
-export const exportYearData = async (year) => {
+export const exportYearData = async (year, dataset = DEFAULT_DATASET) => {
   try {
-    const dataPath = assetUrl(`/data/${year}/comparison_results_${year}.csv`);
+    const dataPath = assetUrl(`${yearDataPath(year, dataset)}/comparison_results_${year}.csv`);
     
     const response = await fetch(dataPath);
     if (!response.ok) {
@@ -47,7 +47,7 @@ export const exportYearData = async (year) => {
     const csvContent = await response.text();
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `comparison_results_${year}.csv`);
+    saveAs(blob, `comparison_results_${dataset}_${year}.csv`);
     
   } catch (error) {
     console.error(`Error exporting data for year ${year}:`, error);

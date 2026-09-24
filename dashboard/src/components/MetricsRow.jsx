@@ -67,7 +67,7 @@ const MetricCard = React.memo(({ label, value, type, description }) => {
 
 MetricCard.displayName = 'MetricCard';
 
-const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_MODES.ABSOLUTE }) => {
+const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_MODES.ABSOLUTE, datasetLabel = 'Full population' }) => {
   if (!data || !data.summary) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -137,10 +137,10 @@ const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
       <MetricCard
-        label={selectedState ? `${selectedState} households` : 'Households compared'}
+        label={selectedState ? `${selectedState} tax units` : 'Tax units compared'}
         value={displayData.totalRecords}
         type="total"
-        description={selectedState ? 'In this state' : 'Full eCPS, both engines'}
+        description={selectedState ? 'In this state' : `${datasetLabel}, both engines`}
       />
       <MetricCard
         label="Federal agreement"

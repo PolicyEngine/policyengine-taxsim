@@ -110,6 +110,87 @@ class SourceTests(unittest.TestCase):
                 refresh.summarize([part], base / "output", 2021, {}, set())
 
 
+class DatasetTests(unittest.TestCase):
+    def test_every_dataset_source_is_complete(self):
+        for name, spec in refresh.DATASETS.items():
+            with self.subTest(dataset=name):
+                self.assertEqual(refresh.check_source(spec["source"]), spec["records"])
+
+    def test_populace_metadata_records_the_certified_build(self):
+        meta = refresh.dataset_metadata("populace")
+        self.assertEqual(meta["buildId"], "populace-us-2024-spm-20260915")
+        self.assertEqual(meta["hfRevision"], "populace-us-2024-spm-20260915")
+        self.assertEqual(
+            meta["h5Sha256"],
+            "6496cc4393d4d3c6574f76eca231de5898c803b9067645591fd5c4d3e65aee84",
+        )
+        self.assertEqual(meta["conversionModel"]["policyengine-us"], "2.2.1")
+        self.assertEqual(meta["sourceSha256"], refresh.digest(meta_source("populace")))
+
+    def test_stale_provenance_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stale = Path(folder) / "stale.json"
+            stale.write_text(json.dumps({"outputSha256": "0" * 64, "records": 1}))
+            spec = {**refresh.DATASETS["populace"], "provenance": stale}
+            with patch.dict(refresh.DATASETS, {"populace": spec}):
+                with self.assertRaisesRegex(ValueError, "does not describe"):
+                    refresh.dataset_metadata("populace")
+
+    def test_drilldown_sample_is_deterministic_and_covers_every_state(self):
+        source = refresh.DATASETS["populace"]["source"]
+        sample = refresh.drilldown_sample(source)
+        self.assertEqual(sample, refresh.drilldown_sample(source))
+        self.assertTrue(3000 <= len(sample) <= 3000 + 51 * refresh.SAMPLE_STATE_MINIMUM)
+        with source.open(newline="") as f:
+            states = {
+                int(float(row["state"]))
+                for row in csv.DictReader(f)
+                if str(int(float(row["taxsimid"]))) in sample
+            }
+        self.assertEqual(states, set(range(1, 52)))
+
+    def test_release_notes_label_rates_and_disclose_provenance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            meta = {
+                "dataset": refresh.dataset_metadata("populace"),
+                "emulatorCommit": "abc123",
+                "policyengineUsVersion": "2.6.17",
+                "policyengineCoreVersion": "3.32.6",
+                "taxsimBinarySha256": "f" * 64,
+                "taxsimtestBuild": "cd2026081819",
+                "assumeW2Wages": True,
+                "disableSalt": False,
+                "generatedAt": "2026-09-24T00:00:00+00:00",
+            }
+            for year, rate in ((2024, 90.0), (2025, 91.5)):
+                rates = dict.fromkeys(refresh.RATE_KEYS, rate)
+                (Path(folder) / f"provenance_{year}.json").write_text(
+                    json.dumps({**meta, "year": year, "rates": rates})
+                )
+            notes = refresh.release_notes(folder, "https://example.org/run")
+            self.assertIn(refresh.COMPARISON_NOTE, notes)
+            self.assertIn("populace-us-2024-spm-20260915", notes)
+            self.assertIn(
+                "6496cc4393d4d3c6574f76eca231de5898c803b9067645591fd5c4d3e65aee84",
+                notes,
+            )
+            self.assertIn("| 2025 | 91.5% | 91.5% | 91.5% | 91.5% | 91.5% |", notes)
+            self.assertIn("79,477", notes)
+            self.assertEqual(
+                refresh.release_title(folder),
+                "TAXSIM comparison: Populace US 2024, 2026-09-24",
+            )
+            (Path(folder) / "provenance_2023.json").write_text(
+                json.dumps({**meta, "year": 2023, "emulatorCommit": "other"})
+            )
+            with self.assertRaisesRegex(ValueError, "disagree on emulatorCommit"):
+                refresh.release_notes(folder)
+
+
+def meta_source(name):
+    return refresh.DATASETS[name]["source"]
+
+
 class ResourceLimitTests(unittest.TestCase):
     @unittest.skipIf(os.name == "nt", "Refresh workers use POSIX process groups")
     def test_memory_limit_terminates_worker_group(self):
