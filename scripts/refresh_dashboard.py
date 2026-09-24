@@ -33,7 +33,7 @@ DATASETS = {
         # Written by scripts/convert_h5_to_taxsim.py: build id, Hugging Face
         # revision and sha256, and the certified model used to read the H5.
         "provenance": ROOT / "populace_households.json",
-        "records": 79477,
+        "records": 79729,
         # Populace records populate more inputs (itemized deductions,
         # transfers), so 5,000-record workers exceeded the 5 GiB budget.
         "batchSize": 2000,

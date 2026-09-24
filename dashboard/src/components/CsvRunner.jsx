@@ -31,7 +31,7 @@ const SAMPLE_DATASETS = [
   },
   {
     id: 'sample_populace_2024',
-    label: 'Populace US 2024 (79,477 tax units)',
+    label: 'Populace US 2024 (79,729 tax units)',
     description:
       'Every tax unit in the certified Populace US 2024 build, as scored by the validation dashboard — all 50 states and DC, with itemized deductions',
     file: 'sample_populace_2024.csv',

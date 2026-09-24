@@ -28,15 +28,15 @@ import {
 // populace_households.json and scripts/convert_h5_to_taxsim.py's coverage()
 // applied to cps_households.csv (tests/test_populace_inputs.py pins both).
 export const DATASET_COVERAGE = [
-  ['Records (tax units)', '79,477', '111,347'],
-  ['Total income of $1 million or more', '1,293', '11,454'],
+  ['Records (tax units)', '79,729', '111,347'],
+  ['Total income of $1 million or more', '1,291', '11,454'],
   ['Total income of $10 million or more', '3', '6,867'],
   ['Largest total income', '$14.7 million', '$348.0 million'],
-  ['Long-term capital gains', '8,524', '34,552'],
-  ['S-corp or partnership income', '4,571', '26,162'],
-  ['Property tax (proptax)', '17,195', '0'],
-  ['Mortgage and other non-AMT deductions (mortgage)', '38,599', '0'],
-  ['AMT-preference deductions (otheritem)', '14,088', '0'],
+  ['Long-term capital gains', '8,514', '34,552'],
+  ['S-corp or partnership income', '4,569', '26,162'],
+  ['Property tax (proptax)', '17,216', '0'],
+  ['Mortgage and other non-AMT deductions (mortgage)', '38,744', '0'],
+  ['AMT-preference deductions (otheritem)', '14,108', '0'],
 ];
 
 const NON_LINKABLE = ['na_pe', 'taxsimid', 'get_year', 'marginal_rate_computed'];
@@ -1020,7 +1020,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
               </p>
               <ul className="text-gray-600 list-disc ml-5 space-y-2">
                 <li>
-                  <strong>Populace US 2024</strong> (default): 79,477 records from the build that{' '}
+                  <strong>Populace US 2024</strong> (default): 79,729 records from the build that{' '}
                   <a href="https://github.com/PolicyEngine/policyengine.py" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
                     policyengine.py
                   </a>{' '}
@@ -1083,7 +1083,7 @@ policyengine-taxsim policyengine input.csv --disable-salt --assume-w2-wages --lo
                   ],
                   [
                     'One record per return',
-                    'Each tax unit with a filer becomes one record: the head is the primary taxpayer, a spouse makes it a joint return (mstat 2), and every other unit is mstat 1, from which TAXSIM infers head of household. Units made only of dependents have no filer and are dropped.',
+                    'Each tax unit becomes one record. Heads, spouses, dependents and filing status come from the build’s explicit tax_unit_role_input and filing_status_input, which PolicyEngine-US does not read on its own (it would take the two oldest adults as head and spouse). Joint returns are mstat 2 and every other return mstat 1, from which TAXSIM infers head of household.',
                   ],
                   [
                     'Filers’ incomes, units’ expenses',

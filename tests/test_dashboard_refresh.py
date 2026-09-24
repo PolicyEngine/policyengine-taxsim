@@ -183,7 +183,7 @@ class DatasetTests(unittest.TestCase):
                 notes,
             )
             self.assertIn("| 2025 | 91.5% | 91.5% | 91.5% | 91.5% | 91.5% |", notes)
-            self.assertIn("79,477", notes)
+            self.assertIn("79,729", notes)
             self.assertEqual(
                 refresh.release_title(folder),
                 "TAXSIM comparison: Populace US 2024, 2026-09-24",
