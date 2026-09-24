@@ -130,8 +130,8 @@ def maryland_fallback_path():
     return path
 
 
-def uses_maryland_fallback(state, year):
-    return int(state) == 21 and int(year) in (2024, 2025)
+def uses_state_fallback(state, year):
+    return int(state) in (11, 21) and int(year) in (2024, 2025)
 
 
 def worker(input_path, output_path):
@@ -151,7 +151,7 @@ def worker(input_path, output_path):
 
     fallback = maryland_fallback_path()
     fallback_mask = data.apply(
-        lambda row: bool(fallback) and uses_maryland_fallback(row.state, row.year),
+        lambda row: bool(fallback) and uses_state_fallback(row.state, row.year),
         axis=1,
     )
     outputs = []
@@ -412,11 +412,11 @@ def main():
         ),
         "scriptSha256": digest(__file__),
         "taxsimFallback": {
-            "state": "MD",
+            "states": ["GA", "MD"],
             "years": [2024, 2025],
             "sha256": digest(fallback),
             "sourceCommit": "2b69146bfb2e16f83e1c021d72c4258d67872190",
-            "reason": "September Linux TAXSIM SIGFPE in mdtax22; use previous binary for complete MD outputs",
+            "reason": "September Linux TAXSIM SIGFPE in gatax24 and mdtax22; previous binary for complete GA/MD outputs",
             "appliesToThisYear": args.year in (2024, 2025),
         }
         if fallback

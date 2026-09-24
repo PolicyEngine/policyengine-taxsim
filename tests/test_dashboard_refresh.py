@@ -160,8 +160,8 @@ class MarylandFallbackTests(unittest.TestCase):
         for state in range(1, 52):
             for year in range(2021, 2027):
                 self.assertEqual(
-                    refresh.uses_maryland_fallback(state, year),
-                    state == 21 and year in (2024, 2025),
+                    refresh.uses_state_fallback(state, year),
+                    state in (11, 21) and year in (2024, 2025),
                 )
 
     def test_fallback_rejects_unverified_binary(self):
