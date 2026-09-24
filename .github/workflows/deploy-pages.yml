@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      data_run_id:
+        description: Optional completed refresh run to verify GA/MD against the prior baseline
+        type: string
+        default: ''
       validate_only:
         description: Build the dashboard without publishing GitHub Pages
         type: boolean
@@ -13,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -27,6 +32,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Verify fallback results against previous complete run
+        if: inputs.data_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DATA_RUN: ${{ inputs.data_run_id }}
+        run: python3 scripts/verify_fallback_results.py "$DATA_RUN"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
