@@ -18,6 +18,7 @@ from policyengine_taxsim.core.utils import (
     convert_taxsim32_dependents,
 )
 from policyengine_taxsim.core.state_output_resolver import (
+    NY_SEPARATE_PAYMENT_VARIABLES,
     ONE_TIME_REBATE_VARIABLES,
     calculate_output_adapter,
     calculate_state_mapped_output,
@@ -1266,6 +1267,25 @@ class PolicyEngineRunner(BaseTaxRunner):
                                 else year
                             ),
                         )
+
+        # New York separate-payment programs (Additional Empire State child
+        # credit payment, inflation refund): not on Form IT-201, excluded from
+        # TAXSIM's siitax. NY is state code 33.
+        if "state" in chunk_df.columns and (chunk_df["state"] == 33).any():
+            for var in NY_SEPARATE_PAYMENT_VARIABLES:
+                if var not in sim.tax_benefit_system.variables:
+                    continue
+                n_entities = sim.get_variable_population(var).count
+                for year in years:
+                    sim.set_input(
+                        variable_name=var,
+                        value=np.zeros(n_entities),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
 
         return sim
 
