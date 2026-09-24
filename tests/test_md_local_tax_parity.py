@@ -6,10 +6,10 @@ The emulator zeroes PE's MD local income tax
 is state-only. This module pins that premise to taxsimtest output.
 
 TAXSIM. MD records for 2022 and later run through ``mdtax22``, whose county
-block (3.2% of MD taxable income less 3.2% of the federal EITC) is switched
-off: builds 20260521 and cd2026090910 and the published source (build
-2026092316) return state-only siitax. Build cd2026081819, bundled in August
-2026 (#1150), ran the block and added about $3,000 to MD siitax at $100k.
+block (3.2% of MD taxable income less 3.2% of the federal EITC) the published
+source (build 2026092316) switches off; builds 20260521 and cd2026090910
+return state-only siitax. Build cd2026081819, bundled in August 2026 (#1150),
+ran the block and added about $3,000 to MD siitax at $100k.
 Records for 2021 and earlier run through ``mdtax77``, which has no county tax.
 
 Maryland. Form 502 Instruction 19 taxes Maryland taxable net income at the
@@ -28,8 +28,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from click.testing import CliRunner
+from policyengine_us import Simulation
 
 from policyengine_taxsim.cli import cli
+from policyengine_taxsim.core.input_mapper import form_household_situation
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 
 _COLUMNS = [
@@ -106,6 +108,38 @@ def test_emulator_md_siitax_is_state_only(emulator_siitax, record):
     )
 
 
+@pytest.mark.parametrize(
+    "record", [MD_RECORDS[4], MD_RECORDS[5]], ids=["single", "joint"]
+)
+def test_single_household_path_md_siitax_is_state_only(record):
+    """The single-household path (used for --logs YAML tests) zeroes MD county
+    tax too, so its situations reproduce the batch path's state-only siitax."""
+    taxsimid, year, mstat, page, sage, depx, _, _, pwages, expected = record
+    taxsim_vars = {
+        "taxsimid": taxsimid,
+        "year": year,
+        "state": 21,
+        "mstat": mstat,
+        "page": page,
+        "sage": sage,
+        "depx": depx,
+        "pwages": pwages,
+    }
+    situation = form_household_situation(year, "MD", taxsim_vars)
+    tax_unit = situation["tax_units"]["your tax unit"]
+    assert tax_unit["md_local_income_tax_before_credits"] == {str(year): 0}
+    siitax = Simulation(situation=situation).calculate("state_income_tax", year)[0]
+    assert siitax == pytest.approx(expected, abs=1.0)
+
+
+def test_single_household_path_leaves_other_states_alone():
+    taxsim_vars = {"taxsimid": 1, "year": 2024, "state": 47, "mstat": 1}
+    taxsim_vars.update({"page": 40, "depx": 0, "pwages": 100000})
+    situation = form_household_situation(2024, "VA", taxsim_vars)
+    tax_unit = situation["tax_units"]["your tax unit"]
+    assert "md_local_income_tax_before_credits" not in tax_unit
+
+
 def test_bundled_taxsim_md_siitax_is_state_only():
     """The bundled binary still reports state-only MD siitax, the premise of
     the emulator's county-tax zeroing."""
@@ -116,7 +150,7 @@ def test_bundled_taxsim_md_siitax_is_state_only():
 
     expected = _expected()
     siitax = out["siitax"].reindex(expected.index).astype(float)
-    if np.allclose(siitax, expected, atol=0.02):
+    if np.allclose(siitax, expected, rtol=0, atol=0.02):
         return
 
     # The county block's signature: 3.2% of MD taxable income (v36) less
@@ -124,7 +158,7 @@ def test_bundled_taxsim_md_siitax_is_state_only():
     year = records.set_index("taxsimid")["year"].reindex(expected.index)
     county_tax = _COUNTY_BLOCK_RATE * (out["v36"] - out["v25"]).reindex(expected.index)
     with_county = expected + np.where(year >= 2022, county_tax, 0.0)
-    runs_county_block = np.allclose(siitax, with_county, atol=0.02)
+    runs_county_block = np.allclose(siitax, with_county, rtol=0, atol=0.02)
 
     table = pd.DataFrame(
         {"year": year, "taxsim": siitax, "state_only": expected}
