@@ -1,0 +1,1 @@
+Add a reproducible comparison of the emulator against the TAXSIM outputs BLS publishes in the Consumer Expenditure Survey public-use microdata (scripts/ce_pumd_comparison.py, scripts/ce_pumd_download.sh), with PolicyEngine's write-up of the 2021–2023 results in docs/ce-pumd-comparison.md.
