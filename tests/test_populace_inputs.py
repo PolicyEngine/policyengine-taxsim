@@ -269,7 +269,7 @@ def test_coverage_counts_match_the_ecps_definitions():
 
 @pytest.fixture(scope="module")
 def provenance():
-    return json.loads(POPULACE_JSON.read_text())
+    return json.loads(POPULACE_JSON.read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="module")
@@ -296,7 +296,8 @@ def test_provenance_describes_the_committed_csv(provenance, populace):
     converter = ROOT / "scripts/convert_h5_to_taxsim.py"
     assert (
         provenance["converterSha256"]
-        == hashlib.sha256(converter.read_bytes()).hexdigest()
+        # Git may check the script out with CRLF line endings on Windows.
+        == hashlib.sha256(converter.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     )
     assert provenance["coverage"] == convert.coverage(populace)
 
@@ -319,7 +320,9 @@ def test_populace_inputs_test_itemized_deductions(populace):
 
 def test_documented_coverage_matches_the_inputs(provenance):
     """The dashboard's coverage table quotes these counts; keep them current."""
-    docs = (ROOT / "dashboard/src/components/DocumentationContent.jsx").read_text()
+    docs = (ROOT / "dashboard/src/components/DocumentationContent.jsx").read_text(
+        encoding="utf-8"
+    )
     populace = provenance["coverage"]
     ecps = convert.coverage(pd.read_csv(ROOT / "cps_households.csv"))
     rows = {

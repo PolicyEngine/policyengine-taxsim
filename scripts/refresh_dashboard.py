@@ -187,7 +187,7 @@ def dataset_metadata(name):
     if spec.get("description"):
         meta["description"] = spec["description"]
     if spec["provenance"] is not None:
-        provenance = json.loads(spec["provenance"].read_text())
+        provenance = json.loads(spec["provenance"].read_text(encoding="utf-8"))
         if provenance.get("outputSha256") != meta["sourceSha256"]:
             raise ValueError(
                 f"{spec['provenance'].name} does not describe {source.name}; "
