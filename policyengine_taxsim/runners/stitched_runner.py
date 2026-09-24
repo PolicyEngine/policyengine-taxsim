@@ -21,7 +21,7 @@ class StitchedRunner(BaseTaxRunner):
     PE_MIN_YEAR = 2021
 
     # kwargs that only PolicyEngineRunner understands
-    _PE_ONLY_KWARGS = {"logs", "disable_salt", "assume_w2_wages"}
+    _PE_ONLY_KWARGS = {"logs", "disable_salt", "assume_w2_wages", "scorp_treatment"}
 
     def __init__(
         self,
@@ -30,6 +30,9 @@ class StitchedRunner(BaseTaxRunner):
         use_remote_taxsim=False,
         **kwargs,
     ):
+        from ..core.scorp import validate_scorp_treatment
+
+        validate_scorp_treatment(kwargs.get("scorp_treatment", "passive"))
         super().__init__(input_df)
         self.pe_min_year = pe_min_year if pe_min_year is not None else self.PE_MIN_YEAR
         self.use_remote_taxsim = use_remote_taxsim

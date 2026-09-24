@@ -14,6 +14,7 @@ a single tax bracket for most filers.
 
 import copy
 from policyengine_us import Simulation
+from .scorp_reform import scorp_tax_benefit_system
 
 DELTA = 100.0  # $100: large enough for float32 precision, small for bracket safety
 
@@ -64,7 +65,9 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
         }
 
     # Run perturbed simulation
-    perturbed_sim = Simulation(situation=perturbed)
+    perturbed_sim = Simulation(
+        situation=perturbed, tax_benefit_system=scorp_tax_benefit_system()
+    )
     if disable_salt:
         perturbed_sim.set_input(
             variable_name="state_and_local_sales_or_income_tax",

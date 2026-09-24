@@ -38,7 +38,27 @@ except ImportError:
     from policyengine_taxsim.core.io import read_input, write_output
 
 
-def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
+def _scorp_option(fn):
+    return click.option(
+        "--scorp-treatment",
+        type=click.Choice(["passive", "active"]),
+        default=None,
+        help="S-corp NIIT classification in PolicyEngine (default: passive). Does not change TAXSIM or QBI eligibility.",
+    )(fn)
+
+
+def _resolve_scorp_treatment(value):
+    ctx = click.get_current_context()
+    return (
+        value
+        or (ctx.parent.params.get("scorp_treatment") if ctx.parent else None)
+        or "passive"
+    )
+
+
+def _generate_yaml_files(
+    input_df: pd.DataFrame, results_df: pd.DataFrame, scorp_treatment="passive"
+):
     """Generate YAML test files for each record when logs=True"""
     # Index results by taxsimid for reliable lookup (positional iloc
     # breaks when StitchedRunner reorders rows from two engines).
@@ -59,7 +79,11 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
             # Convert TAXSIM32 dependent format if present
             taxsim_data = convert_taxsim32_dependents(taxsim_data)
 
-            household = form_household_situation(year, state, taxsim_data)
+            from policyengine_taxsim.core.scorp import classify_scorp
+
+            household = classify_scorp(
+                form_household_situation(year, state, taxsim_data), scorp_treatment
+            )
 
             # Get results for this record by taxsimid
             result_row = results_by_id.loc[row["taxsimid"]]
@@ -138,8 +162,9 @@ def _emit_results(input_df, results_df, out_stream):
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
 @click.option("--sample", type=int, help="Sample N records from input")
+@_scorp_option
 @click.pass_context
-def cli(ctx, logs, disable_salt, sample):
+def cli(ctx, logs, disable_salt, sample, scorp_treatment):
     """PolicyEngine-TAXSIM: drop-in replacement for TAXSIM-35.
 
     Reads CSV from stdin and writes results to stdout, just like taxsim35:
@@ -176,7 +201,10 @@ def cli(ctx, logs, disable_salt, sample):
             df = df.sample(n=sample, random_state=42)
 
         # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
-        runner = StitchedRunner(df, logs=logs, disable_salt=disable_salt)
+        scorp_treatment = _resolve_scorp_treatment(scorp_treatment)
+        runner = StitchedRunner(
+            df, logs=logs, disable_salt=disable_salt, scorp_treatment=scorp_treatment
+        )
         results_df = runner.run(show_progress=True)
 
         # Use the runner's input_df which has taxsimid (auto-assigned if needed)
@@ -185,7 +213,9 @@ def cli(ctx, logs, disable_salt, sample):
         # Generate YAML files if requested
         if logs:
             click.echo("Generating PolicyEngine YAML test files...", err=True)
-            _generate_yaml_files(df_with_ids, results_df)
+            _generate_yaml_files(
+                df_with_ids, results_df, _resolve_scorp_treatment(scorp_treatment)
+            )
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
         _emit_results(df_with_ids, results_df, sys.stdout)
@@ -215,7 +245,10 @@ def cli(ctx, logs, disable_salt, sample):
     help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
 )
 @click.option("--sample", type=int, help="Sample N records from input")
-def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample):
+@_scorp_option
+def policyengine(
+    input_file, output, logs, disable_salt, assume_w2_wages, sample, scorp_treatment
+):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
 
@@ -233,7 +266,11 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
 
         # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
         runner = StitchedRunner(
-            df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages
+            df,
+            logs=logs,
+            disable_salt=disable_salt,
+            assume_w2_wages=assume_w2_wages,
+            scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
         )
         results_df = runner.run(show_progress=True)
 
@@ -243,7 +280,9 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
         # Generate YAML files if requested
         if logs:
             click.echo("Generating PolicyEngine YAML test files...", err=True)
-            _generate_yaml_files(df_with_ids, results_df)
+            _generate_yaml_files(
+                df_with_ids, results_df, _resolve_scorp_treatment(scorp_treatment)
+            )
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
         # Save results to output file
@@ -347,6 +386,7 @@ def taxsim(input_file, output, sample, taxsim_path):
         "See https://taxsim.nber.org/taxsimtest/options.html"
     ),
 )
+@_scorp_option
 def compare(
     input_file,
     sample,
@@ -358,6 +398,7 @@ def compare(
     rel_tolerance,
     net_of_rebates,
     taxsim_opt30,
+    scorp_treatment,
 ):
     """Compare PolicyEngine and TAXSIM results"""
     try:
@@ -390,7 +431,11 @@ def compare(
         # Run PolicyEngine
         click.echo("Running PolicyEngine...")
         pe_runner = PolicyEngineRunner(
-            df, logs=logs, disable_salt=disable_salt, assume_w2_wages=assume_w2_wages
+            df,
+            logs=logs,
+            disable_salt=disable_salt,
+            assume_w2_wages=assume_w2_wages,
+            scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
         )
         pe_results = pe_runner.run()
 
@@ -400,7 +445,9 @@ def compare(
         # Generate YAML files if requested
         if logs:
             click.echo("Generating PolicyEngine YAML test files...")
-            _generate_yaml_files(df_with_ids, pe_results)
+            _generate_yaml_files(
+                df_with_ids, pe_results, _resolve_scorp_treatment(scorp_treatment)
+            )
             click.echo(f"Generated {len(df_with_ids)} YAML test files")
 
         # Run TAXSIM with original input (not PE-modified df which adds

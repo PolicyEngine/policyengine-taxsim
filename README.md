@@ -347,3 +347,37 @@ The emulator produces all standard TAXSIM output variables:
 | qbid | Qualified business income deduction |
 | niit | Net investment income tax |
 | cares | COVID-related recovery rebate credit |
+
+### S-corp NIIT treatment
+
+`--scorp-treatment passive|active` selects how the **PolicyEngine emulator**
+classifies TAXSIM `scorp` income for net investment income tax (NIIT).
+The default is `passive`, matching TAXSIM's documented convention. Select
+`active` to retain the previous materially-participating-owner assumption.
+
+```sh
+policyengine-taxsim policyengine input.csv --scorp-treatment active
+policyengine-taxsim compare input.csv --scorp-treatment passive --assume-w2-wages
+policyengine-taxsim --scorp-treatment active < input.csv > output.csv
+```
+
+Python: `PolicyEngineRunner(df, scorp_treatment="active")` or
+`generate_household(record, scorp_treatment="active")` followed by
+`export_household`. API requests accept `"scorp_treatment": "active"` (default:
+`"passive"`) on run, streaming and email endpoints.
+
+This classifies income already included in AGI; it does not add income again,
+change QBI eligibility, impose self-employment tax or implement section 469
+passive-loss limitations. Signed losses are passed through; other loss rules
+remain unchanged. The W-2 wage assumption is an independent QBI setting.
+Python 3.10's older PE-US receives a compatibility reform for the NIIT input;
+modern PE-US uses its existing passive-income input.
+
+The switch does **not** change the TAXSIM comparator or pre-2021 TAXSIM fallback.
+An active-mode comparison therefore deliberately compares different NIIT
+assumptions. TAXSIM option 31 is not enabled automatically: it also changes
+other business-income treatments.
+
+Sources: [TAXSIM input definition](https://taxsim.nber.org/taxsimtest/),
+[IRS QBI instructions](https://www.irs.gov/instructions/i8995), and
+[discussion #1018](https://github.com/PolicyEngine/policyengine-taxsim/issues/1018).

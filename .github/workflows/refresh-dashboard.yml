@@ -7,6 +7,11 @@ on:
         description: Run a 100-household smoke test without generating full data
         type: boolean
         default: false
+      scorp_treatment:
+        description: S-corp NIIT classification in PolicyEngine (TAXSIM remains unchanged)
+        type: choice
+        options: [passive, active]
+        default: passive
       resume_run_id:
         description: Optional failed run to restore checkpoints from (same code and settings)
         type: string
@@ -27,6 +32,7 @@ env:
   NUMEXPR_NUM_THREADS: '1'
   PYTHONUNBUFFERED: '1'
   PIP_NO_CACHE_DIR: '1'
+  SCORP_TREATMENT: ${{ inputs.scorp_treatment || 'passive' }}
 
 jobs:
   smoke:
@@ -45,7 +51,7 @@ jobs:
       - name: Check refresh safety and aggregation tests
         run: python -m unittest discover -s tests -p test_dashboard_refresh.py -v
       - name: Smoke test latest model and emulator
-        run: python scripts/refresh_dashboard.py --year 2023 --limit 100 --work-dir smoke
+        run: python scripts/refresh_dashboard.py --year 2023 --limit 100 --work-dir smoke --scorp-treatment "$SCORP_TREATMENT"
       - uses: actions/upload-artifact@v4
         with:
           name: refresh-smoke
@@ -87,7 +93,7 @@ jobs:
       - name: Regenerate one year in isolated batches
         env:
           YEAR: ${{ matrix.year }}
-        run: python scripts/refresh_dashboard.py --year "$YEAR" --batch-size 5000 --max-memory-gb 5 --min-disk-gb 4 --work-dir work
+        run: python scripts/refresh_dashboard.py --year "$YEAR" --batch-size 5000 --max-memory-gb 5 --min-disk-gb 4 --work-dir work --scorp-treatment "$SCORP_TREATMENT"
       - name: Retain checkpoints if the job fails
         if: always() && !success()
         uses: actions/upload-artifact@v4
