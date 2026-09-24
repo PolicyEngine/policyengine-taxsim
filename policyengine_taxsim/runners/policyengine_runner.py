@@ -1087,54 +1087,57 @@ class PolicyEngineRunner(BaseTaxRunner):
         Texas's sales-tax deduction; taxsimtest build cd2026081819 shows the
         difference (a 2024 joint itemizer with $300,000 of wages, $3,000 of
         property tax and $30,000 of mortgage interest owes 50,165.00 at state
-        0 but 49,618.30 at state 44). A set_input override covers every
-        record in a simulation, so state-0 records run in their own
-        simulation with that deduction zeroed, and the results come back in
-        the chunk's row order.
+        0 but 49,618.30 at state 44).
+
+        A set_input override covers every record in a simulation, so a chunk
+        that mixes state-0 and other records is simulated twice from one
+        dataset, as is and with that deduction zeroed, and each record takes
+        its row from the matching run. Splitting the chunk instead would
+        change other records' results, because dataset generation makes
+        chunk-wide decisions (e.g. whether any record supplies dependent
+        ages, which switches TAXSIM-32 dependent-count conversion for all).
 
         Returns:
             DataFrame with TAXSIM-formatted output variables
         """
         no_state = (chunk_df["state"] == NO_STATE).to_numpy()
-        if no_state.all() or not no_state.any():
-            return self._run_simulation(chunk_df, no_state_tax=no_state.all())
-        results = pd.concat(
-            [
-                self._run_simulation(chunk_df[~no_state], no_state_tax=False),
-                self._run_simulation(chunk_df[no_state], no_state_tax=True),
-            ],
-            ignore_index=True,
-        )
-        row_order = np.concatenate(
-            [np.flatnonzero(~no_state), np.flatnonzero(no_state)]
-        )
-        return results.iloc[np.argsort(row_order)].reset_index(drop=True)
-
-    def _run_simulation(self, chunk_df: pd.DataFrame, no_state_tax: bool):
-        """Simulate one year's records, which all have or all lack a state
-        tax (state 0), and format the results as TAXSIM output."""
-        zero_salt = self.disable_salt or bool(no_state_tax)
         dataset = TaxsimMicrosimDataset(chunk_df)
 
         try:
             dataset.generate()
-            sim = self._build_configured_sim(dataset, chunk_df, zero_salt)
-
-            def rebate_free_sim_factory():
-                # Twin sim, identically configured, with the one-time state
-                # rebate variables forced to zero (set_input before any
-                # calculate). state_income_tax(twin) - state_income_tax(sim)
-                # is exactly the rebate amount PE netted into siitax.
-                twin = self._build_configured_sim(dataset, chunk_df, zero_salt)
-                self._zero_one_time_rebates(twin, chunk_df)
-                return twin
-
-            return self._extract_vectorized_results(
-                sim, chunk_df, rebate_free_sim_factory, zero_salt=zero_salt
-            )
+            if self.disable_salt or no_state.all():
+                return self._simulate(dataset, chunk_df, zero_salt=True)
+            results = self._simulate(dataset, chunk_df, zero_salt=False)
+            if no_state.any():
+                no_salt = self._simulate(dataset, chunk_df, zero_salt=True)
+                no_salt = no_salt.reindex(columns=results.columns)
+                for column in results.columns:
+                    results[column] = np.where(
+                        no_state, no_salt[column].to_numpy(), results[column]
+                    )
+            return results
 
         finally:
             dataset.cleanup()
+
+    def _simulate(self, dataset, chunk_df: pd.DataFrame, zero_salt: bool):
+        """Simulate the chunk dataset and format the results as TAXSIM
+        output; ``zero_salt`` zeroes the state and local income or sales tax
+        deduction for every record."""
+        sim = self._build_configured_sim(dataset, chunk_df, zero_salt)
+
+        def rebate_free_sim_factory():
+            # Twin sim, identically configured, with the one-time state
+            # rebate variables forced to zero (set_input before any
+            # calculate). state_income_tax(twin) - state_income_tax(sim)
+            # is exactly the rebate amount PE netted into siitax.
+            twin = self._build_configured_sim(dataset, chunk_df, zero_salt)
+            self._zero_one_time_rebates(twin, chunk_df)
+            return twin
+
+        return self._extract_vectorized_results(
+            sim, chunk_df, rebate_free_sim_factory, zero_salt=zero_salt
+        )
 
     def _build_configured_sim(
         self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
