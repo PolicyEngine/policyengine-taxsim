@@ -177,6 +177,7 @@ class DatasetTests(unittest.TestCase):
                 )
             notes = refresh.release_notes(folder, "https://example.org/run")
             self.assertIn(refresh.COMPARISON_NOTE, notes)
+            self.assertIn(refresh.DATASETS["populace"]["caveat"], notes)
             self.assertIn("populace-us-2024-spm-20260915", notes)
             self.assertIn(
                 "6496cc4393d4d3c6574f76eca231de5898c803b9067645591fd5c4d3e65aee84",

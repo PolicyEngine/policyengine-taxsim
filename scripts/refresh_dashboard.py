@@ -40,6 +40,12 @@ DATASETS = {
         # Drill-down IDs are a hash-ranked, state-stratified draw from the
         # source, so they are stable across years and refreshes.
         "heldSample": False,
+        "caveat": (
+            "This build has 3 records with $10 million or more of total income "
+            "(the Enhanced CPS has 6,867), so the high-income tail is not tested "
+            "and these rates are not comparable to the Enhanced CPS rates. On the "
+            "Enhanced CPS, federal agreement is lowest for high-income records."
+        ),
     },
     "ecps": {
         "label": "Enhanced CPS (archived)",
@@ -53,6 +59,12 @@ DATASETS = {
             "TAXSIM inputs built in April 2025 (4ccfead, vectorized_validation.py) "
             "from the Enhanced CPS, which policyengine-us-data archived on "
             "2026-07-02; Alabama recoded from state 0 to 1 in September 2026."
+        ),
+        "caveat": (
+            "Kept as a secondary dataset for its high-income records until the "
+            "Populace build covers the top of the distribution. proptax, mortgage "
+            "and otheritem are zero in every record, so itemized deductions are "
+            "not tested."
         ),
     },
 }
@@ -167,6 +179,7 @@ def dataset_metadata(name):
     meta = {
         "id": name,
         "label": spec["label"],
+        "caveat": spec["caveat"],
         "source": source.name,
         "sourceSha256": digest(source),
         "records": spec["records"],
@@ -517,6 +530,8 @@ def release_notes(folder, run_url=""):
         lines.append(data["description"])
     lines += [
         f"TAXSIM inputs: `{data['source']}`, sha256 `{data['sourceSha256']}`.",
+        "",
+        f"**Caveat.** {DATASETS[data['id']]['caveat']}",
         "",
         "**Environment.** "
         f"PolicyEngine US {first['policyengineUsVersion']}, PolicyEngine Core "
