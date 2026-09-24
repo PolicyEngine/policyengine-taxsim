@@ -4,16 +4,23 @@ The **Refresh dashboard data** GitHub Actions workflow regenerates the five
 2021–2025 comparisons on hosted Linux runners. It does not run simulations on
 the operator's laptop. There is no schedule; start it manually when needed.
 
-The source is `cps_households.csv`: TAXSIM inputs for the 111,347 eCPS tax
-units, reused for every tax year (the year column is set per run). Before any
-model runs, the refresh rejects a source with state code 0 or any other
-invalid code, or with no households in some state. TAXSIM reads state 0 as
-"no state tax". Before September 2026, the 1,155 Alabama households were coded
-0, because the converter that built the file had no Alabama entry. They were
-scored without state income tax and reported under TX. Both models are rerun. Flags remain `assume_w2_wages=True` and `disable_salt=False`.
+The source is `cps_households.csv`: TAXSIM inputs for 111,347 eCPS tax units,
+reused for every tax year (the year column is set per run). Both models are
+rerun. Flags remain `assume_w2_wages=True` and `disable_salt=False`.
 PolicyEngine output detail is 5 so the detailed output columns are populated;
 TAXSIM retains the original output setting. Drill-down household IDs are held
 constant, and all summary denominators use the complete population.
+
+Before any model runs, the refresh rejects a source with state code 0, any
+other code that is not an integer from 1 to 51, or no households in some state.
+TAXSIM reads state 0 as "no state tax". Until September 23, 2026 (including the
+July 7 and September 21 data), the 1,155 Alabama households were coded 0,
+because the converter that built the file (`vectorized_validation.py`, 4ccfead)
+had no entry for FIPS 1. They were scored without state income tax and
+reported under TX. The file also lacks Alabama's other 1,155 tax units: the
+eCPS stacks a CPS-income half and a PUF-imputed half, and d317b05 deleted
+Alabama's CPS-income block (taxsimid 31801–32955). Restoring it would make the
+population 112,502.
 
 ## Resource limits and recovery
 
@@ -33,8 +40,9 @@ constant, and all summary denominators use the complete population.
 - Full results and small site data are separate artifacts, retained for seven
   days. Download only `site-data-*` to the laptop. The release job uploads the
   full CSVs directly from its ephemeral runner to a draft GitHub release.
-- Sources are removed after a successful year. Hosted runner storage is
-  discarded when the job ends. No unrelated local files are deleted.
+- The source (`cps_households.csv`) is only read. Each batch's input file is
+  removed once that batch completes. Hosted runner storage is discarded when
+  the job ends. No unrelated local files are deleted.
 
 ## Validation and publication
 

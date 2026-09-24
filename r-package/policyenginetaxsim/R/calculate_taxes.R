@@ -205,8 +205,7 @@ policyengine_calculate_taxes <- function(.data,
       state_map[codes],
       suppressWarnings(as.integer(codes))
     )
-    # An unknown code would become NA, which the emulator reads as state 0
-    # (no state tax) and would silently drop the household's state tax.
+    # An unknown code would become NA; stop with a clear error instead.
     unknown <- is.na(df$state) & !is.na(codes) & codes != ""
     if (any(unknown)) {
       stop(
@@ -218,5 +217,8 @@ policyengine_calculate_taxes <- function(.data,
   }
 
   df$state <- as.integer(df$state)
+  # A missing state is TAXSIM state 0 (no state tax). Set it here: by default
+  # reticulate passes an integer NA to pandas as its raw sentinel value.
+  df$state[is.na(df$state)] <- 0L
   df
 }

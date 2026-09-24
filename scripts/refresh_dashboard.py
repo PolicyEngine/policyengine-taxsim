@@ -22,7 +22,8 @@ import time
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
-# TAXSIM inputs for every eCPS tax unit; the tax year is set per run.
+# TAXSIM inputs for 111,347 eCPS tax units (Alabama's CPS-income half was
+# dropped in d317b05); the tax year is set per run.
 SOURCE = ROOT / "cps_households.csv"
 EXPECTED_RECORDS = 111347
 STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split()
@@ -57,20 +58,30 @@ def number(value):
 def check_source(path):
     """Validate the TAXSIM inputs before any model runs; return the row count.
 
-    TAXSIM reads state 0 as "no state tax", so a household without a valid
-    state code is scored without state income tax. Every eCPS household has a
-    state, so reject state 0 or any other invalid code, and any missing state.
+    TAXSIM reads state 0 as "no state tax" and stops at other invalid codes.
+    Every eCPS household has a state, so reject state 0, any other code that
+    is not an integer from 1 to 51, and any state without households.
     """
     counts = Counter()
+    invalid = {}
     with path.open(newline="") as stream:
         reader = csv.DictReader(stream)
         if reader.fieldnames != INPUT_COLUMNS:
             raise ValueError("Source columns differ from the TAXSIM input columns")
         for row in reader:
-            counts[int(float(row["state"]))] += 1
-    invalid = sorted(set(counts) - set(range(1, len(STATES) + 1)))
+            try:
+                state = float(row["state"])
+            except ValueError:
+                state = math.nan
+            if state.is_integer() and 1 <= state <= len(STATES):
+                counts[int(state)] += 1
+            else:
+                invalid.setdefault(row["state"], row["taxsimid"])
     if invalid:
-        raise ValueError(f"Source has invalid TAXSIM state codes {invalid}")
+        examples = ", ".join(
+            f"{code!r} (taxsimid {id})" for code, id in invalid.items()
+        )
+        raise ValueError(f"Source has invalid TAXSIM state codes: {examples}")
     missing = [code for i, code in enumerate(STATES, 1) if not counts[i]]
     if missing:
         raise ValueError(f"Source has no households in {' '.join(missing)}")

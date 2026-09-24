@@ -1024,10 +1024,11 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.mappings = load_variable_mappings()
 
     def _validate_input(self):
-        """Reject invalid state codes before any simulation, as TAXSIM does.
+        """Reject invalid state codes before any simulation.
 
-        A missing state is 0 (no state tax). TaxsimRunner skips this check
-        because TAXSIM itself accepts -1 (compute every state).
+        TAXSIM stops at the first invalid state code. A missing state is 0 (no
+        state tax). TaxsimRunner skips this check because TAXSIM itself accepts
+        -1 (compute every state), which this runner does not support.
         """
         super()._validate_input()
         if "state" not in self.input_df.columns:

@@ -11,11 +11,15 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
+import sys
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from policyengine_taxsim import export_household, generate_household
+from policyengine_taxsim.comparison.comparator import ComparisonConfig, TaxComparator
 from policyengine_taxsim.comparison.statistics import ComparisonStatistics
 from policyengine_taxsim.core.text_formatter import format_row
 from policyengine_taxsim.core.utils import (
@@ -140,7 +144,9 @@ def test_state_zero_is_no_state_not_texas():
     assert get_calculation_fips(1) == 1
 
 
-@pytest.mark.parametrize("missing", [None, float("nan"), np.nan, "", " "])
+@pytest.mark.parametrize(
+    "missing", [None, float("nan"), np.nan, "", " ", pd.NA, pd.NaT]
+)
 def test_missing_state_is_state_zero(missing):
     assert validate_state_number(missing) == 0
 
@@ -201,11 +207,58 @@ def test_microsim_runner_treats_missing_state_as_zero():
     assert output["siitax"].tolist() == [0]
 
 
-@pytest.mark.parametrize("state", [52, -1, 0.5])
+@pytest.mark.parametrize("state", [52, 0.5])
 def test_microsim_runner_rejects_invalid_state(state):
-    # TAXSIM aborts the run; the runner used to simulate California as TX.
+    # TAXSIM stops at these codes; the runner used to simulate California as TX.
     with pytest.raises(ValueError, match="Record 1"):
         PolicyEngineRunner(pd.DataFrame([_single_filer(state=state)]))
+
+
+def test_microsim_runner_rejects_every_state_option():
+    # TAXSIM expands state -1 to all 51 states; the emulator does not support it.
+    with pytest.raises(ValueError, match="compute every state"):
+        PolicyEngineRunner(pd.DataFrame([_single_filer(state=-1)]))
+
+
+def test_nullable_missing_state_is_state_zero():
+    records = pd.DataFrame([_single_filer(), _single_filer(taxsimid=2, state=44)])
+    records["state"] = pd.array([pd.NA, 44], dtype="Int64")
+    output = PolicyEngineRunner(records).run(show_progress=False).set_index("taxsimid")
+    assert output.loc[1, "state"] == 0
+    assert output.loc[1, "siitax"] == 0
+
+
+def test_comparison_results_leave_state_zero_unlabeled(tmp_path):
+    ids = [1, 2, 3]
+    results = pd.DataFrame({"taxsimid": ids, "fiitax": 0.0, "siitax": 0.0})
+    inputs = pd.DataFrame({"taxsimid": ids, "state": [0, 44, 1]})
+    compared = TaxComparator(results, results.copy(), ComparisonConfig()).compare()
+    compared.save_consolidated_results(tmp_path, inputs)
+    saved = pd.read_csv(tmp_path / "comparison_results.csv", keep_default_na=False)
+    codes = saved.groupby("taxsimid")["state_code"].unique().to_dict()
+    assert {k: list(v) for k, v in codes.items()} == {1: [""], 2: ["TX"], 3: ["AL"]}
+
+
+@pytest.fixture
+def api():
+    # api.py builds Modal objects at import; validation does not need Modal.
+    with patch.dict(sys.modules, {"modal": MagicMock()}):
+        sys.modules.pop("policyengine_taxsim.api", None)
+        import policyengine_taxsim.api as module
+
+        yield module
+    sys.modules.pop("policyengine_taxsim.api", None)
+
+
+@pytest.mark.parametrize("state", ["52", "-1", "0.5"])
+def test_api_rejects_invalid_state(api, state):
+    with pytest.raises(ValueError, match="Row 2: .*0 for no state tax"):
+        api._validate_csv(f"year,state\n2024,44\n2024,{state}\n")
+
+
+def test_api_accepts_state_zero_and_blank(api):
+    df, _ = api._validate_csv("year,state\n2024,0\n2024,\n2024,1\n")
+    assert len(df) == 3
 
 
 def test_single_household_path_echoes_state_zero():

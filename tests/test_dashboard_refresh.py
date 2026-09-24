@@ -82,10 +82,16 @@ class SourceTests(unittest.TestCase):
         # TAXSIM reads state 0 as "no state tax"; Alabama was once coded 0.
         with tempfile.TemporaryDirectory() as folder:
             states = [0, *range(2, 52)]
-            with self.assertRaisesRegex(
-                ValueError, r"invalid TAXSIM state codes \[0\]"
-            ):
+            with self.assertRaisesRegex(ValueError, r"codes: '0' \(taxsimid 1\)$"):
                 refresh.check_source(self.write_source(folder, states))
+
+    def test_non_integer_or_blank_state_is_rejected(self):
+        # TAXSIM stops at a non-integer code; a blank one would be state 0.
+        for bad in ("1.5", "", "nan", "52"):
+            with tempfile.TemporaryDirectory() as folder:
+                states = [*range(1, 52), bad]
+                with self.assertRaisesRegex(ValueError, "taxsimid 52"):
+                    refresh.check_source(self.write_source(folder, states))
 
     def test_missing_state_is_rejected(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -1,5 +1,6 @@
 import functools
 import numpy as np
+import pandas as pd
 import yaml
 from pathlib import Path
 
@@ -82,12 +83,15 @@ NO_STATE_TAX_PROXY = 44
 def validate_state_number(state_number):
     """Return a TAXSIM SOI state number (0-51) as an int.
 
-    A missing value is state 0, as in TAXSIM. Any other value outside 0-51
-    raises ValueError; TAXSIM aborts the whole run on an invalid state code.
+    A missing value (None, blank, NaN, pd.NA) is state 0, as in TAXSIM. Any
+    other value outside 0-51 raises ValueError, as TAXSIM stops at the first
+    invalid state code; -1 (TAXSIM's compute-every-state option) is not
+    supported.
     """
-    if state_number is None or (
-        isinstance(state_number, str) and not state_number.strip()
-    ):
+    if isinstance(state_number, str):
+        if not state_number.strip():
+            return NO_STATE
+    elif state_number is None or (np.ndim(state_number) == 0 and pd.isna(state_number)):
         return NO_STATE
     try:
         number = float(state_number)
@@ -98,11 +102,11 @@ def validate_state_number(state_number):
     if np.isnan(number):
         return NO_STATE
     if not number.is_integer():
-        raise ValueError(f"TAXSIM state code must be an integer, got {number:g}")
+        raise ValueError(f"TAXSIM state code must be an integer, got {number!r}")
     if number == -1:
         raise ValueError("TAXSIM state -1 (compute every state) is not supported")
     if not NO_STATE <= number <= max(STATE_MAPPING):
-        raise ValueError(f"{number:g} is not a valid TAXSIM SOI state code (0-51)")
+        raise ValueError(f"{int(number)} is not a valid TAXSIM SOI state code (0-51)")
     return int(number)
 
 
