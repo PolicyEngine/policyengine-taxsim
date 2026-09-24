@@ -23,3 +23,10 @@ Maryland in 2024–2025, records each TAXSIM row's binary hash, and preserves th
 verified 2021–2023 artifacts. A preflight executes every remaining TAXSIM batch
 before expensive PolicyEngine calculations. The preflight artifact retains the
 reduced Georgia input and previous-binary output.
+
+The hosted diagnostic reduced the crash to two records: North Carolina taxsimid
+23725 followed by Georgia taxsimid 26161. The previous binary completes the
+same pair. The input is committed at
+`tests/fixtures/georgia_taxsim_crash/2024.csv`.
+[Preflight run](https://github.com/PolicyEngine/policyengine-taxsim/actions/runs/35953332152)
+validated all 111,347 tax units in each of 2024 and 2025 using the fallbacks.
