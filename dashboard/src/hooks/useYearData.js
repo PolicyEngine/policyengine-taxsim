@@ -10,10 +10,13 @@ export const useYearData = (initialYear = 2023, initialDataset = DEFAULT_DATASET
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Switching datasets starts a new load; a slower, superseded load must not
+    // overwrite the selected dataset's data.
+    let superseded = false;
     const fetchAllData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Loading data for all years
         
@@ -46,19 +49,24 @@ export const useYearData = (initialYear = 2023, initialDataset = DEFAULT_DATASET
         if (!hasAnyData) {
           throw new Error('Failed to load data for any year');
         }
-        
+
+        if (superseded) return;
         setAllYearData(dataByYear);
         // All year data loaded successfully
         
       } catch (err) {
+        if (superseded) return;
         console.error('Error loading data:', err);
         setError('Failed to load data');
       } finally {
-        setLoading(false);
+        if (!superseded) setLoading(false);
       }
     };
 
     fetchAllData();
+    return () => {
+      superseded = true;
+    };
   }, [dataset]); // Reload when the dataset changes
 
   const currentYearData = allYearData[selectedYear] || null;

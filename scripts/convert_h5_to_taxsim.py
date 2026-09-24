@@ -37,8 +37,13 @@ Field definitions follow the NBER taxsimtest documentation
   input, so a value would be dropped on the PolicyEngine side only.
 - Dependent ages are listed youngest first, and infants are coded 1, as the
   TAXSIM documentation instructs ("Code infants as 1").
-- Units without a spouse are coded mstat 1; TAXSIM infers head of household
-  from dependents. Tax units made only of dependents (no filer) are dropped.
+- Tax-unit roles and filing status come from the build's explicit
+  ``tax_unit_role_input`` and ``filing_status_input`` columns, pinned into
+  PolicyEngine before anything is calculated. policyengine-us has no variable
+  that reads them and would otherwise take the two oldest adults as head and
+  spouse, turning adult dependents into spouses.
+- Joint returns are mstat 2 and every other return mstat 1; TAXSIM infers
+  head of household from dependents. Tax units with no filer are dropped.
 
 Deductions are computed by PolicyEngine for the build's data year. The same
 records are reused for every tax year, like the Enhanced CPS benchmark.
@@ -225,6 +230,58 @@ def load_sim(dataset_name: str, year: int, revision: str):
     return Microsimulation(dataset=str(dataset_name))
 
 
+ROLE_VARIABLES = {
+    "HEAD": "is_tax_unit_head",
+    "SPOUSE": "is_tax_unit_spouse",
+    "DEPENDENT": "is_tax_unit_dependent",
+}
+
+
+def _decode(values):
+    return np.array([v.decode() if isinstance(v, bytes) else str(v) for v in values])
+
+
+def source_roles(h5_path):
+    """The build's explicit tax-unit roles and filing statuses, or None.
+
+    Populace stores each person's role (``tax_unit_role_input``: HEAD, SPOUSE
+    or DEPENDENT) and each unit's ``filing_status_input``. policyengine-us has
+    no variable that reads them: it infers the head as the oldest adult and
+    the spouse as the next-oldest, which turns adult dependents into spouses.
+    """
+    people = pd.read_hdf(h5_path, "person")
+    units = pd.read_hdf(h5_path, "tax_unit")
+    if "tax_unit_role_input" not in people or "filing_status_input" not in units:
+        return None
+    return {
+        "person_id": people["person_id"].to_numpy(),
+        "role": _decode(people["tax_unit_role_input"]),
+        "tax_unit_id": units["tax_unit_id"].to_numpy(),
+        "filing_status": _decode(units["filing_status_input"]),
+    }
+
+
+def pin_source_roles(sim, year, roles):
+    """Set PolicyEngine's role and filing-status variables to the source's.
+
+    Must run before anything that depends on them is calculated.
+    """
+    period = str(year)
+    person_id = _values(sim, "person_id", period)
+    role = pd.Series(roles["role"], index=roles["person_id"]).reindex(person_id)
+    tax_unit_id = _values(sim, "tax_unit_id", period)
+    status = pd.Series(roles["filing_status"], index=roles["tax_unit_id"])
+    status = status.reindex(tax_unit_id)
+    if role.isna().any() or status.isna().any():
+        raise ValueError("Source roles do not cover every person and tax unit")
+    unknown = set(role) - set(ROLE_VARIABLES)
+    if unknown:
+        raise ValueError(f"Unknown tax_unit_role_input values {sorted(unknown)}")
+    for name, variable in ROLE_VARIABLES.items():
+        sim.set_input(variable, period, (role == name).to_numpy())
+    sim.set_input("filing_status", period, status.to_numpy())
+
+
 def _values(sim, variable, period):
     return np.asarray(sim.calculate(variable, period).values)
 
@@ -253,7 +310,7 @@ def extract_taxsim_csv(sim, year: int) -> pd.DataFrame:
     if (heads > 1).any():
         raise ValueError(f"{int((heads > 1).sum())} tax units have several heads")
     # A unit of dependents alone (no head or spouse) has no filer, so it is
-    # not a return; Populace US 2024 has 252, nearly all lone teenagers.
+    # not a return. With the source roles pinned, Populace has none.
     no_filer = heads == 0
     non_dependents = np.bincount(unit[~dependent], minlength=n)
     if (no_filer & (non_dependents > 0)).any():
@@ -337,10 +394,10 @@ def extract_taxsim_csv(sim, year: int) -> pd.DataFrame:
     # TAXSIM has no surviving-spouse status, and the emulator's Microsimulation
     # path treats mstat 6 as a two-person unit, so every unit without a spouse
     # is coded mstat 1 (single or head of household, which TAXSIM infers from
-    # dependents), as in the Enhanced CPS inputs. Record how PolicyEngine
-    # itself classifies the returns.
+    # dependents), as in the Enhanced CPS inputs. Record the filing statuses
+    # this collapses.
     status = pd.Series(calc("filing_status").astype(str))[~no_filer]
-    df.attrs["policyengineFilingStatus"] = status.value_counts().sort_index().to_dict()
+    df.attrs["filingStatus"] = status.value_counts().sort_index().to_dict()
     if (df["mortgage"] < -0.005).any():
         raise ValueError("Negative mortgage deductions; taxsimtest rejects them")
     df["mortgage"] = df["mortgage"].clip(lower=0)
@@ -428,7 +485,11 @@ def main():
     else:
         year = args.year or 2024
         models = installed_versions(["policyengine-us", "policyengine-core"])
+        h5 = args.h5
         sim = load_sim(args.h5 or args.dataset, year, args.revision)
+    roles = source_roles(h5) if h5 else None
+    if roles is not None:
+        pin_source_roles(sim, year, roles)
 
     print(f"Extracting TAXSIM inputs for {year}...")
     df = extract_taxsim_csv(sim, year)
@@ -443,8 +504,13 @@ def main():
         "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "conversionModel": models,
         "converterSha256": sha256_file(__file__),
+        "rolesFrom": (
+            "tax_unit_role_input and filing_status_input in the H5"
+            if roles is not None
+            else "policyengine-us formulas"
+        ),
         "droppedNoFiler": df.attrs["droppedNoFiler"],
-        "policyengineFilingStatus": df.attrs["policyengineFilingStatus"],
+        "filingStatus": df.attrs["filingStatus"],
         "coverage": stats,
     }
     if certified:

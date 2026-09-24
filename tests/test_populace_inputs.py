@@ -160,7 +160,78 @@ def test_units_without_a_filer_are_dropped():
     df = convert.extract_taxsim_csv(sim, 2024)
     assert list(df["taxsimid"]) == [10, 20]
     assert df.attrs["droppedNoFiler"] == 1
-    assert df.attrs["policyengineFilingStatus"] == {"JOINT": 1, "SINGLE": 1}
+    assert df.attrs["filingStatus"] == {"JOINT": 1, "SINGLE": 1}
+
+
+UNIT_DEDUCTIONS = (
+    "medical_expense_deduction",
+    "charitable_deduction",
+    "casualty_loss_deduction",
+    "tax_unit_childcare_expenses",
+)
+
+
+class RecordingSim(Sim):
+    """A synthetic simulation whose set_input overrides calculate."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.inputs = {}
+
+    def set_input(self, variable, period, values):
+        self.inputs[variable] = np.asarray(values)
+        table = self.units if variable == "filing_status" else self.people
+        table[variable] = list(values)
+
+
+def test_source_roles_replace_age_based_roles():
+    """A 50-year-old head with a 20-year-old student dependent.
+
+    policyengine-us's age rule makes the 20-year-old a spouse and the return
+    joint; the build says the student is a dependent on a single return.
+    """
+    people = {
+        "person_id": [101, 102],
+        "person_tax_unit_id": [7, 7],
+        "person_household_id": [1, 1],
+        "is_tax_unit_head": [True, False],
+        "is_tax_unit_spouse": [False, True],  # age-based inference
+        "is_tax_unit_dependent": [False, False],
+        "age": [50.0, 20.0],
+        "employment_income": [170_000.0, 7_000.0],
+    }
+    units = {"tax_unit_id": [7], "filing_status": ["JOINT"]}
+    for name in UNIT_DEDUCTIONS:
+        units[name] = [0.0]
+    sim = RecordingSim(people, units, {"household_id": [1], "state_fips": [6]})
+    roles = {
+        "person_id": np.array([102, 101]),  # any order; aligned by id
+        "role": np.array(["DEPENDENT", "HEAD"]),
+        "tax_unit_id": np.array([7]),
+        "filing_status": np.array(["HEAD_OF_HOUSEHOLD"]),
+    }
+    convert.pin_source_roles(sim, 2024, roles)
+    assert sim.inputs["is_tax_unit_spouse"].tolist() == [False, False]
+    assert sim.inputs["is_tax_unit_dependent"].tolist() == [False, True]
+    row = convert.extract_taxsim_csv(sim, 2024).iloc[0]
+    assert (row["mstat"], row["swages"], row["depx"], row["age1"]) == (1, 0, 1, 20)
+    assert row["pwages"] == 170_000
+
+
+def test_incomplete_source_roles_are_rejected():
+    sim = RecordingSim(
+        {"person_id": [1, 2], "age": [40.0, 10.0]},
+        {"tax_unit_id": [5]},
+        {},
+    )
+    roles = {
+        "person_id": np.array([1]),
+        "role": np.array(["HEAD"]),
+        "tax_unit_id": np.array([5]),
+        "filing_status": np.array(["SINGLE"]),
+    }
+    with pytest.raises(ValueError, match="do not cover"):
+        convert.pin_source_roles(sim, 2024, roles)
 
 
 def test_negative_mortgage_is_rejected():
@@ -218,6 +289,9 @@ def test_provenance_describes_the_committed_csv(provenance, populace):
     for key in ("buildId", "hfRepo", "hfRevision", "hfCommit", "h5File", "h5Sha256"):
         assert provenance[key] == build[key]
     assert provenance["conversionModel"] == build["certifiedModel"]
+    assert provenance["rolesFrom"].startswith("tax_unit_role_input")
+    assert provenance["droppedNoFiler"] == 0
+    assert (populace["mstat"] == 2).sum() == provenance["filingStatus"]["JOINT"]
     # Regenerate the inputs whenever the converter changes.
     converter = ROOT / "scripts/convert_h5_to_taxsim.py"
     assert (

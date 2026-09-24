@@ -48,7 +48,7 @@ export const DATASETS = {
   populace: {
     id: 'populace',
     label: 'Populace US 2024',
-    releaseTag: 'populace-comparison-run-35950218858',
+    releaseTag: 'populace-comparison-run-35950753382',
     description:
       'One TAXSIM record per tax unit in the Populace US 2024 build that ' +
       'policyengine.py certifies (populace-us-2024-spm-20260915), scored under ' +

@@ -462,6 +462,13 @@ def _release_provenance(folder):
     ]
     if not records:
         raise ValueError(f"No provenance_*.json files in {folder}")
+    for r in records:
+        # Releases publish full-population results only, never smoke runs.
+        if r.get("limit") or r.get("records") != r["dataset"]["records"]:
+            raise ValueError(
+                f"{r['year']} provenance covers {r.get('records')} of "
+                f"{r['dataset']['records']} records; release full runs only"
+            )
     for key in ("dataset", "emulatorCommit", "policyengineUsVersion"):
         if len({json.dumps(r.get(key), sort_keys=True) for r in records}) != 1:
             raise ValueError(f"Provenance files disagree on {key}")

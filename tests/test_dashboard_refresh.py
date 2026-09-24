@@ -161,6 +161,8 @@ class DatasetTests(unittest.TestCase):
                 "assumeW2Wages": True,
                 "disableSalt": False,
                 "generatedAt": "2026-09-24T00:00:00+00:00",
+                "limit": 0,
+                "records": refresh.DATASETS["populace"]["records"],
             }
             for year, rate in ((2024, 90.0), (2025, 91.5)):
                 rates = dict.fromkeys(refresh.RATE_KEYS, rate)
@@ -184,6 +186,18 @@ class DatasetTests(unittest.TestCase):
                 json.dumps({**meta, "year": 2023, "emulatorCommit": "other"})
             )
             with self.assertRaisesRegex(ValueError, "disagree on emulatorCommit"):
+                refresh.release_notes(folder)
+
+    def test_release_notes_reject_smoke_runs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            smoke = {
+                "dataset": refresh.dataset_metadata("populace"),
+                "year": 2023,
+                "limit": 100,
+                "records": 100,
+            }
+            (Path(folder) / "provenance_2023.json").write_text(json.dumps(smoke))
+            with self.assertRaisesRegex(ValueError, "release full runs only"):
                 refresh.release_notes(folder)
 
 
