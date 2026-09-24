@@ -69,7 +69,8 @@ def main():
     resource.setrlimit(resource.RLIMIT_AS, (1024**3, 1024**3))
     OUT.mkdir(exist_ok=True)
     with (ROOT / "cps_households.csv").open() as stream:
-        rows = [r for r in csv.DictReader(stream) if int(r["state"]) == 21]
+        all_rows = list(csv.DictReader(stream))
+        rows = [r for r in all_rows if int(r["state"]) == 21]
     old = Path(os.environ["TAXSIM_MD_FALLBACK_BINARY"])
     new = ROOT / "resources/taxsimtest/taxsimtest-linux.exe"
     evidence = []
@@ -94,19 +95,33 @@ def main():
             for r in result
             for k in ("fiitax", "siitax", "srebate")
         )
-        current = run(new, rows, year)
+        subset = all_rows[75000:80000]
+        current = run(new, subset, year)
         assert current.returncode == -8 and "mdtax22" in current.stderr, (
             current.returncode,
             current.stderr,
         )
-        subset = rows
         while len(subset) > 1:
             midpoint = len(subset) // 2
-            subset = (
-                subset[:midpoint]
-                if run(new, subset[:midpoint], year).returncode == -8
-                else subset[midpoint:]
-            )
+            if run(new, subset[:midpoint], year).returncode == -8:
+                subset = subset[:midpoint]
+            elif run(new, subset[midpoint:], year).returncode == -8:
+                subset = subset[midpoint:]
+            else:
+                # Preserve a multi-record trigger rather than claiming a false single-record case.
+                (OUT / f"multi-record-{year}.csv").write_text(encode(subset, year))
+                (OUT / f"new-{year}.stderr").write_text(current.stderr)
+                evidence.append(
+                    {
+                        "year": year,
+                        "previousBinaryValidatedRows": len(result),
+                        "triggerRows": len(subset),
+                        "newReturnCode": -8,
+                    }
+                )
+                break
+        if len(subset) > 1:
+            continue
         row = dict(subset[0])
         assert run(new, [row], year).returncode == -8
         (OUT / f"original-{year}.csv").write_text(encode([row], year))
