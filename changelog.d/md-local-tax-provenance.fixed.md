@@ -1,0 +1,1 @@
+Report the build of 2026 TAXSIM binaries, which stamp `cd2026081819` rather than `cdate-...`, and pin Maryland `siitax` to TAXSIM's state-only output. A new test flags any bundled binary that runs TAXSIM's Maryland county-tax block, as build cd2026081819 does.

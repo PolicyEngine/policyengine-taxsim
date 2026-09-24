@@ -1218,16 +1218,26 @@ class PolicyEngineRunner(BaseTaxRunner):
                 )
 
         # Maryland county/local income tax: TAXSIM's MD `siitax` is
-        # state-only — it applies no county tax when the input carries no
-        # locality (verified against the binary: TAXSIM MD siitax equals
-        # PE's state-only MD tax to the dollar). PE, by contrast, applies
-        # MD's *residence-based* county tax (~2.25-3.20%) to every MD
-        # resident even with no county specified, systematically
-        # over-stating MD siitax vs TAXSIM. The TAXSIM input has no county,
-        # so zero PE's MD local income tax to match TAXSIM's coverage. MD
-        # is the only state affected: every other local-income-tax state
-        # (OH/PA/IN/KY/MI/NYC/…) requires a locality PE isn't given, so
-        # those already compute $0 local and match TAXSIM.
+        # state-only, so zero PE's MD local income tax to match. Maryland
+        # counties and Baltimore City tax Maryland taxable net income at the
+        # rate of the county of residence (Form 502 Instruction 19: .0225 to
+        # .0320 in 2021-2024, up to .0330 in 2025, with Anne Arundel and
+        # Frederick bracketed from 2023). TAXSIM input has no county; with
+        # none, PE-US falls back to the first county in the state (Allegany,
+        # .0303-.0305) and applies that rate plus the local EITC and poverty
+        # credits.
+        #
+        # TAXSIM's 2022+ MD routine (`mdtax22`) has a county block, a flat
+        # 3.2% of taxable income less 3.2% of the federal EITC, which the
+        # published source (build 2026092316) switches off; builds 20260521
+        # and cd2026090910 return state-only siitax. The August 2026 build
+        # cd2026081819 (bundled in #1150) ran the block, adding about $3,000
+        # to MD siitax at $100k. tests/test_md_local_tax_parity.py pins the
+        # state-only values and flags any bundled build that turns the block
+        # back on. Zeroing md_local_income_tax_before_credits also zeroes
+        # PE's local credits, which are capped at it. Of the local taxes in
+        # PE's state_income_tax, only NYC's remains, and it needs a county
+        # the emulator never sets. See #1062.
         if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
             var = "md_local_income_tax_before_credits"
             if var in sim.tax_benefit_system.variables:
