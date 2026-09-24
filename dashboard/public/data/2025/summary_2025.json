@@ -1,24 +1,24 @@
 {
   "federalMatchPct": 83.0,
-  "stateMatchPct": 87.3,
+  "stateMatchPct": 87.0,
   "federalMatchPctRel": 90.9,
   "stateMatchPctRel": 96.1,
   "stateMatchPctRelNet": 95.7,
   "totalRecords": 111347,
   "metadata": {
-    "sourceTag": "full-ecps-comparison-2026.07.07",
-    "sourceSha256": "5d367768529d02e6d49d0c88ce06a4671343cc809de2279abc9678160266a728",
+    "source": "cps_households.csv",
+    "sourceSha256": "ecabc8dd33e8b570fad21650745b9d94f6b51fc9780d9c59bb033ede7d16a689",
     "year": 2025,
-    "emulatorCommit": "ab6e7a733289d1404c0a6d0c2f8661e7f0d88810",
+    "emulatorCommit": "2b69146bfb2e16f83e1c021d72c4258d67872190",
     "requirementsSha256": "5ed792d03b33330e246da3bfd109c0cc2e57628a691eb68bbdeec0ab7aed1c86",
-    "scriptSha256": "fba8b9c2c5e76a688cca05bd22f429790e8d946eb6f92d0c16a502fa87e44f0d",
+    "scriptSha256": "bb60bf51ea908d16ffb90165ced2593c503f56841c6704b7901b608962fff22a",
     "batchSize": 5000,
     "limit": 0,
-    "generatedAt": "2026-09-21T18:47:51.713205+00:00",
+    "generatedAt": "2026-09-23T13:28:17.106095+00:00",
     "policyengineUsVersion": "2.6.17",
     "policyengineCoreVersion": "3.32.6",
     "spmCalculatorVersion": "1.0.0.post1",
-    "peakWorkerRssMiB": 1705,
+    "peakWorkerRssMiB": 1701,
     "assumeW2Wages": true,
     "disableSalt": false,
     "policyengineOutputDetail": 5,
@@ -38,15 +38,15 @@
       "stateMatches": 9868
     },
     {
-      "federalPct": 81.8,
+      "federalPct": 83.6,
       "statePct": 100.0,
-      "federalPctRel": 89.4,
+      "federalPctRel": 90.5,
       "statePctRel": 100.0,
       "statePctRelNet": 100.0,
       "state": "TX",
-      "households": 8337,
-      "federalMatches": 6819,
-      "stateMatches": 8337
+      "households": 7182,
+      "federalMatches": 6003,
+      "stateMatches": 7182
     },
     {
       "federalPct": 84.2,
@@ -553,6 +553,17 @@
       "households": 1156,
       "federalMatches": 990,
       "stateMatches": 1116
+    },
+    {
+      "federalPct": 69.9,
+      "statePct": 65.5,
+      "federalPctRel": 82.8,
+      "statePctRel": 99.7,
+      "statePctRelNet": 99.7,
+      "state": "AL",
+      "households": 1155,
+      "federalMatches": 807,
+      "stateMatches": 757
     },
     {
       "federalPct": 83.1,
