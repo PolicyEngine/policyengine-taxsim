@@ -284,3 +284,6 @@ SOI_TO_FIPS_MAP = {
     50: 55,  # Wisconsin
     51: 56,  # Wyoming
 }
+
+# Reverse mapping: FIPS → SOI (for statefip input support)
+FIPS_TO_SOI_MAP = {fips: soi for soi, fips in SOI_TO_FIPS_MAP.items()}
