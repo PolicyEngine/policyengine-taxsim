@@ -24,3 +24,34 @@ Tracking issue: https://github.com/PolicyEngine/policyengine-taxsim/issues/1214
 This demonstrates an execution regression, not which Maryland tax formula is
 legally correct. Cross-record state leakage is a hypothesis; the exact upstream
 arithmetic expression has not been inspected.
+
+## Source-level diagnosis
+
+A native GDB run of the September 9 Linux binary stops at address `0x498c9b`,
+`mdtax22`, `taxsim.f:14163`. The faulting instruction is a scalar double
+subtraction from an uninitialized local stack operand. GDB reports:
+
+- `subh = 4.2439915834127416e-314`
+- `subw = 6.3659873728958169e-314`
+- `subt = 6782.1240234374645`
+- `subs = 0`
+
+The current publisher-hosted source (https://taxsim.nber.org/out2psl/taxsim.f,
+header build 2026092316, retrieved 2026-09-23 America/New_York, SHA256
+`e6831b5726ff0b6d94dfddd804370e5174609616faeba39da3ab1f5c62e24e1f`)
+contains the same two-income subtraction branch at lines 14356–14357. It
+computes pension exclusions in `subt` and `subs`, but subtracts `subh` and
+`subw`, which have no initialization or assignment in `mdtax22`. The line
+numbers differ because this published source is newer than the tested binary.
+The source itself is not redistributed here.
+
+The affected branch requires joint filing, exactly one elderly taxpayer and
+a positive pension exclusion. Removing every other financial input still
+reproduces the crash. Reversing the two records, running either alone, or
+running the Maryland record twice succeeds. Other preceding states can also
+trigger it; this is not a Delaware tax-rule problem.
+
+Debugger evidence: https://github.com/PolicyEngine/policyengine-taxsim/actions/runs/35944272752
+Controlled runtime-correction experiment is implemented in
+`scripts/pinpoint_maryland_taxsim.py`; it changes only the two local operands
+before the faulting expression, leaving the executable file unmodified.
