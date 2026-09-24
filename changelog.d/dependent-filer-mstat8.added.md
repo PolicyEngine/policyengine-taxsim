@@ -1,0 +1,1 @@
+Support TAXSIM `mstat` 8 (dependent taxpayer). The filer is flagged with PolicyEngine `claimed_as_dependent_on_another_return`, which limits the standard deduction to the dependent amount, and is denied the EITC (IRC § 32(c)(1)(A)(ii)(III)) and the 2021 recovery rebate (IRC § 6428B(c)(2)). Previously mstat 8 was treated as single.

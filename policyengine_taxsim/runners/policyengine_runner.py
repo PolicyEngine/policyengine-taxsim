@@ -169,6 +169,7 @@ class TaxsimMicrosimDataset(Dataset):
             "is_tax_unit_head",  # Tax unit role - must be explicit to avoid misclassification
             "is_tax_unit_spouse",  # Tax unit role - must be explicit to avoid misclassification
             "is_tax_unit_dependent",  # Tax unit role - must be explicit to avoid misclassification
+            "claimed_as_dependent_on_another_return",  # TAXSIM mstat 8 filer
         }
 
         # Variables that can cause circular dependencies
@@ -624,6 +625,10 @@ class TaxsimMicrosimDataset(Dataset):
             "is_tax_unit_head": is_primary,
             "is_tax_unit_spouse": is_spouse,
             "is_tax_unit_dependent": is_dependent,
+            # TAXSIM mstat 8: the filer is a dependent on another return
+            # (typically a child with income).
+            "claimed_as_dependent_on_another_return": is_primary
+            & np.repeat(mstat == 8, people_per_hh),
             "person_weight": np.ones(total_people),
         }
 
@@ -1075,9 +1080,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                 # rebate variables forced to zero (set_input before any
                 # calculate). state_income_tax(twin) - state_income_tax(sim)
                 # is exactly the rebate amount PE netted into siitax.
-                twin = self._build_configured_sim(dataset, chunk_df)
-                self._zero_one_time_rebates(twin, chunk_df)
-                return twin
+                return self._build_configured_sim(
+                    dataset, chunk_df, zero_one_time_rebates=True
+                )
 
             return self._extract_vectorized_results(
                 sim, chunk_df, rebate_free_sim_factory
@@ -1086,10 +1091,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         finally:
             dataset.cleanup()
 
-    def _build_configured_sim(self, dataset, chunk_df: pd.DataFrame):
+    def _build_configured_sim(
+        self, dataset, chunk_df: pd.DataFrame, zero_one_time_rebates=False
+    ):
         """Build a Microsimulation from the chunk dataset and apply all
         emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
-        imputed-transfer zeroing, MD local tax zeroing)."""
+        imputed-transfer zeroing, MD local tax zeroing, optional one-time
+        rebate zeroing, dependent-filer credit rules)."""
         sim = Microsimulation(dataset=dataset)
 
         # Resolve the state_and_local_sales_or_income_tax override for
@@ -1267,7 +1275,56 @@ class PolicyEngineRunner(BaseTaxRunner):
                             ),
                         )
 
+        if zero_one_time_rebates:
+            self._zero_one_time_rebates(sim, chunk_df)
+
+        # Last: it calculates, and every set_input above must precede any
+        # calculate on the sim.
+        self._apply_dependent_filer_rules(sim, chunk_df)
+
         return sim
+
+    # Tax-unit credits a dependent filer (TAXSIM mstat 8) cannot claim, and
+    # whose PolicyEngine formulas do not test head_is_dependent_elsewhere:
+    # - eitc_eligible: IRC § 32(c)(1)(A)(ii)(III), an individual without a
+    #   qualifying child must not be "a dependent for whom a deduction is
+    #   allowable under section 151 to another taxpayer"; (c)(1)(B) excludes
+    #   a qualifying child of another taxpayer.
+    # - rrc_arpa: IRC § 6428B(c)(2), the 2021 recovery rebate's eligible
+    #   individual excludes "any individual who is a dependent of another
+    #   taxpayer".
+    # taxsimtest allows neither for mstat 8.
+    _DEPENDENT_FILER_INELIGIBLE = ("eitc_eligible", "rrc_arpa")
+
+    def _apply_dependent_filer_rules(self, sim, chunk_df: pd.DataFrame) -> None:
+        """Deny dependent filers (mstat 8) the credits in
+        ``_DEPENDENT_FILER_INELIGIBLE``. The dataset already flags their
+        heads with ``claimed_as_dependent_on_another_return``, which drives
+        PolicyEngine's dependent standard deduction (IRC § 63(c)(5)). These
+        are formula variables, so compute each and pin it with the
+        dependent filers' values zeroed; tax units follow chunk row order."""
+        if "mstat" not in chunk_df.columns:
+            return
+        dependent_filer = chunk_df["mstat"].fillna(1).astype(int).values == 8
+        if not dependent_filer.any():
+            return
+        years = sorted(set(chunk_df["year"].unique()))
+        for var in self._DEPENDENT_FILER_INELIGIBLE:
+            if var not in sim.tax_benefit_system.variables:
+                continue
+            for year in years:
+                period = str(
+                    int(year) if isinstance(year, (float, np.floating)) else year
+                )
+                in_year = (chunk_df["year"] == year).values
+                values = np.array(sim.calculate(var, period=period))
+                sim.set_input(
+                    variable_name=var,
+                    value=np.where(dependent_filer[in_year], 0, values).astype(
+                        values.dtype
+                    ),
+                    period=period,
+                )
 
     def _zero_one_time_rebates(self, sim, chunk_df: pd.DataFrame) -> None:
         """Force the one-time state rebate variables to zero. These are
