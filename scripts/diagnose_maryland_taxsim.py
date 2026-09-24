@@ -108,15 +108,34 @@ def main():
             elif run(new, subset[midpoint:], year).returncode == -8:
                 subset = subset[midpoint:]
             else:
-                # Preserve a multi-record trigger rather than claiming a false single-record case.
+                # Delta-debug multi-record failures without losing batch context.
+                granularity = 2
+                while len(subset) >= 2:
+                    width = math.ceil(len(subset) / granularity)
+                    reduced = False
+                    for start in range(0, len(subset), width):
+                        candidate = subset[:start] + subset[start + width :]
+                        if candidate and run(new, candidate, year).returncode == -8:
+                            subset = candidate
+                            granularity = max(2, granularity - 1)
+                            reduced = True
+                            break
+                    if not reduced:
+                        if granularity >= len(subset):
+                            break
+                        granularity = min(len(subset), granularity * 2)
                 (OUT / f"multi-record-{year}.csv").write_text(encode(subset, year))
-                (OUT / f"new-{year}.stderr").write_text(current.stderr)
+                (OUT / f"new-{year}.stderr").write_text(run(new, subset, year).stderr)
+                previous_subset = run(old, subset, year)
+                assert previous_subset.returncode == 0
+                (OUT / f"old-{year}.stdout").write_text(previous_subset.stdout)
                 evidence.append(
                     {
                         "year": year,
                         "previousBinaryValidatedRows": len(result),
                         "triggerRows": len(subset),
                         "newReturnCode": -8,
+                        "minimalInputs": subset,
                     }
                 )
                 break
