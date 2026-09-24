@@ -154,6 +154,25 @@ export default function DashboardContent() {
               {datasetInfo.description} <strong>{datasetInfo.caveat}</strong>
             </p>
             <p className="text-gray-600">{COMPARISON_NOTE}</p>
+            {currentYearData.summary?.metadata?.taxsimCrashes?.length > 0 && (
+              <p className="text-gray-600">
+                {currentYearData.summary.metadata.taxsimCrashes.length} {selectedYear}{' '}
+                record(s) are not scored because NBER&apos;s taxsimtest binary crashed on
+                them (routine{' '}
+                {[
+                  ...new Set(
+                    currentYearData.summary.metadata.taxsimCrashes.map(
+                      (crash) => crash.routine || 'unknown'
+                    )
+                  ),
+                ].join(', ')}
+                ; taxsimid{' '}
+                {currentYearData.summary.metadata.taxsimCrashes
+                  .map((crash) => crash.taxsimid)
+                  .join(', ')}
+                ).
+              </p>
+            )}
           </div>
         </div>
       </div>
