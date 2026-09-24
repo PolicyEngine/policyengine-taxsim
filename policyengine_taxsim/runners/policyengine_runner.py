@@ -16,6 +16,7 @@ from policyengine_taxsim.core.utils import (
     to_roundedup_number,
     convert_taxsim32_dependents,
     validate_state_number,
+    NO_STATE,
 )
 from policyengine_taxsim.core.state_output_resolver import (
     ONE_TIME_REBATE_VARIABLES,
@@ -55,6 +56,12 @@ _ZERO_IMPUTED_TRANSFERS = frozenset(
         "tx_ssi_state_supplement",
     }
 )
+
+# Federal Schedule A deduction for state and local income or sales tax
+# (property tax is separate, in real_estate_taxes). Zeroed for state-0
+# records, which TAXSIM runs with no state return (see
+# PolicyEngineRunner._run_chunk), and for every record under --disable-salt.
+_SALT_VARIABLE = "state_and_local_sales_or_income_tax"
 
 
 class TaxsimMicrosimDataset(Dataset):
@@ -1018,9 +1025,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.logs = logs
         self.disable_salt = disable_salt
         self.assume_w2_wages = assume_w2_wages
-        # Per-row state_and_local_sales_or_income_tax override (Pass B of
-        # three-pass --disable-salt). Maps taxsimid -> dollar value.
-        self._state_tax_override = None
         self.mappings = load_variable_mappings()
 
     def _validate_input(self):
@@ -1032,6 +1036,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         """
         super()._validate_input()
         if "state" not in self.input_df.columns:
+            self.input_df["state"] = NO_STATE
             return
         states = []
         for taxsimid, state in zip(self.input_df["taxsimid"], self.input_df["state"]):
@@ -1076,62 +1081,80 @@ class PolicyEngineRunner(BaseTaxRunner):
         Run PolicyEngine Microsimulation on a single chunk of records.
         Each chunk must contain only one year.
 
+        TAXSIM runs a state-0 record with no state return, so it deducts no
+        state or local income or sales tax federally. PolicyEngine simulates
+        state 0 in Texas (NO_STATE_TAX_PROXY), which would otherwise take
+        Texas's sales-tax deduction; taxsimtest build cd2026081819 shows the
+        difference (a 2024 joint itemizer with $300,000 of wages, $3,000 of
+        property tax and $30,000 of mortgage interest owes 50,165.00 at state
+        0 but 49,618.30 at state 44). A set_input override covers every
+        record in a simulation, so state-0 records run in their own
+        simulation with that deduction zeroed, and the results come back in
+        the chunk's row order.
+
         Returns:
             DataFrame with TAXSIM-formatted output variables
         """
+        no_state = (chunk_df["state"] == NO_STATE).to_numpy()
+        if no_state.all() or not no_state.any():
+            return self._run_simulation(chunk_df, no_state_tax=no_state.all())
+        results = pd.concat(
+            [
+                self._run_simulation(chunk_df[~no_state], no_state_tax=False),
+                self._run_simulation(chunk_df[no_state], no_state_tax=True),
+            ],
+            ignore_index=True,
+        )
+        row_order = np.concatenate(
+            [np.flatnonzero(~no_state), np.flatnonzero(no_state)]
+        )
+        return results.iloc[np.argsort(row_order)].reset_index(drop=True)
+
+    def _run_simulation(self, chunk_df: pd.DataFrame, no_state_tax: bool):
+        """Simulate one year's records, which all have or all lack a state
+        tax (state 0), and format the results as TAXSIM output."""
+        zero_salt = self.disable_salt or bool(no_state_tax)
         dataset = TaxsimMicrosimDataset(chunk_df)
 
         try:
             dataset.generate()
-            sim = self._build_configured_sim(dataset, chunk_df)
+            sim = self._build_configured_sim(dataset, chunk_df, zero_salt)
 
             def rebate_free_sim_factory():
                 # Twin sim, identically configured, with the one-time state
                 # rebate variables forced to zero (set_input before any
                 # calculate). state_income_tax(twin) - state_income_tax(sim)
                 # is exactly the rebate amount PE netted into siitax.
-                twin = self._build_configured_sim(dataset, chunk_df)
+                twin = self._build_configured_sim(dataset, chunk_df, zero_salt)
                 self._zero_one_time_rebates(twin, chunk_df)
                 return twin
 
             return self._extract_vectorized_results(
-                sim, chunk_df, rebate_free_sim_factory
+                sim, chunk_df, rebate_free_sim_factory, zero_salt=zero_salt
             )
 
         finally:
             dataset.cleanup()
 
-    def _build_configured_sim(self, dataset, chunk_df: pd.DataFrame):
+    def _build_configured_sim(
+        self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
+    ):
         """Build a Microsimulation from the chunk dataset and apply all
         emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
-        imputed-transfer zeroing, MD local tax zeroing)."""
+        imputed-transfer zeroing, MD local tax zeroing).
+
+        ``zero_salt`` zeroes the federal deduction for state and local income
+        or sales tax for every record in the chunk: state-0 records and
+        --disable-salt runs."""
         sim = Microsimulation(dataset=dataset)
 
-        # Resolve the state_and_local_sales_or_income_tax override for
-        # this chunk. Possible sources, in priority order:
-        #   1. self._state_tax_override (Pass B of three-pass: per-row
-        #      values produced by Pass A, keyed by taxsimid)
-        #   2. self.disable_salt (zero out for state-only computation)
-        salt_override = None
-        if self._state_tax_override is not None:
-            ids = chunk_df["taxsimid"].astype(float).astype(int).values
-            # Look each id up in the override map; fall back to 0 if
-            # the id is unexpectedly missing.
-            salt_override = np.array(
-                [self._state_tax_override.get(int(i), 0.0) for i in ids],
-                dtype=float,
-            )
-        elif self.disable_salt:
-            salt_override = np.zeros(len(chunk_df), dtype=float)
-
-        if salt_override is not None:
+        if zero_salt:
             years = sorted(set(chunk_df["year"].unique()))
             for year in years:
                 year_mask = chunk_df["year"] == year
-                year_values = salt_override[year_mask.values]
                 sim.set_input(
-                    variable_name="state_and_local_sales_or_income_tax",
-                    value=year_values,
+                    variable_name=_SALT_VARIABLE,
+                    value=np.zeros(int(year_mask.sum())),
                     period=str(
                         int(year) if isinstance(year, (float, np.floating)) else year
                     ),
@@ -1372,7 +1395,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         income tax brings PE back onto TAXSIM.
 
         Without ``disable_salt``, runs a single PE pass with PE-US's native
-        (iterative, statutorily-correct) SALT handling.
+        (iterative, statutorily-correct) SALT handling, except that state-0
+        records (no state tax) deduct no state or local income or sales tax,
+        as in TAXSIM; see ``_run_chunk``.
         """
         return self._run_once(show_progress, on_progress)
 
@@ -1444,7 +1469,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             return np.array(sim.map_result(values, entity_key, "tax_unit"))
         return values
 
-    def _compute_marginal_rates(self, sim, year_str, year_data):
+    def _compute_marginal_rates(self, sim, year_str, year_data, keep=()):
         """Compute TAXSIM-compatible marginal tax rates via wage perturbation.
 
         Matches TAXSIM-35 methodology:
@@ -1453,6 +1478,11 @@ class PolicyEngineRunner(BaseTaxRunner):
           to their share of total wages (weighted average earnings)
         - Uses $0.01 delta to match TAXSIM batch mode
         - Returns rates as percentages (22.0 for 22%)
+
+        ``keep`` names set_input overrides the perturbed branch must share
+        with ``sim``. They are not in ``sim.input_variables`` (fixed when the
+        sim was built), so the branch would otherwise drop and recompute
+        them.
 
         Returns:
             dict with 'frate', 'srate' arrays at tax_unit level
@@ -1504,6 +1534,8 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         # Clear cached values for variables that depend on employment_income
         for variable in sim.tax_benefit_system.variables:
+            if variable in keep:
+                continue
             if variable not in sim.input_variables or variable == "employment_income":
                 branch.delete_arrays(variable)
 
@@ -1530,6 +1562,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         sim: Microsimulation,
         input_df: pd.DataFrame,
         rebate_free_sim_factory=None,
+        zero_salt: bool = False,
     ) -> pd.DataFrame:
         """Extract results from Microsimulation and format as TAXSIM output.
 
@@ -1539,6 +1572,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         ``rebate_free_sim_factory`` lazily builds a twin sim with the
         one-time state rebate variables zeroed; the srebate output is the
         state_income_tax difference between the twin and the actual sim.
+
+        ``zero_salt`` says ``sim`` has its state and local income or sales
+        tax deduction zeroed; the marginal-rate branch keeps that override.
         """
         input_df = self._ensure_required_columns(input_df)
         pe_to_taxsim = self.mappings["policyengine_to_taxsim"]
@@ -1841,7 +1877,12 @@ class PolicyEngineRunner(BaseTaxRunner):
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
             if needs_mtr:
                 try:
-                    mtr_results = self._compute_marginal_rates(sim, year_str, year_data)
+                    mtr_results = self._compute_marginal_rates(
+                        sim,
+                        year_str,
+                        year_data,
+                        keep={_SALT_VARIABLE} if zero_salt else (),
+                    )
                     for mtr_var in mtr_vars:
                         if mtr_var in vars_to_compute:
                             columns[mtr_var] = mtr_results[mtr_var]
