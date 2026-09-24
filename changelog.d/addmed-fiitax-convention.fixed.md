@@ -1,0 +1,1 @@
+Stop adding the Additional Medicare Tax to `frate` on the single-household (`export_household`) path, so it matches that path's own `fiitax` and the Microsimulation runner. Document that PolicyEngine-computed `fiitax` excludes the tax in every year (taxsim #416, #1225); the bundled taxsimtest build predates the correction reported on #1225 and still adds it for 2013-2023.

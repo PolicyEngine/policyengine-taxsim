@@ -208,6 +208,15 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
+  addmed:
+    # Form 8959 Additional Medicare Tax on wages and self-employment
+    # earnings. taxsimtest's `addmed` column appears only in its idtl=2
+    # CSV (its idtl=5 report shows the amount as line 44). Counted in
+    # tfica/fica, not fiitax (taxsim #416, #1225).
+    variable: additional_medicare_tax
+    implemented: true
+    idtl:
+      - full: 2
   v18:
     variable: taxable_income
     implemented: true
