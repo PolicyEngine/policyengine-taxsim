@@ -1,0 +1,666 @@
+{
+  "federalMatchPct": 84.8,
+  "stateMatchPct": 78.8,
+  "federalMatchPctRel": 96.4,
+  "stateMatchPctRel": 94.8,
+  "stateMatchPctRelNet": 94.5,
+  "totalRecords": 79719,
+  "metadata": {
+    "source": "populace_households.csv",
+    "sourceSha256": "d3754c325e2ae0609445982eeb655a81abda55009c773d98a31f9cf3d7af7321",
+    "dataset": {
+      "id": "populace",
+      "label": "Populace US 2024",
+      "caveat": "This build has 3 records with $10 million or more of total income (the Enhanced CPS has 6,867), so the high-income tail is not tested and these rates are not comparable to the Enhanced CPS rates. On the Enhanced CPS, federal agreement is lowest for high-income records.",
+      "source": "populace_households.csv",
+      "sourceSha256": "d3754c325e2ae0609445982eeb655a81abda55009c773d98a31f9cf3d7af7321",
+      "records": 79729,
+      "buildId": "populace-us-2024-spm-20260915",
+      "hfRepo": "policyengine/populace-us",
+      "hfRevision": "populace-us-2024-spm-20260915",
+      "hfCommit": "8ab57ffc2ca41d8af631ff62ebbce95e966299f3",
+      "h5File": "populace_us_2024.h5",
+      "h5Sha256": "6496cc4393d4d3c6574f76eca231de5898c803b9067645591fd5c4d3e65aee84",
+      "dataYear": 2024,
+      "certifiedBy": "policyengine.py 6.1.1 (bundle manifest at PolicyEngine/policyengine.py 4dc5959, src/policyengine/data/bundle/manifest.json)",
+      "conversionModel": {
+        "policyengine-us": "2.2.1",
+        "policyengine-core": "3.32.5"
+      },
+      "converterSha256": "b96964fce578b8fef38ae659938c3fa1a687646059e08aa71b6c0639d134ce0e"
+    },
+    "year": 2025,
+    "emulatorCommit": "0d9befa8889be721a0ece7bf553787ee89b0f1d8",
+    "requirementsSha256": "5ed792d03b33330e246da3bfd109c0cc2e57628a691eb68bbdeec0ab7aed1c86",
+    "scriptSha256": "453128e1dec7e4cd55ea5d9788a7def3e34f74ca80314c2e91d4ed04ae6fe887",
+    "batchSize": 2000,
+    "limit": 0,
+    "generatedAt": "2026-09-24T06:42:33.150603+00:00",
+    "policyengineUsVersion": "2.6.17",
+    "policyengineCoreVersion": "3.32.6",
+    "spmCalculatorVersion": "1.0.0.post1",
+    "peakWorkerRssMiB": 1330,
+    "assumeW2Wages": true,
+    "disableSalt": false,
+    "policyengineOutputDetail": 5,
+    "taxsimBinarySha256": "00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b",
+    "comparisonNote": "PolicyEngine's own comparison of its TAXSIM emulator against NBER's taxsimtest binary on identical inputs. Agreement rates are not error statistics endorsed by NBER or Dan Feenberg.",
+    "taxsimCrashes": [
+      {
+        "taxsimid": 53820,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 53823,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 53824,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 53833,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 53923,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 53924,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 54172,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 54307,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 54380,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      },
+      {
+        "taxsimid": 54382,
+        "error": "Program received signal SIGFPE: Floating-point exception - erroneous arithmetic operation.",
+        "routine": "mttax24_"
+      }
+    ],
+    "taxsimtestBuild": "cd2026081819"
+  },
+  "sampleRecords": 3003,
+  "stateBreakdown": [
+    {
+      "federalPct": 75.2,
+      "statePct": 85.3,
+      "federalPctRel": 95.4,
+      "statePctRel": 98.2,
+      "statePctRelNet": 98.2,
+      "state": "CA",
+      "households": 3876,
+      "federalMatches": 2915,
+      "stateMatches": 3307
+    },
+    {
+      "federalPct": 83.4,
+      "statePct": 78.2,
+      "federalPctRel": 96.3,
+      "statePctRel": 94.7,
+      "statePctRelNet": 94.7,
+      "state": "NY",
+      "households": 3229,
+      "federalMatches": 2693,
+      "stateMatches": 2525
+    },
+    {
+      "federalPct": 89.8,
+      "statePct": 92.0,
+      "federalPctRel": 96.8,
+      "statePctRel": 97.5,
+      "statePctRelNet": 97.5,
+      "state": "PA",
+      "households": 2804,
+      "federalMatches": 2517,
+      "stateMatches": 2580
+    },
+    {
+      "federalPct": 84.4,
+      "statePct": 100.0,
+      "federalPctRel": 96.3,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "TX",
+      "households": 2538,
+      "federalMatches": 2141,
+      "stateMatches": 2538
+    },
+    {
+      "federalPct": 82.8,
+      "statePct": 80.9,
+      "federalPctRel": 96.5,
+      "statePctRel": 97.7,
+      "statePctRelNet": 97.7,
+      "state": "NJ",
+      "households": 2407,
+      "federalMatches": 1992,
+      "stateMatches": 1947
+    },
+    {
+      "federalPct": 88.1,
+      "statePct": 100.0,
+      "federalPctRel": 97.1,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "FL",
+      "households": 2335,
+      "federalMatches": 2058,
+      "stateMatches": 2335
+    },
+    {
+      "federalPct": 81.9,
+      "statePct": 76.1,
+      "federalPctRel": 96.5,
+      "statePctRel": 90.7,
+      "statePctRelNet": 90.7,
+      "state": "MA",
+      "households": 2299,
+      "federalMatches": 1883,
+      "stateMatches": 1749
+    },
+    {
+      "federalPct": 81.9,
+      "statePct": 88.0,
+      "federalPctRel": 96.3,
+      "statePctRel": 98.9,
+      "statePctRelNet": 98.9,
+      "state": "IL",
+      "households": 2282,
+      "federalMatches": 1868,
+      "stateMatches": 2009
+    },
+    {
+      "federalPct": 87.6,
+      "statePct": 80.0,
+      "federalPctRel": 96.6,
+      "statePctRel": 99.3,
+      "statePctRelNet": 99.3,
+      "state": "OH",
+      "households": 2024,
+      "federalMatches": 1773,
+      "stateMatches": 1619
+    },
+    {
+      "federalPct": 84.8,
+      "statePct": 63.6,
+      "federalPctRel": 96.4,
+      "statePctRel": 82.3,
+      "statePctRelNet": 82.3,
+      "state": "MI",
+      "households": 1977,
+      "federalMatches": 1677,
+      "stateMatches": 1258
+    },
+    {
+      "federalPct": 82.4,
+      "statePct": 18.1,
+      "federalPctRel": 96.5,
+      "statePctRel": 93.4,
+      "statePctRelNet": 79.9,
+      "state": "VA",
+      "households": 1967,
+      "federalMatches": 1620,
+      "stateMatches": 357
+    },
+    {
+      "federalPct": 87.4,
+      "statePct": 90.3,
+      "federalPctRel": 96.4,
+      "statePctRel": 98.8,
+      "statePctRelNet": 98.8,
+      "state": "NC",
+      "households": 1798,
+      "federalMatches": 1572,
+      "stateMatches": 1624
+    },
+    {
+      "federalPct": 85.1,
+      "statePct": 96.4,
+      "federalPctRel": 96.3,
+      "statePctRel": 98.8,
+      "statePctRelNet": 98.8,
+      "state": "WA",
+      "households": 1796,
+      "federalMatches": 1529,
+      "stateMatches": 1732
+    },
+    {
+      "federalPct": 84.2,
+      "statePct": 87.5,
+      "federalPctRel": 96.5,
+      "statePctRel": 98.7,
+      "statePctRelNet": 98.7,
+      "state": "GA",
+      "households": 1754,
+      "federalMatches": 1476,
+      "stateMatches": 1534
+    },
+    {
+      "federalPct": 88.5,
+      "statePct": 94.4,
+      "federalPctRel": 96.5,
+      "statePctRel": 99.3,
+      "statePctRelNet": 99.3,
+      "state": "AZ",
+      "households": 1655,
+      "federalMatches": 1464,
+      "stateMatches": 1563
+    },
+    {
+      "federalPct": 76.9,
+      "statePct": 13.6,
+      "federalPctRel": 95.9,
+      "statePctRel": 23.7,
+      "statePctRelNet": 23.7,
+      "state": "MD",
+      "households": 1650,
+      "federalMatches": 1269,
+      "stateMatches": 224
+    },
+    {
+      "federalPct": 78.4,
+      "statePct": 81.6,
+      "federalPctRel": 95.3,
+      "statePctRel": 97.1,
+      "statePctRelNet": 97.1,
+      "state": "OR",
+      "households": 1636,
+      "federalMatches": 1282,
+      "stateMatches": 1335
+    },
+    {
+      "federalPct": 83.5,
+      "statePct": 78.0,
+      "federalPctRel": 96.0,
+      "statePctRel": 94.4,
+      "statePctRelNet": 94.4,
+      "state": "CO",
+      "households": 1635,
+      "federalMatches": 1365,
+      "stateMatches": 1276
+    },
+    {
+      "federalPct": 84.4,
+      "statePct": 73.2,
+      "federalPctRel": 96.9,
+      "statePctRel": 98.0,
+      "statePctRelNet": 98.0,
+      "state": "DE",
+      "households": 1591,
+      "federalMatches": 1343,
+      "stateMatches": 1164
+    },
+    {
+      "federalPct": 84.7,
+      "statePct": 80.9,
+      "federalPctRel": 96.6,
+      "statePctRel": 98.4,
+      "statePctRelNet": 98.4,
+      "state": "WI",
+      "households": 1588,
+      "federalMatches": 1345,
+      "stateMatches": 1284
+    },
+    {
+      "federalPct": 90.4,
+      "statePct": 84.3,
+      "federalPctRel": 96.8,
+      "statePctRel": 98.2,
+      "statePctRelNet": 98.2,
+      "state": "IN",
+      "households": 1587,
+      "federalMatches": 1434,
+      "stateMatches": 1338
+    },
+    {
+      "federalPct": 78.8,
+      "statePct": 66.4,
+      "federalPctRel": 93.9,
+      "statePctRel": 91.4,
+      "statePctRelNet": 91.4,
+      "state": "MN",
+      "households": 1555,
+      "federalMatches": 1226,
+      "stateMatches": 1032
+    },
+    {
+      "federalPct": 82.5,
+      "statePct": 41.0,
+      "federalPctRel": 97.5,
+      "statePctRel": 81.7,
+      "statePctRelNet": 81.7,
+      "state": "HI",
+      "households": 1489,
+      "federalMatches": 1229,
+      "stateMatches": 611
+    },
+    {
+      "federalPct": 89.1,
+      "statePct": 100.0,
+      "federalPctRel": 97.7,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "NV",
+      "households": 1455,
+      "federalMatches": 1297,
+      "stateMatches": 1455
+    },
+    {
+      "federalPct": 90.7,
+      "statePct": 100.0,
+      "federalPctRel": 97.3,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "TN",
+      "households": 1427,
+      "federalMatches": 1295,
+      "stateMatches": 1427
+    },
+    {
+      "federalPct": 85.6,
+      "statePct": 57.5,
+      "federalPctRel": 96.9,
+      "statePctRel": 97.1,
+      "statePctRelNet": 97.1,
+      "state": "AL",
+      "households": 1411,
+      "federalMatches": 1208,
+      "stateMatches": 812
+    },
+    {
+      "federalPct": 86.0,
+      "statePct": 61.1,
+      "federalPctRel": 96.5,
+      "statePctRel": 96.1,
+      "statePctRelNet": 96.1,
+      "state": "MO",
+      "households": 1334,
+      "federalMatches": 1147,
+      "stateMatches": 815
+    },
+    {
+      "federalPct": 87.8,
+      "statePct": 82.5,
+      "federalPctRel": 96.7,
+      "statePctRel": 92.7,
+      "statePctRelNet": 92.7,
+      "state": "LA",
+      "households": 1323,
+      "federalMatches": 1162,
+      "stateMatches": 1091
+    },
+    {
+      "federalPct": 88.7,
+      "statePct": 26.3,
+      "federalPctRel": 96.7,
+      "statePctRel": 66.4,
+      "statePctRelNet": 66.4,
+      "state": "AR",
+      "households": 1304,
+      "federalMatches": 1157,
+      "stateMatches": 343
+    },
+    {
+      "federalPct": 83.5,
+      "statePct": 63.8,
+      "federalPctRel": 97.8,
+      "statePctRel": 98.1,
+      "statePctRelNet": 98.1,
+      "state": "CT",
+      "households": 1294,
+      "federalMatches": 1081,
+      "stateMatches": 825
+    },
+    {
+      "federalPct": 87.5,
+      "statePct": 92.2,
+      "federalPctRel": 97.5,
+      "statePctRel": 99.8,
+      "statePctRelNet": 99.8,
+      "state": "IA",
+      "households": 1286,
+      "federalMatches": 1125,
+      "stateMatches": 1186
+    },
+    {
+      "federalPct": 86.0,
+      "statePct": 92.2,
+      "federalPctRel": 97.2,
+      "statePctRel": 98.7,
+      "statePctRelNet": 98.7,
+      "state": "UT",
+      "households": 1282,
+      "federalMatches": 1103,
+      "stateMatches": 1182
+    },
+    {
+      "federalPct": 87.8,
+      "statePct": 88.7,
+      "federalPctRel": 96.9,
+      "statePctRel": 99.1,
+      "statePctRelNet": 99.1,
+      "state": "SC",
+      "households": 1277,
+      "federalMatches": 1121,
+      "stateMatches": 1133
+    },
+    {
+      "federalPct": 89.0,
+      "statePct": 69.9,
+      "federalPctRel": 96.9,
+      "statePctRel": 96.2,
+      "statePctRelNet": 96.2,
+      "state": "NM",
+      "households": 1270,
+      "federalMatches": 1130,
+      "stateMatches": 888
+    },
+    {
+      "federalPct": 89.1,
+      "statePct": 84.5,
+      "federalPctRel": 97.8,
+      "statePctRel": 99.1,
+      "statePctRelNet": 99.1,
+      "state": "MS",
+      "households": 1243,
+      "federalMatches": 1107,
+      "stateMatches": 1050
+    },
+    {
+      "federalPct": 83.8,
+      "statePct": 62.8,
+      "federalPctRel": 96.2,
+      "statePctRel": 98.1,
+      "statePctRelNet": 98.1,
+      "state": "KS",
+      "households": 1211,
+      "federalMatches": 1015,
+      "stateMatches": 760
+    },
+    {
+      "federalPct": 93.0,
+      "statePct": 100.0,
+      "federalPctRel": 96.0,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "AK",
+      "households": 1210,
+      "federalMatches": 1125,
+      "stateMatches": 1210
+    },
+    {
+      "federalPct": 85.0,
+      "statePct": 95.6,
+      "federalPctRel": 96.9,
+      "statePctRel": 99.0,
+      "statePctRelNet": 99.0,
+      "state": "RI",
+      "households": 1198,
+      "federalMatches": 1018,
+      "stateMatches": 1145
+    },
+    {
+      "federalPct": 91.6,
+      "statePct": 100.0,
+      "federalPctRel": 95.8,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "NH",
+      "households": 1188,
+      "federalMatches": 1088,
+      "stateMatches": 1188
+    },
+    {
+      "federalPct": 82.9,
+      "statePct": 84.4,
+      "federalPctRel": 96.3,
+      "statePctRel": 93.4,
+      "statePctRelNet": 93.4,
+      "state": "NE",
+      "households": 1180,
+      "federalMatches": 978,
+      "stateMatches": 996
+    },
+    {
+      "federalPct": 85.4,
+      "statePct": 45.8,
+      "federalPctRel": 95.8,
+      "statePctRel": 98.8,
+      "statePctRelNet": 98.8,
+      "state": "OK",
+      "households": 1179,
+      "federalMatches": 1007,
+      "stateMatches": 540
+    },
+    {
+      "federalPct": 89.9,
+      "statePct": 89.8,
+      "federalPctRel": 97.4,
+      "statePctRel": 98.8,
+      "statePctRelNet": 98.8,
+      "state": "WV",
+      "households": 1122,
+      "federalMatches": 1009,
+      "stateMatches": 1008
+    },
+    {
+      "federalPct": 85.9,
+      "statePct": 100.0,
+      "federalPctRel": 96.1,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "SD",
+      "households": 1090,
+      "federalMatches": 936,
+      "stateMatches": 1090
+    },
+    {
+      "federalPct": 85.0,
+      "statePct": 92.3,
+      "federalPctRel": 96.5,
+      "statePctRel": 99.5,
+      "statePctRelNet": 99.5,
+      "state": "ID",
+      "households": 1042,
+      "federalMatches": 886,
+      "stateMatches": 962
+    },
+    {
+      "federalPct": 88.4,
+      "statePct": 79.7,
+      "federalPctRel": 96.7,
+      "statePctRel": 97.9,
+      "statePctRelNet": 97.9,
+      "state": "KY",
+      "households": 1036,
+      "federalMatches": 916,
+      "stateMatches": 826
+    },
+    {
+      "federalPct": 83.1,
+      "statePct": 62.7,
+      "federalPctRel": 95.5,
+      "statePctRel": 91.4,
+      "statePctRelNet": 91.4,
+      "state": "ME",
+      "households": 1017,
+      "federalMatches": 845,
+      "stateMatches": 638
+    },
+    {
+      "federalPct": 83.1,
+      "statePct": 94.6,
+      "federalPctRel": 95.3,
+      "statePctRel": 98.4,
+      "statePctRelNet": 98.4,
+      "state": "MT",
+      "households": 957,
+      "federalMatches": 795,
+      "stateMatches": 905
+    },
+    {
+      "federalPct": 82.8,
+      "statePct": 90.2,
+      "federalPctRel": 94.4,
+      "statePctRel": 99.9,
+      "statePctRelNet": 99.9,
+      "state": "ND",
+      "households": 850,
+      "federalMatches": 704,
+      "stateMatches": 767
+    },
+    {
+      "federalPct": 89.1,
+      "statePct": 100.0,
+      "federalPctRel": 97.3,
+      "statePctRel": 100.0,
+      "statePctRelNet": 100.0,
+      "state": "WY",
+      "households": 734,
+      "federalMatches": 654,
+      "stateMatches": 734
+    },
+    {
+      "federalPct": 66.0,
+      "statePct": 61.2,
+      "federalPctRel": 94.8,
+      "statePctRel": 96.3,
+      "statePctRelNet": 96.3,
+      "state": "DC",
+      "households": 673,
+      "federalMatches": 444,
+      "stateMatches": 412
+    },
+    {
+      "federalPct": 84.7,
+      "statePct": 78.6,
+      "federalPctRel": 96.9,
+      "statePctRel": 94.8,
+      "statePctRelNet": 94.8,
+      "state": "VT",
+      "households": 654,
+      "federalMatches": 554,
+      "stateMatches": 514
+    }
+  ]
+}
