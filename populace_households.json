@@ -11,12 +11,12 @@
   "records": 79729,
   "output": "populace_households.csv",
   "outputSha256": "d3754c325e2ae0609445982eeb655a81abda55009c773d98a31f9cf3d7af7321",
-  "generatedAt": "2026-09-24T03:40:39+00:00",
+  "generatedAt": "2026-09-24T05:10:00+00:00",
   "conversionModel": {
     "policyengine-us": "2.2.1",
     "policyengine-core": "3.32.5"
   },
-  "converterSha256": "22bef8a83bd6ef7d797f8a16ec27668917e746f9a8529899ccca181a2b566e4a",
+  "converterSha256": "b96964fce578b8fef38ae659938c3fa1a687646059e08aa71b6c0639d134ce0e",
   "rolesFrom": "tax_unit_role_input and filing_status_input in the H5",
   "droppedNoFiler": 0,
   "filingStatus": {

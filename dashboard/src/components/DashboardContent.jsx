@@ -65,8 +65,39 @@ export default function DashboardContent() {
     );
   }
 
+  const datasetToggle = (
+    <div
+      className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 text-xs"
+      role="group"
+      aria-label="Dataset"
+    >
+      {Object.values(DATASETS).map((option) => (
+        <button
+          key={option.id}
+          onClick={() => chooseDataset(option.id)}
+          aria-pressed={dataset === option.id}
+          className={`px-2.5 py-1 rounded font-medium transition ${
+            dataset === option.id
+              ? 'bg-primary-600 text-white shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
   if (error) {
-    return <ErrorMessage error={error} retry={() => window.location.reload()} />;
+    return (
+      <div>
+        <div className="max-w-7xl mx-auto px-6 pt-6">{datasetToggle}</div>
+        <ErrorMessage
+          error={`${error} (${DATASETS[dataset].label})`}
+          retry={() => window.location.reload()}
+        />
+      </div>
+    );
   }
 
   if (!currentYearData) {
@@ -130,26 +161,7 @@ export default function DashboardContent() {
       {/* Control bar */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-3.5 flex flex-wrap items-center gap-3">
-          <div
-            className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 text-xs"
-            role="group"
-            aria-label="Dataset"
-          >
-            {Object.values(DATASETS).map((option) => (
-              <button
-                key={option.id}
-                onClick={() => chooseDataset(option.id)}
-                aria-pressed={dataset === option.id}
-                className={`px-2.5 py-1 rounded font-medium transition ${
-                  dataset === option.id
-                    ? 'bg-primary-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          {datasetToggle}
 
           <YearTabs
             selectedYear={selectedYear}

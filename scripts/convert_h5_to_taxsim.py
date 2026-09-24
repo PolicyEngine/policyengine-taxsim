@@ -249,8 +249,11 @@ def source_roles(h5_path):
     no variable that reads them: it infers the head as the oldest adult and
     the spouse as the next-oldest, which turns adult dependents into spouses.
     """
-    people = pd.read_hdf(h5_path, "person")
-    units = pd.read_hdf(h5_path, "tax_unit")
+    with pd.HDFStore(h5_path, mode="r") as store:
+        if not {"/person", "/tax_unit"} <= set(store.keys()):
+            return None  # variable-centric H5 (e.g. the legacy eCPS files)
+        people = store["person"]
+        units = store["tax_unit"]
     if "tax_unit_role_input" not in people or "filing_status_input" not in units:
         return None
     return {

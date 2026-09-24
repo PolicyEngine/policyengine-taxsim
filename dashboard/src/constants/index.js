@@ -48,7 +48,7 @@ export const DATASETS = {
   populace: {
     id: 'populace',
     label: 'Populace US 2024',
-    releaseTag: 'populace-comparison-run-35952503502',
+    releaseTag: 'populace-comparison-run-35957560050',
     description:
       'One TAXSIM record per tax unit in the Populace US 2024 build that ' +
       'policyengine.py certifies (populace-us-2024-spm-20260915), scored under ' +
@@ -69,8 +69,9 @@ export const DATASETS = {
       'Enhanced CPS in July 2026.',
     caveat:
       'Kept for its high-income records until the Populace build covers the ' +
-      'top of the income distribution. Itemized deductions are zero in every ' +
-      'record, so they are not tested here.',
+      'top of the income distribution. Its proptax, mortgage and otheritem ' +
+      'inputs are zero in every record, so deductions entered through them are ' +
+      'not tested here.',
   },
 };
 

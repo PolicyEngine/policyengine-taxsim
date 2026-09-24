@@ -62,9 +62,9 @@ DATASETS = {
         ),
         "caveat": (
             "Kept as a secondary dataset for its high-income records until the "
-            "Populace build covers the top of the distribution. proptax, mortgage "
-            "and otheritem are zero in every record, so itemized deductions are "
-            "not tested."
+            "Populace build covers the top of the distribution. The proptax, "
+            "mortgage and otheritem inputs are zero in every record, so deductions "
+            "entered through them are not tested."
         ),
     },
 }
@@ -495,6 +495,13 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
     expected_sample_ids = sample_ids & seen if metadata.get("limit", 0) else sample_ids
     if sampled_ids != expected_sample_ids:
         raise ValueError("Incomplete drill-down sample")
+
+    if counts[0] == 0:
+        crashed = len(metadata.get("taxsimCrashes", []))
+        raise ValueError(
+            f"No {year} records were scored ({crashed} crashed taxsimtest); "
+            "there are no rates to publish"
+        )
 
     def percentages(tally):
         return [round(100 * n / tally[0], 1) for n in tally[1:]]

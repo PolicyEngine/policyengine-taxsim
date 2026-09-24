@@ -306,7 +306,11 @@ export const loadYearData = async (year, dataset = DEFAULT_DATASET) => {
     }
     
     // A dataset with neither a summary nor records is missing, not 0% agreement.
-    if (!summary.totalRecords && consolidatedResults.length === 0) {
+    const hasRecords =
+      consolidatedResults.length > 0 ||
+      taxsimResults.length > 0 ||
+      policyengineResults.length > 0;
+    if (!summary.totalRecords && !hasRecords) {
       throw new Error(`No ${dataset} data for ${year}`);
     }
 

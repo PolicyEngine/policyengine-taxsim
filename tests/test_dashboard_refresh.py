@@ -262,6 +262,16 @@ class CrashIsolationTests(unittest.TestCase):
         self.assertIsNone(results)
         self.assertEqual([c["taxsimid"] for c in crashes], [1, 2])
 
+    def test_summary_refuses_a_year_with_no_scored_records(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            part = base / "part.csv.gz"
+            with gzip.open(part, "wt", newline="") as stream:
+                stream.write("\n")
+            metadata = {"taxsimCrashes": [{"taxsimid": 1, "error": "SIGFPE"}]}
+            with self.assertRaisesRegex(ValueError, "No 2025 records were scored"):
+                refresh.summarize([part], base / "output", 2025, metadata, set())
+
     def test_release_notes_disclose_crashed_records(self):
         with tempfile.TemporaryDirectory() as folder:
             meta = {
