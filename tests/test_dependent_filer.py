@@ -26,6 +26,8 @@ Pennsylvania, where taxsimtest charges record 1 $92.10 (3.07% of $3,000, no
 Tax Forgiveness) and PolicyEngine grants full forgiveness.
 """
 
+import platform
+
 import pandas as pd
 import pytest
 
@@ -70,6 +72,12 @@ def _by_id(result):
 
 @pytest.fixture(scope="module")
 def taxsim():
+    if platform.system() == "Windows":
+        # Observed in CI: the bundled Windows build (cd2026081318) aborts on
+        # these records ("Fortran runtime error: Index '0' of dimension 3 of
+        # array 'ymaxa' below lower bound of 1", taxsim.f line 45429); the
+        # macOS/Linux build (cd2026081819) runs them.
+        pytest.skip("bundled Windows taxsimtest aborts on these mstat 8 records")
     return _by_id(TaxsimRunner(_frame()).run(show_progress=False))
 
 
