@@ -58,6 +58,9 @@ jobs:
         run: |
           ulimit -c 0
           python scripts/diagnose_maryland_taxsim.py
+      - name: Pinpoint native Maryland arithmetic failure
+        if: inputs.diagnostic_only && inputs.maryland_fallback
+        run: python scripts/pinpoint_maryland_taxsim.py
       - uses: actions/upload-artifact@v4
         if: always() && inputs.maryland_fallback
         with:
