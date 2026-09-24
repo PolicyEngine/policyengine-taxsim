@@ -48,14 +48,16 @@ export const DATASETS = {
   populace: {
     id: 'populace',
     label: 'Populace US 2024',
-    releaseTag: 'populace-comparison-run-35950753382',
+    releaseTag: 'populace-comparison-run-35952503502',
     description:
       'One TAXSIM record per tax unit in the Populace US 2024 build that ' +
       'policyengine.py certifies (populace-us-2024-spm-20260915), scored under ' +
       "each year's law.",
     caveat:
       'This build has almost no records above $10 million of income, so the ' +
-      'high-income tail is not tested. The Enhanced CPS view keeps that coverage.',
+      'high-income tail, where federal agreement on the Enhanced CPS is lowest, ' +
+      'is not tested and the headline rates are not comparable to the Enhanced ' +
+      'CPS rates. The Enhanced CPS view keeps that coverage.',
   },
   ecps: {
     id: 'ecps',
