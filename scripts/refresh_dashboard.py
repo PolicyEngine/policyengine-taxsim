@@ -256,6 +256,58 @@ def match_flags(taxsim, pe):
     ]
 
 
+CRASH_MARKER = "Program received signal"
+
+
+def crashes_path(output_path):
+    """Sidecar listing the records a worker could not score in TAXSIM."""
+    return Path(f"{output_path}.crashes.json")
+
+
+def isolate_crashes(frame, run):
+    """Run TAXSIM on ``frame``, isolating records that crash the binary.
+
+    ``run(frame)`` returns TAXSIM's results or raises. When the binary dies
+    from a signal (taxsimtest builds have crashed with SIGFPE in state
+    routines, #1214), the batch is rerun in halves until each crash is pinned
+    to one record. Returns (results or None, crashes), where each crash is
+    {"taxsimid", "error"}; any other failure propagates.
+    """
+    import pandas as pd
+
+    try:
+        return run(frame), []
+    except Exception as error:  # TaxsimRunner raises a bare Exception
+        message = str(error)
+        if CRASH_MARKER not in message:
+            raise
+        if len(frame) == 1:
+            detail = message.split(CRASH_MARKER, 1)[1]
+            routine = next(
+                (
+                    word
+                    for word in detail.split()
+                    if word.endswith("_") and word[:-1].isidentifier()
+                ),
+                None,
+            )
+            crash = {
+                "taxsimid": int(frame["taxsimid"].iloc[0]),
+                "error": (CRASH_MARKER + detail.splitlines()[0]).strip(),
+            }
+            if routine:
+                crash["routine"] = routine
+            return None, [crash]
+    half = len(frame) // 2
+    parts, crashes = [], []
+    for piece in (frame.iloc[:half], frame.iloc[half:]):
+        result, found = isolate_crashes(piece, run)
+        crashes += found
+        if result is not None:
+            parts.append(result)
+    return (pd.concat(parts, ignore_index=True) if parts else None), crashes
+
+
 def worker(input_path, output_path):
     sys.path.insert(0, str(ROOT))
     import pandas as pd
@@ -271,7 +323,18 @@ def worker(input_path, output_path):
                 print("TAXSIM stderr:", result.stderr, flush=True)
             return result
 
-    ts = LoggedTaxsimRunner(data).run(show_progress=False)
+    ts, crashes = isolate_crashes(
+        data, lambda frame: LoggedTaxsimRunner(frame).run(show_progress=False)
+    )
+    atomic_json(crashes_path(output_path), crashes)
+    if crashes:
+        print("TAXSIM crashed on records:", crashes, flush=True)
+        crashed = {c["taxsimid"] for c in crashes}
+        data = data[~data.taxsimid.isin(crashed)].reset_index(drop=True)
+    if data.empty:  # every record in the batch crashed TAXSIM
+        pd.DataFrame().to_csv(output_path, index=False, compression="gzip")
+        sys.stdout.flush()
+        os._exit(0)
     expected_ids = set(data.taxsimid)
     if ts.taxsimid.duplicated().any() or set(ts.taxsimid) != expected_ids:
         missing = expected_ids - set(ts.taxsimid)
@@ -384,7 +447,7 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
     fields = []
     for path in parts:
         with gzip.open(path, "rt", newline="") as stream:
-            for field in csv.DictReader(stream).fieldnames:
+            for field in csv.DictReader(stream).fieldnames or []:
                 if field not in fields:
                     fields.append(field)
     # taxsimtest prints its build stamp (e.g. cd2026081819) as an output column.
@@ -487,7 +550,8 @@ def _release_provenance(folder):
         raise ValueError(f"No provenance_*.json files in {folder}")
     for r in records:
         # Releases publish full-population results only, never smoke runs.
-        if r.get("limit") or r.get("records") != r["dataset"]["records"]:
+        scored = r.get("records", 0) + len(r.get("taxsimCrashes", []))
+        if r.get("limit") or scored != r["dataset"]["records"]:
             raise ValueError(
                 f"{r['year']} provenance covers {r.get('records')} of "
                 f"{r['dataset']['records']} records; release full runs only"
@@ -552,6 +616,18 @@ def release_notes(folder, run_url=""):
             + " | ".join(f"{rates[k]:.1f}%" for k in RATE_KEYS)
             + " |"
         )
+    for r in sorted(records, key=lambda r: r["year"]):
+        crashes = r.get("taxsimCrashes", [])
+        if crashes:
+            ids = ", ".join(str(c["taxsimid"]) for c in crashes)
+            routines = sorted({c.get("routine", "unknown") for c in crashes})
+            lines += [
+                "",
+                f"{r['year']}: {len(crashes)} record(s) are not scored because "
+                f"taxsimtest crashed on them (taxsimid {ids}; routine "
+                f"{', '.join(routines)}). The rates cover the other "
+                f"{r['records']:,} records.",
+            ]
     lines += [
         "",
         "Income is the dashboard's gross-income proxy; records with no positive "
@@ -643,6 +719,7 @@ def main():
     parts = []
     processed = 0
     peak = 0
+    taxsim_crashes = []
     with source.open(newline="") as stream:
         rows = (dict(row, year=args.year) for row in csv.DictReader(stream))
         if args.limit:
@@ -678,14 +755,24 @@ def main():
                 usage = run_bounded(
                     input_path, temp, args.max_memory_gb, args.min_disk_gb
                 )
+                crash_file = crashes_path(temp)
+                crashes = json.loads(crash_file.read_text())
+                crash_file.unlink()
                 temp.replace(part)
                 atomic_json(
-                    check, {"sha256": digest(part), "records": len(batch), **usage}
+                    check,
+                    {
+                        "sha256": digest(part),
+                        "records": len(batch),
+                        "taxsimCrashes": crashes,
+                        **usage,
+                    },
                 )
                 input_path.unlink()
             usage = json.loads(check.read_text())
             peak = max(peak, usage["peakRssMiB"])
             processed += len(batch)
+            taxsim_crashes += usage.get("taxsimCrashes", [])
             parts.append(part)
             print(
                 f"Checkpoint: {args.year} {processed} households, peak worker {peak} MiB",
@@ -710,9 +797,12 @@ def main():
         # These rates compare PolicyEngine with NBER's taxsimtest binary on
         # identical inputs. NBER has not endorsed them as error statistics.
         "comparisonNote": COMPARISON_NOTE,
+        # Records the binary could not compute (it crashed), so not scored.
+        "taxsimCrashes": taxsim_crashes,
     }
+    sample_ids = sample_ids - {str(c["taxsimid"]) for c in taxsim_crashes}
     actual = summarize(parts, work / "output", args.year, metadata, sample_ids)
-    if actual != expected:
+    if actual != expected - len(taxsim_crashes):
         raise ValueError("Output record count mismatch")
 
 
