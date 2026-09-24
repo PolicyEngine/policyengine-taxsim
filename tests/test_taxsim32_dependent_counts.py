@@ -160,8 +160,9 @@ class TestConversion:
 
 
 def test_2021_seventeen_year_old_gets_arpa_ctc(tmp_path):
-    """Known divergence from taxsimtest. ARPA § 9661 extended the 2021 child
-    tax credit to children under 18. Given explicit ages (10 and 17),
+    """Known divergence from taxsimtest. For 2021 "the child tax credit
+    applies to qualifying children who have not attained age 18 by the end
+    of 2021" (2021 Schedule 8812 instructions). Given explicit ages (10 and 17),
     taxsimtest allows $6,000; given the equivalent counts (dep13=1, dep17=1,
     dep18=2) it takes `dep17` as the CTC count and allows $3,000 + $500. The
     emulator converts counts to ages, so it follows the ages result."""
