@@ -1,5 +1,6 @@
 """Bounded, dependency-free reproducer for the September Linux MD crash."""
 
+import ast
 import csv
 import io
 import json
@@ -14,13 +15,41 @@ OUT = ROOT / "maryland-diagnostic"
 
 
 def encode(rows, year):
-    fields = [k for k in rows[0] if k != "age11"]
-    stream = io.StringIO()
-    writer = csv.DictWriter(stream, fields, extrasaction="ignore")
-    writer.writeheader()
-    writer.writerows(
-        {**{k: (v or "0") for k, v in row.items()}, "year": year} for row in rows
+    # Mirror the runner's emitted columns/defaults without importing PE/pandas.
+    tree = ast.parse(
+        (ROOT / "policyengine_taxsim/runners/taxsim_runner.py").read_text()
     )
+    cls = next(
+        n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "TaxsimRunner"
+    )
+    columns = {
+        n.targets[0].id: ast.literal_eval(n.value)
+        for n in cls.body
+        if isinstance(n, ast.Assign) and isinstance(n.value, ast.List)
+    }
+    formatted = []
+    fields = []
+    for raw in rows:
+        names = (
+            columns["REQUIRED_COLUMNS"]
+            + [f"age{i}" for i in range(1, min(int(float(raw["depx"])), 10) + 1)]
+            + columns["INCOME_COLUMNS"]
+            + columns["OPTION_COLUMNS"]
+        )
+        row = {}
+        for key in names:
+            value = float(raw.get(key) or 0)
+            if key.startswith("age") and key[3:].isdigit() and value <= 0:
+                value = 10
+            row[key] = value
+            if key not in fields:
+                fields.append(key)
+        row["year"] = year
+        formatted.append(row)
+    stream = io.StringIO()
+    writer = csv.DictWriter(stream, fields, restval="0")
+    writer.writeheader()
+    writer.writerows(formatted)
     return stream.getvalue()
 
 
