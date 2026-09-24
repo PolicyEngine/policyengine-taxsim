@@ -1,3 +1,10 @@
+## [2.31.5] - 2026-09-24
+
+### Changed
+
+- Refresh the 2021–2025 validation dashboard, with explicit Georgia and Maryland reference-binary exceptions for 2024–2025.
+
+
 ## [2.31.4] - 2026-09-23
 
 ### Fixed
