@@ -63,21 +63,25 @@ class ComparisonStatistics:
         # State-by-state breakdown
         state_stats = self.state_breakdown()
         if state_stats:
+            # Wide enough for the "State not specified" row (state 0)
+            width = max(6, *(len(state_code) for state_code in state_stats))
             report.append("State-by-State Breakdown:")
             report.append("-" * 27)
             report.append(
-                f"{'State':<6} {'Households':<10} {'Fed Matches':<11} {'State Matches':<12} {'Fed %':<8} {'State %':<8}"
+                f"{'State':<{width}} {'Households':<10} {'Fed Matches':<11} {'State Matches':<12} {'Fed %':<8} {'State %':<8}"
             )
-            report.append("-" * 65)
+            report.append("-" * (width + 59))
 
-            # Sort by state code alphabetically
-            for state_code in sorted(state_stats.keys()):
+            # Real states alphabetically, then state 0 (no state tax)
+            for state_code in sorted(
+                state_stats, key=lambda code: (len(code) > 2, code)
+            ):
                 stats = state_stats[state_code]
                 fed_matches = stats["total_households"] - stats["federal_mismatches"]
                 state_matches = stats["total_households"] - stats["state_mismatches"]
 
                 report.append(
-                    f"{state_code:<6} {stats['total_households']:<10} "
+                    f"{state_code:<{width}} {stats['total_households']:<10} "
                     f"{fed_matches:<11} {state_matches:<12} "
                     f"{stats['federal_match_rate']:<7.1f}% {stats['state_match_rate']:<7.1f}%"
                 )

@@ -143,7 +143,8 @@ def _validate_csv(csv_text):
                 "All input variables must be numbers."
             )
 
-    # State must be a TAXSIM SOI code; TAXSIM aborts the whole run otherwise
+    # State must be a TAXSIM SOI code from 0 to 51. TAXSIM stops at an invalid
+    # code, and the emulator does not support -1 (TAXSIM's every-state option).
     if "state" in df.columns:
         from policyengine_taxsim.core.utils import validate_state_number
 

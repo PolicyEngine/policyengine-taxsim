@@ -15,11 +15,6 @@ Pick the population with the workflow's `dataset` input:
   has almost none of its high-income tail.
 
 Each source is reused for every tax year; the year column is set per run.
-Before any model runs, the refresh rejects a source with state code 0 or any
-other invalid code, or with no households in some state. TAXSIM reads state 0
-as "no state tax". Before September 2026, the 1,155 Alabama eCPS households
-were coded 0, because the converter that built the file had no Alabama entry.
-They were scored without state income tax and reported under TX.
 
 Both models are rerun. Flags remain `assume_w2_wages=True` and
 `disable_salt=False`. PolicyEngine output detail is 5 so the detailed output
@@ -35,6 +30,17 @@ PolicyEngine-US version and the taxsimtest build and sha256.
 The rates are PolicyEngine's own comparison against NBER's taxsimtest binary.
 NBER has not endorsed them as error statistics; label them that way wherever
 they are quoted.
+
+Before any model runs, the refresh rejects a source with state code 0, any
+other code that is not an integer from 1 to 51, or no households in some state.
+TAXSIM reads state 0 as "no state tax". Until September 23, 2026 (including the
+July 7 and September 21 data), the 1,155 Alabama eCPS households were coded 0,
+because the converter that built the file (`vectorized_validation.py`, 4ccfead)
+had no entry for FIPS 1. They were scored without state income tax and
+reported under TX. The file also lacks Alabama's other 1,155 tax units: the
+eCPS stacks a CPS-income half and a PUF-imputed half, and d317b05 deleted
+Alabama's CPS-income block (taxsimid 31801–32955). Restoring it would make the
+population 112,502.
 
 ## Building the Populace inputs
 
@@ -84,8 +90,9 @@ update `records` in `DATASETS` in `scripts/refresh_dashboard.py`.
   and year and retained for seven days. Download only `site-data-*` to the
   laptop. The release job uploads the
   full CSVs directly from its ephemeral runner to a draft GitHub release.
-- Hosted runner storage is discarded when the job ends. No unrelated local
-  files are deleted.
+- The sources are only read. Each batch's input file is removed once that
+  batch completes. Hosted runner storage is discarded when the job ends. No
+  unrelated local files are deleted.
 
 ## Validation and publication
 
