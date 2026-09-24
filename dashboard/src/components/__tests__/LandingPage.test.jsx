@@ -29,12 +29,12 @@ describe('LandingPage', () => {
     expect(html).toContain('WIC');
   });
 
-  it('links Enhanced CPS to policyengine.org/us/model', () => {
+  it('links Populace microdata to policyengine.org/us/model', () => {
     render(<LandingPage />);
     const links = screen.getAllByRole('link');
-    const ecpsLink = links.find(l => l.textContent.includes('Enhanced CPS'));
-    expect(ecpsLink).toBeTruthy();
-    expect(ecpsLink.getAttribute('href')).toBe('https://policyengine.org/us/model');
+    const dataLink = links.find(l => l.textContent.includes('Populace microdata'));
+    expect(dataLink).toBeTruthy();
+    expect(dataLink.getAttribute('href')).toBe('https://policyengine.org/us/model');
   });
 
   it('renders NBER and Atlanta Fed validation cards', () => {

@@ -30,9 +30,17 @@ const SAMPLE_DATASETS = [
     file: null,  // uses inline SAMPLE_CSV
   },
   {
+    id: 'sample_populace_2024',
+    label: 'Populace US 2024 (79,729 tax units)',
+    description:
+      'Every tax unit in the certified Populace US 2024 build, as scored by the validation dashboard — all 50 states and DC, with itemized deductions',
+    file: 'sample_populace_2024.csv',
+  },
+  {
     id: 'sample_ecps_2024',
-    label: 'Enhanced CPS 2024 (56,356 tax units)',
-    description: 'Full Enhanced CPS — all 50 states, diverse incomes and filing statuses',
+    label: 'Enhanced CPS 2024, archived (56,356 tax units)',
+    description:
+      'Earlier Enhanced CPS conversion — includes the high-income records Populace lacks; no itemized deductions',
     file: 'sample_ecps_2024.csv',
   },
 ];

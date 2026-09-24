@@ -1,7 +1,8 @@
 from .utils import (
     load_variable_mappings,
-    get_state_number,
+    get_state_label,
     to_roundedup_number,
+    validate_state_number,
 )
 from .state_output_resolver import (
     ONE_TIME_REBATE_VARIABLES,
@@ -91,8 +92,11 @@ def resolve_output_variable(simulation, variable, state_name):
 
 
 def generate_non_description_output(
-    taxsim_output, mappings, year, state_name, simulation, output_type, logs
+    taxsim_output, mappings, year, state_name, simulation, output_type, logs, state
 ):
+    """``state_name`` is the simulated state; ``state`` is the input SOI number
+    echoed back, as TAXSIM does (0 for no state tax, although PolicyEngine
+    simulates that record in Texas)."""
     outputs = []
     mtr_computed = False
     mtr_results = {}
@@ -104,7 +108,7 @@ def generate_non_description_output(
             elif key == "year":
                 taxsim_output[key] = int(year)
             elif key == "state":
-                taxsim_output[key] = get_state_number(state_name)
+                taxsim_output[key] = state
             elif each_item.get("variable") == "marginal_rate_computed":
                 # Marginal rates: compute once, apply per key
                 if not mtr_computed:
@@ -242,9 +246,8 @@ def generate_text_description_output(
                 elif var_name == "year":
                     value = year
                 elif var_name == "state":
-                    value = (
-                        f"{get_state_number(state_name)}{' ' * LEFT_MARGIN}{state_name}"
-                    )
+                    state = validate_state_number(taxsim_input.get("state"))
+                    value = f"{state}{' ' * LEFT_MARGIN}{get_state_label(state)}"
                 elif each_item.get("variable") == "marginal_rate_computed":
                     if not mtr_computed:
                         try:
@@ -318,7 +321,7 @@ def generate_text_description_output(
     return "\n".join(lines)
 
 
-def taxsim_input_definition(data_dict, year, state_name):
+def taxsim_input_definition(data_dict, year):
     """Process a dictionary of data according to the configuration."""
     output_lines = []
     mappings = load_variable_mappings()["taxsim_input_definition"]
@@ -374,7 +377,7 @@ def taxsim_input_definition(data_dict, year, state_name):
 
                 if field == "state":
                     output_lines.append(
-                        f"{' ' * indent}{name:<{LABEL_WIDTH}}{value:>{VALUE_WIDTH}.2f} {state_name}"
+                        f"{' ' * indent}{name:<{LABEL_WIDTH}}{value:>{VALUE_WIDTH}.2f} {get_state_label(value)}"
                     )
                 else:
                     try:
@@ -442,12 +445,17 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
 
     if int(output_type) in [0, 2]:
         return generate_non_description_output(
-            taxsim_output, mappings, year, state_name, simulation, output_type, logs
+            taxsim_output,
+            mappings,
+            year,
+            state_name,
+            simulation,
+            output_type,
+            logs,
+            validate_state_number(taxsim_input.get("state")),
         )
     else:
-        input_definitions_lines = taxsim_input_definition(
-            taxsim_input, year, state_name
-        )
+        input_definitions_lines = taxsim_input_definition(taxsim_input, year)
         output = generate_text_description_output(
             taxsim_input,
             mappings,

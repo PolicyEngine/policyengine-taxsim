@@ -1,0 +1,5 @@
+# Files whose sha256 is recorded in provenance and summaries: keep them
+# byte-identical on every platform (no CRLF conversion on checkout).
+populace_households.csv -text
+cps_households.csv -text
+scripts/convert_h5_to_taxsim.py text eol=lf

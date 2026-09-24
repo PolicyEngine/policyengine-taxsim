@@ -39,14 +39,55 @@ export const TOLERANCE_MODES = {
   RELATIVE_NET: 'relative_net',
 };
 
-// Full-eCPS comparison data (111,347 records/year) is too large to load in
-// the browser, so the dashboard shows a sample + precomputed summary and
-// links to the complete per-year CSVs hosted as a GitHub Release asset.
-export const FULL_DATA_RELEASE_BASE =
-  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35633580408';
+// TAXSIM input populations. Each dataset's full per-year comparison is too
+// large to load in the browser, so the dashboard reads a precomputed summary
+// (all records) and a drill-down sample from /data/<id>/<year>/, and links
+// the complete CSVs from the dataset's GitHub release. Record counts and
+// provenance come from each summary's metadata, not from this file.
+export const DATASETS = {
+  populace: {
+    id: 'populace',
+    label: 'Populace US 2024',
+    releaseTag: 'populace-comparison-run-35958762943',
+    description:
+      'One TAXSIM record per tax unit in the Populace US 2024 build that ' +
+      'policyengine.py certifies (populace-us-2024-spm-20260915), scored under ' +
+      "each year's law.",
+    caveat:
+      'This build has almost no records above $10 million of income, so the ' +
+      'high-income tail, where federal agreement on the Enhanced CPS is lowest, ' +
+      'is not tested and the headline rates are not comparable to the Enhanced ' +
+      'CPS rates. The Enhanced CPS view keeps that coverage.',
+  },
+  ecps: {
+    id: 'ecps',
+    label: 'Enhanced CPS (archived)',
+    releaseTag: 'ecps-comparison-run-35950220750',
+    description:
+      'The 111,347 Enhanced CPS tax units the benchmark used through September ' +
+      '2026, rerun with the same emulator. policyengine-us-data archived the ' +
+      'Enhanced CPS in July 2026.',
+    caveat:
+      'Kept for its high-income records until the Populace build covers the ' +
+      'top of the income distribution. Its proptax, mortgage and otheritem ' +
+      'inputs are zero in every record, so deductions entered through them are ' +
+      'not tested here.',
+  },
+};
 
-export const fullDataUrl = (year) =>
-  `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv`;
+export const DEFAULT_DATASET = 'populace';
+
+export const RELEASE_DOWNLOAD_BASE =
+  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download';
+
+export const fullDataUrl = (year, dataset = DEFAULT_DATASET) =>
+  `${RELEASE_DOWNLOAD_BASE}/${DATASETS[dataset].releaseTag}/comparison_results_${year}.csv`;
+
+// Shown wherever agreement rates appear.
+export const COMPARISON_NOTE =
+  "PolicyEngine's own comparison of its TAXSIM emulator against NBER's " +
+  'taxsimtest binary on identical inputs. Agreement rates are not error ' +
+  'statistics endorsed by NBER or Dan Feenberg.';
 
 // Input variables for household comparison
 export const INPUT_VARIABLES = [

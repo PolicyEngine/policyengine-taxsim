@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { FIPS_TO_STATE, RELATIVE_TOLERANCE_PCT } from '../constants';
+import { DEFAULT_DATASET, FIPS_TO_STATE, RELATIVE_TOLERANCE_PCT } from '../constants';
 import { assetUrl } from './basePath';
 
 // Gross-income proxy used as the denominator for relative-tolerance matching.
@@ -140,12 +140,16 @@ const loadTextData = async (url) => {
   }
 };
 
-// Main function to load all data for a given year
-export const loadYearData = async (year) => {
-  const baseUrl = assetUrl(`/data/${year}`);
-  
+// Public path of one dataset-year's summary and drill-down sample.
+export const yearDataPath = (year, dataset = DEFAULT_DATASET) =>
+  `/data/${dataset}/${year}`;
+
+// Main function to load all data for a given dataset and year
+export const loadYearData = async (year, dataset = DEFAULT_DATASET) => {
+  const baseUrl = assetUrl(yearDataPath(year, dataset));
+
   try {
-    // Prefer a precomputed full-eCPS summary (instant, no client-side parse of
+    // Prefer a precomputed full-population summary (instant, no client-side parse of
     // the 100MB+ raw comparison file). When present, this carries the exact
     // overall + per-state match rates at both tolerances over all records, so
     // the headline reflects the full population while only a small record
@@ -301,8 +305,18 @@ export const loadYearData = async (year) => {
       }
     }
     
+    // A dataset with neither a summary nor records is missing, not 0% agreement.
+    const hasRecords =
+      consolidatedResults.length > 0 ||
+      taxsimResults.length > 0 ||
+      policyengineResults.length > 0;
+    if (!summary.totalRecords && !hasRecords) {
+      throw new Error(`No ${dataset} data for ${year}`);
+    }
+
     return {
       year,
+      dataset,
       summary,
       federalMismatches,
       stateMismatches,

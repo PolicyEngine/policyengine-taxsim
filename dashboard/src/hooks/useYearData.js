@@ -1,25 +1,29 @@
 import { useState, useEffect } from 'react';
 import { loadYearData } from '../utils/dataLoader';
-import { AVAILABLE_YEARS } from '../constants';
+import { AVAILABLE_YEARS, DEFAULT_DATASET } from '../constants';
 
-export const useYearData = (initialYear = 2023) => {
+export const useYearData = (initialYear = 2023, initialDataset = DEFAULT_DATASET) => {
   const [selectedYear, setSelectedYear] = useState(initialYear);
+  const [dataset, setDataset] = useState(initialDataset);
   const [allYearData, setAllYearData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Switching datasets starts a new load; a slower, superseded load must not
+    // overwrite the selected dataset's data.
+    let superseded = false;
     const fetchAllData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Loading data for all years
         
         // Load all years in parallel
         const loadPromises = AVAILABLE_YEARS.map(async (year) => {
           try {
-            const yearData = await loadYearData(year);
+            const yearData = await loadYearData(year, dataset);
             return { year, data: yearData };
           } catch (err) {
             console.warn(`Failed to load data for year ${year}:`, err);
@@ -45,20 +49,25 @@ export const useYearData = (initialYear = 2023) => {
         if (!hasAnyData) {
           throw new Error('Failed to load data for any year');
         }
-        
+
+        if (superseded) return;
         setAllYearData(dataByYear);
         // All year data loaded successfully
         
       } catch (err) {
+        if (superseded) return;
         console.error('Error loading data:', err);
         setError('Failed to load data');
       } finally {
-        setLoading(false);
+        if (!superseded) setLoading(false);
       }
     };
 
     fetchAllData();
-  }, []); // Only run once on mount
+    return () => {
+      superseded = true;
+    };
+  }, [dataset]); // Reload when the dataset changes
 
   const currentYearData = allYearData[selectedYear] || null;
   const availableYears = Object.keys(allYearData).map(Number);
@@ -66,6 +75,8 @@ export const useYearData = (initialYear = 2023) => {
   return {
     selectedYear,
     setSelectedYear,
+    dataset,
+    setDataset,
     currentYearData,
     allYearData,
     availableYears,

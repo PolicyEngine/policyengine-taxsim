@@ -1,28 +1,38 @@
 {
   "federalMatchPct": 78.8,
-  "stateMatchPct": 71.9,
+  "stateMatchPct": 71.5,
   "federalMatchPctRel": 89.3,
   "stateMatchPctRel": 88.9,
   "stateMatchPctRelNet": 94.2,
   "totalRecords": 111347,
   "metadata": {
-    "sourceTag": "full-ecps-comparison-2026.07.07",
-    "sourceSha256": "6198af66cbb31573857169b79baf3f8b2b333099945edaf8682f93699cd4cdc4",
+    "source": "cps_households.csv",
+    "sourceSha256": "ecabc8dd33e8b570fad21650745b9d94f6b51fc9780d9c59bb033ede7d16a689",
+    "dataset": {
+      "id": "ecps",
+      "label": "Enhanced CPS (archived)",
+      "source": "cps_households.csv",
+      "sourceSha256": "ecabc8dd33e8b570fad21650745b9d94f6b51fc9780d9c59bb033ede7d16a689",
+      "records": 111347,
+      "description": "TAXSIM inputs built in April 2025 (4ccfead, vectorized_validation.py) from the Enhanced CPS, which policyengine-us-data archived on 2026-07-02; Alabama recoded from state 0 to 1 in September 2026."
+    },
     "year": 2021,
-    "emulatorCommit": "ab6e7a733289d1404c0a6d0c2f8661e7f0d88810",
+    "emulatorCommit": "480361f7cb0ff0319b7df57f4ce15bdd75462fde",
     "requirementsSha256": "5ed792d03b33330e246da3bfd109c0cc2e57628a691eb68bbdeec0ab7aed1c86",
-    "scriptSha256": "fba8b9c2c5e76a688cca05bd22f429790e8d946eb6f92d0c16a502fa87e44f0d",
+    "scriptSha256": "540f39f64e5edd1d688901c94d52bb7df30b18eab0d61e5162bd9f0fe2d6d7e3",
     "batchSize": 5000,
     "limit": 0,
-    "generatedAt": "2026-09-21T18:09:29.615459+00:00",
+    "generatedAt": "2026-09-24T03:26:43.434655+00:00",
     "policyengineUsVersion": "2.6.17",
     "policyengineCoreVersion": "3.32.6",
     "spmCalculatorVersion": "1.0.0.post1",
-    "peakWorkerRssMiB": 4589,
+    "peakWorkerRssMiB": 4579,
     "assumeW2Wages": true,
     "disableSalt": false,
     "policyengineOutputDetail": 5,
-    "taxsimBinarySha256": "00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b"
+    "taxsimBinarySha256": "00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b",
+    "comparisonNote": "PolicyEngine's own comparison of its TAXSIM emulator against NBER's taxsimtest binary on identical inputs. Agreement rates are not error statistics endorsed by NBER or Dan Feenberg.",
+    "taxsimtestBuild": "cd2026081819"
   },
   "sampleRecords": 3000,
   "stateBreakdown": [
@@ -38,15 +48,15 @@
       "stateMatches": 7987
     },
     {
-      "federalPct": 77.5,
+      "federalPct": 78.9,
       "statePct": 100.0,
-      "federalPctRel": 87.7,
+      "federalPctRel": 88.9,
       "statePctRel": 100.0,
       "statePctRelNet": 100.0,
       "state": "TX",
-      "households": 8337,
-      "federalMatches": 6462,
-      "stateMatches": 8337
+      "households": 7182,
+      "federalMatches": 5668,
+      "stateMatches": 7182
     },
     {
       "federalPct": 80.6,
@@ -555,6 +565,17 @@
       "stateMatches": 1120
     },
     {
+      "federalPct": 68.8,
+      "statePct": 65.8,
+      "federalPctRel": 80.3,
+      "statePctRel": 99.8,
+      "statePctRelNet": 99.8,
+      "state": "AL",
+      "households": 1155,
+      "federalMatches": 795,
+      "stateMatches": 760
+    },
+    {
       "federalPct": 79.5,
       "statePct": 79.5,
       "federalPctRel": 89.8,
@@ -570,7 +591,7 @@
       "statePct": 16.1,
       "federalPctRel": 87.7,
       "statePctRel": 27.4,
-      "statePctRelNet": 98.6,
+      "statePctRelNet": 96.4,
       "state": "ME",
       "households": 808,
       "federalMatches": 628,
