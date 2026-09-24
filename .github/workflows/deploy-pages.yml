@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      validate_only:
+        description: Build the dashboard without publishing GitHub Pages
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,6 +45,7 @@ jobs:
           path: ./dashboard/out
 
   deploy:
+    if: ${{ !inputs.validate_only }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
