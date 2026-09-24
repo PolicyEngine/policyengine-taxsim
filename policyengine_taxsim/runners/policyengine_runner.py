@@ -1218,28 +1218,31 @@ class PolicyEngineRunner(BaseTaxRunner):
                 )
 
         # Maryland county/local income tax: TAXSIM's MD `siitax` is
-        # state-only, so zero PE's MD local income tax to match. Maryland
-        # counties and Baltimore City tax Maryland taxable net income at the
-        # rate of the county of residence (Form 502 Instruction 19: .0225 to
-        # .0320 in 2021-2024, up to .0330 in 2025, with Anne Arundel and
-        # Frederick bracketed from 2023). TAXSIM input has no county; with
-        # none, PE-US falls back to the first county in the state (Allegany,
-        # .0303-.0305) and applies that rate plus the local EITC and poverty
-        # credits.
+        # state-only, so zero the MD local component of PE's state_income_tax
+        # to match. Maryland counties and Baltimore City tax Maryland taxable
+        # net income at the rate of the county of residence (Form 502
+        # Instruction 19: .0225 to .0320 in 2021-2024, up to .0330 in 2025,
+        # with income-tiered rates in Anne Arundel and Frederick from 2023).
+        # TAXSIM input has no county; with none, PE-US falls back to the first
+        # county in the state (Allegany, .0303-.0305) and applies that rate
+        # less the local EITC and poverty credits.
         #
         # TAXSIM's 2022+ MD routine (`mdtax22`) has a county block, a flat
         # 3.2% of taxable income less 3.2% of the federal EITC, which the
         # published source (build 2026092316) switches off; builds 20260521
-        # and cd2026090910 return state-only siitax. The August 2026 build
-        # cd2026081819 (bundled in #1150) ran the block, adding about $3,000
-        # to MD siitax at $100k. tests/test_md_local_tax_parity.py pins the
-        # state-only values and flags any bundled build that turns the block
-        # back on. Zeroing md_local_income_tax_before_credits also zeroes
-        # PE's local credits, which are capped at it. Of the local taxes in
-        # PE's state_income_tax, only NYC's remains, and it needs a county
-        # the emulator never sets. See #1062.
+        # and cd2026090910 return state-only siitax. The August 2026 builds
+        # bundled in #1150 (cd2026081819 on macOS and Linux, cd2026081318 on
+        # Windows) ran the block, adding about $3,000 to MD siitax at $100k.
+        # tests/test_md_local_tax_parity.py pins the state-only values and
+        # flags any bundled build that turns the block back on.
+        #
+        # Zero the net local tax, not just the tax before credits: with
+        # negative earnings PE-US's local poverty credit goes negative, which
+        # would leave a positive local tax. Of the local taxes in PE's
+        # state_income_tax, only NYC's remains, and it needs a county the
+        # emulator never sets. See #1062.
         if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
-            var = "md_local_income_tax_before_credits"
+            var = "md_local_income_tax_before_refundable_credits"
             if var in sim.tax_benefit_system.variables:
                 n_md = sim.get_variable_population(var).count
                 for year in years:

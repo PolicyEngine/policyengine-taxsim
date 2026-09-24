@@ -1,16 +1,17 @@
 """
 Maryland county/local income tax parity with TAXSIM.
 
-The emulator zeroes PE's MD local income tax
-(``PolicyEngineRunner._build_configured_sim``) because TAXSIM's MD ``siitax``
-is state-only. This module pins that premise to taxsimtest output.
+The emulator zeroes PE's net MD local income tax
+(``PolicyEngineRunner._build_configured_sim`` and the single-household path)
+because TAXSIM's MD ``siitax`` is state-only. This module pins that premise to taxsimtest output.
 
 TAXSIM. MD records for 2022 and later run through ``mdtax22``, whose county
 block (3.2% of MD taxable income less 3.2% of the federal EITC) the published
 source (build 2026092316) switches off; builds 20260521 and cd2026090910
-return state-only siitax. Build cd2026081819, bundled in August 2026 (#1150),
-ran the block and added about $3,000 to MD siitax at $100k.
-Records for 2021 and earlier run through ``mdtax77``, which has no county tax.
+return state-only siitax. The builds bundled in August 2026 (#1150),
+cd2026081819 on macOS and Linux and cd2026081318 on Windows, ran the block and
+added about $3,000 to MD siitax at $100k. Records for 2021 and earlier run
+through ``mdtax77``, which has no county tax.
 
 Maryland. Form 502 Instruction 19 taxes Maryland taxable net income at the
 rate of the county of residence (.0225 to .0320 in 2021-2024, up to .0330 in
@@ -32,6 +33,10 @@ from policyengine_us import Simulation
 
 from policyengine_taxsim.cli import cli
 from policyengine_taxsim.core.input_mapper import form_household_situation
+from policyengine_taxsim.runners.policyengine_runner import (
+    PolicyEngineRunner,
+    TaxsimMicrosimDataset,
+)
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 
 _COLUMNS = [
@@ -64,9 +69,10 @@ MD_RECORDS = [
     (10, 2025, 2, 40, 40, 0, 0, 0, 100000, 4075.25),  # cd2026081819: 6856.05
 ]
 
-# Bundled builds known to run TAXSIM's MD county block. The binary guard
+# Bundled builds known to run TAXSIM's MD county block: cd2026081819 on macOS
+# and Linux, cd2026081318 on Windows (CI run 36029909795). The binary guard
 # xfails on these and fails on any other build that does the same.
-_COUNTY_BLOCK_BUILDS = frozenset({"cd2026081819"})
+_COUNTY_BLOCK_BUILDS = frozenset({"cd2026081819", "cd2026081318"})
 _COUNTY_BLOCK_RATE = 0.032
 
 
@@ -127,7 +133,7 @@ def test_single_household_path_md_siitax_is_state_only(record):
     }
     situation = form_household_situation(year, "MD", taxsim_vars)
     tax_unit = situation["tax_units"]["your tax unit"]
-    assert tax_unit["md_local_income_tax_before_credits"] == {str(year): 0}
+    assert tax_unit["md_local_income_tax_before_refundable_credits"] == {str(year): 0}
     siitax = Simulation(situation=situation).calculate("state_income_tax", year)[0]
     assert siitax == pytest.approx(expected, abs=1.0)
 
@@ -137,7 +143,47 @@ def test_single_household_path_leaves_other_states_alone():
     taxsim_vars.update({"page": 40, "depx": 0, "pwages": 100000})
     situation = form_household_situation(2024, "VA", taxsim_vars)
     tax_unit = situation["tax_units"]["your tax unit"]
-    assert "md_local_income_tax_before_credits" not in tax_unit
+    assert "md_local_income_tax_before_refundable_credits" not in tax_unit
+
+
+# Negative earnings (self-employment loss) make PE-US's local poverty credit
+# negative, so zeroing only the local tax before credits would still leave a
+# positive local tax. Reported in the adversarial review of #1223.
+_LOSS_RECORD = {
+    "taxsimid": 1,
+    "year": 2024,
+    "state": 21,
+    "mstat": 1,
+    "page": 40,
+    "sage": 0,
+    "depx": 0,
+    "pwages": 0,
+    "psemp": -10000,
+    "intrec": 20000,
+}
+
+
+def test_batch_path_md_state_income_tax_has_no_local_component():
+    df = pd.DataFrame([_LOSS_RECORD])
+    runner = PolicyEngineRunner(df, logs=False)
+    chunk_df = runner._ensure_required_columns(df.copy())
+    dataset = TaxsimMicrosimDataset(chunk_df)
+    dataset.generate()
+    try:
+        sim = runner._build_configured_sim(dataset, chunk_df)
+        total = np.asarray(sim.calculate("state_income_tax", 2024))[0]
+        state_only = np.asarray(sim.calculate("md_income_tax", 2024))[0]
+    finally:
+        dataset.cleanup()
+    assert total == pytest.approx(state_only, abs=0.01)
+
+
+def test_single_household_path_md_state_income_tax_has_no_local_component():
+    situation = form_household_situation(2024, "MD", dict(_LOSS_RECORD))
+    sim = Simulation(situation=situation)
+    total = sim.calculate("state_income_tax", 2024)[0]
+    state_only = sim.calculate("md_income_tax", 2024)[0]
+    assert total == pytest.approx(state_only, abs=0.01)
 
 
 def test_bundled_taxsim_md_siitax_is_state_only():
