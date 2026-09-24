@@ -66,7 +66,9 @@ update `records` in `DATASETS` in `scripts/refresh_dashboard.py`.
 ## Resource limits and recovery
 
 - At most two hosted year jobs run concurrently; each launches one model
-  worker at a time for 5,000 households.
+  worker at a time for a batch of households: 5,000 for the eCPS and 2,000
+  for Populace, whose records populate more inputs and exceeded the memory
+  budget at 5,000 (`batchSize` in `DATASETS`).
 - The coordinator streams the source and output CSVs. It never imports the
   model. Each worker exits after saving its result, releasing model caches.
 - A worker is stopped above 5 GiB RSS (including child processes), after 15

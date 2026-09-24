@@ -34,6 +34,9 @@ DATASETS = {
         # revision and sha256, and the certified model used to read the H5.
         "provenance": ROOT / "populace_households.json",
         "records": 79477,
+        # Populace records populate more inputs (itemized deductions,
+        # transfers), so 5,000-record workers exceeded the 5 GiB budget.
+        "batchSize": 2000,
         # Drill-down IDs are a hash-ranked, state-stratified draw from the
         # source, so they are stable across years and refreshes.
         "heldSample": False,
@@ -43,6 +46,7 @@ DATASETS = {
         "source": ROOT / "cps_households.csv",
         "provenance": None,
         "records": 111347,
+        "batchSize": 5000,
         # Drill-down IDs are held at the published dashboard sample.
         "heldSample": True,
         "description": (
@@ -537,7 +541,9 @@ def main():
     parser.add_argument("--year", type=int, choices=range(2021, 2026))
     parser.add_argument("--dataset", choices=sorted(DATASETS), default=DEFAULT_DATASET)
     parser.add_argument("--work-dir", type=Path, default=Path("refresh-work"))
-    parser.add_argument("--batch-size", type=int, default=5000)
+    parser.add_argument(
+        "--batch-size", type=int, help="Households per worker (default: the dataset's)"
+    )
     parser.add_argument(
         "--limit",
         type=int,
@@ -556,6 +562,8 @@ def main():
     if args.release_title:
         print(release_title(args.release_title))
         return
+    if args.batch_size is None:
+        args.batch_size = DATASETS[args.dataset]["batchSize"]
     if args.year is None or not 1 <= args.batch_size <= 10000 or args.limit < 0:
         parser.error("A year, batch size 1–10000, and nonnegative limit are required")
     work = args.work_dir

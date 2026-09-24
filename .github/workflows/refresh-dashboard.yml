@@ -93,7 +93,7 @@ jobs:
       - name: Regenerate one year in isolated batches
         env:
           YEAR: ${{ matrix.year }}
-        run: python scripts/refresh_dashboard.py --dataset "$DATASET" --year "$YEAR" --batch-size 5000 --max-memory-gb 5 --min-disk-gb 4 --work-dir work
+        run: python scripts/refresh_dashboard.py --dataset "$DATASET" --year "$YEAR" --max-memory-gb 5 --min-disk-gb 4 --work-dir work
       - name: Retain checkpoints if the job fails
         if: always() && !success()
         uses: actions/upload-artifact@v4
