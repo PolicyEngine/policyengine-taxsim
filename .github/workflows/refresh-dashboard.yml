@@ -58,6 +58,11 @@ jobs:
         run: |
           ulimit -c 0
           python scripts/diagnose_maryland_taxsim.py
+      - name: Install native debugger on hosted diagnostic runner
+        if: inputs.diagnostic_only && inputs.maryland_fallback
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y gdb
       - name: Pinpoint native Maryland arithmetic failure
         if: inputs.diagnostic_only && inputs.maryland_fallback
         run: python scripts/pinpoint_maryland_taxsim.py

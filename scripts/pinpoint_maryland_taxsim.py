@@ -107,6 +107,14 @@ def main():
                 "info locals",
                 "info args",
                 "p $_siginfo",
+                "p subh",
+                "p subw",
+                "p subt",
+                "p subs",
+                "set variable subh=subt",
+                "set variable subw=subs",
+                "continue",
+                "bt",
             ]
             cmd = ["gdb", "--batch", "--quiet"]
             for command in commands:
