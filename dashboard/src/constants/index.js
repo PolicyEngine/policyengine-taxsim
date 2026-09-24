@@ -48,7 +48,7 @@ export const DATASETS = {
   populace: {
     id: 'populace',
     label: 'Populace US 2024',
-    releaseTag: 'populace-comparison-run-POPULACE_RUN_ID',
+    releaseTag: 'populace-comparison-run-35950218858',
     description:
       'One TAXSIM record per tax unit in the Populace US 2024 build that ' +
       'policyengine.py certifies (populace-us-2024-spm-20260915), scored under ' +
@@ -60,7 +60,7 @@ export const DATASETS = {
   ecps: {
     id: 'ecps',
     label: 'Enhanced CPS (archived)',
-    releaseTag: 'ecps-comparison-run-ECPS_RUN_ID',
+    releaseTag: 'ecps-comparison-run-35950220750',
     description:
       'The 111,347 Enhanced CPS tax units the benchmark used through September ' +
       '2026, rerun with the same emulator. policyengine-us-data archived the ' +
