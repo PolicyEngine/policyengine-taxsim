@@ -153,3 +153,25 @@ class ResourceLimitTests(unittest.TestCase):
                 writer.writerows(rows)
             with self.assertRaisesRegex(ValueError, "sample"):
                 refresh.summarize([part], base / "output", 2021, {"limit": 0}, {"2"})
+
+
+class MarylandFallbackTests(unittest.TestCase):
+    def test_fallback_is_restricted_to_affected_state_and_years(self):
+        for state in range(1, 52):
+            for year in range(2021, 2027):
+                self.assertEqual(
+                    refresh.uses_maryland_fallback(state, year),
+                    state == 21 and year in (2024, 2025),
+                )
+
+    def test_fallback_rejects_unverified_binary(self):
+        with tempfile.TemporaryDirectory() as folder:
+            binary = Path(folder) / "wrong-binary"
+            binary.write_text("wrong")
+            with patch.dict(os.environ, {"TAXSIM_MD_FALLBACK_BINARY": str(binary)}):
+                with self.assertRaisesRegex(ValueError, "hash mismatch"):
+                    refresh.maryland_fallback_path()
+
+    def test_fallback_is_disabled_by_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(refresh.maryland_fallback_path())

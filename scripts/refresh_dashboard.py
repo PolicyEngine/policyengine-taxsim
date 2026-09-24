@@ -117,6 +117,23 @@ def match_flags(taxsim, pe):
     ]
 
 
+MD_FALLBACK_SHA256 = "00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b"
+
+
+def maryland_fallback_path():
+    value = os.environ.get("TAXSIM_MD_FALLBACK_BINARY")
+    if not value:
+        return None
+    path = Path(value)
+    if digest(path) != MD_FALLBACK_SHA256:
+        raise ValueError("Maryland fallback binary hash mismatch")
+    return path
+
+
+def uses_maryland_fallback(state, year):
+    return int(state) == 21 and int(year) in (2024, 2025)
+
+
 def worker(input_path, output_path):
     sys.path.insert(0, str(ROOT))
     import pandas as pd
@@ -132,7 +149,23 @@ def worker(input_path, output_path):
                 print("TAXSIM stderr:", result.stderr, flush=True)
             return result
 
-    ts = LoggedTaxsimRunner(data).run(show_progress=False)
+    fallback = maryland_fallback_path()
+    fallback_mask = data.apply(
+        lambda row: bool(fallback) and uses_maryland_fallback(row.state, row.year),
+        axis=1,
+    )
+    outputs = []
+    for subset, binary in (
+        (data[~fallback_mask], None),
+        (data[fallback_mask], fallback),
+    ):
+        if subset.empty:
+            continue
+        runner = LoggedTaxsimRunner(subset, taxsim_path=binary)
+        result = runner.run(show_progress=False)
+        result["taxsim_binary_sha256"] = digest(runner.taxsim_path)
+        outputs.append(result)
+    ts = pd.concat(outputs, ignore_index=True)
     expected_ids = set(data.taxsimid)
     if ts.taxsimid.duplicated().any() or set(ts.taxsimid) != expected_ids:
         missing = expected_ids - set(ts.taxsimid)
@@ -366,6 +399,7 @@ def main():
     source = SOURCE
     if check_source(source) != EXPECTED_RECORDS:
         raise ValueError(f"Expected {EXPECTED_RECORDS} source households")
+    fallback = maryland_fallback_path()
     identity = {
         "source": source.name,
         "sourceSha256": digest(source),
@@ -377,6 +411,16 @@ def main():
             ROOT / "scripts/dashboard-refresh-requirements.txt"
         ),
         "scriptSha256": digest(__file__),
+        "taxsimFallback": {
+            "state": "MD",
+            "years": [2024, 2025],
+            "sha256": digest(fallback),
+            "sourceCommit": "2b69146bfb2e16f83e1c021d72c4258d67872190",
+            "reason": "September Linux TAXSIM SIGFPE in mdtax22; use previous binary for complete MD outputs",
+            "appliesToThisYear": args.year in (2024, 2025),
+        }
+        if fallback
+        else None,
         "batchSize": args.batch_size,
         "limit": args.limit,
     }
