@@ -104,6 +104,7 @@ def main():
                 "bt",
                 "x/12i $pc-24",
                 "info registers",
+                "info registers mxcsr",
                 "info locals",
                 "info args",
                 "p $_siginfo",
@@ -113,7 +114,7 @@ def main():
                 "p subs",
                 "set variable subh=subt",
                 "set variable subw=subs",
-                "continue",
+                "signal 0",
                 "bt",
             ]
             cmd = ["gdb", "--batch", "--quiet"]
@@ -124,6 +125,39 @@ def main():
                 cmd, capture_output=True, text=True, timeout=60, cwd=OUT
             )
             (OUT / f"gdb-{year}.txt").write_text(debug.stdout + "\n" + debug.stderr)
+            # Correct only the two local operands before every affected expression.
+            commands_file = OUT / f"patch-{year}.gdb"
+            commands_file.write_text(
+                "set pagination off\n"
+                "break taxsim.f:14163\n"
+                "commands\nsilent\n"
+                "set variable subh=subt\nset variable subw=subs\n"
+                "continue\nend\n"
+                f"run < {fixture}\n"
+            )
+            patched = subprocess.run(
+                [
+                    "gdb",
+                    "--batch",
+                    "--quiet",
+                    "-x",
+                    str(commands_file),
+                    "--args",
+                    str(NEW),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=OUT,
+            )
+            (OUT / f"gdb-corrected-{year}.txt").write_text(
+                patched.stdout + "\n" + patched.stderr
+            )
+            assert (
+                "exited normally" in patched.stdout and "SIGFPE" not in patched.stdout
+            ), patched.stdout
+            results["corrected_operands_exit_normally"] = True
+
         evidence[year] = results
     (OUT / "pinpoint.json").write_text(json.dumps(evidence, indent=2))
     print(
