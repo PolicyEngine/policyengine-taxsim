@@ -41,6 +41,8 @@ ONE_TIME_REBATE_VARIABLES = (
     "nm_2021_income_rebate",
     "nm_additional_2021_income_rebate",
     "nm_supplemental_2021_income_rebate",
+    # Periodic surplus credit: normalize timing just like one-time rebates.
+    "or_kicker",
     "ri_child_tax_rebate",
     "sc_2022_rebate",
     "va_rebate",

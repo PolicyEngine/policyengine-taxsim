@@ -38,13 +38,29 @@ def compute_srebate_single(simulation, year):
         for variable in ONE_TIME_REBATE_VARIABLES:
             if twin.tax_benefit_system.variables.get(variable) is None:
                 continue
-            twin.set_input(variable_name=variable, value=0.0, period=year)
+            count = twin.get_variable_population(variable).count
+            twin.set_input(variable_name=variable, value=[0.0] * count, period=year)
 
         actual_tax = float(simulation.calculate("state_income_tax", period=year)[0])
         rebate_free_tax = float(twin.calculate("state_income_tax", period=year)[0])
         return to_roundedup_number(rebate_free_tax - actual_tax)
     except Exception:
         return 0.00
+
+
+def compute_or_v40_single(simulation, year, mapping):
+    """Keep the refundable kicker in srebate, outside ordinary credits.
+
+    The batch exporter evaluates credits with rebates zeroed. Oregon's
+    kicker is fully refundable, so removing its amount from the credit
+    sum gives the same result without constructing another simulation.
+    """
+    variables = mapping["variables"]
+    total = sum(
+        float(simulation.calculate(variable, period=year)[0]) for variable in variables
+    )
+    kicker = float(simulation.calculate("or_kicker", period=year)[0])
+    return to_roundedup_number(total - kicker)
 
 
 def compute_de_staxbc_single(simulation, year):
@@ -125,6 +141,12 @@ def generate_non_description_output(
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
                         taxsim_output[key] = compute_srebate_single(simulation, year)
+            elif key == "v40" and state_name.upper() == "OR":
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = compute_or_v40_single(
+                            simulation, year, each_item
+                        )
             elif key == "staxbc" and state_name.upper() == "DE":
                 # Delaware combined-separate (FS4) tax before credits is the
                 # sum of the two per-column liabilities, not the joint figure.
@@ -260,6 +282,8 @@ def generate_text_description_output(
                     value = mtr_results.get(var_name, 0.0)
                 elif each_item.get("variable") == "srebate_computed":
                     value = compute_srebate_single(simulation, year)
+                elif var_name == "v40" and state_name.upper() == "OR":
+                    value = compute_or_v40_single(simulation, year, each_item)
                 elif var_name == "staxbc" and state_name.upper() == "DE":
                     # Delaware combined-separate (FS4) tax before credits is the
                     # sum of the two per-column liabilities, not the joint figure.
