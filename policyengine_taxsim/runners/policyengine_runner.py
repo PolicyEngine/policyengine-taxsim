@@ -741,8 +741,16 @@ class TaxsimMicrosimDataset(Dataset):
 
         return df
 
-    def _apply_defaults_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized."""
+    def _apply_defaults_vectorized(
+        self, df: pd.DataFrame, supplied_columns=None
+    ) -> pd.DataFrame:
+        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized.
+
+        ``supplied_columns`` are the columns the caller actually provided.
+        ``generate`` pads the frame with zero-filled ``age1..age10`` and
+        ``dep13/dep17/dep18`` before calling this, so the padded frame cannot
+        say which dependent format the caller used. Defaults to ``df.columns``.
+        """
         # Vectorized set_taxsim_defaults: fill falsy values with defaults
         defaults = {
             "state": 44,
@@ -765,60 +773,55 @@ class TaxsimMicrosimDataset(Dataset):
         else:
             df["year"] = 2021
 
-        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 → age1..age11)
-        has_dep13 = "dep13" in df.columns
-        has_dep17 = "dep17" in df.columns
-        has_dep18 = "dep18" in df.columns
-        has_taxsim32 = has_dep13 or has_dep17 or has_dep18
+        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 →
+        # age1..age11), mirroring convert_taxsim32_dependents: a row is
+        # converted when the caller supplied the TAXSIM-32 counts and gave
+        # that row no positive dependent age. Dependents beyond dep18 are
+        # adults (age 21), as in taxsimtest: the $500 credit for other
+        # dependents and head-of-household status, but no EITC or CTC.
+        supplied = set(df.columns if supplied_columns is None else supplied_columns)
+        if supplied & {"dep13", "dep17", "dep18"}:
+            supplied_ages = [
+                f"age{i}"
+                for i in range(1, 12)
+                if f"age{i}" in supplied and f"age{i}" in df.columns
+            ]
+            if supplied_ages:
+                convert = ~(df[supplied_ages].fillna(0) > 0).any(axis=1).values
+            else:
+                convert = np.ones(len(df), dtype=bool)
 
-        # Check if individual age fields already exist
-        has_individual_ages = any(
-            f"age{i}" in df.columns and df[f"age{i}"].notna().any()
-            for i in range(1, 12)
-        )
+            def count(col):
+                if col not in df.columns:
+                    return np.zeros(len(df), dtype=int)
+                return df[col].fillna(0).astype(int).values
 
-        if has_taxsim32 and not has_individual_ages:
-            dep13 = df.get("dep13", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            dep17 = df.get("dep17", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            dep18 = df.get("dep18", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            depx = df["depx"].astype(int)
+            dep13, dep17, dep18 = count("dep13"), count("dep17"), count("dep18")
+            depx = df["depx"].astype(int).values
 
-            # Ensure depx >= dep18
-            df["depx"] = np.maximum(depx, dep18)
+            # The counts are cumulative; turn them into the last dependent
+            # slot that holds each age band.
+            last_under_13 = dep13
+            last_13_to_16 = last_under_13 + np.maximum(dep17 - dep13, 0)
+            last_17 = last_13_to_16 + np.maximum(dep18 - dep17, 0)
+            last_adult = last_17 + np.maximum(depx - dep18, 0)
 
-            num_under_13 = dep13
-            num_13_to_16 = dep17 - dep13
-            num_17 = dep18 - dep17
-            num_18_plus = np.maximum(depx - dep18, 0)
-
-            # Assign ages vectorized: iterate over dependent slots 1-11
-            dep_counter = np.ones(len(df), dtype=int)  # starts at 1
-
-            age_cols = {}
-            for age_val, count_series in [
-                (10, num_under_13),
-                (15, num_13_to_16),
-                (17, num_17),
-                (21, num_18_plus),
-            ]:
-                for _ in range(count_series.max() if len(count_series) > 0 else 0):
-                    for dep_slot in range(1, 12):
-                        col = f"age{dep_slot}"
-                        if col not in age_cols:
-                            age_cols[col] = np.zeros(len(df), dtype=int)
-                        mask = (dep_counter == dep_slot) & (count_series > 0)
-                        age_cols[col] = np.where(mask, age_val, age_cols[col])
-                    dep_counter = np.where(
-                        count_series > 0, dep_counter + 1, dep_counter
-                    )
-                    count_series = np.where(
-                        count_series > 0, count_series - 1, count_series
-                    )
-
-            for col, vals in age_cols.items():
+            df["depx"] = np.where(convert, np.maximum(depx, dep18), depx)
+            for slot in range(1, 12):
+                col = f"age{slot}"
+                age = np.select(
+                    [
+                        slot <= last_under_13,
+                        slot <= last_13_to_16,
+                        slot <= last_17,
+                        slot <= last_adult,
+                    ],
+                    [10, 15, 17, 21],
+                    default=0,
+                )
                 if col not in df.columns:
                     df[col] = 0
-                df[col] = np.where(df[col] == 0, vals, df[col])
+                df[col] = np.where(convert, age, df[col])
 
         # Normalize ages: NaN or 0 → 10 for dependent age fields
         for i in range(1, 12):
@@ -832,13 +835,14 @@ class TaxsimMicrosimDataset(Dataset):
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
         n_records = len(self.input_df)
+        supplied_columns = set(self.input_df.columns)
 
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
         # Set defaults and convert TAXSIM32 format (vectorized)
         print("Setting defaults for TAXSIM records...", file=sys.stderr)
-        self.input_df = self._apply_defaults_vectorized(self.input_df)
+        self.input_df = self._apply_defaults_vectorized(self.input_df, supplied_columns)
 
         # Extract years (assuming all records might have different years)
         # Years should already be converted to integers in the run() method
