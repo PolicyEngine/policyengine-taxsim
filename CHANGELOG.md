@@ -1,3 +1,34 @@
+## [2.31.7] - 2026-09-25
+
+### Fixed
+
+- Fix the dashboard vitest suite (test imports referenced components renamed to DocumentationContent/LandingContent, stale assertions, missing jsdom vitest config) and run it in CI via a new dashboard-test job.
+- Keep Maryland `siitax` state-only in every case, as TAXSIM reports it: the emulator now zeroes the net county tax, so a negative local poverty credit (negative earnings) no longer adds county tax, and the single-household path used for `--logs` YAML tests does the same. A new test flags any bundled TAXSIM binary that runs TAXSIM's Maryland county-tax block (the August 2026 builds do), and runs now report 2026 build stamps such as `cd2026081819`.
+- Route TAXSIM `otheritem` (other itemized deductions) into PolicyEngine itemized deductions alongside `mortgage`; it was previously ignored. Both aggregates now feed `deductible_mortgage_interest`, matching the taxsimtest binary, which deducts both in full outside the SALT cap with no AGI floor and adds neither back to AMT income.
+- Honor TAXSIM-32 dependent counts (`dep13`, `dep17`, `dep18`) in the PolicyEngine microsimulation runner. The input was padded with zero-filled `age1..age10` before conversion, so the counts were ignored and every dependent became age 10; adult dependents (`depx` above `dep18`) received the EITC and refundable CTC that taxsimtest denies them.
+
+
+## [2.31.6] - 2026-09-24
+
+### Fixed
+
+- Exclude New York's supplemental earned income payment (a fall-2022 separate check) from siitax and v39, alongside the Additional Empire State child credit payment and inflation refund (taxsim #1154, #1185).
+
+
+## [2.31.5] - 2026-09-24
+
+### Changed
+
+- Refresh the 2021–2025 validation dashboard, with explicit Georgia and Maryland reference-binary exceptions for 2024–2025.
+
+
+## [2.31.4] - 2026-09-23
+
+### Fixed
+
+- Treat TAXSIM rentpaid as gross rent that includes heat and utilities for the Maine property tax fairness credit, matching TaxAct's Schedule PTFC/STFC handling. Scoped to Maine so it does not affect Michigan's home heating credit.
+
+
 ## [2.31.3] - 2026-09-21
 
 ### Changed

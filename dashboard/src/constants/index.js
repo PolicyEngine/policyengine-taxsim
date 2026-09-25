@@ -43,7 +43,7 @@ export const TOLERANCE_MODES = {
 // the browser, so the dashboard shows a sample + precomputed summary and
 // links to the complete per-year CSVs hosted as a GitHub Release asset.
 export const FULL_DATA_RELEASE_BASE =
-  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35859275514';
+  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35953332152';
 
 export const fullDataUrl = (year) =>
   `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv`;
@@ -97,7 +97,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'state', name: 'State code', policyengine: 'state_code' },
   
   // Primary Tax Calculations
-  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
+  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes or the Additional Medicare Tax (reported in addmed, tfica and fica)', policyengine: 'income_tax' },
   { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
 
   // Federal AGI and Income Components (v10-v12)

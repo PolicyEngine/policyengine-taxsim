@@ -1,28 +1,42 @@
 {
   "federalMatchPct": 83.8,
-  "stateMatchPct": 83.3,
+  "stateMatchPct": 85.1,
   "federalMatchPctRel": 90.9,
-  "stateMatchPctRel": 95.7,
-  "stateMatchPctRelNet": 95.8,
+  "stateMatchPctRel": 96.1,
+  "stateMatchPctRelNet": 96.2,
   "totalRecords": 111347,
   "metadata": {
     "source": "cps_households.csv",
     "sourceSha256": "ecabc8dd33e8b570fad21650745b9d94f6b51fc9780d9c59bb033ede7d16a689",
     "year": 2024,
-    "emulatorCommit": "2b69146bfb2e16f83e1c021d72c4258d67872190",
+    "emulatorCommit": "244aa52c4e6ee6804ab98430b05e2bd3e4652b04",
     "requirementsSha256": "5ed792d03b33330e246da3bfd109c0cc2e57628a691eb68bbdeec0ab7aed1c86",
-    "scriptSha256": "bb60bf51ea908d16ffb90165ced2593c503f56841c6704b7901b608962fff22a",
+    "scriptSha256": "87ac15e068f973ba6ed5724c43c89966fc73b41488f06229d29d357929c722dc",
+    "taxsimFallback": {
+      "states": [
+        "GA",
+        "MD"
+      ],
+      "years": [
+        2024,
+        2025
+      ],
+      "sha256": "00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b",
+      "sourceCommit": "2b69146bfb2e16f83e1c021d72c4258d67872190",
+      "reason": "September Linux TAXSIM SIGFPE in gatax24 and mdtax22; previous binary for complete GA/MD outputs",
+      "appliesToThisYear": true
+    },
     "batchSize": 5000,
     "limit": 0,
-    "generatedAt": "2026-09-23T13:11:21.932058+00:00",
+    "generatedAt": "2026-09-24T04:39:34.120129+00:00",
     "policyengineUsVersion": "2.6.17",
     "policyengineCoreVersion": "3.32.6",
     "spmCalculatorVersion": "1.0.0.post1",
-    "peakWorkerRssMiB": 3150,
+    "peakWorkerRssMiB": 3202,
     "assumeW2Wages": true,
     "disableSalt": false,
     "policyengineOutputDetail": 5,
-    "taxsimBinarySha256": "00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b"
+    "taxsimBinarySha256": "8aa880aeea33fd501f669d42125615e3b2a0ab19c17d93a76457e9de16615059"
   },
   "sampleRecords": 3000,
   "stateBreakdown": [
@@ -61,14 +75,14 @@
     },
     {
       "federalPct": 84.9,
-      "statePct": 85.1,
+      "statePct": 88.9,
       "federalPctRel": 92.3,
-      "statePctRel": 89.1,
-      "statePctRelNet": 89.1,
+      "statePctRel": 92.8,
+      "statePctRelNet": 92.8,
       "state": "NY",
       "households": 4160,
       "federalMatches": 3533,
-      "stateMatches": 3540
+      "stateMatches": 3700
     },
     {
       "federalPct": 83.7,
@@ -105,14 +119,14 @@
     },
     {
       "federalPct": 83.0,
-      "statePct": 94.8,
+      "statePct": 94.7,
       "federalPctRel": 90.7,
       "statePctRel": 99.9,
       "statePctRelNet": 99.9,
       "state": "OH",
       "households": 2742,
       "federalMatches": 2276,
-      "stateMatches": 2600
+      "stateMatches": 2598
     },
     {
       "federalPct": 86.2,
@@ -138,69 +152,69 @@
     },
     {
       "federalPct": 83.1,
-      "statePct": 58.8,
+      "statePct": 63.0,
       "federalPctRel": 90.6,
-      "statePctRel": 82.3,
-      "statePctRelNet": 82.3,
+      "statePctRel": 87.7,
+      "statePctRelNet": 87.7,
       "state": "MI",
       "households": 2456,
       "federalMatches": 2042,
-      "stateMatches": 1444
+      "stateMatches": 1547
     },
     {
       "federalPct": 81.3,
-      "statePct": 74.3,
+      "statePct": 88.3,
       "federalPctRel": 91.2,
-      "statePctRel": 93.9,
-      "statePctRelNet": 93.9,
+      "statePctRel": 98.8,
+      "statePctRelNet": 98.8,
       "state": "MA",
       "households": 2396,
       "federalMatches": 1947,
-      "stateMatches": 1780
+      "stateMatches": 2116
     },
     {
       "federalPct": 81.9,
-      "statePct": 94.2,
+      "statePct": 94.3,
       "federalPctRel": 91.0,
       "statePctRel": 98.5,
       "statePctRelNet": 98.5,
       "state": "NJ",
       "households": 2158,
       "federalMatches": 1767,
-      "stateMatches": 2033
+      "stateMatches": 2034
     },
     {
       "federalPct": 84.3,
-      "statePct": 96.5,
+      "statePct": 97.0,
       "federalPctRel": 91.2,
-      "statePctRel": 99.8,
-      "statePctRelNet": 99.8,
+      "statePctRel": 99.9,
+      "statePctRelNet": 99.9,
       "state": "WV",
       "households": 2112,
       "federalMatches": 1781,
-      "stateMatches": 2038
+      "stateMatches": 2049
     },
     {
       "federalPct": 84.0,
-      "statePct": 94.7,
+      "statePct": 95.0,
       "federalPctRel": 91.3,
       "statePctRel": 97.9,
       "statePctRelNet": 97.9,
       "state": "WA",
       "households": 2094,
       "federalMatches": 1760,
-      "stateMatches": 1984
+      "stateMatches": 1989
     },
     {
       "federalPct": 84.4,
-      "statePct": 32.3,
+      "statePct": 32.8,
       "federalPctRel": 90.8,
       "statePctRel": 61.2,
       "statePctRelNet": 61.2,
       "state": "AR",
       "households": 2060,
       "federalMatches": 1738,
-      "stateMatches": 666
+      "stateMatches": 676
     },
     {
       "federalPct": 84.3,
@@ -248,47 +262,47 @@
     },
     {
       "federalPct": 85.8,
-      "statePct": 98.7,
+      "statePct": 98.8,
       "federalPctRel": 92.0,
       "statePctRel": 99.7,
       "statePctRelNet": 99.7,
       "state": "MS",
       "households": 2006,
       "federalMatches": 1722,
-      "stateMatches": 1980
+      "stateMatches": 1982
     },
     {
       "federalPct": 84.6,
-      "statePct": 81.2,
+      "statePct": 83.9,
       "federalPctRel": 93.4,
-      "statePctRel": 92.0,
-      "statePctRelNet": 92.0,
+      "statePctRel": 94.2,
+      "statePctRelNet": 94.2,
       "state": "DC",
       "households": 1998,
       "federalMatches": 1691,
-      "stateMatches": 1622
+      "stateMatches": 1676
     },
     {
       "federalPct": 84.6,
-      "statePct": 95.9,
+      "statePct": 93.8,
       "federalPctRel": 90.8,
-      "statePctRel": 99.0,
-      "statePctRelNet": 99.0,
+      "statePctRel": 96.6,
+      "statePctRelNet": 96.6,
       "state": "MT",
       "households": 1952,
       "federalMatches": 1651,
-      "stateMatches": 1872
+      "stateMatches": 1830
     },
     {
       "federalPct": 82.9,
-      "statePct": 91.7,
+      "statePct": 94.7,
       "federalPctRel": 90.5,
-      "statePctRel": 99.8,
-      "statePctRelNet": 99.8,
+      "statePctRel": 99.9,
+      "statePctRelNet": 99.9,
       "state": "ID",
       "households": 1936,
       "federalMatches": 1604,
-      "stateMatches": 1775
+      "stateMatches": 1834
     },
     {
       "federalPct": 84.9,
@@ -314,36 +328,36 @@
     },
     {
       "federalPct": 82.6,
-      "statePct": 37.3,
+      "statePct": 98.7,
       "federalPctRel": 90.5,
       "statePctRel": 99.7,
       "statePctRelNet": 99.7,
       "state": "IN",
       "households": 1774,
       "federalMatches": 1465,
-      "stateMatches": 662
+      "stateMatches": 1751
     },
     {
       "federalPct": 85.7,
-      "statePct": 47.3,
+      "statePct": 48.5,
       "federalPctRel": 91.8,
       "statePctRel": 96.2,
       "statePctRelNet": 96.2,
       "state": "OK",
       "households": 1690,
       "federalMatches": 1449,
-      "stateMatches": 800
+      "stateMatches": 819
     },
     {
       "federalPct": 85.3,
-      "statePct": 56.9,
+      "statePct": 57.1,
       "federalPctRel": 91.5,
-      "statePctRel": 98.8,
-      "statePctRelNet": 98.8,
+      "statePctRel": 98.9,
+      "statePctRelNet": 98.9,
       "state": "OR",
       "households": 1686,
       "federalMatches": 1438,
-      "stateMatches": 960
+      "stateMatches": 962
     },
     {
       "federalPct": 85.2,
@@ -369,25 +383,25 @@
     },
     {
       "federalPct": 83.1,
-      "statePct": 89.1,
+      "statePct": 94.0,
       "federalPctRel": 90.6,
-      "statePctRel": 98.4,
-      "statePctRelNet": 98.4,
+      "statePctRel": 99.4,
+      "statePctRelNet": 99.4,
       "state": "WI",
       "households": 1592,
       "federalMatches": 1323,
-      "stateMatches": 1418
+      "stateMatches": 1496
     },
     {
       "federalPct": 83.9,
-      "statePct": 65.4,
+      "statePct": 64.9,
       "federalPctRel": 90.8,
       "statePctRel": 96.4,
       "statePctRelNet": 96.4,
       "state": "MO",
       "households": 1518,
       "federalMatches": 1273,
-      "stateMatches": 993
+      "stateMatches": 985
     },
     {
       "federalPct": 84.7,
@@ -402,14 +416,14 @@
     },
     {
       "federalPct": 84.7,
-      "statePct": 93.8,
+      "statePct": 94.8,
       "federalPctRel": 90.4,
       "statePctRel": 100.0,
       "statePctRelNet": 100.0,
       "state": "ND",
       "households": 1506,
       "federalMatches": 1275,
-      "stateMatches": 1413
+      "stateMatches": 1428
     },
     {
       "federalPct": 83.2,
@@ -424,25 +438,25 @@
     },
     {
       "federalPct": 81.8,
-      "statePct": 57.2,
+      "statePct": 58.1,
       "federalPctRel": 89.8,
-      "statePctRel": 91.7,
-      "statePctRelNet": 91.7,
+      "statePctRel": 96.1,
+      "statePctRelNet": 96.1,
       "state": "CO",
       "households": 1476,
       "federalMatches": 1207,
-      "stateMatches": 844
+      "stateMatches": 857
     },
     {
       "federalPct": 83.4,
-      "statePct": 63.3,
+      "statePct": 63.5,
       "federalPctRel": 90.4,
       "statePctRel": 94.1,
       "statePctRelNet": 94.1,
       "state": "MN",
       "households": 1458,
       "federalMatches": 1216,
-      "stateMatches": 923
+      "stateMatches": 926
     },
     {
       "federalPct": 83.5,
@@ -468,14 +482,14 @@
     },
     {
       "federalPct": 84.6,
-      "statePct": 91.1,
+      "statePct": 94.6,
       "federalPctRel": 90.6,
       "statePctRel": 99.4,
       "statePctRelNet": 99.4,
       "state": "DE",
       "households": 1300,
       "federalMatches": 1100,
-      "stateMatches": 1184
+      "stateMatches": 1230
     },
     {
       "federalPct": 85.0,
@@ -545,25 +559,25 @@
     },
     {
       "federalPct": 86.3,
-      "statePct": 96.4,
+      "statePct": 96.6,
       "federalPctRel": 91.4,
       "statePctRel": 100.0,
       "statePctRelNet": 100.0,
       "state": "KY",
       "households": 1156,
       "federalMatches": 998,
-      "stateMatches": 1114
+      "stateMatches": 1117
     },
     {
       "federalPct": 71.2,
-      "statePct": 66.1,
+      "statePct": 67.5,
       "federalPctRel": 82.8,
       "statePctRel": 99.7,
       "statePctRelNet": 99.7,
       "state": "AL",
       "households": 1155,
       "federalMatches": 822,
-      "stateMatches": 763
+      "stateMatches": 780
     },
     {
       "federalPct": 83.7,
@@ -578,14 +592,14 @@
     },
     {
       "federalPct": 83.4,
-      "statePct": 75.0,
+      "statePct": 76.7,
       "federalPctRel": 90.2,
       "statePctRel": 92.3,
       "statePctRelNet": 92.3,
       "state": "ME",
       "households": 808,
       "federalMatches": 674,
-      "stateMatches": 606
+      "stateMatches": 620
     }
   ]
 }
