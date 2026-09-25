@@ -322,7 +322,7 @@ The emulator produces all standard TAXSIM output variables:
 | taxsimid | Record identifier |
 | year | Tax year |
 | state | State code |
-| fiitax | Federal income tax liability |
+| fiitax | Federal income tax liability, including the net investment income tax; excludes the Additional Medicare Tax for PolicyEngine-computed rows (see below) |
 | siitax | State income tax liability |
 | fica | FICA taxes |
 
@@ -355,4 +355,23 @@ The emulator produces all standard TAXSIM output variables:
 | v40 | Total state credits |
 | qbid | Qualified business income deduction |
 | niit | Net investment income tax |
+| addmed | Additional Medicare Tax (Form 8959; idtl = 2 only) |
 | cares | COVID-related recovery rebate credit |
+
+### Additional Medicare Tax and fiitax
+
+For every record the emulator computes with PolicyEngine, `fiitax` includes
+the net investment income tax but not the Additional Medicare Tax. That tax is
+counted in `tfica` and `fica` and reported in `addmed`. This follows TAXSIM's
+author on [taxsim #416](https://github.com/PolicyEngine/policyengine-taxsim/issues/416)
+and [#1225](https://github.com/PolicyEngine/policyengine-taxsim/issues/1225).
+On #1225 (2026-09-24) he called its inclusion in `fiitax` "an error that was
+present in 2000-2023" and said he believed he had corrected it. The tax itself
+applies from 2013. NBER's taxsimtest documentation ("Output Results") still
+lists it in the `fiitax` definition.
+
+The bundled `taxsimtest` binary (build cd2026081819) predates that correction.
+For 2013-2023 its `fiitax` also includes the tax, so on any record that owes
+it, the binary's `fiitax` is higher than the emulator's by `addmed`. Rows that
+the default CLI takes from the binary (years before 2021; see Year-stitching
+above) carry that inclusion until the bundled binary is refreshed.

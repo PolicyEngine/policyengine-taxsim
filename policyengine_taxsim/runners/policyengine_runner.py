@@ -1508,12 +1508,12 @@ class PolicyEngineRunner(BaseTaxRunner):
             100.0  # $100: large enough for float32 precision, small for bracket safety
         )
         # Get base tax values from the main simulation.
-        # frate must match fiitax definition. NBER TAXSIM-35
-        # (`taxsimtest`) reports fiitax as income_tax only —
-        # Additional Medicare Tax (Form 8959) flows out in the
-        # separate `addmed` column per Form 1040 Line 23 /
-        # Schedule 2 Line 11. Mirror that here so the marginal rate
-        # doesn't pick up the 0.9% AddMed step above threshold.
+        # frate is the marginal rate of fiitax, so it uses the same
+        # definition: income_tax without the Additional Medicare Tax
+        # (see the fiitax note in _extract_vectorized_results). The
+        # bundled taxsimtest cd2026081819 returned frate = 0 for every
+        # record and mtr code probed, so there is no binary frate to
+        # compare against.
         base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
 
@@ -1852,15 +1852,16 @@ class PolicyEngineRunner(BaseTaxRunner):
                     )
                 columns["v40"] = np.round(rebate_free_total, 2)
 
-            # fiitax = income_tax only. NBER TAXSIM-35 (`taxsimtest`)
-            # reports the Additional Medicare Tax (Form 8959,
-            # IRC § 3101(b)(2) / § 1401(b)(2)) separately in the
-            # `addmed` column rather than rolling it into fiitax —
-            # matching Form 1040 Line 23 / Schedule 2 Line 11.
-            # PE's `income_tax` (which already includes NIIT via
-            # `income_tax_before_refundable_credits`) is the correct
-            # match. AddMed continues to flow through the `v44`
-            # output column (employee_medicare_tax + additional_medicare_tax).
+            # fiitax = income_tax, which includes NIIT (through
+            # income_tax_before_refundable_credits) but not the
+            # Additional Medicare Tax. AddMed is a FICA/SECA tax
+            # (IRC § 3101(b)(2) / § 1401(b)(2)) and TAXSIM puts it in
+            # fica and tfica, not fiitax (taxsim #416, #1225), so it is
+            # reported in tfica, fica and `addmed` in every year. The
+            # bundled taxsimtest cd2026081819 predates the correction
+            # reported on #1225 and still adds it to 2013-2023 fiitax as
+            # well; that is not copied
+            # (tests/test_addmed_excluded_from_fiitax.py).
             if "fiitax" not in columns:
                 columns["fiitax"] = np.round(
                     self._calc_tax_unit(sim, "income_tax", year_str), 2
@@ -1880,7 +1881,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     columns["v22"] = np.round(np.minimum(ctc_arr, limiting_tax), 2)
 
             # Compute marginal rates if any idtl level requests them
-            mtr_vars = {"frate", "srate"}
+            mtr_vars = ("frate", "srate")  # ordered: stable output columns
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
             if needs_mtr:
                 try:
