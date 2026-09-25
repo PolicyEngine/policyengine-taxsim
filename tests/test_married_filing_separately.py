@@ -408,3 +408,138 @@ def test_single_household_builds_separate_filer_without_spouse(
     assert sim.calculate("filing_status", 2023).decode_to_str().tolist() == [
         expected_status
     ]
+
+
+# --- Property tests over seeded random records -----------------------------
+#
+# Invariants for every mstat 6 record, checked on randomized inputs (a fixed
+# numpy seed keeps CI deterministic; the repo does not depend on Hypothesis):
+#   1. Structure: the tax unit is the filer plus depx dependents -- never a
+#      spouse -- with is_separated on the head only and cohabitating_spouses
+#      set.
+#   2. Filing status: SEPARATE when no dependent is under 19 (none is a
+#      qualifying child), otherwise HEAD_OF_HOUSEHOLD; never JOINT or SINGLE.
+#   3. Differential: the single-household path computes the same filing
+#      status and federal income tax as the batch path.
+#   4. Monotonicity: for a childless filer, the separate return's federal
+#      income tax is never below the single return's on the same inputs --
+#      every married-filing-separately amount (brackets, SALT cap, capital
+#      loss limit, NIIT threshold, Social Security base, aged add-on, senior
+#      deduction) is at most the single amount.
+
+_RNG_SEED = 20260925
+_N_RANDOM = 60
+
+
+def _random_records(n, seed=_RNG_SEED):
+    rng = np.random.default_rng(seed)
+    records = []
+    for i in range(n):
+        page = int(rng.integers(18, 86))
+        depx = int(rng.choice([0, 0, 1, 2, 3]))
+        record = {
+            "taxsimid": i + 1,
+            "year": int(rng.integers(2021, 2026)),
+            "state": 0,
+            "mstat": MSTAT_MARRIED_SEPARATE,
+            "page": page,
+            "sage": 0,
+            "depx": depx,
+            "pwages": float(np.round(rng.lognormal(10.8, 1.1))),
+            "dividends": float(np.round(rng.exponential(3000) * rng.integers(0, 2))),
+            "intrec": float(np.round(rng.exponential(2000) * rng.integers(0, 2))),
+            "stcg": float(np.round(rng.normal(0, 4000) * rng.integers(0, 2))),
+            "ltcg": float(np.round(rng.exponential(10000) * rng.integers(0, 2))),
+            "pensions": float(np.round(rng.exponential(15000) * (page >= 55))),
+            "gssi": float(np.round(rng.uniform(8000, 40000) * (page >= 62))),
+            "proptax": float(np.round(rng.exponential(4000) * rng.integers(0, 2))),
+            "mortgage": float(np.round(rng.exponential(8000) * rng.integers(0, 2))),
+            "idtl": 2,
+        }
+        for d in range(1, depx + 1):
+            record[f"age{d}"] = int(rng.integers(1, 31))
+        records.append(record)
+    return pd.DataFrame(records).fillna(0)
+
+
+@pytest.fixture(scope="module")
+def random_records():
+    return _random_records(_N_RANDOM)
+
+
+def _has_dependent_under_19(row):
+    return any(row.get(f"age{d}", 0) < 19 for d in range(1, int(row["depx"]) + 1))
+
+
+def test_property_structure_and_filing_status(random_records):
+    df = random_records
+    for year in sorted(int(y) for y in df["year"].unique()):
+        chunk = df[df["year"] == year].reset_index(drop=True)
+        runner = PolicyEngineRunner(chunk, logs=False)
+        prepared = runner._ensure_required_columns(chunk.copy())
+        dataset = TaxsimMicrosimDataset(prepared)
+        dataset.generate()
+        try:
+            sim = Microsimulation(dataset=dataset)
+            spouses = _people_by_unit(sim, "is_tax_unit_spouse", year)
+            separated = _people_by_unit(sim, "is_separated", year)
+            status = np.asarray(sim.calculate("filing_status", year)).tolist()
+            cohabiting = np.asarray(sim.calculate("cohabitating_spouses", year))
+            for i, row in chunk.iterrows():
+                depx = int(row["depx"])
+                assert len(spouses[i]) == 1 + depx, row.to_dict()
+                assert not any(spouses[i]), row.to_dict()
+                assert separated[i] == [True] + [False] * depx, row.to_dict()
+                assert bool(cohabiting[i]), row.to_dict()
+                expected = (
+                    "HEAD_OF_HOUSEHOLD" if _has_dependent_under_19(row) else "SEPARATE"
+                )
+                assert status[i] == expected, row.to_dict()
+        finally:
+            dataset.cleanup()
+
+
+@pytest.fixture(scope="module")
+def random_batch(random_records):
+    """One batch run: every random mstat 6 record, plus an mstat 1 copy
+    (taxsimid + 10,000) of each childless record for the monotonicity test."""
+    childless = random_records[random_records["depx"] == 0]
+    single = childless.copy()
+    single["mstat"] = 1
+    single["taxsimid"] = single["taxsimid"] + 10_000
+    both = pd.concat([random_records, single], ignore_index=True).fillna(0)
+    out = PolicyEngineRunner(both, logs=False).run(show_progress=False)
+    out["taxsimid"] = out["taxsimid"].astype(float).astype(int)
+    return out.set_index("taxsimid")
+
+
+def test_property_paths_agree(random_records, random_batch):
+    """Differential test: both execution paths, same filing status and tax."""
+    from policyengine_us import Simulation
+
+    for _, row in random_records.head(12).iterrows():
+        record = row.to_dict()
+        situation = generate_household(dict(record))
+        single = export_household(dict(record), situation, False, False)
+        tid = int(row["taxsimid"])
+        assert float(single["v28"]) == pytest.approx(
+            float(random_batch.loc[tid, "v28"]), abs=1.0
+        ), record
+        status = Simulation(situation=situation).calculate(
+            "filing_status", int(row["year"])
+        )
+        expected = "HEAD_OF_HOUSEHOLD" if _has_dependent_under_19(row) else "SEPARATE"
+        assert status.decode_to_str().tolist() == [expected], record
+
+
+def test_property_separate_return_never_cheaper_than_single(
+    random_records, random_batch
+):
+    childless = random_records[random_records["depx"] == 0]
+    assert len(childless) > 10
+    for tid in childless["taxsimid"]:
+        separate_tax = float(random_batch.loc[tid, "fiitax"])
+        single_tax = float(random_batch.loc[tid + 10_000, "fiitax"])
+        assert separate_tax >= single_tax - 0.01, (
+            f"taxsimid {tid}: separate {separate_tax} < single {single_tax}"
+        )
