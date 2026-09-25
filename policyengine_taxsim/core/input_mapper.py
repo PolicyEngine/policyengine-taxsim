@@ -6,6 +6,7 @@ from .utils import (
     NO_STATE,
     validate_state_number,
 )
+from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
 
 
@@ -19,6 +20,22 @@ def add_additional_units(state, year, situation, taxsim_vars):
 
     tax_unit = situation["tax_units"]["your tax unit"]
     people_unit = situation["people"]
+
+    # Maine's property tax fairness credit excludes any heat/utilities included
+    # in rent before taking 15% of rent (Schedule PTFC/STFC line 5b/5c). TAXSIM's
+    # rentpaid is gross rent that includes utilities, so flag it for Maine; with
+    # no separate utility amount supplied, PolicyEngine applies the worksheet's
+    # 15%-of-rent default. Maine is the only state where this distinction affects
+    # the result, and utilities_included_in_rent also feeds Michigan's home
+    # heating credit, so this is scoped to Maine only.
+    if state.lower() == "me" and taxsim_vars.get("rentpaid", 0) > 0:
+        tax_unit["utilities_included_in_rent"] = {str(year): True}
+
+    # TAXSIM's Maryland siitax is state-only, so zero PE's net county tax.
+    # Mirrors PolicyEngineRunner._build_configured_sim so both execution paths
+    # agree; see tests/test_md_local_tax_parity.py.
+    if state.lower() == "md":
+        tax_unit["md_local_income_tax_before_refundable_credits"] = {str(year): 0}
 
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
@@ -143,6 +160,17 @@ def add_additional_units(state, year, situation, taxsim_vars):
                     people_unit["your partner"][field] = {str(year): split_value}
                 else:
                     people_unit["you"][field] = {str(year): total_value}
+
+    # New York separate-payment programs (Additional Empire State child credit
+    # payment, supplemental earned income payment, inflation refund): not on
+    # Form IT-201 and excluded from TAXSIM's siitax. The batch PolicyEngineRunner
+    # zeroes them on its Microsimulation; zero them here in the single-household
+    # situation too so both execution paths match TAXSIM's coverage consistently
+    # (taxsim #1154 / #1185). Pinning them to 0 in the situation also carries
+    # into the srebate twin, which is rebuilt from this situation input.
+    if state.lower() == "ny":
+        for var in NY_SEPARATE_PAYMENT_VARIABLES:
+            tax_unit[var] = {str(year): 0}
 
     return situation
 

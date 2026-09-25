@@ -45,6 +45,19 @@ ONE_TIME_REBATE_VARIABLES = (
     "sc_2022_rebate",
     "va_rebate",
 )
+# New York payments PE books to the return year but that are not lines on Form
+# IT-201: the Additional Empire State child credit payment and the supplemental
+# earned income payment (both separate checks, tax.ny.gov/pit/child-earned-
+# payments) and the inflation refund (checks mailed later, based on the return-
+# year filing). TAXSIM's siitax excludes all three. They are forced to zero in
+# BOTH emulator execution paths so the exclusion is consistent: the batch
+# PolicyEngineRunner zeroes them on its Microsimulation, and the single-household
+# path zeroes them in the situation (input_mapper) — see taxsim #1154 / #1185.
+NY_SEPARATE_PAYMENT_VARIABLES = (
+    "ny_additional_ctc",
+    "ny_inflation_refund_credit",
+    "ny_supplemental_eitc",
+)
 OUTPUT_ADAPTER_OVERRIDES = {
     # MT: state_agi reads `gov.states.household.state_agis` which lists
     # `mt_agi_indiv` (Person, defined only for MFS-on-same-return). For all
