@@ -97,7 +97,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'state', name: 'State code', policyengine: 'state_code' },
   
   // Primary Tax Calculations
-  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
+  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes or the Additional Medicare Tax (reported in addmed, tfica and fica)', policyengine: 'income_tax' },
   { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
 
   // Federal AGI and Income Components (v10-v12)

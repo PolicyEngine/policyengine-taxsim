@@ -1,3 +1,13 @@
+## [2.31.7] - 2026-09-25
+
+### Fixed
+
+- Fix the dashboard vitest suite (test imports referenced components renamed to DocumentationContent/LandingContent, stale assertions, missing jsdom vitest config) and run it in CI via a new dashboard-test job.
+- Keep Maryland `siitax` state-only in every case, as TAXSIM reports it: the emulator now zeroes the net county tax, so a negative local poverty credit (negative earnings) no longer adds county tax, and the single-household path used for `--logs` YAML tests does the same. A new test flags any bundled TAXSIM binary that runs TAXSIM's Maryland county-tax block (the August 2026 builds do), and runs now report 2026 build stamps such as `cd2026081819`.
+- Route TAXSIM `otheritem` (other itemized deductions) into PolicyEngine itemized deductions alongside `mortgage`; it was previously ignored. Both aggregates now feed `deductible_mortgage_interest`, matching the taxsimtest binary, which deducts both in full outside the SALT cap with no AGI floor and adds neither back to AMT income.
+- Honor TAXSIM-32 dependent counts (`dep13`, `dep17`, `dep18`) in the PolicyEngine microsimulation runner. The input was padded with zero-filled `age1..age10` before conversion, so the counts were ignored and every dependent became age 10; adult dependents (`depx` above `dep18`) received the EITC and refundable CTC that taxsimtest denies them.
+
+
 ## [2.31.6] - 2026-09-24
 
 ### Fixed

@@ -31,6 +31,12 @@ def add_additional_units(state, year, situation, taxsim_vars):
     if state.lower() == "me" and taxsim_vars.get("rentpaid", 0) > 0:
         tax_unit["utilities_included_in_rent"] = {str(year): True}
 
+    # TAXSIM's Maryland siitax is state-only, so zero PE's net county tax.
+    # Mirrors PolicyEngineRunner._build_configured_sim so both execution paths
+    # agree; see tests/test_md_local_tax_parity.py.
+    if state.lower() == "md":
+        tax_unit["md_local_income_tax_before_refundable_credits"] = {str(year): 0}
+
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
     is_married_filing_jointly = mstat == 2

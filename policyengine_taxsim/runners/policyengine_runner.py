@@ -767,8 +767,16 @@ class TaxsimMicrosimDataset(Dataset):
 
         return df
 
-    def _apply_defaults_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized."""
+    def _apply_defaults_vectorized(
+        self, df: pd.DataFrame, supplied_columns=None
+    ) -> pd.DataFrame:
+        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized.
+
+        ``supplied_columns`` are the columns the caller actually provided.
+        ``generate`` pads the frame with zero-filled ``age1..age10`` and
+        ``dep13/dep17/dep18`` before calling this, so the padded frame cannot
+        say which dependent format the caller used. Defaults to ``df.columns``.
+        """
         # Vectorized set_taxsim_defaults: fill falsy values with defaults
         defaults = {
             "state": 44,
@@ -791,60 +799,55 @@ class TaxsimMicrosimDataset(Dataset):
         else:
             df["year"] = 2021
 
-        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 → age1..age11)
-        has_dep13 = "dep13" in df.columns
-        has_dep17 = "dep17" in df.columns
-        has_dep18 = "dep18" in df.columns
-        has_taxsim32 = has_dep13 or has_dep17 or has_dep18
+        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 →
+        # age1..age11), mirroring convert_taxsim32_dependents: a row is
+        # converted when the caller supplied the TAXSIM-32 counts and gave
+        # that row no positive dependent age. Dependents beyond dep18 are
+        # adults (age 21), as in taxsimtest: the $500 credit for other
+        # dependents and head-of-household status, but no EITC or CTC.
+        supplied = set(df.columns if supplied_columns is None else supplied_columns)
+        if supplied & {"dep13", "dep17", "dep18"}:
+            supplied_ages = [
+                f"age{i}"
+                for i in range(1, 12)
+                if f"age{i}" in supplied and f"age{i}" in df.columns
+            ]
+            if supplied_ages:
+                convert = ~(df[supplied_ages].fillna(0) > 0).any(axis=1).values
+            else:
+                convert = np.ones(len(df), dtype=bool)
 
-        # Check if individual age fields already exist
-        has_individual_ages = any(
-            f"age{i}" in df.columns and df[f"age{i}"].notna().any()
-            for i in range(1, 12)
-        )
+            def count(col):
+                if col not in df.columns:
+                    return np.zeros(len(df), dtype=int)
+                return df[col].fillna(0).astype(int).values
 
-        if has_taxsim32 and not has_individual_ages:
-            dep13 = df.get("dep13", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            dep17 = df.get("dep17", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            dep18 = df.get("dep18", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            depx = df["depx"].astype(int)
+            dep13, dep17, dep18 = count("dep13"), count("dep17"), count("dep18")
+            depx = df["depx"].astype(int).values
 
-            # Ensure depx >= dep18
-            df["depx"] = np.maximum(depx, dep18)
+            # The counts are cumulative; turn them into the last dependent
+            # slot that holds each age band.
+            last_under_13 = dep13
+            last_13_to_16 = last_under_13 + np.maximum(dep17 - dep13, 0)
+            last_17 = last_13_to_16 + np.maximum(dep18 - dep17, 0)
+            last_adult = last_17 + np.maximum(depx - dep18, 0)
 
-            num_under_13 = dep13
-            num_13_to_16 = dep17 - dep13
-            num_17 = dep18 - dep17
-            num_18_plus = np.maximum(depx - dep18, 0)
-
-            # Assign ages vectorized: iterate over dependent slots 1-11
-            dep_counter = np.ones(len(df), dtype=int)  # starts at 1
-
-            age_cols = {}
-            for age_val, count_series in [
-                (10, num_under_13),
-                (15, num_13_to_16),
-                (17, num_17),
-                (21, num_18_plus),
-            ]:
-                for _ in range(count_series.max() if len(count_series) > 0 else 0):
-                    for dep_slot in range(1, 12):
-                        col = f"age{dep_slot}"
-                        if col not in age_cols:
-                            age_cols[col] = np.zeros(len(df), dtype=int)
-                        mask = (dep_counter == dep_slot) & (count_series > 0)
-                        age_cols[col] = np.where(mask, age_val, age_cols[col])
-                    dep_counter = np.where(
-                        count_series > 0, dep_counter + 1, dep_counter
-                    )
-                    count_series = np.where(
-                        count_series > 0, count_series - 1, count_series
-                    )
-
-            for col, vals in age_cols.items():
+            df["depx"] = np.where(convert, np.maximum(depx, dep18), depx)
+            for slot in range(1, 12):
+                col = f"age{slot}"
+                age = np.select(
+                    [
+                        slot <= last_under_13,
+                        slot <= last_13_to_16,
+                        slot <= last_17,
+                        slot <= last_adult,
+                    ],
+                    [10, 15, 17, 21],
+                    default=0,
+                )
                 if col not in df.columns:
                     df[col] = 0
-                df[col] = np.where(df[col] == 0, vals, df[col])
+                df[col] = np.where(convert, age, df[col])
 
         # Normalize ages: NaN or 0 → 10 for dependent age fields
         for i in range(1, 12):
@@ -858,13 +861,14 @@ class TaxsimMicrosimDataset(Dataset):
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
         n_records = len(self.input_df)
+        supplied_columns = set(self.input_df.columns)
 
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
         # Set defaults and convert TAXSIM32 format (vectorized)
         print("Setting defaults for TAXSIM records...", file=sys.stderr)
-        self.input_df = self._apply_defaults_vectorized(self.input_df)
+        self.input_df = self._apply_defaults_vectorized(self.input_df, supplied_columns)
 
         # Extract years (assuming all records might have different years)
         # Years should already be converted to integers in the run() method
@@ -1244,18 +1248,31 @@ class PolicyEngineRunner(BaseTaxRunner):
                 )
 
         # Maryland county/local income tax: TAXSIM's MD `siitax` is
-        # state-only — it applies no county tax when the input carries no
-        # locality (verified against the binary: TAXSIM MD siitax equals
-        # PE's state-only MD tax to the dollar). PE, by contrast, applies
-        # MD's *residence-based* county tax (~2.25-3.20%) to every MD
-        # resident even with no county specified, systematically
-        # over-stating MD siitax vs TAXSIM. The TAXSIM input has no county,
-        # so zero PE's MD local income tax to match TAXSIM's coverage. MD
-        # is the only state affected: every other local-income-tax state
-        # (OH/PA/IN/KY/MI/NYC/…) requires a locality PE isn't given, so
-        # those already compute $0 local and match TAXSIM.
+        # state-only, so zero the MD local component of PE's state_income_tax
+        # to match. Maryland counties and Baltimore City tax Maryland taxable
+        # net income at the rate of the county of residence (Form 502
+        # Instruction 19: .0225 to .0320 in 2021-2024, up to .0330 in 2025,
+        # with income-tiered rates in Anne Arundel and Frederick from 2023).
+        # TAXSIM input has no county; with none, PE-US falls back to the first
+        # county in the state (Allegany, .0303-.0305) and applies that rate
+        # less the local EITC and poverty credits.
+        #
+        # TAXSIM's 2022+ MD routine (`mdtax22`) has a county block, a flat
+        # 3.2% of taxable income less 3.2% of the federal EITC, which the
+        # published source (build 2026092316) switches off; builds 20260521
+        # and cd2026090910 return state-only siitax. The August 2026 builds
+        # bundled in #1150 (cd2026081819 on macOS and Linux, cd2026081318 on
+        # Windows) ran the block, adding about $3,000 to MD siitax at $100k.
+        # tests/test_md_local_tax_parity.py pins the state-only values and
+        # flags any bundled build that turns the block back on.
+        #
+        # Zero the net local tax, not just the tax before credits: with
+        # negative earnings PE-US's local poverty credit goes negative, which
+        # would leave a positive local tax. Of the local taxes in PE's
+        # state_income_tax, only NYC's remains, and it needs a county the
+        # emulator never sets. See #1062.
         if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
-            var = "md_local_income_tax_before_credits"
+            var = "md_local_income_tax_before_refundable_credits"
             if var in sim.tax_benefit_system.variables:
                 n_md = sim.get_variable_population(var).count
                 for year in years:
@@ -1517,12 +1534,12 @@ class PolicyEngineRunner(BaseTaxRunner):
             100.0  # $100: large enough for float32 precision, small for bracket safety
         )
         # Get base tax values from the main simulation.
-        # frate must match fiitax definition. NBER TAXSIM-35
-        # (`taxsimtest`) reports fiitax as income_tax only —
-        # Additional Medicare Tax (Form 8959) flows out in the
-        # separate `addmed` column per Form 1040 Line 23 /
-        # Schedule 2 Line 11. Mirror that here so the marginal rate
-        # doesn't pick up the 0.9% AddMed step above threshold.
+        # frate is the marginal rate of fiitax, so it uses the same
+        # definition: income_tax without the Additional Medicare Tax
+        # (see the fiitax note in _extract_vectorized_results). The
+        # bundled taxsimtest cd2026081819 returned frate = 0 for every
+        # record and mtr code probed, so there is no binary frate to
+        # compare against.
         base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
 
@@ -1861,15 +1878,16 @@ class PolicyEngineRunner(BaseTaxRunner):
                     )
                 columns["v40"] = np.round(rebate_free_total, 2)
 
-            # fiitax = income_tax only. NBER TAXSIM-35 (`taxsimtest`)
-            # reports the Additional Medicare Tax (Form 8959,
-            # IRC § 3101(b)(2) / § 1401(b)(2)) separately in the
-            # `addmed` column rather than rolling it into fiitax —
-            # matching Form 1040 Line 23 / Schedule 2 Line 11.
-            # PE's `income_tax` (which already includes NIIT via
-            # `income_tax_before_refundable_credits`) is the correct
-            # match. AddMed continues to flow through the `v44`
-            # output column (employee_medicare_tax + additional_medicare_tax).
+            # fiitax = income_tax, which includes NIIT (through
+            # income_tax_before_refundable_credits) but not the
+            # Additional Medicare Tax. AddMed is a FICA/SECA tax
+            # (IRC § 3101(b)(2) / § 1401(b)(2)) and TAXSIM puts it in
+            # fica and tfica, not fiitax (taxsim #416, #1225), so it is
+            # reported in tfica, fica and `addmed` in every year. The
+            # bundled taxsimtest cd2026081819 predates the correction
+            # reported on #1225 and still adds it to 2013-2023 fiitax as
+            # well; that is not copied
+            # (tests/test_addmed_excluded_from_fiitax.py).
             if "fiitax" not in columns:
                 columns["fiitax"] = np.round(
                     self._calc_tax_unit(sim, "income_tax", year_str), 2
@@ -1889,7 +1907,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     columns["v22"] = np.round(np.minimum(ctc_arr, limiting_tax), 2)
 
             # Compute marginal rates if any idtl level requests them
-            mtr_vars = {"frate", "srate"}
+            mtr_vars = ("frate", "srate")  # ordered: stable output columns
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
             if needs_mtr:
                 try:
