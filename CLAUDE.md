@@ -59,7 +59,10 @@ per-spouse split. For married-filing-jointly records, the emulator allocates
 them between spouses by this rule (evidence-backed against the NBER
 `taxsimtest` binary; see taxsim issues #774, #924, #965, #966):
 
-- **Interest, dividends, capital gains, S-corp income → always split 50/50.**
+- **Interest, dividends, capital gains, S-corp income, nonprop → always split
+  50/50.** (nonprop is signed: its positive part goes to `alimony_income`, the
+  magnitude of its negative part to `alimony_expense`; see
+  `SIGNED_INPUT_SPLITS` in `core/utils.py`. Both execution paths handle it.)
 - **Pensions and Social Security → age-aware:**
   - Both spouses on the **same side** of the elderly-eligibility line (both
     qualify, or both do not) → **split 50/50**.

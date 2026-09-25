@@ -11,9 +11,11 @@ from .base_runner import BaseTaxRunner
 # Import core functions needed for microsimulation
 from policyengine_taxsim.core.utils import (
     load_variable_mappings,
+    SIGNED_INPUT_SPLITS,
     SOI_TO_FIPS_MAP,
     get_state_code,
     get_state_number,
+    signed_part,
     to_roundedup_number,
     convert_taxsim32_dependents,
 )
@@ -275,21 +277,31 @@ class TaxsimMicrosimDataset(Dataset):
         )
 
     @staticmethod
-    def _make_primary_split(source_field):
-        """Return a callable yielding the primary share of a household input."""
+    def _make_primary_split(source_field, sign=None):
+        """Return a callable yielding the primary share of a household input.
+
+        With ``sign`` (+1 or -1), only that sign's magnitude of the input is
+        allocated (see SIGNED_INPUT_SPLITS)."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
+            if sign is not None:
+                value = signed_part(value, sign)
             return value / 2 if int(row.get("mstat", 1)) == 2 else value
 
         return accessor
 
     @staticmethod
-    def _make_spouse_split(source_field):
-        """Return a callable yielding the spouse share of a household input."""
+    def _make_spouse_split(source_field, sign=None):
+        """Return a callable yielding the spouse share of a household input.
+
+        With ``sign`` (+1 or -1), only that sign's magnitude of the input is
+        allocated (see SIGNED_INPUT_SPLITS)."""
 
         def accessor(row):
             value = float(row.get(source_field, 0))
+            if sign is not None:
+                value = signed_part(value, sign)
             return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
 
         return accessor
@@ -411,6 +423,20 @@ class TaxsimMicrosimDataset(Dataset):
                         variable_mapping[pe_var] = {
                             "primary": self._make_sum("psemp", "pbusinc"),
                             "spouse": self._make_sum("ssemp", "sbusinc"),
+                            "dependent": 0.0,
+                            "default": 0.0,
+                        }
+                        continue
+
+                    if pe_var in SIGNED_INPUT_SPLITS:
+                        # One sign of a signed household column (TAXSIM
+                        # nonprop: income when positive, an adjustment when
+                        # negative), allocated evenly between spouses for MFJ
+                        # like the other household aggregates.
+                        source_field, sign = SIGNED_INPUT_SPLITS[pe_var]
+                        variable_mapping[pe_var] = {
+                            "primary": self._make_primary_split(source_field, sign),
+                            "spouse": self._make_spouse_split(source_field, sign),
                             "dependent": 0.0,
                             "default": 0.0,
                         }

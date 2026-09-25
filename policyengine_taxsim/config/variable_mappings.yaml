@@ -853,6 +853,18 @@ taxsim_to_policyengine:
           - sprofinc
       - rental_income:
           - otherprop
+      # nonprop (other non-property income, +/-) is signed: positive amounts
+      # are income, negative amounts are adjustments. Each sign feeds its own
+      # variable (see SIGNED_INPUT_SPLITS in core/utils.py): positive ->
+      # alimony_income (federal gross income via taxable_alimony_income, and
+      # the AL/AR/MS/NJ state gross-income lists), negative ->
+      # alimony_expense (federal ALD via alimony_expense_ald, and the AL/MS/IA
+      # adjustment lists). Like the other household-level columns it is split
+      # 50/50 between spouses for MFJ.
+      - alimony_income:
+          - nonprop
+      - alimony_expense:
+          - nonprop
       - miscellaneous_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:
