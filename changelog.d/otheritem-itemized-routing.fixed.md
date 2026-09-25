@@ -1,1 +1,0 @@
-Route TAXSIM `otheritem` (other itemized deductions) into PolicyEngine itemized deductions alongside `mortgage`; it was previously ignored. Both aggregates now feed `deductible_mortgage_interest`, matching the taxsimtest binary, which deducts both in full outside the SALT cap with no AGI floor and adds neither back to AMT income.

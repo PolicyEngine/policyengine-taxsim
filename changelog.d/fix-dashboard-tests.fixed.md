@@ -1,1 +1,0 @@
-Fix the dashboard vitest suite (test imports referenced components renamed to DocumentationContent/LandingContent, stale assertions, missing jsdom vitest config) and run it in CI via a new dashboard-test job.
