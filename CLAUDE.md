@@ -77,6 +77,30 @@ state threshold). Note the single-household path in `core/input_mapper.py`
 — correct for same-age couples but not yet age-aware for mixed-age pensions/SS;
 align it with the runner if that path is used for mixed-age elderly records.
 
+## Married filing separately (mstat 6)
+
+TAXSIM-35 mstat 6 is one spouse's separate return ("6. separate (married)";
+TAXSIM rejects nonzero `sage`/`swages` for it). Both emulator paths
+(`runners/policyengine_runner.py` and `core/input_mapper.py`, keyed on
+`MSTAT_MARRIED_SEPARATE`) build a **single-person tax unit** — never a spouse —
+with the head's `is_separated` and the unit's `cohabitating_spouses` set:
+
+- PE-US then computes filing status SEPARATE, or HEAD_OF_HOUSEHOLD when a
+  qualifying child lets IRC 7703(b) treat the filer as unmarried. taxsimtest
+  does the same (mstat 6 with a child gets HOH deduction, brackets, EITC).
+- `cohabitating_spouses` gives the IRC 86(c)(1)(C) zero Social Security base,
+  which taxsimtest applies to mstat 6, and NJ's half property-tax deduction for
+  separate filers sharing a main home (which taxsimtest does not apply).
+
+Known taxsimtest divergences (documented in
+`tests/test_married_filing_separately.py`, not emulated): Additional Medicare
+threshold ($200k vs the §3101(b)(2)(B) $125k), the 2025 senior deduction
+(allowed vs §151(d)(5)(C)(v)'s joint-return requirement), childless EITC
+(PE-US allows it via `eitc.eligibility.separate_filer`), mstat 6 with a
+non-qualifying-child dependent (taxsimtest HOH, PE-US SEPARATE), and NY
+2022-2025, where taxsimtest returns siitax 0 (staxbc -1e20) for every mstat 6
+record.
+
 ## Running tests
 
 ```bash

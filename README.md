@@ -258,7 +258,7 @@ The emulator accepts CSV files with the following variables:
 | taxsimid  | Unique identifier              |                                             |
 | year      | Tax year                       |                                             |
 | state     | State code                     |                                             |
-| mstat     | Marital status                 | Only supports: 1 (single), 2 (joint)        |
+| mstat     | Marital status                 | 1 (single/head of household), 2 (joint), 6 (married filing separately) |
 | page      | Primary taxpayer age           |                                             |
 | sage      | Age of secondary taxpayer                     |                                             |
 | depx      | Number of dependents           |                                             |

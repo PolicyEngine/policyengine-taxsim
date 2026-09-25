@@ -242,7 +242,8 @@
     },
     "maritalStatusCodes": {
       "single": 1,
-      "marriedFilingJointly": 2
+      "marriedFilingJointly": 2,
+      "marriedFilingSeparately": 6
     },
     "missingIncomeValue": 0
   },
@@ -280,5 +281,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-09-21T18:24:19.467Z"
+  "lastUpdated": "2026-09-24T11:44:50.158Z"
 }
