@@ -1,0 +1,1 @@
+Route TAXSIM `nonprop` (other non-property income, +/-) into PolicyEngine: positive amounts become alimony received and negative amounts alimony paid (an above-the-line adjustment), split 50/50 between spouses for joint filers, in both the batch and single-household paths. Previously a nonzero `nonprop` was ignored.

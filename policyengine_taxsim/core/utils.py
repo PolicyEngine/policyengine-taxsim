@@ -12,6 +12,32 @@ def load_variable_mappings():
         return yaml.safe_load(f)
 
 
+# TAXSIM `nonprop` (other non-property income) is a signed column: TAXSIM
+# documents alimony, nonwage fellowships and itemizers' state income tax
+# refunds as positive examples, and says adjustments such as alimony paid,
+# Keogh/IRA contributions, the foreign income exclusion and NOLs "can be
+# entered here as negative income". taxsimtest treats the two signs
+# differently: positive nonprop raises federal AGI and every state's income
+# base, while negative nonprop lowers federal AGI and the state bases of
+# states that take federal adjustments, but not Pennsylvania's or New
+# Jersey's. PE-US's irs_gross_income counts only the positive part of each
+# income source, so a negative value in an income variable would be dropped.
+# Each sign therefore feeds its own PolicyEngine variable, holding that sign's
+# magnitude: the positive part as alimony received and the negative part as
+# alimony paid. (Both are gated on divorce_year, whose PE-US default of 2010
+# predates the TCJA's 2019 cutoff, so both reach federal AGI.)
+# Maps PolicyEngine variable -> (TAXSIM source column, sign it receives).
+SIGNED_INPUT_SPLITS = {
+    "alimony_income": ("nonprop", 1),
+    "alimony_expense": ("nonprop", -1),
+}
+
+
+def signed_part(value, sign):
+    """Magnitude of the ``sign`` (+1 or -1) part of ``value``; 0 otherwise."""
+    return max(sign * float(value or 0), 0.0)
+
+
 STATE_MAPPING = {
     1: "AL",
     2: "AK",
