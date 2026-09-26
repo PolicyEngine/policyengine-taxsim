@@ -1,3 +1,16 @@
+## [2.32.0] - 2026-09-26
+
+### Added
+
+- Add the `addmed` output column (Additional Medicare Tax, Form 8959) to full (idtl=2) output, matching the column taxsimtest prints.
+
+### Fixed
+
+- Stop adding the Additional Medicare Tax to `frate` on the single-household (`export_household`) path, so it matches that path's own `fiitax` and the Microsimulation runner. Document that PolicyEngine-computed `fiitax` excludes the tax in every year (taxsim #416, #1225); the bundled taxsimtest build predates the correction reported on #1225 and still adds it for 2013-2023.
+- Code the 1,155 Alabama households in the eCPS comparison inputs as TAXSIM state 1 instead of 0 ("no state tax"), which had scored them without state income tax and reported them under Texas. Report TAXSIM state 0 as "State not specified" rather than TX, echo it back as 0 as TAXSIM does, and reject invalid state codes instead of silently simulating California (batch path) or Texas (single-household path).
+- Match TAXSIM's federal result for state-0 ("no state tax") records by deducting no state or local income or sales tax, instead of the Texas sales-tax deduction PolicyEngine took by simulating them in Texas. Keep that deduction zeroed in the marginal-rate perturbation too, which previously dropped it and produced nonsense `frate` values for itemizers (for example −825 under `--disable-salt`).
+
+
 ## [2.31.7] - 2026-09-25
 
 ### Fixed
