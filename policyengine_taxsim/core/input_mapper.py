@@ -253,6 +253,17 @@ def form_household_situation(year, state, taxsim_vars):
         state.lower(), year, household_situation, taxsim_vars
     )
 
+    # TAXSIM runs a state-0 record with no state return, so it deducts no
+    # state or local income or sales tax federally. PolicyEngine simulates
+    # state 0 in Texas, so pin that deduction to zero rather than take Texas's
+    # sales-tax deduction (property tax still flows through
+    # real_estate_taxes). Being part of the situation, the pin carries into
+    # the srebate twin and the marginal-rate perturbation.
+    if validate_state_number(taxsim_vars.get("state")) == NO_STATE:
+        household_situation["tax_units"]["your tax unit"][
+            "state_and_local_sales_or_income_tax"
+        ] = {str(year): 0}
+
     # Explicitly set SSI to 0 for all people to prevent PolicyEngine from imputing SSI benefits
     # TAXSIM does not model SSI, so we need to ensure it's not automatically calculated
     for person_name in household_situation["people"]:
