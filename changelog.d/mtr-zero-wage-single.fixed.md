@@ -1,0 +1,1 @@
+Give a zero-wage filer with no spouse the whole wage perturbation when computing `frate`/`srate`, in both the batch runner and the single-household path. It had received half, which halved the reported marginal rates (Ohio single with $50k interest in 2024: `frate` 6 instead of TAXSIM's 12).
