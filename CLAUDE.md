@@ -90,7 +90,10 @@ with the head's `is_separated` and the unit's `cohabitating_spouses` set:
   does the same (mstat 6 with a child gets HOH deduction, brackets, EITC).
 - `cohabitating_spouses` gives the IRC 86(c)(1)(C) zero Social Security base,
   which taxsimtest applies to mstat 6, and NJ's half property-tax deduction for
-  separate filers sharing a main home (which taxsimtest does not apply).
+  separate filers sharing a main home (which taxsimtest does not apply). The
+  zero base covers a filer who "does not live apart from his spouse at all
+  times during the taxable year"; a TAXSIM row cannot say the filer lived apart
+  all year, so the emulator assumes they did not, as taxsimtest does.
 
 Known taxsimtest divergences (documented in
 `tests/test_married_filing_separately.py`, not emulated): Additional Medicare

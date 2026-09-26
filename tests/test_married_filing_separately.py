@@ -21,7 +21,9 @@ unit whose head has ``is_separated`` and whose unit has
   IRC 86(c)(1)(C) ("zero in the case of a taxpayer who-- (i) is married ...
   but does not file a joint return for such year, and (ii) does not live apart
   from his spouse at all times during the taxable year"). PE-US applies that
-  base to SEPARATE units only when cohabitating_spouses is set.
+  base to SEPARATE units only when cohabitating_spouses is set. A TAXSIM row
+  cannot say the filer lived apart from the spouse all year, so the emulator
+  assumes they did not, as taxsimtest does.
 
 Every expected value below is taxsimtest output (bundled binary, build
 cd2026081819, idtl=2), not a hand calculation. The mstat 1 value of the same
@@ -205,18 +207,21 @@ TAXSIM_CASES = [
         {"siitax": 1104.85},
         {"siitax": 750.15},
     ),
+    # An itemizer. (Oregon 2023 would also discriminate, but PE-US 2.15+
+    # nets Oregon's 2023 kicker credit into siitax and taxsimtest does not,
+    # for every filing status -- see taxsim #1071.)
     (
-        "or_mfs_itemizer_2023",
+        "nc_mfs_itemizer_2023",
         {
             "year": 2023,
-            "state": 38,
+            "state": 34,
             "page": 45,
             "pwages": 90000,
             "proptax": 6000,
             "mortgage": 12000,
         },
-        {"siitax": 5525.25},
-        {"siitax": 5096.5},
+        {"siitax": 3467.5},
+        {"siitax": 3420.0},
     ),
 ]
 
