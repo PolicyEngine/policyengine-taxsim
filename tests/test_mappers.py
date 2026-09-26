@@ -318,6 +318,8 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "reduced_price_school_meals": {"2023": 0},
             }
         },
+        # State 0 files no state return, so it deducts no state or local
+        # income or sales tax federally (tests/test_state_zero_salt.py).
         "tax_units": {
             "your tax unit": {
                 "members": [
@@ -325,7 +327,8 @@ def test_joint_household(sample_taxsim_input_for_joint):
                     "your partner",
                     "your first dependent",
                     "your second dependent",
-                ]
+                ],
+                "state_and_local_sales_or_income_tax": {"2023": 0},
             }
         },
     }

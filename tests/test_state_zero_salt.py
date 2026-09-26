@@ -261,12 +261,11 @@ def test_texas_records_ignore_state_zero_batch_mates(microsim):
 
 
 def test_valid_state_dependents_ignore_state_zero_batch_mates():
-    """Dataset generation decides TAXSIM-32 dependent conversion for the
-    whole batch (it is skipped if any record gives a dependent age). A
-    California record with dep18=1 but depx=0 therefore gains a dependent
-    only if no batch-mate gives an age. A version of this fix that simulated
-    state-0 records separately changed its fiitax from 2,816.00 to
-    -1,610.66; its results must not depend on a batch-mate's state."""
+    """A valid-state record's results must not depend on a batch-mate's
+    state. Before #1217, dataset generation skipped TAXSIM-32 dependent
+    conversion for the whole batch if any record gave a dependent age, and a
+    version of this fix that simulated state-0 records separately changed
+    this California record's fiitax from 2,816.00 to -1,610.66."""
     ages = {f"age{i}": np.nan for i in range(1, 11)}
     counts = dict(dep13=1, dep17=1, dep18=1)
     common = dict(year=2024, mstat=1, page=35, pwages=40000, idtl=2, **counts)

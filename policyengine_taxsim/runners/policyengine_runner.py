@@ -1097,10 +1097,12 @@ class PolicyEngineRunner(BaseTaxRunner):
         A set_input override covers every record in a simulation, so a chunk
         that mixes state-0 and other records is simulated twice from one
         dataset, as is and with that deduction zeroed, and each record takes
-        its row from the matching run. Splitting the chunk instead would
-        change other records' results, because dataset generation makes
-        chunk-wide decisions (e.g. whether any record supplies dependent
-        ages, which switches TAXSIM-32 dependent-count conversion for all).
+        its row from the matching run. Every other record therefore gets
+        exactly the computation it would get without state-0 batch-mates;
+        splitting the chunk would instead rebuild the dataset from a subset,
+        and dataset generation has made chunk-wide decisions (before #1217,
+        whether any record supplied a dependent age switched TAXSIM-32
+        dependent-count conversion off for the whole chunk).
 
         Returns:
             DataFrame with TAXSIM-formatted output variables
