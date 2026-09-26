@@ -1464,7 +1464,10 @@ class PolicyEngineRunner(BaseTaxRunner):
         Without ``disable_salt``, runs a single PE pass with PE-US's native
         (iterative, statutorily-correct) SALT handling, except that state-0
         records (no state tax) deduct no state or local income or sales tax,
-        as in TAXSIM; see ``_run_chunk``.
+        as in TAXSIM. A chunk that mixes state-0 and other records is
+        therefore simulated twice (see ``_run_chunk``), so an input file with
+        state-0 records spread through every chunk costs about twice the
+        simulation work.
         """
         return self._run_once(show_progress, on_progress)
 
