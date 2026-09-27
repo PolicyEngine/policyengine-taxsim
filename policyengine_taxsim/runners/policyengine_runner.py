@@ -1260,9 +1260,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             # columns come from sim (pass 1, native withholding) so no state
             # output changes vs the pre-alignment behaviour — a few state
             # formulas (e.g. Hawaii) read state_withheld_income_tax directly.
-            return self._extract_vectorized_results(
-                sim2, chunk_df, state_sim=sim
-            )
+            return self._extract_vectorized_results(sim2, chunk_df, state_sim=sim)
 
         finally:
             dataset.cleanup()
@@ -1793,7 +1791,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                     )
                     for mtr_var in mtr_vars:
                         if mtr_var in vars_to_compute:
-                            source = srate_results if mtr_var == "srate" else mtr_results
+                            source = (
+                                srate_results if mtr_var == "srate" else mtr_results
+                            )
                             columns[mtr_var] = source[mtr_var]
                 except Exception as e:
                     if self.logs:
