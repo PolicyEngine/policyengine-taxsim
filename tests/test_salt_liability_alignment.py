@@ -84,3 +84,52 @@ def test_ca_fiitax_moves_toward_binary():
     assert abs(siitax - 3929.35) < 1.0, (
         f"CA siitax (state liability) should be unchanged at 3929.35, got {siitax}"
     )
+
+
+def test_federal_marginal_rate_matches_liability_aligned_finite_difference():
+    """An itemizer's wage increase changes both state tax and federal SALT."""
+    record = (
+        "taxsimid,year,state,mstat,page,depx,pwages,mortgage,idtl\n"
+        "1,2025,5,1,45,0,150000,40000,2\n"
+        "2,2025,5,1,45,0,150100,40000,2\n"
+    )
+    df = _run(record)
+    finite_difference = float(df.fiitax.iloc[1] - df.fiitax.iloc[0])
+    assert abs(float(df.frate.iloc[0]) - finite_difference) < 0.03
+
+
+def test_hawaii_state_outputs_match_native_withholding():
+    """Hawaii reads withholding directly; alignment must stay federal-only."""
+    from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
+
+    class NativeRunner(PolicyEngineRunner):
+        def _simulate(self, dataset, chunk_df, zero_salt):
+            sim = self._build_configured_sim(dataset, chunk_df, zero_salt)
+
+            def rebate_free():
+                twin = self._build_configured_sim(dataset, chunk_df, zero_salt)
+                self._zero_one_time_rebates(twin, chunk_df)
+                return twin
+
+            return self._extract_vectorized_results(
+                sim, chunk_df, rebate_free, zero_salt=zero_salt
+            )
+
+    inputs = pd.DataFrame(
+        [
+            {
+                "taxsimid": 1,
+                "year": 2025,
+                "state": 12,
+                "mstat": 1,
+                "page": 45,
+                "pwages": 100000,
+                "mortgage": 40000,
+                "idtl": 2,
+            }
+        ]
+    )
+    native = NativeRunner(inputs).run(show_progress=False)
+    aligned = PolicyEngineRunner(inputs).run(show_progress=False)
+    columns = sorted(set(native.columns) & PolicyEngineRunner._STATE_OUTPUT_COLUMNS)
+    pd.testing.assert_frame_equal(native[columns], aligned[columns])

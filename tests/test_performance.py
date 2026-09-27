@@ -92,20 +92,23 @@ class TestRunnerOutputCorrectness:
 
 
 class TestFederalOutputAdjustments:
-    def test_fiitax_uses_income_tax_only_excludes_additional_medicare_tax(self):
+    # 2021 and 2023 are years where taxsimtest cd2026081819 still adds
+    # AddMed to fiitax; the emulator excludes it in every year
+    # (tests/test_addmed_excluded_from_fiitax.py).
+    @pytest.mark.parametrize("year", [2021, 2023, 2024])
+    def test_fiitax_uses_income_tax_only_excludes_additional_medicare_tax(self, year):
         """
         fiitax is populated from the income_tax mapping and must NOT be
-        further adjusted by additional_medicare_tax. NBER TAXSIM-35
-        (`taxsimtest`) reports the Additional Medicare Tax (Form 8959)
-        in a separate `addmed` column per Form 1040 Line 23 /
-        Schedule 2 Line 11 — so the AddMed value never gets added to
-        the fiitax output, and `_calc_tax_unit` is never called for
-        `additional_medicare_tax` during fiitax assembly.
+        further adjusted by additional_medicare_tax in any year. The
+        Additional Medicare Tax (Form 8959) is counted in tfica/fica and
+        reported in the separate `addmed` column (taxsim #416), so
+        `_calc_tax_unit` is never called for `additional_medicare_tax`
+        during fiitax assembly.
         """
         records = pd.DataFrame(
             {
                 "taxsimid": [1],
-                "year": [2023],
+                "year": [year],
                 "state": [5],  # CA
                 "mstat": [1],
                 "depx": [0],
@@ -155,9 +158,9 @@ class TestFederalOutputAdjustments:
 
         assert result["fiitax"].iloc[0] == pytest.approx(1000.0)
         assert "additional_medicare_tax" not in calc_calls, (
-            "fiitax must not call additional_medicare_tax — AddMed flows "
-            "through the separate `addmed` / `v44` output per NBER "
-            "TAXSIM-35 (`taxsimtest`) and Form 1040 Line 23."
+            "fiitax must not call additional_medicare_tax: AddMed is "
+            "counted in tfica/fica and reported in `addmed`, never in "
+            "fiitax (taxsim #416)."
         )
 
 
@@ -183,7 +186,13 @@ class TestGeneratePhaseEfficiency:
             times[n] = time.time() - t0
             dataset.cleanup()
 
-        ratio = times[500] / max(times[100], 0.01)
+        # Floor the denominator at 100ms: when the 100-record base runs in a
+        # few tens of milliseconds, scheduler noise dominates the ratio and
+        # the test flakes on CI (observed 5.3x/5.9x on runs where both
+        # absolute times were well under a quarter second). A genuinely
+        # pathological (e.g. quadratic row-loop) regression still trips the
+        # assertion because times[500] grows into whole seconds.
+        ratio = times[500] / max(times[100], 0.1)
         assert ratio < 5.0, (
             f"Generate phase scaled {ratio:.1f}x for 5x more records "
             f"(100: {times[100]:.2f}s, 500: {times[500]:.2f}s). "

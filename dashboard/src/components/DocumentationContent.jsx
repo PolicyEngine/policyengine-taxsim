@@ -339,6 +339,7 @@ policyengine_versions()
     'v44': { implemented: true, variable: 'multiple_variable' },
     'qbid': { implemented: true, variable: 'qualified_business_income_deduction' },
     'niit': { implemented: true, variable: 'net_investment_income_tax' },
+    'addmed': { implemented: true, variable: 'additional_medicare_tax' },
     'sctc': { implemented: true, variable: 'taxsim_sctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
@@ -367,7 +368,6 @@ policyengine_versions()
     'senergy': { implemented: false, variable: 'na_pe' },
     'sptcr': { implemented: false, variable: 'na_pe' },
     'samt': { implemented: false, variable: 'na_pe' },
-    'addmed': { implemented: false, variable: 'na_pe' },
     'cdate': { implemented: false, variable: 'na_pe' },
   };
 

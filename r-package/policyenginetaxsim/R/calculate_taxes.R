@@ -199,14 +199,26 @@ policyengine_calculate_taxes <- function(.data,
 
   # Check if state column contains characters (abbreviations)
   if (is.character(df$state)) {
-    df$state <- toupper(df$state)
+    codes <- toupper(trimws(df$state))
     df$state <- ifelse(
-      df$state %in% names(state_map),
-      state_map[df$state],
-      as.integer(df$state)
+      codes %in% names(state_map),
+      state_map[codes],
+      suppressWarnings(as.integer(codes))
     )
+    # An unknown code would become NA; stop with a clear error instead.
+    unknown <- is.na(df$state) & !is.na(codes) & codes != ""
+    if (any(unknown)) {
+      stop(
+        "Unknown state code(s): ", paste(unique(codes[unknown]), collapse = ", "),
+        ". Use a two-letter abbreviation or a TAXSIM SOI code (0 = no state tax).",
+        call. = FALSE
+      )
+    }
   }
 
   df$state <- as.integer(df$state)
+  # A missing state is TAXSIM state 0 (no state tax). Set it here: by default
+  # reticulate passes an integer NA to pandas as its raw sentinel value.
+  df$state[is.na(df$state)] <- 0L
   df
 }

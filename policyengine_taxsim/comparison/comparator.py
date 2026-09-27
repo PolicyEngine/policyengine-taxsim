@@ -18,6 +18,23 @@ class ComparisonConfig:
     state_tax_col: str = "siitax"
     federal_tolerance: float = 15.0  # $15 absolute tolerance
     state_tolerance: float = 15.0  # $15 absolute tolerance
+    # Optional income-scaled tolerance: a record matches if the tax difference
+    # is within max(absolute_tolerance, relative_tolerance * |AGI|). This avoids
+    # flagging negligible differences on extreme-magnitude records (e.g. large
+    # S-corp income/losses), where PE and TAXSIM agree to a tiny fraction of
+    # income but exceed a flat $15. Default 0.0 preserves the absolute-only
+    # behavior. `agi_col` is the column used for scaling (federal AGI, v10).
+    relative_tolerance: float = 0.0
+    agi_col: str = "v10"
+    # Score state tax net of one-time rebates: compare siitax + srebate on
+    # each side (missing/NaN srebate treated as 0). TAXSIM includes one-time
+    # rebates in siitax in the payout year and reports them in `srebate`;
+    # PE books them to the liability year inside state_income_tax. Adding
+    # srebate back on both sides removes this timing-convention difference
+    # without changing either engine (see taxsim #1068, convention #716).
+    # Federal comparison is unaffected. Composable with relative_tolerance.
+    net_of_rebates: bool = False
+    rebate_col: str = "srebate"
     id_col: str = "taxsimid"
 
 
@@ -133,19 +150,39 @@ class TaxComparator:
             # Return empty results if column doesn't exist
             return np.array([]), mismatches
 
-        # Compare with tolerance
+        # Effective per-record tolerance: absolute, optionally raised to an
+        # income-scaled floor (relative_tolerance * |AGI|) so negligible
+        # differences at extreme income magnitudes are not flagged.
+        eff_tol = tolerance
+        rel = getattr(self.config, "relative_tolerance", 0.0) or 0.0
+        if rel > 0 and self.config.agi_col in self.taxsim_results.columns:
+            agi = self.taxsim_results[self.config.agi_col].abs().fillna(0)
+            eff_tol = np.maximum(tolerance, rel * agi.to_numpy())
+
+        # Values to compare. For the state column with net_of_rebates, score
+        # siitax + srebate on each side so TAXSIM's payout-year rebate
+        # convention and PE's liability-year convention cancel out.
+        taxsim_values = self.taxsim_results[col_name]
+        pe_values = self.policyengine_results[col_name]
+        if tax_type == "state" and getattr(self.config, "net_of_rebates", False):
+            taxsim_values = taxsim_values + self._rebate_values(self.taxsim_results)
+            pe_values = pe_values + self._rebate_values(self.policyengine_results)
+
+        # Compare with tolerance. np.isclose applies atol elementwise when atol
+        # is an array, giving the per-record income-scaled tolerance.
         matches = np.isclose(
-            self.taxsim_results[col_name],
-            self.policyengine_results[col_name],
-            atol=tolerance,
+            taxsim_values,
+            pe_values,
+            atol=eff_tol,
+            rtol=0.0,
             equal_nan=True,
         )
 
         # Collect mismatches
         for i, is_match in enumerate(matches):
             if not is_match:
-                taxsim_val = self.taxsim_results.iloc[i][col_name]
-                pe_val = self.policyengine_results.iloc[i][col_name]
+                taxsim_val = taxsim_values.iloc[i]
+                pe_val = pe_values.iloc[i]
 
                 mismatch = MismatchRecord(
                     taxsimid=self.taxsim_results.iloc[i][self.config.id_col],
@@ -162,6 +199,13 @@ class TaxComparator:
                 mismatches.append(mismatch)
 
         return matches, mismatches
+
+    def _rebate_values(self, df: pd.DataFrame) -> pd.Series:
+        """One-time rebate column as a numeric Series (missing/NaN -> 0)."""
+        rebate_col = getattr(self.config, "rebate_col", "srebate")
+        if rebate_col in df.columns:
+            return pd.to_numeric(df[rebate_col], errors="coerce").fillna(0.0)
+        return pd.Series(0.0, index=df.index)
 
     def compare(self) -> "ComparisonResults":
         """Perform full comparison between TAXSIM and PolicyEngine results"""
@@ -349,17 +393,12 @@ class ComparisonResults:
             for col in input_record.index:
                 row[col] = input_record[col]
 
-        # Add state code column based on numeric state value
+        # Add state code column based on numeric state value; blank for state 0
+        # (no state tax), which must not be counted under any real state.
         if "state" in row:
-            row["state_code"] = get_state_code(
-                int(float(row["state"])) if pd.notna(row["state"]) else 0
-            )
+            row["state_code"] = get_state_code(row["state"])
         elif "state" in result_record.index:
-            row["state_code"] = get_state_code(
-                int(float(result_record["state"]))
-                if pd.notna(result_record["state"])
-                else 0
-            )
+            row["state_code"] = get_state_code(result_record["state"])
 
         # Add source identifier and match status
         row["source"] = source

@@ -18,7 +18,7 @@ try:
     from .comparison.statistics import ComparisonStatistics
     from .core.yaml_generator import generate_pe_tests_yaml
     from .core.input_mapper import form_household_situation
-    from .core.utils import get_state_code, convert_taxsim32_dependents
+    from .core.utils import get_calculation_state_code, convert_taxsim32_dependents
     from .core.io import read_input, write_output
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
@@ -32,7 +32,7 @@ except ImportError:
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
     from policyengine_taxsim.core.input_mapper import form_household_situation
     from policyengine_taxsim.core.utils import (
-        get_state_code,
+        get_calculation_state_code,
         convert_taxsim32_dependents,
     )
     from policyengine_taxsim.core.io import read_input, write_output
@@ -48,7 +48,7 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
         try:
             # Create household data for this record
             year = int(float(row["year"]))
-            state = get_state_code(int(float(row["state"])))
+            state = get_calculation_state_code(row["state"])
 
             # Convert taxsim data to proper types
             taxsim_data = row.to_dict()
@@ -309,7 +309,56 @@ def taxsim(input_file, output, sample, taxsim_path):
     default=False,
     help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
 )
-def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_wages):
+@click.option(
+    "--rel-tolerance",
+    type=float,
+    default=0.0,
+    help=(
+        "Income-scaled match tolerance as a fraction of |AGI| (e.g. 0.001 = "
+        "0.1%). A record matches if the tax difference is within "
+        "max($15, rel-tolerance * |AGI|), avoiding false mismatches on "
+        "extreme-magnitude records (e.g. large S-corp income/losses). "
+        "Default 0 uses the flat $15 absolute tolerance."
+    ),
+)
+@click.option(
+    "--net-of-rebates",
+    is_flag=True,
+    default=False,
+    help=(
+        "Score state tax net of one-time rebates: compare siitax + srebate "
+        "on both sides. Removes the timing-convention difference between "
+        "TAXSIM (rebates in the payout year) and PolicyEngine (rebates in "
+        "the liability year) without changing either engine. Federal "
+        "comparison is unaffected."
+    ),
+)
+@click.option(
+    "--taxsim-opt30",
+    is_flag=True,
+    default=False,
+    help=(
+        "Run the TAXSIM binary in its PSL-conformance test mode by setting "
+        "global option 30=1 (which sets opt 27/88/91: rebates booked in the "
+        "eligible year like PolicyEngine, no smoothing, no federal-state "
+        "iteration, plus per-state concessions such as the MI heating "
+        "credit). This is the mode NBER uses when testing PolicyEngine "
+        "records; without it the binary runs in default production mode. "
+        "See https://taxsim.nber.org/taxsimtest/options.html"
+    ),
+)
+def compare(
+    input_file,
+    sample,
+    output_dir,
+    year,
+    disable_salt,
+    logs,
+    assume_w2_wages,
+    rel_tolerance,
+    net_of_rebates,
+    taxsim_opt30,
+):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
@@ -360,12 +409,34 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_
         click.echo("Running TAXSIM...")
         taxsim_input = df.copy()
         taxsim_input["taxsimid"] = df_with_ids["taxsimid"].values
+        if taxsim_opt30:
+            # TAXSIM options are global: setting opt(30)=1 on the records
+            # switches the whole run into PSL-conformance mode. Only add the
+            # columns when the input doesn't already carry option columns.
+            if "opt1" not in taxsim_input.columns:
+                taxsim_input["opt1"] = 30
+                taxsim_input["opt1v"] = 1
+            click.echo("Running TAXSIM with opt(30)=1 (PSL-conformance test mode)")
         taxsim_runner = TaxsimRunner(taxsim_input)
         taxsim_results = taxsim_runner.run()
 
         # Compare results
         click.echo("Comparing results...")
-        config = ComparisonConfig(federal_tolerance=15.0, state_tolerance=15.0)
+        config = ComparisonConfig(
+            federal_tolerance=15.0,
+            state_tolerance=15.0,
+            relative_tolerance=rel_tolerance,
+            net_of_rebates=net_of_rebates,
+        )
+        if rel_tolerance > 0:
+            click.echo(
+                f"Using income-scaled tolerance: max($15, {rel_tolerance:.3%} of |AGI|)"
+            )
+        if net_of_rebates:
+            click.echo(
+                "Scoring state tax net of one-time rebates (siitax + srebate "
+                "on both sides)"
+            )
 
         comparator = TaxComparator(taxsim_results, pe_results, config)
         comparison_results = comparator.compare()

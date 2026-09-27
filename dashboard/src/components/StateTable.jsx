@@ -67,15 +67,19 @@ const StateTable = React.memo(({ data, selectedState, selectedYear, onStateSelec
   }
 
   const { stateBreakdown } = data.summary;
-  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE;
+  const isNet = toleranceMode === TOLERANCE_MODES.RELATIVE_NET;
+  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE || isNet;
   // Sort/display always read `federalPct`/`statePct`; remap them to the
   // relative-tolerance values when that mode is active so the column itself
-  // does not need to branch on mode.
+  // does not need to branch on mode. In net-of-rebates mode the state metric
+  // additionally nets one-time rebates (federal is unaffected by rebates).
   const remappedBreakdown = isRel
     ? stateBreakdown.map((item) => ({
         ...item,
         federalPct: item.federalPctRel ?? item.federalPct,
-        statePct: item.statePctRel ?? item.statePct,
+        statePct: isNet
+          ? item.statePctRelNet ?? item.statePctRel ?? item.statePct
+          : item.statePctRel ?? item.statePct,
       }))
     : stateBreakdown;
   const filteredData = selectedState

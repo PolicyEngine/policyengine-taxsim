@@ -1,9 +1,11 @@
 from .utils import (
     load_variable_mappings,
-    get_state_number,
+    get_state_label,
     to_roundedup_number,
+    validate_state_number,
 )
 from .state_output_resolver import (
+    ONE_TIME_REBATE_VARIABLES,
     calculate_output_adapter,
     get_state_mapped_variables,
     get_state_specific_variable_name,
@@ -15,6 +17,67 @@ from .yaml_generator import generate_pe_tests_yaml
 from .marginal_rates import compute_marginal_rates_single
 
 disable_salt_variable = False
+
+
+def compute_srebate_single(simulation, year):
+    """One-time state rebates PE netted into state_income_tax this year.
+
+    Computed as a difference: a twin simulation with the one-time rebate
+    variables forced to zero minus the actual simulation. This equals
+    exactly the rebate amount included in siitax (non-refundable caps,
+    credit pooling, and floors are handled automatically). TAXSIM reports
+    the same concept in `srebate` under its payout-year convention.
+    """
+    try:
+        twin = Simulation(situation=simulation.situation_input)
+        if disable_salt_variable:
+            twin.set_input(
+                variable_name="state_and_local_sales_or_income_tax",
+                value=0.0,
+                period=year,
+            )
+        for variable in ONE_TIME_REBATE_VARIABLES:
+            if twin.tax_benefit_system.variables.get(variable) is None:
+                continue
+            twin.set_input(variable_name=variable, value=0.0, period=year)
+
+        actual_tax = float(simulation.calculate("state_income_tax", period=year)[0])
+        rebate_free_tax = float(twin.calculate("state_income_tax", period=year)[0])
+        return to_roundedup_number(rebate_free_tax - actual_tax)
+    except Exception:
+        return 0.00
+
+
+def compute_de_staxbc_single(simulation, year):
+    """Delaware tax before non-refundable credits on the ELECTED filing path.
+
+    `de_income_tax_before_non_refundable_credits_unit` always reflects the
+    joint (single-column) computation: it must stay joint to cap non-refundable
+    credits and to drive the combined-separate election without a circular
+    dependency. When a married couple elects combined separate (Filing Status
+    4) the tax before credits is instead the sum of the two per-column
+    liabilities, so `staxbc` should report that rather than the joint figure.
+    Falls back to the joint figure on any error.
+    """
+    joint = to_roundedup_number(
+        float(
+            simulation.calculate(
+                "de_income_tax_before_non_refundable_credits_unit", period=year
+            ).sum()
+        )
+    )
+    try:
+        elects_separate = bool(
+            simulation.calculate("de_files_separately", period=year)[0]
+        )
+        if elects_separate:
+            per_column = simulation.calculate(
+                "de_income_tax_before_non_refundable_credits_indv", period=year
+            )
+            return to_roundedup_number(float(per_column.sum()))
+    except Exception:
+        return joint
+    return joint
 
 
 def resolve_output_variable(simulation, variable, state_name):
@@ -29,8 +92,11 @@ def resolve_output_variable(simulation, variable, state_name):
 
 
 def generate_non_description_output(
-    taxsim_output, mappings, year, state_name, simulation, output_type, logs
+    taxsim_output, mappings, year, state_name, simulation, output_type, logs, state
 ):
+    """``state_name`` is the simulated state; ``state`` is the input SOI number
+    echoed back, as TAXSIM does (0 for no state tax, although PolicyEngine
+    simulates that record in Texas)."""
     outputs = []
     mtr_computed = False
     mtr_results = {}
@@ -42,7 +108,7 @@ def generate_non_description_output(
             elif key == "year":
                 taxsim_output[key] = int(year)
             elif key == "state":
-                taxsim_output[key] = get_state_number(state_name)
+                taxsim_output[key] = state
             elif each_item.get("variable") == "marginal_rate_computed":
                 # Marginal rates: compute once, apply per key
                 if not mtr_computed:
@@ -59,6 +125,16 @@ def generate_non_description_output(
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
                         taxsim_output[key] = mtr_results.get(key, 0.0)
+            elif each_item.get("variable") == "srebate_computed":
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = compute_srebate_single(simulation, year)
+            elif key == "staxbc" and state_name.upper() == "DE":
+                # Delaware combined-separate (FS4) tax before credits is the
+                # sum of the two per-column liabilities, not the joint figure.
+                for entry in each_item["idtl"]:
+                    if output_type in entry.values():
+                        taxsim_output[key] = compute_de_staxbc_single(simulation, year)
             elif is_output_adapter(each_item.get("variable", "")):
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
@@ -170,9 +246,8 @@ def generate_text_description_output(
                 elif var_name == "year":
                     value = year
                 elif var_name == "state":
-                    value = (
-                        f"{get_state_number(state_name)}{' ' * LEFT_MARGIN}{state_name}"
-                    )
+                    state = validate_state_number(taxsim_input.get("state"))
+                    value = f"{state}{' ' * LEFT_MARGIN}{get_state_label(state)}"
                 elif each_item.get("variable") == "marginal_rate_computed":
                     if not mtr_computed:
                         try:
@@ -186,6 +261,12 @@ def generate_text_description_output(
                             mtr_results = {"frate": 0.0, "srate": 0.0, "ficar": 0.0}
                         mtr_computed = True
                     value = mtr_results.get(var_name, 0.0)
+                elif each_item.get("variable") == "srebate_computed":
+                    value = compute_srebate_single(simulation, year)
+                elif var_name == "staxbc" and state_name.upper() == "DE":
+                    # Delaware combined-separate (FS4) tax before credits is the
+                    # sum of the two per-column liabilities, not the joint figure.
+                    value = compute_de_staxbc_single(simulation, year)
                 elif is_output_adapter(each_item.get("variable", "")):
                     value = to_roundedup_number(
                         calculate_output_adapter(
@@ -240,7 +321,7 @@ def generate_text_description_output(
     return "\n".join(lines)
 
 
-def taxsim_input_definition(data_dict, year, state_name):
+def taxsim_input_definition(data_dict, year):
     """Process a dictionary of data according to the configuration."""
     output_lines = []
     mappings = load_variable_mappings()["taxsim_input_definition"]
@@ -296,7 +377,7 @@ def taxsim_input_definition(data_dict, year, state_name):
 
                 if field == "state":
                     output_lines.append(
-                        f"{' ' * indent}{name:<{LABEL_WIDTH}}{value:>{VALUE_WIDTH}.2f} {state_name}"
+                        f"{' ' * indent}{name:<{LABEL_WIDTH}}{value:>{VALUE_WIDTH}.2f} {get_state_label(value)}"
                     )
                 else:
                     try:
@@ -364,12 +445,17 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
 
     if int(output_type) in [0, 2]:
         return generate_non_description_output(
-            taxsim_output, mappings, year, state_name, simulation, output_type, logs
+            taxsim_output,
+            mappings,
+            year,
+            state_name,
+            simulation,
+            output_type,
+            logs,
+            validate_state_number(taxsim_input.get("state")),
         )
     else:
-        input_definitions_lines = taxsim_input_definition(
-            taxsim_input, year, state_name
-        )
+        input_definitions_lines = taxsim_input_definition(taxsim_input, year)
         output = generate_text_description_output(
             taxsim_input,
             mappings,

@@ -208,6 +208,15 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
+  addmed:
+    # Form 8959 Additional Medicare Tax on wages and self-employment
+    # earnings. taxsimtest's `addmed` column appears only in its idtl=2
+    # CSV (its idtl=5 report shows the amount as line 44). Counted in
+    # tfica/fica, not fiitax (taxsim #416, #1225).
+    variable: additional_medicare_tax
+    implemented: true
+    idtl:
+      - full: 2
   v18:
     variable: taxable_income
     implemented: true
@@ -519,7 +528,11 @@ policyengine_to_taxsim:
       MN: mn_income_tax_before_credits
       MO: mo_income_tax_before_credits
       MS: ms_income_tax_before_credits_unit
-      MT: mt_income_tax_before_refundable_credits_unit
+      # Unit-level "before non-refundable credits" (taxsim #1122): the PE
+      # _unit variable is after non-refundable credits (nets the 2021 rebate
+      # to zero); the adapter recombines the _indiv/_joint before-credit
+      # variables per PE's filing-mode choice.
+      MT: adapter:mt_income_tax_before_non_refundable_credits
       NC: nc_income_tax_before_credits
       ND: nd_income_tax_before_credits
       NE: ne_income_tax_before_credits
@@ -551,6 +564,23 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+  srebate:
+    # One-time state rebates that PE nets into state_income_tax for the
+    # year. TAXSIM reports these in `srebate` (payout-year convention,
+    # included in siitax); PE books them to the liability year inside
+    # state_income_tax. Computed as a difference — state_income_tax with the
+    # ONE_TIME_REBATE_VARIABLES (core/state_output_resolver.py) zeroed minus
+    # actual state_income_tax — so it equals exactly what PE netted into
+    # siitax. See taxsim #1068 / convention #716.
+    variable: srebate_computed
+    implemented: true
+    idtl:
+      - full: 2
+      - full_text: 5
+    text_description: "State One-Time Rebate"
+    group_order: 4
+    full_text_group: "State Tax Calculation"
+    group_column: 1
   v41:
     variable: na_pe
     implemented: false
@@ -570,6 +600,10 @@ policyengine_to_taxsim:
       ME: me_property_tax_fairness_credit
       MI: mi_homestead_property_tax_credit
       MO: mo_property_tax_credit
+      # Form M1PR Homestead Credit Refund (homeowners). TAXSIM reports it in
+      # v37 (and, as of 20260521, also nets it into siitax — see taxsim #968);
+      # PE keeps siitax = Form M1 liability, so v37 is where it surfaces.
+      MN: mn_homestead_credit_refund
       MT: mt_elderly_homeowner_or_renter_credit
       NJ: nj_property_tax_credit
       NM: nm_property_tax_rebate
@@ -839,8 +873,22 @@ taxsim_to_policyengine:
           - stcg
       - social_security_retirement:
           - gssi
+      # TAXSIM `mortgage` (#24) and `otheritem` (#22) are aggregates of
+      # non-SALT itemized deductions (mortgage interest, charity, medical,
+      # other taxes, etc.). The taxsimtest binary treats the two identically
+      # on the federal return: both are deducted in full on Schedule A with
+      # no AGI floor, outside the SALT cap, and neither is added back to AMT
+      # income (v26) -- despite the documentation describing `otheritem` as
+      # an AMT preference. `deductible_mortgage_interest` is the PE input
+      # with exactly that treatment (it flows through `interest_deduction`,
+      # which is not in the AMT add-back list and has no floor or cap when
+      # supplied as an input), so both columns are summed into it. Charity
+      # (AGI caps, 2021 non-itemizer deduction) and medical/misc (AGI
+      # floors) would each impose limits TAXSIM does not. See
+      # tests/test_itemized_aggregates.py.
       - deductible_mortgage_interest:
           - mortgage
+          - otheritem
       - real_estate_taxes:
           - proptax
       - unemployment_compensation:

@@ -2,6 +2,34 @@
 
 See [PolicyEngine/CLAUDE.md](../CLAUDE.md) for org-wide conventions.
 
+## Evidence rules for filing issues and PRs (any repo)
+
+Hard requirements, born of pe-us #8830/#8911 — an issue that asserted the 2021
+OK Form 511 omitted IRC §401 pensions while citing the exact page that lists
+them first; it merged unreviewed and had to be reverted (#9009).
+
+1. **Verbatim extraction or it didn't happen.** Any claim about what a statute,
+   form, or instruction says must be backed by the operative language extracted
+   mechanically (`pdftotext -layout`, statute HTML) and pasted into the filing
+   as a labeled blockquote (document, year, page). A citation link alone is not
+   evidence.
+2. **Negative claims ("X is not listed") require extracting the full relevant
+   section** and showing the absence. **Year-change claims ("added in year Y")
+   require both years' documents extracted and diffed.**
+3. **Engine outputs (TAXSIM, TaxAct, PE) generate hypotheses, never evidence.**
+   Do not backfill a legal narrative to explain engine behavior.
+4. **Test expectations must come from an external ground truth** (TaxAct PDF,
+   TAXSIM binary output, worked example in official instructions) — never from
+   the hypothesis being encoded. Premise-derived tests are circular.
+5. **Verify each quote's scope, not just its existence** — name the section/
+   heading it sits under and who it applies to (pe-us #8831 quoted real lines
+   but from the wrong section, producing a wrong carve-out that merged).
+6. **Re-read the cited page after drafting**, before posting: does it still
+   support the claim as written?
+
+The full workflow (extraction how-tos, pre-filing checklist) lives in
+`.claude/commands/diagnose-issue.md` (Critical Rules 5–8, Step 7, Step 9).
+
 ## Changelog
 
 **Never manually edit `CHANGELOG.md`.** It is auto-generated on merge by towncrier.

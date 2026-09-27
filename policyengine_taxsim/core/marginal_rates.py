@@ -32,11 +32,10 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
     """
     people = situation["people"]
 
-    # Get base tax values from the existing simulation
-    # frate must match fiitax definition: income_tax + additional_medicare_tax
-    base_federal = float(simulation.calculate("income_tax", period=year)[0]) + float(
-        simulation.calculate("additional_medicare_tax", period=year)[0]
-    )
+    # Get base tax values from the existing simulation. frate is the
+    # marginal rate of fiitax, which is income_tax without the
+    # Additional Medicare Tax (see PolicyEngineRunner's fiitax note).
+    base_federal = float(simulation.calculate("income_tax", period=year)[0])
     base_state = float(simulation.calculate("state_income_tax", period=year)[0])
 
     # Get current wages
@@ -72,9 +71,7 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
             period=year,
         )
 
-    new_federal = float(perturbed_sim.calculate("income_tax", period=year)[0]) + float(
-        perturbed_sim.calculate("additional_medicare_tax", period=year)[0]
-    )
+    new_federal = float(perturbed_sim.calculate("income_tax", period=year)[0])
     new_state = float(perturbed_sim.calculate("state_income_tax", period=year)[0])
 
     return {

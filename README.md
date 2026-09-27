@@ -289,9 +289,18 @@ The emulator accepts CSV files with the following variables:
 | Variable  | Description                    |
 |-----------|--------------------------------|
 | rentpaid  | Amount of rent paid            |
-| mortgage  | Deductible mortgage interest   |
+| mortgage  | Other itemized deductions not in `proptax`/`otheritem` (mortgage interest, charity, medical above the floor, etc.) |
+| otheritem | Other itemized deductions (other state/local taxes, medical preference share, miscellaneous) |
 | proptax   | Real Estate Taxes              |
 | childcare | Childcare expenses             |
+
+`mortgage` and `otheritem` are both summed into PolicyEngine's
+`deductible_mortgage_interest`. The `taxsimtest` binary deducts both in full on
+Schedule A (no AGI floor, outside the SALT cap) and adds neither back to AMT
+income, even though the TAXSIM documentation describes `otheritem` as an AMT
+preference. One known difference remains: in AR, DE, IA (2020–2022), KS, ME, MS,
+NC and WI (2023+), `taxsimtest` leaves `otheritem` (but not `mortgage`) out of
+the state itemized deduction, while the emulator treats the two alike.
 
 ### Output Types
 
@@ -313,7 +322,7 @@ The emulator produces all standard TAXSIM output variables:
 | taxsimid | Record identifier |
 | year | Tax year |
 | state | State code |
-| fiitax | Federal income tax liability |
+| fiitax | Federal income tax liability, including the net investment income tax; excludes the Additional Medicare Tax for PolicyEngine-computed rows (see below) |
 | siitax | State income tax liability |
 | fica | FICA taxes |
 
@@ -346,4 +355,23 @@ The emulator produces all standard TAXSIM output variables:
 | v40 | Total state credits |
 | qbid | Qualified business income deduction |
 | niit | Net investment income tax |
+| addmed | Additional Medicare Tax (Form 8959; idtl = 2 only) |
 | cares | COVID-related recovery rebate credit |
+
+### Additional Medicare Tax and fiitax
+
+For every record the emulator computes with PolicyEngine, `fiitax` includes
+the net investment income tax but not the Additional Medicare Tax. That tax is
+counted in `tfica` and `fica` and reported in `addmed`. This follows TAXSIM's
+author on [taxsim #416](https://github.com/PolicyEngine/policyengine-taxsim/issues/416)
+and [#1225](https://github.com/PolicyEngine/policyengine-taxsim/issues/1225).
+On #1225 (2026-09-24) he called its inclusion in `fiitax` "an error that was
+present in 2000-2023" and said he believed he had corrected it. The tax itself
+applies from 2013. NBER's taxsimtest documentation ("Output Results") still
+lists it in the `fiitax` definition.
+
+The bundled `taxsimtest` binary (build cd2026081819) predates that correction.
+For 2013-2023 its `fiitax` also includes the tax, so on any record that owes
+it, the binary's `fiitax` is higher than the emulator's by `addmed`. Rows that
+the default CLI takes from the binary (years before 2021; see Year-stitching
+above) carry that inclusion until the bundled binary is refreshed.

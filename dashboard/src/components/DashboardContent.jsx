@@ -67,6 +67,21 @@ export default function DashboardContent() {
               <span className="text-primary-200 font-normal"> · {selectedState}</span>
             )}
           </h1>
+          {currentYearData.summary?.metadata?.generatedAt && (
+            <p className="mt-2 text-sm text-primary-200">
+              Data updated {currentYearData.summary.metadata.generatedAt.slice(0, 10)}
+              {' · '}PolicyEngine US {currentYearData.summary.metadata.policyengineUsVersion}
+              {' · '}{currentYearData.summary.totalRecords.toLocaleString()} households
+            </p>
+          )}
+          {currentYearData.summary?.metadata?.taxsimFallback?.appliesToThisYear && (
+            <p className="mt-2 text-sm text-primary-200">
+              TAXSIM reference uses the previous build for{' '}
+              {(currentYearData.summary.metadata.taxsimFallback.states ||
+                [currentYearData.summary.metadata.taxsimFallback.state]).join(' and ')}.
+              {' '}Other states use the updated build.
+            </p>
+          )}
         </div>
       </div>
 
@@ -109,6 +124,17 @@ export default function DashboardContent() {
               }`}
             >
               ±1% income
+            </button>
+            <button
+              onClick={() => setToleranceMode(TOLERANCE_MODES.RELATIVE_NET)}
+              className={`px-2.5 py-1 rounded font-medium transition ${
+                toleranceMode === TOLERANCE_MODES.RELATIVE_NET
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="±1% of income, with one-time state rebates netted out of state tax on both sides — removes the TAXSIM payout-year vs PolicyEngine liability-year rebate timing difference (issue #1068)"
+            >
+              ±1% net of rebates
             </button>
           </div>
 

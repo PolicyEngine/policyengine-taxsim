@@ -39,6 +39,20 @@ jobs:
       - name: Run tests
         run: pytest tests/
 
+  dashboard-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dashboard dependencies
+        run: bun install --frozen-lockfile
+      - name: Run dashboard tests
+        run: bun run test
+
   check-changelog:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

@@ -33,13 +33,17 @@ export const RELATIVE_TOLERANCE_PCT = 0.01; // 1% of gross income tolerance
 export const TOLERANCE_MODES = {
   ABSOLUTE: 'absolute',
   RELATIVE: 'relative',
+  // Relative tolerance, with one-time state rebates netted out of siitax on
+  // both sides (srebate column) — removes the TAXSIM payout-year vs
+  // PolicyEngine liability-year rebate timing convention from the metric.
+  RELATIVE_NET: 'relative_net',
 };
 
 // Full-eCPS comparison data (111,347 records/year) is too large to load in
 // the browser, so the dashboard shows a sample + precomputed summary and
 // links to the complete per-year CSVs hosted as a GitHub Release asset.
 export const FULL_DATA_RELEASE_BASE =
-  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-2026.06.22';
+  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35953332152';
 
 export const fullDataUrl = (year) =>
   `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv`;
@@ -93,7 +97,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'state', name: 'State code', policyengine: 'state_code' },
   
   // Primary Tax Calculations
-  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
+  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes or the Additional Medicare Tax (reported in addmed, tfica and fica)', policyengine: 'income_tax' },
   { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
 
   // Federal AGI and Income Components (v10-v12)

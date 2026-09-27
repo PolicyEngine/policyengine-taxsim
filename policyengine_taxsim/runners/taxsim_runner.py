@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -309,7 +310,27 @@ class TaxsimRunner(BaseTaxRunner):
         """Parse TAXSIM output file into DataFrame"""
         try:
             # First, try to read as CSV (for idtl values like 2)
-            output_df = pd.read_csv(output_file)
+            # The August 2026 binary prints d3/d4 debug counters to stdout.
+            # Skip only those exact non-CSV diagnostics, not malformed records.
+            debug_line = re.compile(r"^\s*d(?:3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$")
+            with open(output_file) as stream:
+                skip_rows = [
+                    i for i, line in enumerate(stream) if debug_line.fullmatch(line)
+                ]
+            output_df = pd.read_csv(output_file, skiprows=skip_rows)
+
+            # The binary stamps its build date into the last header column
+            # ("cdate-2025Dec24" through build 20260521, "cd2026081819" in
+            # later builds). Stash it so run() can report which build
+            # produced the results — a stale bundled binary looks exactly
+            # like an upstream behavior change otherwise (see #1089).
+            for col in output_df.columns:
+                if col.startswith("cdate-"):
+                    self.binary_build_date = col[len("cdate-") :]
+                    break
+                if re.fullmatch(r"cd\d{10}", col):
+                    self.binary_build_date = col
+                    break
 
             # Convert numeric columns
             for col in output_df.columns:
@@ -470,7 +491,8 @@ class TaxsimRunner(BaseTaxRunner):
             results_df = self._parse_taxsim_output(output_file)
 
             if show_progress:
-                print(f"\nTAXSIM completed successfully")
+                build = getattr(self, "binary_build_date", "unknown")
+                print(f"\nTAXSIM completed successfully (binary build {build})")
 
             return results_df
 
