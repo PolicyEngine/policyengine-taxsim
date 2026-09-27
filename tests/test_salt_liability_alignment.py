@@ -133,3 +133,15 @@ def test_hawaii_state_outputs_match_native_withholding():
     aligned = PolicyEngineRunner(inputs).run(show_progress=False)
     columns = sorted(set(native.columns) & PolicyEngineRunner._STATE_OUTPUT_COLUMNS)
     pd.testing.assert_frame_equal(native[columns], aligned[columns])
+
+
+def test_ny_marginal_rate_preserves_separate_payment_exclusion():
+    """The native state perturbation must keep NY's excluded refund zero."""
+    record = (
+        "taxsimid,year,state,mstat,page,depx,pwages,mortgage,idtl\n"
+        "1,2023,33,1,45,0,60000,30000,2\n"
+        "2,2023,33,1,45,0,60100,30000,2\n"
+    )
+    df = _run(record)
+    finite_difference = float(df.fiitax.iloc[1] - df.fiitax.iloc[0])
+    assert abs(float(df.frate.iloc[0]) - finite_difference) < 0.03
