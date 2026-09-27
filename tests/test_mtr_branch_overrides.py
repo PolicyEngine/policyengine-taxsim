@@ -7,13 +7,15 @@ the configured Microsimulation and deletes every cached array that is not in
 ``sim.input_variables``, so the branch recomputes taxes. policyengine-core
 builds ``input_variables`` once, in ``Simulation.__init__``, from the
 dataset's known periods. The overrides ``_build_configured_sim`` applies
-afterwards (SALT for --disable-salt, QBID W-2 wages, the rental QBID gate,
-the MN CRP flag, the state SSI-supplement zeroing, MD local-tax zeroing, the
+afterwards (QBID W-2 wages, the rental QBID gate, the MN CRP flag, the state SSI-supplement zeroing, MD local-tax zeroing, the
 ME rent utilities flag, NY separate-payment zeroing) were missing from that
 list. SSI, SNAP, TANF and WIC were not: the dataset already supplies them.
 The branch deleted each missing override, so it reverted to what PE-US
 computes without it: its formula, or its default for a pure input (the
-rental QBID gate back to True). On PE-US 2.11.2 / policyengine-core 3.32.6:
+rental QBID gate back to True). The SALT zeroing for --disable-salt and
+state 0 was already kept by #1249 through a ``keep`` argument, which
+``_pin_input`` now replaces. On main at 82b0963 (PE-US 2.6.17 and 2.11.2,
+policyengine-core 3.32.6):
 
 * MD single $80k (2024) reported srate 2253.01 and MFJ $100k 2678.73: the
   county tax the base sim zeroed reappeared in the branch, divided by the
@@ -22,8 +24,8 @@ rental QBID gate back to True). On PE-US 2.11.2 / policyengine-core 3.32.6:
   that step, 80.75, which TAXSIM smooths to 5.05. That is a separate issue.)
 * CA single $60k wages + $20k ``otherprop`` reported frate -858: the branch
   turned the rental QBID gate back on and took a 20% QBID.
-* --disable-salt itemizers reported large negative frates: the branch
-  deducted state income tax that the base sim excluded.
+* A --disable-salt MD itemizer reported srate 1607.62 (the MD county
+  tax again); its frate was already right after #1249.
 
 The runner now pins each override with ``_pin_input``, which also registers
 it in ``sim.input_variables``.
@@ -218,7 +220,8 @@ def test_rental_qbid_gate_holds_in_mtr_branch(default_rates):
 
 def test_disable_salt_itemizer_rates():
     """Under --disable-salt the branch keeps state income tax out of federal
-    Schedule A, so frate is the 22% bracket rate (previously -1291.23)."""
+    Schedule A, so frate is the 22% bracket rate (-1291.23 before #1249), and
+    srate is the MD bracket rate without the county tax (previously 1607.62)."""
     result = _rates(DISABLE_SALT_RECORD, disable_salt=True)
     _assert_rates(result, DISABLE_SALT_EXPECTED, "disable_salt")
 

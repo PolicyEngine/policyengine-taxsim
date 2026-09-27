@@ -1163,9 +1163,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             self._zero_one_time_rebates(twin, chunk_df)
             return twin
 
-        return self._extract_vectorized_results(
-            sim, chunk_df, rebate_free_sim_factory, zero_salt=zero_salt
-        )
+        return self._extract_vectorized_results(sim, chunk_df, rebate_free_sim_factory)
 
     def _build_configured_sim(
         self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
@@ -1575,26 +1573,24 @@ class PolicyEngineRunner(BaseTaxRunner):
 
     _MTR_BRANCH = "mtr_wage_perturbation"
 
-    def _wage_perturbation_branch(self, sim, year_str, perturbed_wages, keep=()):
+    def _wage_perturbation_branch(self, sim, year_str, perturbed_wages):
         """Branch ``sim`` with ``employment_income`` set to ``perturbed_wages``.
 
         Every cached array is cleared except the simulation's inputs, so the
         branch recomputes each wage-dependent variable. The inputs include
         every emulator override pinned with ``_pin_input`` (SALT, QBID W-2
         wages, transfer zeroing, MD local tax, ...), so the branch keeps the
-        assumptions the base simulation ran under. ``keep`` names further
-        variables to leave cached (redundant for pinned inputs; kept for
-        callers that pass it).
+        assumptions the base simulation ran under.
         """
         branch = sim.get_branch(self._MTR_BRANCH)
-        inputs = set(sim.input_variables) | set(keep)
+        inputs = set(sim.input_variables)
         for variable in sim.tax_benefit_system.variables:
             if variable not in inputs or variable == "employment_income":
                 branch.delete_arrays(variable)
         branch.set_input("employment_income", year_str, perturbed_wages)
         return branch
 
-    def _compute_marginal_rates(self, sim, year_str, year_data, keep=()):
+    def _compute_marginal_rates(self, sim, year_str, year_data):
         """Compute TAXSIM-compatible marginal tax rates via wage perturbation.
 
         Matches TAXSIM-35 methodology:
@@ -1604,11 +1600,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         - Uses a $100 delta (TAXSIM batch mode uses $0.01; PE's float32
           arrays need the larger step)
         - Returns rates as percentages (22.0 for 22%)
-
-        ``keep`` names set_input overrides the perturbed branch must share
-        with ``sim``. They are not in ``sim.input_variables`` (fixed when the
-        sim was built), so the branch would otherwise drop and recompute
-        them.
 
         Returns:
             dict with 'frate', 'srate' arrays at tax_unit level
@@ -1665,7 +1656,7 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         # Create branch simulation with perturbed wages
         branch = self._wage_perturbation_branch(
-            sim, year_str, emp_income + perturbation, keep=keep
+            sim, year_str, emp_income + perturbation
         )
 
         # Compute perturbed tax values (match base_federal: no AddMed)
@@ -1688,7 +1679,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         sim: Microsimulation,
         input_df: pd.DataFrame,
         rebate_free_sim_factory=None,
-        zero_salt: bool = False,
     ) -> pd.DataFrame:
         """Extract results from Microsimulation and format as TAXSIM output.
 
@@ -1698,9 +1688,6 @@ class PolicyEngineRunner(BaseTaxRunner):
         ``rebate_free_sim_factory`` lazily builds a twin sim with the
         one-time state rebate variables zeroed; the srebate output is the
         state_income_tax difference between the twin and the actual sim.
-
-        ``zero_salt`` says ``sim`` has its state and local income or sales
-        tax deduction zeroed; the marginal-rate branch keeps that override.
         """
         input_df = self._ensure_required_columns(input_df)
         pe_to_taxsim = self.mappings["policyengine_to_taxsim"]
@@ -2004,12 +1991,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
             if needs_mtr:
                 try:
-                    mtr_results = self._compute_marginal_rates(
-                        sim,
-                        year_str,
-                        year_data,
-                        keep={_SALT_VARIABLE} if zero_salt else (),
-                    )
+                    mtr_results = self._compute_marginal_rates(sim, year_str, year_data)
                     for mtr_var in mtr_vars:
                         if mtr_var in vars_to_compute:
                             columns[mtr_var] = mtr_results[mtr_var]
