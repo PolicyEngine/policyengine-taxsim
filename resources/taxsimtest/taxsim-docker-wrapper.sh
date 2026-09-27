@@ -17,7 +17,8 @@
 # directory. See README.md in this directory.
 set -euo pipefail
 
-abs_dir() { CDPATH='' cd -- "$1" && pwd; }
+# Physical path (symlinks resolved): the Docker VM shares only real directories.
+abs_dir() { CDPATH='' cd -P -- "$1" && pwd -P; }
 
 # Resolve this script's own directory, following symlinks (e.g. from ~/bin).
 src="${BASH_SOURCE[0]}"
@@ -55,7 +56,9 @@ fi
 
 # Run a copy of the binary: a bind mount keeps the host file's mode, and the
 # host copy may not be executable (TaxsimRunner likewise chmods it first).
-exec docker run --platform "$platform" --rm -i \
+# --init keeps the binary from running as PID 1, which would ignore the
+# Ctrl-C/SIGTERM that docker forwards.
+exec docker run --platform "$platform" --rm -i --init \
   -v "$binary:/taxsim:ro" \
   "$image" \
   sh -c '

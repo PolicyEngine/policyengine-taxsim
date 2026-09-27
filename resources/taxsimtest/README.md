@@ -83,11 +83,14 @@ stdin and writes the output to stdout, from any working directory.
   an image rebuild.
 - **Keep files under `$HOME`.** On macOS, Docker runs in a VM and can
   bind-mount only the directories that VM shares with the host. colima
-  shares just `$HOME` by default (add others under `mounts:` in
-  `~/.colima/default/colima.yaml`). A file outside it, such as one under
-  `/private/tmp` (where macOS's `/tmp` points), silently mounts as an empty
-  directory. A raw `docker run` then fails with `exec: "/taxsim": is a
-  directory` (exit 126); the wrapper detects this and says so. Likewise,
+  shares just `$HOME` by default. To share another directory, list it
+  under `mounts:` in `~/.colima/default/colima.yaml` together with
+  `- location: ~` (a non-empty list replaces the default `$HOME` share
+  rather than adding to it), then run `colima restart`. A file outside the
+  shared directories, such as one under `/private/tmp` (where macOS's
+  `/tmp` points), silently mounts as an empty directory. A raw `docker run`
+  then fails with `exec: "/taxsim": is a directory` (exit 126); the wrapper
+  detects this and says so. Likewise,
   under colima `-v /tmp:/t` mounts the VM's own `/tmp`, not the Mac's. So
   keep the checkout, and any `TAXSIM_LINUX_BINARY`, under the repo or
   `$HOME`, and pipe inputs on stdin rather than mounting them.

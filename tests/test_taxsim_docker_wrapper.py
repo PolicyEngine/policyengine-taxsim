@@ -55,24 +55,23 @@ requires_docker = pytest.mark.skipif(
 )
 
 
-def _run_wrapper(stdin, cwd):
+def _run_wrapper(stdin: bytes, cwd) -> bytes:
     # Generous timeout: the first run builds the image (apt-get install).
     result = subprocess.run(
         ["bash", str(WRAPPER)],
         input=stdin,
         capture_output=True,
-        text=True,
         cwd=cwd,
         timeout=900,
     )
     assert result.returncode == 0, (
-        f"wrapper exited {result.returncode}\nstderr:\n{result.stderr}"
+        f"wrapper exited {result.returncode}\nstderr:\n{result.stderr.decode()}"
     )
     return result.stdout
 
 
-def _rows(output):
-    return list(csv.DictReader(io.StringIO(output)))
+def _rows(output: bytes):
+    return list(csv.DictReader(io.StringIO(output.decode())))
 
 
 def test_wrapper_resolves_binary_next_to_itself():
@@ -96,7 +95,7 @@ def test_dockerfile_installs_gfortran_runtime():
 @requires_docker
 def test_wrapper_runs_va21_opt30_probe(tmp_path):
     """The README's probe, run from an unrelated working directory."""
-    (row,) = _rows(_run_wrapper(VA21_OPT30, cwd=tmp_path))
+    (row,) = _rows(_run_wrapper(VA21_OPT30.encode(), cwd=tmp_path))
     assert float(row["siitax"]) == pytest.approx(2068.05)
     assert float(row["srebate"]) == pytest.approx(500.0)
 
@@ -110,11 +109,10 @@ def test_wrapper_matches_native_linux_run(tmp_path):
     must be byte-identical."""
     native = subprocess.run(
         [str(TAXSIMTEST_DIR / "taxsimtest-linux.exe")],
-        input=TY2025,
+        input=TY2025.encode(),
         capture_output=True,
-        text=True,
         timeout=120,
     )
-    assert native.returncode == 0, native.stderr
-    assert _run_wrapper(TY2025, cwd=tmp_path) == native.stdout
+    assert native.returncode == 0, native.stderr.decode()
+    assert _run_wrapper(TY2025.encode(), cwd=tmp_path) == native.stdout
     assert len(_rows(native.stdout)) == 4
