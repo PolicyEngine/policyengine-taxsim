@@ -89,8 +89,10 @@ with the head's `is_separated` and the unit's `cohabitating_spouses` set:
   qualifying child lets IRC 7703(b) treat the filer as unmarried. taxsimtest
   does the same (mstat 6 with a child gets HOH deduction, brackets, EITC).
 - `cohabitating_spouses` gives the IRC 86(c)(1)(C) zero Social Security base,
-  which taxsimtest applies to mstat 6, and NJ's half property-tax deduction for
-  separate filers sharing a main home (which taxsimtest does not apply). The
+  which taxsimtest applies to mstat 6, NJ's half property-tax deduction for
+  separate filers sharing a main home (which taxsimtest does not apply), and
+  AZ's property-tax-credit table for claimants living with others (which moves
+  PE the same direction as taxsimtest). The
   zero base covers a filer who "does not live apart from his spouse at all
   times during the taxable year"; a TAXSIM row cannot say the filer lived apart
   all year, so the emulator assumes they did not, as taxsimtest does.
@@ -102,7 +104,7 @@ threshold ($200k vs the §3101(b)(2)(B) $125k), the 2025 senior deduction
 (PE-US allows it via `eitc.eligibility.separate_filer`), mstat 6 with a
 non-qualifying-child dependent (taxsimtest HOH, PE-US SEPARATE), and NY
 2022-2025, where taxsimtest returns siitax 0 (staxbc -1e20) for every mstat 6
-record.
+record without dependents (records with dependents are computed normally).
 
 ## Running tests
 

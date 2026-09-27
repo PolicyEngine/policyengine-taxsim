@@ -51,7 +51,8 @@ PolicyEngine's reading of the statute, not these TAXSIM results):
   student or 25): taxsimtest assigns head of household; PE-US's IRC 7703(b)
   path counts only qualifying children, so PE computes SEPARATE.
 - New York 2022-2025: taxsimtest returns siitax 0 (with staxbc -1e20) for
-  every mstat 6 record; 2021 is computed normally.
+  every mstat 6 record without dependents; 2021, and records with
+  dependents, are computed normally.
 - New Jersey property tax deduction: PE-US halves it for separate filers
   sharing a main home (cohabitating_spouses), per the 2025 NJ-1040
   instructions ("$7,500 if you and your spouse file separate returns but
@@ -425,7 +426,8 @@ def test_single_household_builds_separate_filer_without_spouse(
 #   2. Filing status: SEPARATE when no dependent is under 19 (none is a
 #      qualifying child), otherwise HEAD_OF_HOUSEHOLD; never JOINT or SINGLE.
 #   3. Differential: the single-household path computes the same filing
-#      status and federal income tax as the batch path.
+#      status, federal tax before credits (v28) and federal income tax after
+#      credits (fiitax) as the batch path.
 #   4. Monotonicity: for a childless filer, the separate return's federal
 #      income tax is never below the single return's on the same inputs --
 #      every married-filing-separately amount (brackets, SALT cap, capital
@@ -527,9 +529,10 @@ def test_property_paths_agree(random_records, random_batch):
         situation = generate_household(dict(record))
         single = export_household(dict(record), situation, False, False)
         tid = int(row["taxsimid"])
-        assert float(single["v28"]) == pytest.approx(
-            float(random_batch.loc[tid, "v28"]), abs=1.0
-        ), record
+        for column in ("v28", "fiitax"):
+            assert float(single[column]) == pytest.approx(
+                float(random_batch.loc[tid, column]), abs=1.0
+            ), (column, record)
         status = Simulation(situation=situation).calculate(
             "filing_status", int(row["year"])
         )
