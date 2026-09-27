@@ -9,7 +9,7 @@ import {
   IconBrandGithub,
   IconInfoCircle,
 } from '@tabler/icons-react';
-import { fetchGitHubIssues, getIssuesByLabel, formatIssue } from '../utils/githubApi';
+import { fetchIssuesByLabel, formatIssue } from '../utils/githubApi';
 import { formatDate } from '../utils/formatters';
 import { LABEL_COLORS } from '../constants';
 
@@ -22,7 +22,7 @@ const CONVENTIONS = [
     summary:
       'v22 reports the non-refundable CTC (capped at tax liability) for non-fully-refundable years, or the total CTC for fully-refundable years (2021 ARPA). The separate actc field reports the refundable (Additional) CTC.',
     detail:
-      'For most years (2018–2020, 2022+), v22 = min(ctc, ctc_limiting_tax_liability). For 2021 under ARPA, the entire CTC is fully refundable so v22 = total CTC and actc equals v22.',
+      'For most years (2018–2020, 2022+), v22 = min(ctc, ctc_limiting_tax_liability). For 2021, the emulator assumes eligibility for ARPA full refundability; within that assumption, v22 and actc report the total CTC.',
   },
   {
     id: 'state-eitc-bundling',
@@ -50,10 +50,11 @@ const CONVENTIONS = [
   },
   {
     id: 'addl-medicare-tax',
-    title: 'Additional Medicare Tax included in fiitax',
+    title: 'Additional Medicare Tax reporting depends on version',
     summary:
-      'TAXSIM reports the 0.9% Additional Medicare Tax on wages above $200k (single) / $250k (MFJ) as part of fiitax. PolicyEngine adds this to its income_tax base so the fiitax output matches TAXSIM.',
-    detail: null,
+      'The treatment of Additional Medicare Tax in fiitax has changed across emulator and TAXSIM versions. A comparison must record both versions and the tax year; matching field names alone does not establish identical coverage.',
+    detail:
+      'Check the deployed variable mapping and the addmed output when comparing federal income tax. This is a reporting convention, not a difference in the statutory tax rate.',
   },
   {
     id: 'non-refundable-ordering',
@@ -84,10 +85,7 @@ const ModelDifferences = () => {
       setLoading(true);
       setError(null);
       try {
-        const allIssues = await fetchGitHubIssues();
-        const labeledIssues = getIssuesByLabel(allIssues, MODEL_DIFFERENCE_LABEL).map(
-          formatIssue
-        );
+        const labeledIssues = (await fetchIssuesByLabel(MODEL_DIFFERENCE_LABEL)).map(formatIssue);
         setIssues(labeledIssues);
       } catch (err) {
         setError('Failed to load GitHub issues');
@@ -116,7 +114,7 @@ const ModelDifferences = () => {
             <p className="text-sm text-gray-600 leading-relaxed">
               PolicyEngine and TAXSIM implement the same underlying tax code
               but differ in a few documented conventions. This page covers the
-              architectural choices that stay stable, and a live feed of open
+              output conventions and assumptions, and a live feed of open
               divergences being tracked on GitHub.
             </p>
           </div>
