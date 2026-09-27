@@ -26,8 +26,8 @@ def test_or_kicker_export_and_comparison(
     # current-year tax. Test output mapping independently of that default.
     build_sim = PolicyEngineRunner._build_configured_sim
 
-    def with_prior_year_tax(self, dataset, chunk_df):
-        sim = build_sim(self, dataset, chunk_df)
+    def with_prior_year_tax(self, *args, **kwargs):
+        sim = build_sim(self, *args, **kwargs)
         sim.set_input("or_tax_before_credits_in_prior_year", str(year), [11220.0])
         return sim
 
