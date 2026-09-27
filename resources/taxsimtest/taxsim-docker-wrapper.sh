@@ -17,7 +17,8 @@
 # directory. See README.md in this directory.
 set -euo pipefail
 
-# Physical path (symlinks resolved): the Docker VM shares only real directories.
+# Physical directory (symlinked directories resolved): the Docker VM shares
+# only real directories.
 abs_dir() { CDPATH='' cd -P -- "$1" && pwd -P; }
 
 # Resolve this script's own directory, following symlinks (e.g. from ~/bin).
