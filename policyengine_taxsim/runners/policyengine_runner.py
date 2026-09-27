@@ -1142,9 +1142,26 @@ class PolicyEngineRunner(BaseTaxRunner):
             self._zero_one_time_rebates(twin, chunk_df)
             return twin
 
-        return self._extract_vectorized_results(
+        state_results = self._extract_vectorized_results(
             sim, chunk_df, rebate_free_sim_factory, zero_salt=zero_salt
         )
+        if zero_salt:
+            return state_results
+
+        # Preserve the native state calculation, including rebate netting.
+        # A fresh federal pass avoids cached deductions from the state pass.
+        federal_sim = self._build_configured_sim(dataset, chunk_df, zero_salt=False)
+        for year in sorted(chunk_df["year"].unique()):
+            period = str(int(year))
+            liability = self._calc_tax_unit(sim, "state_income_tax", period)
+            federal_sim.set_input("state_withheld_income_tax", period, liability)
+        federal_results = self._extract_vectorized_results(
+            federal_sim, chunk_df, salt_liability_sim=sim
+        )
+        for column in self._STATE_OUTPUT_COLUMNS:
+            if column in state_results:
+                federal_results[column] = state_results[column].to_numpy()
+        return federal_results
 
     def _build_configured_sim(
         self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
@@ -1157,12 +1174,17 @@ class PolicyEngineRunner(BaseTaxRunner):
         or sales tax for every record in the chunk: state-0 records and
         --disable-salt runs."""
         sim = Microsimulation(dataset=dataset)
+        runtime_inputs = set()
+
+        def set_input(variable_name, period, value):
+            runtime_inputs.add(variable_name)
+            sim.set_input(variable_name, period, value)
 
         if zero_salt:
             years = sorted(set(chunk_df["year"].unique()))
             for year in years:
                 year_mask = chunk_df["year"] == year
-                sim.set_input(
+                set_input(
                     variable_name=_SALT_VARIABLE,
                     value=np.zeros(int(year_mask.sum())),
                     period=str(
@@ -1176,7 +1198,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             ).count
             years = sorted(set(chunk_df["year"].unique()))
             for year in years:
-                sim.set_input(
+                set_input(
                     variable_name="w2_wages_from_qualified_business",
                     value=np.full(n_persons, 1e9),
                     period=str(
@@ -1203,7 +1225,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             ).count
             years = sorted(set(chunk_df["year"].unique()))
             for year in years:
-                sim.set_input(
+                set_input(
                     variable_name="rental_income_would_be_qualified",
                     value=np.zeros(n_persons, dtype=bool),
                     period=str(
@@ -1229,7 +1251,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                         # qualifying_crp is on TaxUnit; vector aligns
                         # with the chunk's tax-unit order, one row per
                         # tax unit.
-                        sim.set_input(
+                        set_input(
                             variable_name="mn_renters_credit_qualifying_crp",
                             value=mn_mask[chunk_df["year"] == year].values,
                             period=str(
@@ -1256,7 +1278,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                 continue
             n_entities = sim.get_variable_population(var).count
             for year in years:
-                sim.set_input(
+                set_input(
                     variable_name=var,
                     value=np.zeros(n_entities),
                     period=str(
@@ -1293,7 +1315,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             if var in sim.tax_benefit_system.variables:
                 n_md = sim.get_variable_population(var).count
                 for year in years:
-                    sim.set_input(
+                    set_input(
                         variable_name=var,
                         value=np.zeros(n_md),
                         period=str(
@@ -1318,7 +1340,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                 for year in years:
                     year_mask = chunk_df["year"] == year
                     if (me_mask & year_mask).any():
-                        sim.set_input(
+                        set_input(
                             variable_name=var,
                             value=me_mask[year_mask].values,
                             period=str(
@@ -1337,7 +1359,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     continue
                 n_entities = sim.get_variable_population(var).count
                 for year in years:
-                    sim.set_input(
+                    set_input(
                         variable_name=var,
                         value=np.zeros(n_entities),
                         period=str(
@@ -1347,6 +1369,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                         ),
                     )
 
+        sim._taxsim_runtime_inputs = frozenset(runtime_inputs)
         return sim
 
     def _zero_one_time_rebates(self, sim, chunk_df: pd.DataFrame) -> None:
@@ -1539,7 +1562,9 @@ class PolicyEngineRunner(BaseTaxRunner):
             return np.array(sim.map_result(values, entity_key, "tax_unit"))
         return values
 
-    def _compute_marginal_rates(self, sim, year_str, year_data, keep=()):
+    def _compute_marginal_rates(
+        self, sim, year_str, year_data, keep=(), salt_liability_sim=None
+    ):
         """Compute TAXSIM-compatible marginal tax rates via wage perturbation.
 
         Matches TAXSIM-35 methodology:
@@ -1602,6 +1627,10 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Create branch simulation with perturbed wages
         branch = sim.get_branch("mtr_wage_perturbation")
 
+        # Alignment must preserve the configured inputs in both passes.
+        if salt_liability_sim is not None:
+            keep = set(keep) | getattr(sim, "_taxsim_runtime_inputs", set())
+
         # Clear cached values for variables that depend on employment_income
         for variable in sim.tax_benefit_system.variables:
             if variable in keep:
@@ -1611,6 +1640,33 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         # Set perturbed employment income
         branch.set_input("employment_income", year_str, emp_income + perturbation)
+
+        if salt_liability_sim is not None:
+            # Recompute the native state liability at the perturbed wages;
+            # retaining the old liability or reverting to imputed withholding
+            # would differentiate a different function from reported fiitax.
+            state_branch = salt_liability_sim.get_branch("salt_mtr_state")
+            try:
+                runtime_inputs = getattr(
+                    salt_liability_sim, "_taxsim_runtime_inputs", set()
+                )
+                for variable in salt_liability_sim.tax_benefit_system.variables:
+                    if variable in runtime_inputs:
+                        continue
+                    if (
+                        variable not in salt_liability_sim.input_variables
+                        or variable == "employment_income"
+                    ):
+                        state_branch.delete_arrays(variable)
+                state_branch.set_input(
+                    "employment_income", year_str, emp_income + perturbation
+                )
+                liability = self._calc_tax_unit(
+                    state_branch, "state_income_tax", year_str
+                )
+                branch.set_input("state_withheld_income_tax", year_str, liability)
+            finally:
+                del salt_liability_sim.branches["salt_mtr_state"]
 
         # Compute perturbed tax values (match base_federal: no AddMed)
         new_federal = self._calc_tax_unit(branch, "income_tax", year_str)
@@ -1633,6 +1689,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         input_df: pd.DataFrame,
         rebate_free_sim_factory=None,
         zero_salt: bool = False,
+        salt_liability_sim=None,
     ) -> pd.DataFrame:
         """Extract results from Microsimulation and format as TAXSIM output.
 
@@ -1953,6 +2010,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                         year_str,
                         year_data,
                         keep={_SALT_VARIABLE} if zero_salt else (),
+                        salt_liability_sim=salt_liability_sim,
                     )
                     for mtr_var in mtr_vars:
                         if mtr_var in vars_to_compute:
