@@ -47,10 +47,16 @@ class BaseTaxRunner(ABC):
         if "statefip" in self.input_df.columns:
             if "state" not in self.input_df.columns:
                 self.input_df["state"] = 0
-            fips_vals = self.input_df["statefip"].astype(int)
-            soi_from_fips = fips_vals.map(FIPS_TO_SOI_MAP).fillna(0).astype(int)
-            use_fips = (self.input_df["state"] == 0) & (fips_vals > 0)
-            self.input_df.loc[use_fips, "state"] = soi_from_fips[use_fips]
+            state_vals = pd.to_numeric(self.input_df["state"], errors="raise").fillna(0)
+            fips_vals = pd.to_numeric(self.input_df["statefip"], errors="raise").fillna(
+                0
+            )
+            use_fips = state_vals == 0
+            invalid = use_fips & ~fips_vals.isin([0, *FIPS_TO_SOI_MAP])
+            if invalid.any():
+                raise ValueError("statefip must be a valid US state FIPS code or 0")
+            soi_from_fips = fips_vals.map(FIPS_TO_SOI_MAP).fillna(0)
+            self.input_df["state"] = state_vals.where(~use_fips, soi_from_fips)
 
         # Auto-assign taxsimid if not present
         if "taxsimid" not in self.input_df.columns:
