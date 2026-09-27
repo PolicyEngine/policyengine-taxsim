@@ -77,6 +77,14 @@ export default function DashboardContent() {
               )}
             </p>
           )}
+          {currentYearData.summary?.metadata?.taxsimFallback?.appliesToThisYear && (
+            <p className="mt-2 text-sm text-primary-200">
+              TAXSIM reference uses the previous build for{' '}
+              {(currentYearData.summary.metadata.taxsimFallback.states ||
+                [currentYearData.summary.metadata.taxsimFallback.state]).join(' and ')}.
+              {' '}Other states use the updated build.
+            </p>
+          )}
         </div>
       </div>
 

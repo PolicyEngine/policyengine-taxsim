@@ -1,3 +1,54 @@
+## [2.32.1] - 2026-09-27
+
+### Fixed
+
+- Fix `resources/taxsimtest/taxsim-docker-wrapper.sh`, which bind-mounted a hard-coded path from one developer's machine (to a binary deleted in #1150), so Docker mounted an empty directory and the run failed with exit 126. It now runs the `taxsimtest-linux.exe` next to it (or `$TAXSIM_LINUX_BINARY`) in an image built from the new `taxsimtest-linux.Dockerfile`, which adds the `libgfortran5`/`libquadmath0` runtime the Linux build links against. The README's Docker example, which also failed (`libgfortran.so.5` missing from `debian:stable-slim`), now uses the wrapper and documents keeping bind-mounted files under `$HOME`.
+
+
+## [2.32.0] - 2026-09-26
+
+### Added
+
+- Add the `addmed` output column (Additional Medicare Tax, Form 8959) to full (idtl=2) output, matching the column taxsimtest prints.
+
+### Fixed
+
+- Stop adding the Additional Medicare Tax to `frate` on the single-household (`export_household`) path, so it matches that path's own `fiitax` and the Microsimulation runner. Document that PolicyEngine-computed `fiitax` excludes the tax in every year (taxsim #416, #1225); the bundled taxsimtest build predates the correction reported on #1225 and still adds it for 2013-2023.
+- Code the 1,155 Alabama households in the eCPS comparison inputs as TAXSIM state 1 instead of 0 ("no state tax"), which had scored them without state income tax and reported them under Texas. Report TAXSIM state 0 as "State not specified" rather than TX, echo it back as 0 as TAXSIM does, and reject invalid state codes instead of silently simulating California (batch path) or Texas (single-household path).
+- Match TAXSIM's federal result for state-0 ("no state tax") records by deducting no state or local income or sales tax, instead of the Texas sales-tax deduction PolicyEngine took by simulating them in Texas. Keep that deduction zeroed in the marginal-rate perturbation too, which previously dropped it and produced nonsense `frate` values for itemizers (for example −825 under `--disable-salt`).
+
+
+## [2.31.7] - 2026-09-25
+
+### Fixed
+
+- Fix the dashboard vitest suite (test imports referenced components renamed to DocumentationContent/LandingContent, stale assertions, missing jsdom vitest config) and run it in CI via a new dashboard-test job.
+- Keep Maryland `siitax` state-only in every case, as TAXSIM reports it: the emulator now zeroes the net county tax, so a negative local poverty credit (negative earnings) no longer adds county tax, and the single-household path used for `--logs` YAML tests does the same. A new test flags any bundled TAXSIM binary that runs TAXSIM's Maryland county-tax block (the August 2026 builds do), and runs now report 2026 build stamps such as `cd2026081819`.
+- Route TAXSIM `otheritem` (other itemized deductions) into PolicyEngine itemized deductions alongside `mortgage`; it was previously ignored. Both aggregates now feed `deductible_mortgage_interest`, matching the taxsimtest binary, which deducts both in full outside the SALT cap with no AGI floor and adds neither back to AMT income.
+- Honor TAXSIM-32 dependent counts (`dep13`, `dep17`, `dep18`) in the PolicyEngine microsimulation runner. The input was padded with zero-filled `age1..age10` before conversion, so the counts were ignored and every dependent became age 10; adult dependents (`depx` above `dep18`) received the EITC and refundable CTC that taxsimtest denies them.
+
+
+## [2.31.6] - 2026-09-24
+
+### Fixed
+
+- Exclude New York's supplemental earned income payment (a fall-2022 separate check) from siitax and v39, alongside the Additional Empire State child credit payment and inflation refund (taxsim #1154, #1185).
+
+
+## [2.31.5] - 2026-09-24
+
+### Changed
+
+- Refresh the 2021–2025 validation dashboard, with explicit Georgia and Maryland reference-binary exceptions for 2024–2025.
+
+
+## [2.31.4] - 2026-09-23
+
+### Fixed
+
+- Treat TAXSIM rentpaid as gross rent that includes heat and utilities for the Maine property tax fairness credit, matching TaxAct's Schedule PTFC/STFC handling. Scoped to Maine so it does not affect Michigan's home heating credit.
+
+
 ## [2.31.3] - 2026-09-21
 
 ### Changed

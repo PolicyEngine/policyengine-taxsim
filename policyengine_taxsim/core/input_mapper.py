@@ -1,9 +1,12 @@
 from .utils import (
     load_variable_mappings,
-    get_state_code,
+    get_calculation_state_code,
     get_ordinal,
     convert_taxsim32_dependents,
+    NO_STATE,
+    validate_state_number,
 )
+from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
 from .scorp import classify_scorp, validate_scorp_treatment
 
@@ -18,6 +21,22 @@ def add_additional_units(state, year, situation, taxsim_vars):
 
     tax_unit = situation["tax_units"]["your tax unit"]
     people_unit = situation["people"]
+
+    # Maine's property tax fairness credit excludes any heat/utilities included
+    # in rent before taking 15% of rent (Schedule PTFC/STFC line 5b/5c). TAXSIM's
+    # rentpaid is gross rent that includes utilities, so flag it for Maine; with
+    # no separate utility amount supplied, PolicyEngine applies the worksheet's
+    # 15%-of-rent default. Maine is the only state where this distinction affects
+    # the result, and utilities_included_in_rent also feeds Michigan's home
+    # heating credit, so this is scoped to Maine only.
+    if state.lower() == "me" and taxsim_vars.get("rentpaid", 0) > 0:
+        tax_unit["utilities_included_in_rent"] = {str(year): True}
+
+    # TAXSIM's Maryland siitax is state-only, so zero PE's net county tax.
+    # Mirrors PolicyEngineRunner._build_configured_sim so both execution paths
+    # agree; see tests/test_md_local_tax_parity.py.
+    if state.lower() == "md":
+        tax_unit["md_local_income_tax_before_refundable_credits"] = {str(year): 0}
 
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
@@ -143,6 +162,17 @@ def add_additional_units(state, year, situation, taxsim_vars):
                 else:
                     people_unit["you"][field] = {str(year): total_value}
 
+    # New York separate-payment programs (Additional Empire State child credit
+    # payment, supplemental earned income payment, inflation refund): not on
+    # Form IT-201 and excluded from TAXSIM's siitax. The batch PolicyEngineRunner
+    # zeroes them on its Microsimulation; zero them here in the single-household
+    # situation too so both execution paths match TAXSIM's coverage consistently
+    # (taxsim #1154 / #1185). Pinning them to 0 in the situation also carries
+    # into the srebate twin, which is rebuilt from this situation input.
+    if state.lower() == "ny":
+        for var in NY_SEPARATE_PAYMENT_VARIABLES:
+            tax_unit[var] = {str(year): 0}
+
     return situation
 
 
@@ -224,6 +254,17 @@ def form_household_situation(year, state, taxsim_vars):
         state.lower(), year, household_situation, taxsim_vars
     )
 
+    # TAXSIM runs a state-0 record with no state return, so it deducts no
+    # state or local income or sales tax federally. PolicyEngine simulates
+    # state 0 in Texas, so pin that deduction to zero rather than take Texas's
+    # sales-tax deduction (property tax still flows through
+    # real_estate_taxes). Being part of the situation, the pin carries into
+    # the srebate twin and the marginal-rate perturbation.
+    if validate_state_number(taxsim_vars.get("state")) == NO_STATE:
+        household_situation["tax_units"]["your tax unit"][
+            "state_and_local_sales_or_income_tax"
+        ] = {str(year): 0}
+
     # Explicitly set SSI to 0 for all people to prevent PolicyEngine from imputing SSI benefits
     # TAXSIM does not model SSI, so we need to ensure it's not automatically calculated
     for person_name in household_situation["people"]:
@@ -287,7 +328,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         dict: Updated dictionary with default values set where needed
 
     Default values:
-        - state: 44 (Texas)
+        - state: 0 (no state tax; invalid state codes raise ValueError)
         - depx: 0 (Number of dependents)
         - mstat: 1 (Marital status)
         - taxsimid: 0 (TAXSIM ID)
@@ -297,7 +338,6 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
         - sage: 40 (Age of secondary taxpayer)
     """
     DEFAULTS = {
-        "state": 44,  # Texas
         "depx": 0,  # Number of dependents
         "mstat": 1,  # Marital status
         "taxsimid": 0,  # TAXSIM ID
@@ -309,6 +349,7 @@ def set_taxsim_defaults(taxsim_vars: dict, year: int = 2021) -> dict:
 
     for key, default_value in DEFAULTS.items():
         taxsim_vars[key] = int(taxsim_vars.get(key, default_value) or default_value)
+    taxsim_vars["state"] = validate_state_number(taxsim_vars.get("state"))
 
     return taxsim_vars
 
@@ -326,7 +367,7 @@ def get_taxsim_defaults(year: int = 2021) -> dict:
     return {
         "taxsimid": 0,
         "year": year,
-        "state": 44,  # Texas
+        "state": NO_STATE,  # No state tax, as when TAXSIM gets no state column
         "mstat": 1,  # Single
         "depx": 0,  # Number of dependents
         "idtl": 0,  # Output flag
@@ -356,7 +397,7 @@ def generate_household(taxsim_vars, scorp_treatment="passive"):
 
     taxsim_vars = set_taxsim_defaults(taxsim_vars, int(year))
 
-    state = get_state_code(taxsim_vars["state"])
+    state = get_calculation_state_code(taxsim_vars["state"])
 
     situation = form_household_situation(year, state, taxsim_vars)
 
