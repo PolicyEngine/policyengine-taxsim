@@ -457,7 +457,9 @@ def _with_perturbed_wages(df):
 def _configured_sim(runner, df):
     dataset = TaxsimMicrosimDataset(df)
     dataset.generate()
-    sim = runner._build_configured_sim(dataset, df)
+    # The generated states never include state 0, so production's zero_salt
+    # for these records is exactly --disable-salt.
+    sim = runner._build_configured_sim(dataset, df, zero_salt=runner.disable_salt)
     return sim, dataset
 
 
