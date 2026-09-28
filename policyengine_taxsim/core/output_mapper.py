@@ -372,6 +372,11 @@ def taxsim_input_definition(data_dict, year):
                                     f"{' ' * indent}{name:<{LABEL_WIDTH}}{2:>{VALUE_WIDTH}.2f} {value.lower()}"
                                 )
                                 value = 2
+                            elif value.lower() == "separate":
+                                output_lines.append(
+                                    f"{' ' * indent}{name:<{LABEL_WIDTH}}{6:>{VALUE_WIDTH}.2f} {value.lower()}"
+                                )
+                                value = 6
                     except (ValueError, AttributeError) as e:
                         print(e)
 

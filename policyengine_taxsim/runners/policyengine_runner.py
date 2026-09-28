@@ -28,6 +28,7 @@ from policyengine_taxsim.core.state_output_resolver import (
     is_output_adapter,
 )
 from policyengine_taxsim.core.input_mapper import (
+    MSTAT_MARRIED_SEPARATE,
     set_taxsim_defaults,
     get_taxsim_defaults,
 )
@@ -177,6 +178,12 @@ class TaxsimMicrosimDataset(Dataset):
             "is_tax_unit_head",  # Tax unit role - must be explicit to avoid misclassification
             "is_tax_unit_spouse",  # Tax unit role - must be explicit to avoid misclassification
             "is_tax_unit_dependent",  # Tax unit role - must be explicit to avoid misclassification
+            "is_separated",  # Set for TAXSIM mstat 6 (married filing separately) primaries
+        }
+
+        # Essential tax-unit-level variables that might not be in mappings
+        essential_tax_unit_variables = {
+            "cohabitating_spouses",  # Set for TAXSIM mstat 6 (married filing separately)
         }
 
         # Variables that can cause circular dependencies
@@ -209,6 +216,7 @@ class TaxsimMicrosimDataset(Dataset):
             pe_variables
             | entity_variables
             | essential_person_variables
+            | essential_tax_unit_variables
             | problematic_variables
         )
 
@@ -578,7 +586,12 @@ class TaxsimMicrosimDataset(Dataset):
         # Vectorized household structure
         mstat = year_data["mstat"].values.astype(int)
         depx = year_data["depx"].values.astype(int)
-        has_spouse = np.isin(mstat, [2, 6])
+        # Only a joint return (mstat 2) puts a spouse in the tax unit.
+        # TAXSIM mstat 6 is one spouse's married-filing-separately return
+        # (swages must be zero and sage must be zero), so it is a
+        # single-person tax unit whose primary is flagged is_separated.
+        has_spouse = mstat == 2
+        is_married_separate = mstat == MSTAT_MARRIED_SEPARATE
         people_per_hh = 1 + has_spouse.astype(int) + depx
         total_people = int(people_per_hh.sum())
 
@@ -632,6 +645,10 @@ class TaxsimMicrosimDataset(Dataset):
             "is_tax_unit_head": is_primary,
             "is_tax_unit_spouse": is_spouse,
             "is_tax_unit_dependent": is_dependent,
+            # PE-US derives filing_status SEPARATE from a separated head
+            # with no spouse in the unit (HEAD_OF_HOUSEHOLD instead when a
+            # qualifying child lets IRC 7703(b) treat them as unmarried).
+            "is_separated": is_primary & np.repeat(is_married_separate, people_per_hh),
             "person_weight": np.ones(total_people),
         }
 
@@ -859,8 +876,9 @@ class TaxsimMicrosimDataset(Dataset):
         # Use SOI to FIPS mapping from core utils
 
         # Proper approach: Check mstat to determine household structure
-        # mstat 2 or 6 = spouse present → create multi-person household
-        # mstat 1,3,4,5 = no spouse → single-person household + dependents
+        # mstat 2 = joint return → head + spouse + dependents
+        # mstat 6 = married filing separately → head (is_separated) + dependents
+        # any other mstat = no spouse → head + dependents
         data = self._initialize_dataset_structure()
 
         # Process each year separately
@@ -970,10 +988,19 @@ class TaxsimMicrosimDataset(Dataset):
             data["tax_unit_weight"][year_int] = np.ones(n_year_records)
 
             # No explicit filing status mapping - let PolicyEngine auto-calculate based on:
-            # - Household structure (spouse presence from mstat 2/6)
+            # - Household structure (spouse presence from mstat 2)
             # - Dependents (depx > 0)
-            # - Other factors (separation, widow status, etc.)
+            # - is_separated (mstat 6), which yields SEPARATE, or
+            #   HEAD_OF_HOUSEHOLD when a qualifying child is present
             # This should correctly handle SINGLE vs HEAD_OF_HOUSEHOLD vs JOINT vs SEPARATE
+
+            # TAXSIM taxes an mstat 6 return as a spouse who did not live
+            # apart all year: Social Security uses the zero base amount of
+            # IRC 86(c)(1)(C). PE-US applies that base to SEPARATE units only
+            # when cohabitating_spouses is set.
+            data["cohabitating_spouses"][year_int] = (
+                year_data["mstat"].values.astype(int) == MSTAT_MARRIED_SEPARATE
+            )
 
             # Family data
             data["family_id"][year_int] = year_family_ids
