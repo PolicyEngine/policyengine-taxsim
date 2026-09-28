@@ -51,8 +51,10 @@ def compute_marginal_rates_single(simulation, situation, year, disable_salt):
         p_share = pwages / total_wages
         s_share = swages / total_wages
     else:
-        p_share = 0.5
-        s_share = 0.5 if "your partner" in people else 0.0
+        # Shares must sum to 1: the rate divides by the full DELTA.
+        has_partner = "your partner" in people
+        p_share = 0.5 if has_partner else 1.0
+        s_share = 0.5 if has_partner else 0.0
 
     # Create perturbed situation
     perturbed = copy.deepcopy(situation)

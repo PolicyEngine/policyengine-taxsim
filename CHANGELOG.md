@@ -1,3 +1,32 @@
+## [2.32.2] - 2026-09-28
+
+### Fixed
+
+- Keep every emulator override (QBID W-2 wages, the rental QBID gate, MN CRP, state SSI-supplement zeroing, MD local-tax zeroing, ME rent utilities, NY separate payments) in the wage-perturbation branch that computes `frate`/`srate`. The branch had dropped them, so Maryland `srate` included the county tax the emulator zeroes (2253.01 instead of 4.75 for $80k single in 2024) and rental-income `frate` went far negative (-858 instead of 22). The `--disable-salt` SALT zeroing, which the branch already kept, is now held the same way as the others.
+- Give a zero-wage filer with no spouse the whole wage perturbation when computing `frate`/`srate`, in both the batch runner and the single-household path. It had received half, which halved the reported marginal rates (Ohio single with $50k interest in 2024: `frate` 6 instead of TAXSIM's 12).
+- Treat TAXSIM mstat 6 (married filing separately) as a separate return in both emulator paths. The batch/CLI path used to add a spouse, so PolicyEngine taxed mstat 6 as a joint return, and the single-household path taxed it as single. Both now build a one-person tax unit flagged `is_separated` and `cohabitating_spouses`, so PolicyEngine applies married-filing-separately brackets, standard deduction, SALT cap, capital-loss limit and NIIT threshold, the zero Social Security base amount, and head-of-household status when a qualifying child is present — matching taxsimtest.
+
+
+## [2.32.1] - 2026-09-27
+
+### Fixed
+
+- Fix `resources/taxsimtest/taxsim-docker-wrapper.sh`, which bind-mounted a hard-coded path from one developer's machine (to a binary deleted in #1150), so Docker mounted an empty directory and the run failed with exit 126. It now runs the `taxsimtest-linux.exe` next to it (or `$TAXSIM_LINUX_BINARY`) in an image built from the new `taxsimtest-linux.Dockerfile`, which adds the `libgfortran5`/`libquadmath0` runtime the Linux build links against. The README's Docker example, which also failed (`libgfortran.so.5` missing from `debian:stable-slim`), now uses the wrapper and documents keeping bind-mounted files under `$HOME`.
+
+
+## [2.32.0] - 2026-09-26
+
+### Added
+
+- Add the `addmed` output column (Additional Medicare Tax, Form 8959) to full (idtl=2) output, matching the column taxsimtest prints.
+
+### Fixed
+
+- Stop adding the Additional Medicare Tax to `frate` on the single-household (`export_household`) path, so it matches that path's own `fiitax` and the Microsimulation runner. Document that PolicyEngine-computed `fiitax` excludes the tax in every year (taxsim #416, #1225); the bundled taxsimtest build predates the correction reported on #1225 and still adds it for 2013-2023.
+- Code the 1,155 Alabama households in the eCPS comparison inputs as TAXSIM state 1 instead of 0 ("no state tax"), which had scored them without state income tax and reported them under Texas. Report TAXSIM state 0 as "State not specified" rather than TX, echo it back as 0 as TAXSIM does, and reject invalid state codes instead of silently simulating California (batch path) or Texas (single-household path).
+- Match TAXSIM's federal result for state-0 ("no state tax") records by deducting no state or local income or sales tax, instead of the Texas sales-tax deduction PolicyEngine took by simulating them in Texas. Keep that deduction zeroed in the marginal-rate perturbation too, which previously dropped it and produced nonsense `frate` values for itemizers (for example −825 under `--disable-salt`).
+
+
 ## [2.31.7] - 2026-09-25
 
 ### Fixed

@@ -18,7 +18,7 @@ try:
     from .comparison.statistics import ComparisonStatistics
     from .core.yaml_generator import generate_pe_tests_yaml
     from .core.input_mapper import form_household_situation
-    from .core.utils import get_state_code, convert_taxsim32_dependents
+    from .core.utils import get_calculation_state_code, convert_taxsim32_dependents
     from .core.io import read_input, write_output
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
@@ -32,7 +32,7 @@ except ImportError:
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
     from policyengine_taxsim.core.input_mapper import form_household_situation
     from policyengine_taxsim.core.utils import (
-        get_state_code,
+        get_calculation_state_code,
         convert_taxsim32_dependents,
     )
     from policyengine_taxsim.core.io import read_input, write_output
@@ -48,7 +48,7 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
         try:
             # Create household data for this record
             year = int(float(row["year"]))
-            state = get_state_code(int(float(row["state"])))
+            state = get_calculation_state_code(row["state"])
 
             # Convert taxsim data to proper types
             taxsim_data = row.to_dict()
