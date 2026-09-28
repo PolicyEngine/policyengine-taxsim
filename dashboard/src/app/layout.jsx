@@ -1,5 +1,6 @@
 import './globals.css';
 import Header from '@/components/Header';
+import { assetUrl } from '@/utils/basePath';
 
 const GA_ID = 'G-2YHG89FY0N';
 
@@ -21,8 +22,8 @@ export const metadata = {
       'The next chapter of TAXSIM. Open-source, drop-in compatible tax calculator powered by PolicyEngine.',
   },
   icons: {
-    icon: '/policyengine.png',
-    apple: '/policyengine.png',
+    icon: assetUrl('/policyengine.png'),
+    apple: assetUrl('/policyengine.png'),
   },
   alternates: {
     canonical: 'https://policyengine.org/us/taxsim',

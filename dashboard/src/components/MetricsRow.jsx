@@ -1,44 +1,80 @@
 'use client';
 
 import React from 'react';
-import { getBarColor, getBarBg } from '../utils/colors';
+import { getBarColor, getBarBg, getBandLabel } from '../utils/colors';
+import { TOLERANCE_MODES } from '../constants';
 
-const MetricCard = React.memo(({ title, value, type, description }) => {
+const MetricCard = React.memo(({ label, value, type, description }) => {
   const numericValue = parseFloat(value);
   const isPercentage = type !== 'total';
+  const color = isPercentage ? getBarColor(numericValue) : '#0C2426';
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-7">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</div>
-      <div className="text-3xl font-bold mt-2" style={isPercentage ? { color: getBarColor(numericValue) } : {}}>
-        {isPercentage ? `${value}%` : Number(value).toLocaleString()}
-      </div>
-      {isPercentage && (
-        <div className="h-2 rounded-full mt-3" style={{ background: getBarBg(numericValue) }}>
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${Math.min(numericValue, 100)}%`,
-              background: getBarColor(numericValue),
-            }}
-          />
+    <div className="relative bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Calibration accent: band-colored rule for rates, brand teal for the count */}
+      <div
+        className="h-1 w-full"
+        style={{ background: isPercentage ? color : '#2C7A7B' }}
+      />
+      <div className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+            {label}
+          </span>
+          {isPercentage && (
+            <span
+              className="text-[10px] font-semibold uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full"
+              style={{ color, background: getBarBg(numericValue) }}
+            >
+              {getBandLabel(numericValue)}
+            </span>
+          )}
         </div>
-      )}
-      {description && <div className="text-xs text-gray-400 mt-2">{description}</div>}
+
+        <div className="mt-2 flex items-baseline gap-1">
+          <span
+            className="tnum font-mono font-semibold leading-none"
+            style={{ fontSize: '2rem', color }}
+          >
+            {isPercentage ? Number(value).toFixed(1) : Number(value).toLocaleString()}
+          </span>
+          {isPercentage && (
+            <span className="tnum font-mono text-base font-medium" style={{ color }}>
+              %
+            </span>
+          )}
+        </div>
+
+        {isPercentage && (
+          <div
+            className="h-1.5 rounded-full mt-3 overflow-hidden"
+            style={{ background: getBarBg(numericValue) }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${Math.min(numericValue, 100)}%`, background: color }}
+            />
+          </div>
+        )}
+
+        {description && (
+          <div className="text-[11px] text-gray-400 mt-2.5">{description}</div>
+        )}
+      </div>
     </div>
   );
 });
 
 MetricCard.displayName = 'MetricCard';
 
-const MetricsRow = React.memo(({ data, selectedState }) => {
+const MetricsRow = React.memo(({ data, selectedState, toleranceMode = TOLERANCE_MODES.ABSOLUTE }) => {
   if (!data || !data.summary) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-7 animate-pulse">
-            <div className="h-3.5 bg-gray-200 rounded w-3/5 mb-3" />
-            <div className="h-8 bg-gray-200 rounded w-2/5" />
+          <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+            <div className="h-3 bg-gray-200 rounded w-3/5 mb-4" />
+            <div className="h-10 bg-gray-200 rounded w-2/5" />
           </div>
         ))}
       </div>
@@ -46,7 +82,31 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
   }
 
   const { summary } = data;
-  let displayData = summary;
+  const isNet = toleranceMode === TOLERANCE_MODES.RELATIVE_NET;
+  const isRel = toleranceMode === TOLERANCE_MODES.RELATIVE || isNet;
+
+  // Federal tax is unaffected by state rebate timing, so the net-of-rebates
+  // mode only swaps the state metric (falling back to the plain relative
+  // metric for summaries generated before the srebate column existed).
+  const stateField = (obj, relKey, netKey, flatKey) =>
+    isNet
+      ? obj[netKey] ?? obj[relKey] ?? obj[flatKey]
+      : isRel
+        ? obj[relKey] ?? obj[flatKey]
+        : obj[flatKey];
+
+  let displayData = {
+    totalRecords: summary.totalRecords,
+    federalMatchPct: isRel
+      ? summary.federalMatchPctRel ?? summary.federalMatchPct
+      : summary.federalMatchPct,
+    stateMatchPct: stateField(
+      summary,
+      'stateMatchPctRel',
+      'stateMatchPctRelNet',
+      'stateMatchPct'
+    ),
+  };
 
   if (selectedState && summary.stateBreakdown) {
     const stateData = summary.stateBreakdown.find(
@@ -55,31 +115,44 @@ const MetricsRow = React.memo(({ data, selectedState }) => {
     if (stateData) {
       displayData = {
         totalRecords: stateData.households,
-        federalMatchPct: stateData.federalPct,
-        stateMatchPct: stateData.statePct,
+        federalMatchPct: isRel
+          ? stateData.federalPctRel ?? stateData.federalPct
+          : stateData.federalPct,
+        stateMatchPct: stateField(
+          stateData,
+          'statePctRel',
+          'statePctRelNet',
+          'statePct'
+        ),
       };
     }
   }
 
+  const toleranceLabel = isNet
+    ? 'Within ±1% of gross income, one-time state rebates netted out'
+    : isRel
+      ? 'Within ±1% of gross income'
+      : 'Within ±$15';
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
       <MetricCard
-        title="Total Records"
+        label={selectedState ? `${selectedState} households` : 'Households compared'}
         value={displayData.totalRecords}
         type="total"
-        description={selectedState ? `Households in ${selectedState}` : 'All households processed'}
+        description={selectedState ? 'In this state' : 'Full eCPS, both engines'}
       />
       <MetricCard
-        title="Federal Match Rate"
+        label="Federal agreement"
         value={displayData.federalMatchPct.toFixed(1)}
         type="federal"
-        description="Within ±$15 tolerance"
+        description={toleranceLabel}
       />
       <MetricCard
-        title="State Match Rate"
+        label="State agreement"
         value={displayData.stateMatchPct.toFixed(1)}
         type="state"
-        description="Within ±$15 tolerance"
+        description={toleranceLabel}
       />
     </div>
   );

@@ -75,14 +75,14 @@
       "policyengine": "self_employment_income",
       "description": "Self-employment income of primary taxpayer",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/self_employment_income.py"
     },
     {
       "taxsim": "ssemp",
       "policyengine": "self_employment_income",
       "description": "Self-employment income of secondary taxpayer",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/self_employment/self_employment_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/self_employment_income.py"
     },
     {
       "taxsim": "dividends",
@@ -149,17 +149,17 @@
     },
     {
       "taxsim": "pbusinc",
-      "policyengine": "qualified_business_income",
-      "description": "Primary and secondary Taxpayer's active QBI",
+      "policyengine": "self_employment_income",
+      "description": "Primary taxpayer's active QBI",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/self_employment_income.py"
     },
     {
       "taxsim": "pprofinc",
-      "policyengine": "na_pe",
-      "description": "Primary and secondary taxpayer's Specialized Service Trade or Business service",
-      "implemented": false,
-      "githubLink": null
+      "policyengine": "sstb_self_employment_income",
+      "description": "Primary taxpayer's SSTB self-employment income",
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/input/sstb_self_employment_income.py"
     },
     {
       "taxsim": "rentpaid",
@@ -191,9 +191,9 @@
     },
     {
       "taxsim": "otherprop",
-      "policyengine": "na_pe",
+      "policyengine": "rental_income",
       "description": "Other Property",
-      "implemented": false,
+      "implemented": true,
       "githubLink": null
     },
     {
@@ -205,9 +205,9 @@
     },
     {
       "taxsim": "transfers",
-      "policyengine": "na_pe",
+      "policyengine": "general_assistance",
       "description": "Non-taxable Transfers",
-      "implemented": false,
+      "implemented": true,
       "githubLink": null
     },
     {
@@ -242,7 +242,8 @@
     },
     "maritalStatusCodes": {
       "single": 1,
-      "marriedFilingJointly": 2
+      "marriedFilingJointly": 2,
+      "marriedFilingSeparately": 6
     },
     "missingIncomeValue": 0
   },
@@ -280,5 +281,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-03-24T15:14:08.434Z"
+  "lastUpdated": "2026-09-24T11:44:50.158Z"
 }

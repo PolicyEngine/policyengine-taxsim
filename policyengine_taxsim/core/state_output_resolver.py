@@ -2,19 +2,68 @@ from __future__ import annotations
 
 import numpy as np
 
-
 OUTPUT_ADAPTER_BASE_VARIABLES = {
     "taxsim_v32_state_agi": "state_agi",
     "taxsim_v38_cdcc": "state_cdcc",
     "taxsim_v39_eitc": "state_eitc",
+    "taxsim_sctc": "state_ctc",
 }
 DIRECT_STATE_MAPPING_ADAPTERS = {
     "taxsim_staxbc",
-    "taxsim_sctc",
     "taxsim_v36_taxable_income",
     "taxsim_v37_property_tax_credit",
 }
+# PE-US one-time state rebate variables (tax_unit level). TAXSIM reports
+# these in `srebate` (payout-year convention, included in siitax); PE books
+# them to the liability year inside state_income_tax. The emulator's srebate
+# is computed as a difference — state_income_tax with these zeroed minus
+# actual state_income_tax — so it equals exactly the amount PE netted into
+# siitax (wiring, non-refundable caps, and floors are handled automatically).
+# Only one-time rebates belong here; recurring annual rebates (e.g.
+# nm_low_income_comprehensive_tax_rebate, nm_property_tax_rebate,
+# pa_property_tax_or_rent_rebate, mt_property_tax_rebate) are excluded.
+# See taxsim #1068 / convention #716.
+ONE_TIME_REBATE_VARIABLES = (
+    "az_families_tax_rebate",
+    "co_tabor_cash_back",
+    "ct_child_tax_rebate",
+    "de_relief_rebate",
+    "ga_surplus_tax_rebate",
+    "hi_act_115_rebate",
+    "id_2022_rebate",
+    "id_special_season_rebate",
+    "il_income_tax_rebate",
+    "il_property_tax_rebate",
+    "in_automatic_refund_rebate",
+    "ma_taxpayer_refund_rebate",
+    "me_relief_rebate",
+    "mt_income_tax_rebate",
+    "nm_2021_income_rebate",
+    "nm_additional_2021_income_rebate",
+    "nm_supplemental_2021_income_rebate",
+    "ri_child_tax_rebate",
+    "sc_2022_rebate",
+    "va_rebate",
+)
+# New York payments PE books to the return year but that are not lines on Form
+# IT-201: the Additional Empire State child credit payment and the supplemental
+# earned income payment (both separate checks, tax.ny.gov/pit/child-earned-
+# payments) and the inflation refund (checks mailed later, based on the return-
+# year filing). TAXSIM's siitax excludes all three. They are forced to zero in
+# BOTH emulator execution paths so the exclusion is consistent: the batch
+# PolicyEngineRunner zeroes them on its Microsimulation, and the single-household
+# path zeroes them in the situation (input_mapper) — see taxsim #1154 / #1185.
+NY_SEPARATE_PAYMENT_VARIABLES = (
+    "ny_additional_ctc",
+    "ny_inflation_refund_credit",
+    "ny_supplemental_eitc",
+)
 OUTPUT_ADAPTER_OVERRIDES = {
+    # MT: state_agi reads `gov.states.household.state_agis` which lists
+    # `mt_agi_indiv` (Person, defined only for MFS-on-same-return). For all
+    # other MT filing statuses that returns 0; use the tax-unit-level
+    # `mt_agi_joint` instead (PE-US naming, but applies to joint, single, HoH).
+    "taxsim_v32_state_agi": {"MT": ["mt_agi_joint"]},
     "taxsim_v38_cdcc": {"OK": ["adapter:ok_child_care_credit_component"]},
     "taxsim_v39_eitc": {"MN": ["mn_wfc"]},
     "taxsim_sctc": {
@@ -24,6 +73,7 @@ OUTPUT_ADAPTER_OVERRIDES = {
 }
 COMPONENT_ADAPTERS = {
     "adapter:mn_child_tax_credit_component",
+    "adapter:mt_income_tax_before_non_refundable_credits",
     "adapter:ok_child_care_credit_component",
     "adapter:ok_child_tax_credit_component",
 }
@@ -189,6 +239,44 @@ def _calculate_component_adapter(
             return child_care_credit
         return child_tax_credit
 
+    if variable == "adapter:mt_income_tax_before_non_refundable_credits":
+        # PE-US has no unit-level MT "before non-refundable credits"
+        # variable — only _indiv (Person, MFS-on-same-return recombination)
+        # and _joint (TaxUnit). PE's mt_income_tax_before_refundable_credits
+        # _unit picks min(indiv, joint) AFTER non-refundable credits, which
+        # nets the 2021 income tax rebate and made MT `staxbc` print 0.00
+        # (taxsim #1122). Report the before-credit tax of the filing mode PE
+        # actually chose: argmin of the after-credit amounts when
+        # MFS-on-same-return is allowed, joint otherwise.
+        joint_before = calculate_named_output(
+            "mt_income_tax_before_non_refundable_credits_joint",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        mfs_on_same_return_allowed = parameter_values.gov.states.mt.tax.income.married_filing_separately_on_same_return_allowed
+        if not mfs_on_same_return_allowed:
+            return joint_before
+        indiv_before = calculate_named_output(
+            "mt_income_tax_before_non_refundable_credits_indiv",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        indiv_after = calculate_named_output(
+            "mt_income_tax_before_refundable_credits_indiv",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        joint_after = calculate_named_output(
+            "mt_income_tax_before_refundable_credits_joint",
+            state_codes,
+            calculate,
+            parameter_values,
+        )
+        return np.where(indiv_after < joint_after, indiv_before, joint_before)
+
     if variable == "adapter:mn_child_tax_credit_component":
         combined_credit = calculate_named_output(
             "mn_child_and_working_families_credits",
@@ -293,6 +381,14 @@ def _try_calculate_variable(
     array = np.asarray(value, dtype=float)
     if array.ndim == 0:
         return np.full(len(state_codes), float(array), dtype=float)
+
+    expected_len = len(state_codes)
+    if len(array) > expected_len:
+        # Person-level variable: sum to tax-unit level.
+        # Each household is processed with a single tax unit,
+        # so all person values belong to that one unit.
+        return np.array([float(array.sum())])
+
     return array.astype(float, copy=False)
 
 

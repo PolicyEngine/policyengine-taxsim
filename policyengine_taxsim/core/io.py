@@ -9,7 +9,6 @@ import pandas as pd
 from pathlib import Path
 from typing import Union
 
-
 STATA_EXTENSIONS = {".dta"}
 
 
@@ -21,7 +20,9 @@ def read_input(path: Union[str, Path]) -> pd.DataFrame:
     """Read a TAXSIM-format input file (CSV or Stata)."""
     if _is_stata(path):
         return pd.read_stata(path)
-    return pd.read_csv(path)
+    df = pd.read_csv(path)
+    df.columns = [c.strip() for c in df.columns]
+    return df
 
 
 def write_output(

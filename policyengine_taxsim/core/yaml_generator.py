@@ -80,7 +80,11 @@ class PETestsYAMLGenerator:
             "PR": 72,
             "VI": 78,
         }
-        return state_fips.get(state_name, 0)
+        try:
+            return state_fips[state_name]
+        except KeyError:
+            # FIPS 0 is no state; never write it into a PolicyEngine test.
+            raise ValueError(f"No FIPS code for state {state_name!r}") from None
 
     def _format_value(self, value: Any) -> Any:
         """Format values for YAML output."""
@@ -170,6 +174,12 @@ class PETestsYAMLGenerator:
                 "commodity_supplemental_food_program": person_data.get(
                     "commodity_supplemental_food_program", {}
                 ).get(year_str, 0),
+                # TAXSIM has no medical-expense input; zero PE's imputed Medicare
+                # Part B premiums so they don't flow into state medical
+                # exemptions/deductions via the federal itemized medical deduction.
+                "medical_expense_health_insurance_premiums": person_data.get(
+                    "medical_expense_health_insurance_premiums", {}
+                ).get(year_str, 0),
             }
 
             # Add optional fields only if they have non-zero values
@@ -183,8 +193,12 @@ class PETestsYAMLGenerator:
                 "long_term_capital_gains",
                 "short_term_capital_gains",
                 "rental_income",
+                # scorp -> partnership_s_corp_income (QBID-bearing aggregate);
+                # pprofinc/sprofinc -> sstb_self_employment_income (QBID with
+                # SSTB phaseout). pbusinc now folds into self_employment_income,
+                # so qualified_business_income is no longer set as an input.
                 "partnership_s_corp_income",
-                "qualified_business_income",
+                "sstb_self_employment_income",
                 "w2_wages_from_qualified_business",
                 "business_is_sstb",
                 "business_is_qualified",

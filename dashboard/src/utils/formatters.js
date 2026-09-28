@@ -40,7 +40,13 @@ export const formatInputValue = (variableCode, value, formatCurrencyFn = formatC
   
   if (integerFields.includes(variableCode)) {
     if (variableCode === 'mstat') {
-      return numericValue === 1 ? 'Single' : numericValue === 2 ? 'Married Filing Jointly' : numericValue.toString();
+      return numericValue === 1
+        ? 'Single'
+        : numericValue === 2
+          ? 'Married Filing Jointly'
+          : numericValue === 6
+            ? 'Married Filing Separately'
+            : numericValue.toString();
     }
     return numericValue.toString();
   }

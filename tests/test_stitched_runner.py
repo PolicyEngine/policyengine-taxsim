@@ -207,15 +207,20 @@ class TestEdgeCases:
 
     @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
     @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
-    def test_mismatched_taxsimids_raises(self, MockPE, MockTaxsim):
-        """ValueError raised when runner output ids don't match input."""
-        df = _make_input([(1, 2024)])
-        # Return a result with a different taxsimid
-        MockPE.return_value.run.return_value = _make_result([(999, 2024)])
+    def test_duplicate_taxsimids_preserved(self, MockPE, MockTaxsim):
+        """Panel/multi-state inputs reusing the same taxsimid round-trip."""
+        df = _make_input([(1, 2023), (1, 2024), (1, 2024)])
+        # PE returns rows in year-sorted order (stable within year).
+        MockPE.return_value.run.return_value = _make_result(
+            [(1, 2023), (1, 2024), (1, 2024)]
+        )
 
         runner = StitchedRunner(df)
-        with pytest.raises(ValueError, match="do not match"):
-            runner.run(show_progress=False)
+        result = runner.run(show_progress=False)
+
+        assert len(result) == 3
+        assert result["taxsimid"].tolist() == [1, 1, 1]
+        assert result["year"].tolist() == [2023, 2024, 2024]
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,14 @@
+import logging
+
 import click
 import pandas as pd
 from pathlib import Path
 from io import StringIO
+
+# Suppress benign Hugging Face Hub warnings (e.g., "unauthenticated requests"
+# rate-limit notices) — downloads still succeed under the anonymous limit,
+# and the message confuses TAXSIM users who don't have an HF account.
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 try:
     from .runners.policyengine_runner import PolicyEngineRunner
@@ -11,7 +18,7 @@ try:
     from .comparison.statistics import ComparisonStatistics
     from .core.yaml_generator import generate_pe_tests_yaml
     from .core.input_mapper import form_household_situation
-    from .core.utils import get_state_code, convert_taxsim32_dependents
+    from .core.utils import get_calculation_state_code, convert_taxsim32_dependents
     from .core.io import read_input, write_output
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
@@ -25,7 +32,7 @@ except ImportError:
     from policyengine_taxsim.core.yaml_generator import generate_pe_tests_yaml
     from policyengine_taxsim.core.input_mapper import form_household_situation
     from policyengine_taxsim.core.utils import (
-        get_state_code,
+        get_calculation_state_code,
         convert_taxsim32_dependents,
     )
     from policyengine_taxsim.core.io import read_input, write_output
@@ -41,7 +48,7 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
         try:
             # Create household data for this record
             year = int(float(row["year"]))
-            state = get_state_code(int(float(row["state"])))
+            state = get_calculation_state_code(row["state"])
 
             # Convert taxsim data to proper types
             taxsim_data = row.to_dict()
@@ -79,6 +86,52 @@ def _generate_yaml_files(input_df: pd.DataFrame, results_df: pd.DataFrame):
             print(f"Warning: Could not generate YAML for record {idx}: {e}")
 
 
+def _emit_results(input_df, results_df, out_stream):
+    """Write results to ``out_stream``. CSV by default; for any rows
+    with ``idtl=5``, emit TAXSIM-35's labeled-section full-text instead.
+    Mixed-idtl inputs interleave records in original input order."""
+    try:
+        from .core.text_formatter import format_row
+    except ImportError:
+        from policyengine_taxsim.core.text_formatter import format_row
+
+    # Default: no idtl=5 anywhere → write CSV as before.
+    if "idtl" not in input_df.columns or not (input_df["idtl"] == 5).any():
+        results_df.to_csv(out_stream, index=False)
+        return
+
+    # idtl=5 path. Build a per-taxsimid lookup that keeps the original
+    # results_df column order — avoid set_index here so the eventual
+    # CSV emission preserves the default schema (`taxsimid,year,...`).
+    result_columns = list(results_df.columns)
+    results_rows = {
+        row["taxsimid"]: row for row in results_df.to_dict(orient="records")
+    }
+
+    text_chunks = []
+    csv_indices = []
+    for _, in_row in input_df.iterrows():
+        idtl = int(float(in_row.get("idtl", 0)))
+        taxsimid = in_row["taxsimid"]
+        result_dict = results_rows.get(taxsimid)
+        if result_dict is None:
+            continue
+        if idtl == 5:
+            text_chunks.append(format_row(in_row.to_dict(), result_dict))
+        else:
+            csv_indices.append(taxsimid)
+
+    # Emit text rows first, then a single CSV block for the rest. Per-row
+    # interleaving isn't useful because CSV needs a header — and each
+    # record is identifiable by taxsimid in either format.
+    for chunk in text_chunks:
+        out_stream.write(chunk + "\n")
+
+    if csv_indices:
+        csv_df = results_df[results_df["taxsimid"].isin(csv_indices)][result_columns]
+        csv_df.to_csv(out_stream, index=False)
+
+
 @click.group(invoke_without_command=True)
 @click.option("--logs", is_flag=True, help="Generate PE YAML Tests Logs")
 @click.option(
@@ -112,6 +165,7 @@ def cli(ctx, logs, disable_salt, sample):
 
     try:
         df = pd.read_csv(sys.stdin)
+        df.columns = [c.strip() for c in df.columns]
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -134,8 +188,7 @@ def cli(ctx, logs, disable_salt, sample):
             _generate_yaml_files(df_with_ids, results_df)
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
-        # Write results to stdout
-        results_df.to_csv(sys.stdout, index=False)
+        _emit_results(df_with_ids, results_df, sys.stdout)
 
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
@@ -189,13 +242,13 @@ def policyengine(input_file, output, logs, disable_salt, assume_w2_wages, sample
 
         # Generate YAML files if requested
         if logs:
-            click.echo("Generating PolicyEngine YAML test files...")
+            click.echo("Generating PolicyEngine YAML test files...", err=True)
             _generate_yaml_files(df_with_ids, results_df)
-            click.echo(f"Generated {len(df_with_ids)} YAML test files")
+            click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
         # Save results to output file
         write_output(results_df, output)
-        click.echo(f"Results saved to {output}")
+        click.echo(f"Results saved to {output}", err=True)
 
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
@@ -256,7 +309,56 @@ def taxsim(input_file, output, sample, taxsim_path):
     default=False,
     help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
 )
-def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_wages):
+@click.option(
+    "--rel-tolerance",
+    type=float,
+    default=0.0,
+    help=(
+        "Income-scaled match tolerance as a fraction of |AGI| (e.g. 0.001 = "
+        "0.1%). A record matches if the tax difference is within "
+        "max($15, rel-tolerance * |AGI|), avoiding false mismatches on "
+        "extreme-magnitude records (e.g. large S-corp income/losses). "
+        "Default 0 uses the flat $15 absolute tolerance."
+    ),
+)
+@click.option(
+    "--net-of-rebates",
+    is_flag=True,
+    default=False,
+    help=(
+        "Score state tax net of one-time rebates: compare siitax + srebate "
+        "on both sides. Removes the timing-convention difference between "
+        "TAXSIM (rebates in the payout year) and PolicyEngine (rebates in "
+        "the liability year) without changing either engine. Federal "
+        "comparison is unaffected."
+    ),
+)
+@click.option(
+    "--taxsim-opt30",
+    is_flag=True,
+    default=False,
+    help=(
+        "Run the TAXSIM binary in its PSL-conformance test mode by setting "
+        "global option 30=1 (which sets opt 27/88/91: rebates booked in the "
+        "eligible year like PolicyEngine, no smoothing, no federal-state "
+        "iteration, plus per-state concessions such as the MI heating "
+        "credit). This is the mode NBER uses when testing PolicyEngine "
+        "records; without it the binary runs in default production mode. "
+        "See https://taxsim.nber.org/taxsimtest/options.html"
+    ),
+)
+def compare(
+    input_file,
+    sample,
+    output_dir,
+    year,
+    disable_salt,
+    logs,
+    assume_w2_wages,
+    rel_tolerance,
+    net_of_rebates,
+    taxsim_opt30,
+):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
@@ -307,12 +409,34 @@ def compare(input_file, sample, output_dir, year, disable_salt, logs, assume_w2_
         click.echo("Running TAXSIM...")
         taxsim_input = df.copy()
         taxsim_input["taxsimid"] = df_with_ids["taxsimid"].values
+        if taxsim_opt30:
+            # TAXSIM options are global: setting opt(30)=1 on the records
+            # switches the whole run into PSL-conformance mode. Only add the
+            # columns when the input doesn't already carry option columns.
+            if "opt1" not in taxsim_input.columns:
+                taxsim_input["opt1"] = 30
+                taxsim_input["opt1v"] = 1
+            click.echo("Running TAXSIM with opt(30)=1 (PSL-conformance test mode)")
         taxsim_runner = TaxsimRunner(taxsim_input)
         taxsim_results = taxsim_runner.run()
 
         # Compare results
         click.echo("Comparing results...")
-        config = ComparisonConfig(federal_tolerance=15.0, state_tolerance=15.0)
+        config = ComparisonConfig(
+            federal_tolerance=15.0,
+            state_tolerance=15.0,
+            relative_tolerance=rel_tolerance,
+            net_of_rebates=net_of_rebates,
+        )
+        if rel_tolerance > 0:
+            click.echo(
+                f"Using income-scaled tolerance: max($15, {rel_tolerance:.3%} of |AGI|)"
+            )
+        if net_of_rebates:
+            click.echo(
+                "Scoring state tax net of one-time rebates (siitax + srebate "
+                "on both sides)"
+            )
 
         comparator = TaxComparator(taxsim_results, pe_results, config)
         comparison_results = comparator.compare()

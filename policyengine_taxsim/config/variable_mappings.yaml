@@ -55,7 +55,7 @@ policyengine_to_taxsim:
     full_text_group: "Basic Output"
     group_column: 1
   fica:
-    variable: na_pe
+    variable: taxsim_fica
     implemented: true
     idtl:
       - standard: 0
@@ -208,6 +208,15 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
+  addmed:
+    # Form 8959 Additional Medicare Tax on wages and self-employment
+    # earnings. taxsimtest's `addmed` column appears only in its idtl=2
+    # CSV (its idtl=5 report shows the amount as line 44). Counted in
+    # tfica/fica, not fiitax (taxsim #416, #1225).
+    variable: additional_medicare_tax
+    implemented: true
+    idtl:
+      - full: 2
   v18:
     variable: taxable_income
     implemented: true
@@ -378,7 +387,7 @@ policyengine_to_taxsim:
       MN: adjusted_gross_income
       MO: mo_adjusted_gross_income
       MS: ms_agi
-      MT: mt_agi
+      MT: mt_agi_joint
       NC: adjusted_gross_income
       ND: adjusted_gross_income
       NE: ne_agi
@@ -519,7 +528,11 @@ policyengine_to_taxsim:
       MN: mn_income_tax_before_credits
       MO: mo_income_tax_before_credits
       MS: ms_income_tax_before_credits_unit
-      MT: mt_income_tax_before_refundable_credits_unit
+      # Unit-level "before non-refundable credits" (taxsim #1122): the PE
+      # _unit variable is after non-refundable credits (nets the 2021 rebate
+      # to zero); the adapter recombines the _indiv/_joint before-credit
+      # variables per PE's filing-mode choice.
+      MT: adapter:mt_income_tax_before_non_refundable_credits
       NC: nc_income_tax_before_credits
       ND: nd_income_tax_before_credits
       NE: ne_income_tax_before_credits
@@ -551,6 +564,23 @@ policyengine_to_taxsim:
     group_order: 4
     full_text_group: "State Tax Calculation"
     group_column: 1
+  srebate:
+    # One-time state rebates that PE nets into state_income_tax for the
+    # year. TAXSIM reports these in `srebate` (payout-year convention,
+    # included in siitax); PE books them to the liability year inside
+    # state_income_tax. Computed as a difference — state_income_tax with the
+    # ONE_TIME_REBATE_VARIABLES (core/state_output_resolver.py) zeroed minus
+    # actual state_income_tax — so it equals exactly what PE netted into
+    # siitax. See taxsim #1068 / convention #716.
+    variable: srebate_computed
+    implemented: true
+    idtl:
+      - full: 2
+      - full_text: 5
+    text_description: "State One-Time Rebate"
+    group_order: 4
+    full_text_group: "State Tax Calculation"
+    group_column: 1
   v41:
     variable: na_pe
     implemented: false
@@ -570,6 +600,10 @@ policyengine_to_taxsim:
       ME: me_property_tax_fairness_credit
       MI: mi_homestead_property_tax_credit
       MO: mo_property_tax_credit
+      # Form M1PR Homestead Credit Refund (homeowners). TAXSIM reports it in
+      # v37 (and, as of 20260521, also nets it into siitax — see taxsim #968);
+      # PE keeps siitax = Form M1 liability, so v37 is where it surfaces.
+      MN: mn_homestead_credit_refund
       MT: mt_elderly_homeowner_or_renter_credit
       NJ: nj_property_tax_credit
       NM: nm_property_tax_rebate
@@ -678,29 +712,10 @@ policyengine_to_taxsim:
     full_text_group: "State Tax Calculation"
     group_column: 1
   sctc:
+    # Value comes from pe-us taxsim_state_ctc (aggregates
+    # gov.states.household.state_ctcs). OK and MN require component splits
+    # handled via OUTPUT_ADAPTER_OVERRIDES in state_output_resolver.py.
     variable: taxsim_sctc
-    state_variables:
-      AZ: az_dependent_tax_credit
-      CA: ca_yctc
-      CO:
-        - co_ctc
-        - co_family_affordability_credit
-      CT: ct_child_tax_rebate
-      DC: dc_ctc
-      ID: id_ctc
-      IL: il_ctc
-      MA: ma_child_and_family_credit
-      MD: md_ctc
-      MN: adapter:mn_child_tax_credit_component
-      NE: ne_refundable_ctc
-      NJ: nj_ctc
-      NM: nm_ctc
-      NY: ny_ctc
-      OK: adapter:ok_child_tax_credit_component
-      OR: or_ctc
-      RI: ri_child_tax_rebate
-      UT: ut_ctc
-      VT: vt_ctc
     implemented: true
     idtl:
       - full_text: 5
@@ -755,8 +770,9 @@ policyengine_to_taxsim:
       - additional_medicare_tax
   actc:
     variable: refundable_ctc
-    implemented: false
+    implemented: true
     idtl:
+      - full: 2
       - full_text: 5
     text_description: "Refundable Part of CTC"
     group_order: 7
@@ -814,14 +830,39 @@ taxsim_to_policyengine:
           - dividends
       - long_term_capital_gains:
           - ltcg
+      # psemp/ssemp (self-employment) and pbusinc/sbusinc (active QBI) both
+      # map to self_employment_income: active-participation income subject to
+      # SECA that flows into the § 199A QBID without the SSTB phaseout. Per
+      # Dan Feenberg's spec, businc is identical to semp (active + SECA +
+      # QBID-without-phaseout), so they share one PolicyEngine variable.
+      # Do NOT map to qualified_business_income: that PE variable is COMPUTED
+      # (from self_employment_income et al. via the QBI income_definition), so
+      # supplying it as a dataset input holds it at that value and zeroes every
+      # other record's non-SSTB QBI. Per-person routing (psemp+pbusinc ->
+      # primary, ssemp+sbusinc -> spouse) is handled in the mapper code.
       - self_employment_income:
           - psemp
           - ssemp
+          - pbusinc
+          - sbusinc
+      # scorp maps to partnership_s_corp_income, the variable named in the QBI
+      # income_definition (it adds partnership_income + s_corp_income). Mapping
+      # to the leaf s_corp_income instead held it as a dataset input, which
+      # suppressed its uprating formula; and with qualified_business_income also
+      # held at 0, S-corp income produced correct AGI but no QBID.
       - partnership_s_corp_income:
           - scorp
-      - qualified_business_income:
-          - pbusinc
+      # pprofinc/sprofinc (SSTB professional-service income) map to
+      # sstb_self_employment_income: subject to SECA, QBID WITH the
+      # § 199A(d)(3) applicable-percentage phaseout. PE tracks SSTB income in
+      # this dedicated input so the phaseout reduces only the SSTB component;
+      # no business_is_sstb flag is needed on this path.
+      - sstb_self_employment_income:
+          - pprofinc
+          - sprofinc
       - rental_income:
+          - otherprop
+      - miscellaneous_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:
       - business_is_qualified:
@@ -832,13 +873,35 @@ taxsim_to_policyengine:
           - stcg
       - social_security_retirement:
           - gssi
+      # TAXSIM `mortgage` (#24) and `otheritem` (#22) are aggregates of
+      # non-SALT itemized deductions (mortgage interest, charity, medical,
+      # other taxes, etc.). The taxsimtest binary treats the two identically
+      # on the federal return: both are deducted in full on Schedule A with
+      # no AGI floor, outside the SALT cap, and neither is added back to AMT
+      # income (v26) -- despite the documentation describing `otheritem` as
+      # an AMT preference. `deductible_mortgage_interest` is the PE input
+      # with exactly that treatment (it flows through `interest_deduction`,
+      # which is not in the AMT add-back list and has no floor or cap when
+      # supplied as an input), so both columns are summed into it. Charity
+      # (AGI caps, 2021 non-itemizer deduction) and medical/misc (AGI
+      # floors) would each impose limits TAXSIM does not. See
+      # tests/test_itemized_aggregates.py.
       - deductible_mortgage_interest:
           - mortgage
+          - otheritem
       - real_estate_taxes:
           - proptax
       - unemployment_compensation:
           - pui
           - sui
+      # TAXSIM `transfers` (#19) is non-taxable transfer income (welfare,
+      # workers comp, veterans benefits, child support) that affects state
+      # property-tax-rebate eligibility but is not federally taxable. Map it
+      # to `general_assistance` — a non-taxable input variable counted in
+      # state household-income tests (e.g. MI household resources) with no
+      # dependent/child-support side effects. See taxsim #455.
+      - general_assistance:
+          - transfers
 
 taxsim_input_definition:
   - taxsimid:
@@ -852,6 +915,7 @@ taxsim_input_definition:
       type:
         - single: 1
         - joint: 2
+        - separate: 6
   - page:
       name: "5. Age of primary taxpayer"
       pair: sage
@@ -899,6 +963,12 @@ taxsim_input_definition:
   - scorp:
       name: "26. S-Corp profits"
   - pbusinc:
-      name: "27. Primary and secondary Taxpayer's active QBI"
+      name: "27. Primary taxpayer's active QBI"
+      pair: sbusinc
+  - sbusinc:
+      name: "27b. Spouse's active QBI"
   - pprofinc:
-      name: "28. Primary and secondary taxpayer's Specialized Service Trade or Business service"
+      name: "28. Primary taxpayer's SSTB self-employment income"
+      pair: sprofinc
+  - sprofinc:
+      name: "28b. Spouse's SSTB self-employment income"

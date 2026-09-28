@@ -55,7 +55,16 @@ class RemoteTaxsimRunner(BaseTaxRunner):
         "idtl",
     ]
 
-    ALL_COLUMNS = REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + INCOME_COLUMNS
+    # TAXSIM-35 option columns. Pass-through to the hosted service so callers
+    # can set options such as opt1=30, opt1v=1.
+    OPTION_COLUMNS = [
+        "opt1",
+        "opt1v",
+    ]
+
+    ALL_COLUMNS = (
+        REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + INCOME_COLUMNS + OPTION_COLUMNS
+    )
 
     def __init__(self, input_df: pd.DataFrame):
         super().__init__(input_df)
@@ -87,6 +96,7 @@ class RemoteTaxsimRunner(BaseTaxRunner):
         for i in range(max_depx):
             columns.append(f"age{i + 1}")
         columns.extend(self.INCOME_COLUMNS)
+        columns.extend(self.OPTION_COLUMNS)
 
         # Build CSV
         lines = [",".join(columns)]

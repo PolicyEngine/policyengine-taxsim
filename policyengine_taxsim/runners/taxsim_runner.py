@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -23,7 +24,9 @@ class TaxsimRunner(BaseTaxRunner):
         "depx",  # 6. Number of dependents
     ]
 
-    # Dependent ages come after depx according to official docs
+    # Dependent ages come after depx according to official docs.
+    # TAXSIM-35 (taxsimtest) only recognizes age1..age10; age11 is rejected
+    # with STOP 901 ("not a taxsimtest input variable").
     DEPENDENT_AGE_COLUMNS = [
         "age1",
         "age2",
@@ -35,7 +38,6 @@ class TaxsimRunner(BaseTaxRunner):
         "age8",
         "age9",
         "age10",
-        "age11",
     ]
 
     # TAXSIM32 format columns for dependent counts by age bracket
@@ -68,11 +70,28 @@ class TaxsimRunner(BaseTaxRunner):
         "childcare",  # Child care expenses
         "mortgage",  # Mortgage interest
         "scorp",  # S-Corp profits
+        "pbusinc",  # Primary taxpayer's active QBI (QBID, no SSTB phaseout)
+        "sbusinc",  # Spouse's active QBI
+        "pprofinc",  # Primary taxpayer's SSTB self-employment income
+        "sprofinc",  # Spouse's SSTB self-employment income
         "idtl",  # Output control
     ]
 
+    # TAXSIM-35 option columns. Pass-through to the binary so callers can
+    # toggle TAXSIM behaviors (e.g., opt1=30, opt1v=1 switches one-time
+    # rebate timing to the liability-year convention PE uses).
+    # See https://taxsim.nber.org/taxsimtest/options.html
+    OPTION_COLUMNS = [
+        "opt1",  # Option selector (e.g., 27 = rebate timing, 30 = PE-aligned umbrella)
+        "opt1v",  # Option value
+    ]
+
     ALL_COLUMNS = (
-        REQUIRED_COLUMNS + DEPENDENT_AGE_COLUMNS + TAXSIM32_COLUMNS + INCOME_COLUMNS
+        REQUIRED_COLUMNS
+        + DEPENDENT_AGE_COLUMNS
+        + TAXSIM32_COLUMNS
+        + INCOME_COLUMNS
+        + OPTION_COLUMNS
     )
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
@@ -166,13 +185,18 @@ class TaxsimRunner(BaseTaxRunner):
             # Start with required columns
             dynamic_columns = self.REQUIRED_COLUMNS.copy()
 
-            # Add only age columns for actual dependents (up to 11 max)
-            for i in range(min(depx, 11)):
+            # Add only age columns for actual dependents (up to 10 max;
+            # TAXSIM-35 rejects age11 and above).
+            for i in range(min(depx, 10)):
                 age_col = f"age{i + 1}"
                 dynamic_columns.append(age_col)
 
             # Add income columns (but exclude TAXSIM32 columns since TAXSIM-35 uses individual ages)
             dynamic_columns.extend(self.INCOME_COLUMNS)
+
+            # Add option columns (opt1, opt1v) so callers can toggle
+            # TAXSIM-35 behaviors via the standard TAXSIM input.
+            dynamic_columns.extend(self.OPTION_COLUMNS)
 
             # Create row data with only needed columns
             row_data = {}
@@ -207,6 +231,15 @@ class TaxsimRunner(BaseTaxRunner):
         with open(temp_file.name, "w") as f:
             # Use dynamic columns if available, otherwise fall back to ALL_COLUMNS
             columns_to_use = getattr(self, "_dynamic_columns", self.ALL_COLUMNS)
+
+            # Defensive guard: TAXSIM-35 only recognizes age1..age10. Drop any
+            # higher dependent-age column so a single record with depx >= 11
+            # cannot abort the entire run with STOP 901.
+            columns_to_use = [
+                c
+                for c in columns_to_use
+                if not (c.startswith("age") and c[3:].isdigit() and int(c[3:]) > 10)
+            ]
 
             # Write header
             f.write(",".join(columns_to_use) + "\n")
@@ -277,7 +310,27 @@ class TaxsimRunner(BaseTaxRunner):
         """Parse TAXSIM output file into DataFrame"""
         try:
             # First, try to read as CSV (for idtl values like 2)
-            output_df = pd.read_csv(output_file)
+            # The August 2026 binary prints d3/d4 debug counters to stdout.
+            # Skip only those exact non-CSV diagnostics, not malformed records.
+            debug_line = re.compile(r"^\s*d(?:3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$")
+            with open(output_file) as stream:
+                skip_rows = [
+                    i for i, line in enumerate(stream) if debug_line.fullmatch(line)
+                ]
+            output_df = pd.read_csv(output_file, skiprows=skip_rows)
+
+            # The binary stamps its build date into the last header column
+            # ("cdate-2025Dec24" through build 20260521, "cd2026081819" in
+            # later builds). Stash it so run() can report which build
+            # produced the results — a stale bundled binary looks exactly
+            # like an upstream behavior change otherwise (see #1089).
+            for col in output_df.columns:
+                if col.startswith("cdate-"):
+                    self.binary_build_date = col[len("cdate-") :]
+                    break
+                if re.fullmatch(r"cd\d{10}", col):
+                    self.binary_build_date = col
+                    break
 
             # Convert numeric columns
             for col in output_df.columns:
@@ -438,7 +491,8 @@ class TaxsimRunner(BaseTaxRunner):
             results_df = self._parse_taxsim_output(output_file)
 
             if show_progress:
-                print(f"\nTAXSIM completed successfully")
+                build = getattr(self, "binary_build_date", "unknown")
+                print(f"\nTAXSIM completed successfully (binary build {build})")
 
             return results_df
 

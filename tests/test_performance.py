@@ -92,16 +92,23 @@ class TestRunnerOutputCorrectness:
 
 
 class TestFederalOutputAdjustments:
-    def test_fiitax_includes_additional_medicare_tax_when_precomputed(self):
+    # 2021 and 2023 are years where taxsimtest cd2026081819 still adds
+    # AddMed to fiitax; the emulator excludes it in every year
+    # (tests/test_addmed_excluded_from_fiitax.py).
+    @pytest.mark.parametrize("year", [2021, 2023, 2024])
+    def test_fiitax_uses_income_tax_only_excludes_additional_medicare_tax(self, year):
         """
-        fiitax is normally populated from the income_tax mapping before the
-        special post-processing step runs. That post-processing still needs to
-        add additional_medicare_tax instead of skipping fiitax entirely.
+        fiitax is populated from the income_tax mapping and must NOT be
+        further adjusted by additional_medicare_tax in any year. The
+        Additional Medicare Tax (Form 8959) is counted in tfica/fica and
+        reported in the separate `addmed` column (taxsim #416), so
+        `_calc_tax_unit` is never called for `additional_medicare_tax`
+        during fiitax assembly.
         """
         records = pd.DataFrame(
             {
                 "taxsimid": [1],
-                "year": [2023],
+                "year": [year],
                 "state": [5],  # CA
                 "mstat": [1],
                 "depx": [0],
@@ -138,6 +145,10 @@ class TestFederalOutputAdjustments:
             if var_name == "income_tax":
                 return np.array([1000.0])
             if var_name == "additional_medicare_tax":
+                # We assert below that this branch is never taken,
+                # but return a sentinel so a future regression that
+                # re-introduces the call surfaces obviously rather
+                # than silently using a zero.
                 return np.array([900.0])
             raise AssertionError(f"Unexpected variable: {var_name}")
 
@@ -145,8 +156,12 @@ class TestFederalOutputAdjustments:
 
         result = runner._extract_vectorized_results(fake_sim, runner.input_df)
 
-        assert result["fiitax"].iloc[0] == pytest.approx(1900.0)
-        assert calc_calls == ["income_tax", "additional_medicare_tax"]
+        assert result["fiitax"].iloc[0] == pytest.approx(1000.0)
+        assert "additional_medicare_tax" not in calc_calls, (
+            "fiitax must not call additional_medicare_tax: AddMed is "
+            "counted in tfica/fica and reported in `addmed`, never in "
+            "fiitax (taxsim #416)."
+        )
 
 
 class TestGeneratePhaseEfficiency:
@@ -171,7 +186,13 @@ class TestGeneratePhaseEfficiency:
             times[n] = time.time() - t0
             dataset.cleanup()
 
-        ratio = times[500] / max(times[100], 0.01)
+        # Floor the denominator at 100ms: when the 100-record base runs in a
+        # few tens of milliseconds, scheduler noise dominates the ratio and
+        # the test flakes on CI (observed 5.3x/5.9x on runs where both
+        # absolute times were well under a quarter second). A genuinely
+        # pathological (e.g. quadratic row-loop) regression still trips the
+        # assertion because times[500] grows into whole seconds.
+        ratio = times[500] / max(times[100], 0.1)
         assert ratio < 5.0, (
             f"Generate phase scaled {ratio:.1f}x for 5x more records "
             f"(100: {times[100]:.2f}s, 500: {times[500]:.2f}s). "
@@ -194,9 +215,9 @@ class TestExtractResultsStructure:
         orig_extract = runner._extract_vectorized_results.__func__
         extract_time = {}
 
-        def timed_extract(self_runner, sim, input_df):
+        def timed_extract(self_runner, sim, input_df, *args, **kwargs):
             t0 = time.time()
-            result = orig_extract(self_runner, sim, input_df)
+            result = orig_extract(self_runner, sim, input_df, *args, **kwargs)
             extract_time["t"] = time.time() - t0
             return result
 
@@ -215,7 +236,8 @@ class TestBenchmark:
     """Performance benchmarks. Run with: pytest -m slow"""
 
     def test_benchmark_500_records(self):
-        """500 records should complete in under 30 seconds."""
+        """500 records should complete in under 2 minutes with the
+        three-pass --disable-salt code path (two PE Microsim invocations)."""
         records = _make_synthetic_records(500, seed=77)
         runner = PolicyEngineRunner(records, logs=False, disable_salt=True)
 
@@ -224,7 +246,7 @@ class TestBenchmark:
         elapsed = time.time() - start
 
         assert len(result) == 500
-        assert elapsed < 60, f"500 records took {elapsed:.1f}s, expected < 60s"
+        assert elapsed < 120, f"500 records took {elapsed:.1f}s, expected < 120s"
         print(f"\nBenchmark: 500 records in {elapsed:.1f}s")
 
     def test_benchmark_cps_like(self):
@@ -285,7 +307,8 @@ class TestBenchmark:
             f"\nBenchmark (CPS-like): {n} records, {records['state'].nunique()} states, idtl=2"
         )
         print(f"  Total: {elapsed:.1f}s")
-        assert elapsed < 120, f"CPS-like benchmark took {elapsed:.1f}s, expected < 120s"
+        # 2x ceiling accounts for the three-pass --disable-salt code path.
+        assert elapsed < 240, f"CPS-like benchmark took {elapsed:.1f}s, expected < 240s"
 
 
 class TestStateVariableEfficiency:
@@ -330,12 +353,16 @@ class TestStateVariableEfficiency:
         result = runner.run(show_progress=False)
 
         unique_states = records["state"].nunique()
-        # With unified state vars: ~30-60 _calc_tax_unit calls
-        # With per-state iteration: ~10 state vars * 47 states = 470+ calls
-        assert calc_count["n"] < 100, (
+        # With unified state vars: ~30-60 _calc_tax_unit calls per PE pass.
+        # When `disable_salt=True`, the runner makes two PE passes
+        # (state-side + federal-side, see PolicyEngineRunner.run docstring),
+        # so the expected ceiling roughly doubles.
+        # With per-state iteration: ~10 state vars * 47 states = 470+ calls.
+        assert calc_count["n"] < 200, (
             f"_calc_tax_unit() called {calc_count['n']} times for {n} records "
-            f"across {unique_states} states. Expected < 100 with unified state "
-            f"variables, but got a number suggesting per-state iteration."
+            f"across {unique_states} states. Expected < 200 with unified state "
+            f"variables (×2 for the disable_salt three-pass), but got a number "
+            f"suggesting per-state iteration."
         )
 
     def test_state_variable_values_match(self):

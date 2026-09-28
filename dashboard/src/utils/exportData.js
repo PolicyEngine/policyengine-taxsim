@@ -6,7 +6,7 @@ export const exportAllData = async () => {
   try {
     const zip = new JSZip();
 
-    const years = [2021, 2022, 2023, 2024];
+    const years = [2021, 2022, 2023, 2024, 2025];
 
     for (const year of years) {
       const dataPath = assetUrl(`/data/${year}/comparison_results_${year}.csv`);

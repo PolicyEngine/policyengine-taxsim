@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "policyengine-taxsim"
-version = "2.18.0"
+version = "2.32.2"
 description = "A TAXSIM emulator using PolicyEngine US"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,7 +22,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "policyengine-us>=1.552.0",
+    "policyengine-us>=1.711.0",
+    # Python 3.10 resolves PE-US 1.x, which imports the pre-1.0 geoadj module.
+    'spm-calculator<1; python_version < "3.11"',
     "pandas",
     "PyYAML",
     "click",
@@ -67,6 +69,7 @@ include = [
 dependencies = [
     "pytest",
     "pytest-cov",
+    "hypothesis",
     "ruff>=0.9.0",
 ]
 

@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 import numpy as np
 import tempfile
@@ -9,13 +11,16 @@ from .base_runner import BaseTaxRunner
 # Import core functions needed for microsimulation
 from policyengine_taxsim.core.utils import (
     load_variable_mappings,
-    SOI_TO_FIPS_MAP,
-    get_state_code,
-    get_state_number,
+    get_calculation_fips,
+    get_calculation_state_code,
     to_roundedup_number,
     convert_taxsim32_dependents,
+    validate_state_number,
+    NO_STATE,
 )
 from policyengine_taxsim.core.state_output_resolver import (
+    NY_SEPARATE_PAYMENT_VARIABLES,
+    ONE_TIME_REBATE_VARIABLES,
     calculate_output_adapter,
     calculate_state_mapped_output,
     get_state_specific_variable_name,
@@ -23,12 +28,63 @@ from policyengine_taxsim.core.state_output_resolver import (
     is_output_adapter,
 )
 from policyengine_taxsim.core.input_mapper import (
+    MSTAT_MARRIED_SEPARATE,
     set_taxsim_defaults,
     get_taxsim_defaults,
 )
 
 from policyengine_us import Microsimulation
 from policyengine_core.data import Dataset
+
+
+# Means-tested transfers that PE imputes but TAXSIM has no input column for.
+# They must be forced to 0 (via set_input, after the sim is built — the
+# dataset-level zeroing of these formula-based variables is silently
+# recomputed by the Microsimulation) so PE's imputed benefits do not leak
+# into state calculations that count cash public assistance as income
+# (e.g. the MA Senior Circuit Breaker; taxsim #1031). Includes the federal
+# programs and every state SSI supplement PE models.
+_ZERO_IMPUTED_TRANSFERS = frozenset(
+    {
+        "ssi",
+        "snap",
+        "tanf",
+        "wic",
+        "ma_state_supplement",
+        "ca_state_supplement",
+        "co_state_supplement",
+        "nm_ssi_state_supplement",
+        "sc_ssi_state_supplement",
+        "tx_ssi_state_supplement",
+    }
+)
+
+# Federal Schedule A deduction for state and local income or sales tax
+# (property tax is separate, in real_estate_taxes). Zeroed for state-0
+# records, which TAXSIM runs with no state return (see
+# PolicyEngineRunner._run_chunk), and for every record under --disable-salt.
+_SALT_VARIABLE = "state_and_local_sales_or_income_tax"
+
+
+def _pin_input(sim, variable_name, value, period):
+    """Hold ``variable_name`` at ``value`` as an input on ``sim``.
+
+    ``sim.set_input`` alone does not survive a branch for an override applied
+    after the Microsimulation is built. policyengine-core computes
+    ``Simulation.input_variables`` once, in ``__init__``, from the dataset's
+    known periods, so a later ``set_input`` leaves the variable off that
+    list. Branches that clear every array not in ``input_variables`` before
+    re-running (``_wage_perturbation_branch`` here, core's
+    ``Simulation.derivative``, PE-US's ``marginal_tax_rate`` formulas) would
+    then delete the override from the branch, so the variable reverted to its
+    formula or default. That is how MD srate picked up the county tax this
+    runner zeroes: 2253.01 instead of 4.75 on $80k single (2024).
+    Registering the name keeps the override in every such branch.
+    """
+    sim.set_input(variable_name=variable_name, value=value, period=period)
+    if variable_name not in sim.input_variables:
+        # Rebind rather than append: an existing branch shares the list.
+        sim.input_variables = [*sim.input_variables, variable_name]
 
 
 class TaxsimMicrosimDataset(Dataset):
@@ -143,6 +199,12 @@ class TaxsimMicrosimDataset(Dataset):
             "is_tax_unit_head",  # Tax unit role - must be explicit to avoid misclassification
             "is_tax_unit_spouse",  # Tax unit role - must be explicit to avoid misclassification
             "is_tax_unit_dependent",  # Tax unit role - must be explicit to avoid misclassification
+            "is_separated",  # Set for TAXSIM mstat 6 (married filing separately) primaries
+        }
+
+        # Essential tax-unit-level variables that might not be in mappings
+        essential_tax_unit_variables = {
+            "cohabitating_spouses",  # Set for TAXSIM mstat 6 (married filing separately)
         }
 
         # Variables that can cause circular dependencies
@@ -165,6 +227,9 @@ class TaxsimMicrosimDataset(Dataset):
             "head_start",  # Head Start should be 0 to match TAXSIM (which doesn't model Head Start)
             "early_head_start",  # Early Head Start should be 0 to match TAXSIM (which doesn't model Early Head Start)
             "commodity_supplemental_food_program",  # Commodity supplemental food program should be 0 to match TAXSIM (which doesn't model this program)
+            "medical_expense_health_insurance_premiums",  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
+            "me_affordability_payment",  # Maine's 2025 affordability payment (HP 1491 Part T) is a direct payment mailed by the assessor in 2026-27, not a 1040ME line; PE models it as a refundable credit, which would land in siitax
+            "ma_covid_19_essential_employee_premium_pay_program",  # MA premium pay (Ch. 102, Acts of 2021) is $500/worker mailed by check in 2022, not a Form 1 line; PE models it as a 2021 refundable credit, which lands in siitax and shrinks the 62F rebate base
         }
 
         # Combine all variables
@@ -172,6 +237,7 @@ class TaxsimMicrosimDataset(Dataset):
             pe_variables
             | entity_variables
             | essential_person_variables
+            | essential_tax_unit_variables
             | problematic_variables
         )
 
@@ -181,6 +247,153 @@ class TaxsimMicrosimDataset(Dataset):
             data[var] = {}
 
         return data
+
+    # Household aggregate inputs allocated evenly between spouses for MFJ.
+    _SPLITTABLE_VARIABLES = frozenset(
+        {
+            "taxable_interest_income",
+            "qualified_dividend_income",
+            "long_term_capital_gains",
+            "partnership_s_corp_income",
+            "short_term_capital_gains",
+        }
+    )
+
+    # Pension and Social Security income are split 50/50 between spouses when
+    # both are on the same side of the relevant state's exclusion-eligibility
+    # age (both qualify OR both do not); in mixed-age households straddling
+    # that age the income stays with the older spouse so the age-based state
+    # exclusion reaches the qualifying filer.
+    #
+    # A single global threshold cannot match every state: CO's pension
+    # subtraction qualifies at 55 but GA at 62, MD at 65, etc.
+    # _PENSION_SPLIT_AGE_BY_STATE holds the age at/above which a filer
+    # qualifies for a state's *pension/retirement* exclusion where it differs
+    # from the default. States absent from the table use the default (55).
+    # The override applies to the pension field ONLY — Social Security is
+    # governed by separate state rules (often a full exemption regardless of
+    # age, e.g. GA), so gssi always uses the default age; routing it on the
+    # higher pension age over-allocates SS to the older spouse and diverges
+    # from TAXSIM (eCPS record #27269: GA 68/60, SS over-excluded at a 62 gate).
+    _AGE_GATED_FIELDS = frozenset(
+        {"taxable_private_pension_income", "social_security_retirement"}
+    )
+    _DEFAULT_PENSION_SPLIT_AGE = 55
+    _PENSION_SPLIT_AGE_BY_STATE = {
+        # O.C.G.A. §48-7-27: $0 exclusion under 62, $35k at 62-64, $65k at
+        # 65+. A 65/61 couple must route the pension to the 65-year-old or
+        # the 61-year-old's half is stranded (taxsim #1027).
+        "GA": 62,
+        # KRS §141.019: Kentucky exempts up to $31,110 of retirement income
+        # per person with no age requirement (Schedule P). TAXSIM's kytax caps
+        # the combined pension at $31,110*nret, which equals a 50/50 split with
+        # the per-person cap — so KY must split 50/50 at every age rather than
+        # route to the older spouse (taxsim #1026). Age 0 = always same-side.
+        "KY": 0,
+    }
+    # TAXSIM source column for pension income (the per-state age applies here
+    # only; gssi and any other age-gated field use the default).
+    _PENSION_SOURCE_FIELD = "pensions"
+
+    @classmethod
+    def _split_age_for_field(cls, row, source_field):
+        """Age at/above which a filer qualifies, for allocating ``source_field``
+        (the TAXSIM column name). Per-state pension-exclusion age for the
+        pension column; the default elderly-eligibility age (55) otherwise."""
+        if source_field != cls._PENSION_SOURCE_FIELD:
+            return cls._DEFAULT_PENSION_SPLIT_AGE
+        try:
+            state = get_calculation_state_code(row.get("state"))
+        except ValueError:
+            state = None
+        return cls._PENSION_SPLIT_AGE_BY_STATE.get(
+            state, cls._DEFAULT_PENSION_SPLIT_AGE
+        )
+
+    @staticmethod
+    def _make_primary_split(source_field):
+        """Return a callable yielding the primary share of a household input."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            return value / 2 if int(row.get("mstat", 1)) == 2 else value
+
+        return accessor
+
+    @staticmethod
+    def _make_spouse_split(source_field):
+        """Return a callable yielding the spouse share of a household input."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
+
+        return accessor
+
+    @staticmethod
+    def _make_sum(*source_fields):
+        """Return a callable summing several TAXSIM columns for one person.
+
+        Used where two per-person TAXSIM inputs feed a single PolicyEngine
+        variable — e.g. psemp (self-employment) + pbusinc (active QBI) both
+        populate the primary's self_employment_income. Each column is already
+        per-person in TAXSIM-35, so no MFJ splitting is applied here."""
+
+        def accessor(row):
+            return sum(float(row.get(f, 0)) for f in source_fields)
+
+        return accessor
+
+    @classmethod
+    def _make_age_gated_primary(cls, source_field):
+        """Allocate age-gated income (pension, gssi) to the primary filer's
+        share. The income is split 50/50 whenever both spouses fall on the
+        same side of the elderly-eligibility line (both qualify OR both do
+        not); only in mixed-age couples is it assigned entirely to the older
+        spouse, so age-based state exclusions reach the qualifying filer.
+        See taxsim #774 (pensions) and #924 (gssi) for the mixed-age ->
+        older rule, and #965 (KY) / #966 (OK) confirming both-young couples
+        must still split 50/50 (TAXSIM does, and per-person exclusions like
+        KY/OK are age-independent)."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            if int(row.get("mstat", 1)) != 2:
+                return value
+            page = int(row.get("page", 0))
+            sage = int(row.get("sage", 0))
+            threshold = cls._split_age_for_field(row, source_field)
+            primary_eligible = page >= threshold
+            spouse_eligible = sage >= threshold
+            if primary_eligible == spouse_eligible:
+                return value / 2
+            primary_is_older_or_equal = page >= sage
+            return value if primary_is_older_or_equal else 0.0
+
+        return accessor
+
+    @classmethod
+    def _make_age_gated_spouse(cls, source_field):
+        """Spouse's share of age-gated income. Mirror of `_make_age_gated_primary`:
+        50/50 when both spouses are on the same side of the elderly-eligibility
+        line; in mixed-age couples the full amount goes to the spouse only when
+        the spouse is strictly older than the primary."""
+
+        def accessor(row):
+            value = float(row.get(source_field, 0))
+            if int(row.get("mstat", 1)) != 2:
+                return 0.0
+            page = int(row.get("page", 0))
+            sage = int(row.get("sage", 0))
+            threshold = cls._split_age_for_field(row, source_field)
+            primary_eligible = page >= threshold
+            spouse_eligible = sage >= threshold
+            if primary_eligible == spouse_eligible:
+                return value / 2
+            spouse_is_strictly_older = sage > page
+            return value if spouse_is_strictly_older else 0.0
+
+        return accessor
 
     def _get_taxsim_to_pe_variable_mapping(self) -> dict:
         """
@@ -224,6 +437,21 @@ class TaxsimMicrosimDataset(Dataset):
                     if not taxsim_vars:  # Skip empty mappings
                         continue
 
+                    if pe_var == "self_employment_income":
+                        # psemp + pbusinc feed the primary's self_employment_income;
+                        # ssemp + sbusinc feed the spouse's. Both are per-person
+                        # TAXSIM columns (no household splitting), so sum each
+                        # spouse's own pair. Handled explicitly because the
+                        # generic length-based branches below only read the first
+                        # one or two columns of the list.
+                        variable_mapping[pe_var] = {
+                            "primary": self._make_sum("psemp", "pbusinc"),
+                            "spouse": self._make_sum("ssemp", "sbusinc"),
+                            "dependent": 0.0,
+                            "default": 0.0,
+                        }
+                        continue
+
                     if len(taxsim_vars) == 1:
                         # Single variable - check if it has a spouse pair
                         taxsim_var = taxsim_vars[0]
@@ -234,6 +462,26 @@ class TaxsimMicrosimDataset(Dataset):
                             variable_mapping[pe_var] = {
                                 "primary": taxsim_var,
                                 "spouse": spouse_var,
+                                "dependent": 0.0,
+                                "default": 0.0,
+                            }
+                        elif pe_var in self._AGE_GATED_FIELDS:
+                            # Pension and Social Security require the
+                            # age-aware split (both spouses must be 60+
+                            # to share, otherwise it stays with the primary
+                            # filer so age-based exclusions aren't lost).
+                            variable_mapping[pe_var] = {
+                                "primary": self._make_age_gated_primary(taxsim_var),
+                                "spouse": self._make_age_gated_spouse(taxsim_var),
+                                "dependent": 0.0,
+                                "default": 0.0,
+                            }
+                        elif pe_var in self._SPLITTABLE_VARIABLES:
+                            # Household aggregate: allocate evenly between
+                            # spouses for MFJ, otherwise keep on primary.
+                            variable_mapping[pe_var] = {
+                                "primary": self._make_primary_split(taxsim_var),
+                                "spouse": self._make_spouse_split(taxsim_var),
                                 "dependent": 0.0,
                                 "default": 0.0,
                             }
@@ -359,7 +607,12 @@ class TaxsimMicrosimDataset(Dataset):
         # Vectorized household structure
         mstat = year_data["mstat"].values.astype(int)
         depx = year_data["depx"].values.astype(int)
-        has_spouse = np.isin(mstat, [2, 6])
+        # Only a joint return (mstat 2) puts a spouse in the tax unit.
+        # TAXSIM mstat 6 is one spouse's married-filing-separately return
+        # (swages must be zero and sage must be zero), so it is a
+        # single-person tax unit whose primary is flagged is_separated.
+        has_spouse = mstat == 2
+        is_married_separate = mstat == MSTAT_MARRIED_SEPARATE
         people_per_hh = 1 + has_spouse.astype(int) + depx
         total_people = int(people_per_hh.sum())
 
@@ -413,6 +666,10 @@ class TaxsimMicrosimDataset(Dataset):
             "is_tax_unit_head": is_primary,
             "is_tax_unit_spouse": is_spouse,
             "is_tax_unit_dependent": is_dependent,
+            # PE-US derives filing_status SEPARATE from a separated head
+            # with no spouse in the unit (HEAD_OF_HOUSEHOLD instead when a
+            # qualifying child lets IRC 7703(b) treat them as unmarried).
+            "is_separated": is_primary & np.repeat(is_married_separate, people_per_hh),
             "person_weight": np.ones(total_people),
         }
 
@@ -529,11 +786,19 @@ class TaxsimMicrosimDataset(Dataset):
 
         return df
 
-    def _apply_defaults_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized."""
-        # Vectorized set_taxsim_defaults: fill falsy values with defaults
+    def _apply_defaults_vectorized(
+        self, df: pd.DataFrame, supplied_columns=None
+    ) -> pd.DataFrame:
+        """Apply TAXSIM defaults and TAXSIM32 dependent conversion vectorized.
+
+        ``supplied_columns`` are the columns the caller actually provided.
+        ``generate`` pads the frame with zero-filled ``age1..age10`` and
+        ``dep13/dep17/dep18`` before calling this, so the padded frame cannot
+        say which dependent format the caller used. Defaults to ``df.columns``.
+        """
+        # Vectorized set_taxsim_defaults: fill falsy values with defaults.
+        # State 0 stays 0 (no state tax); the FIPS mapping applies the proxy.
         defaults = {
-            "state": 44,
             "depx": 0,
             "mstat": 1,
             "taxsimid": 0,
@@ -553,60 +818,55 @@ class TaxsimMicrosimDataset(Dataset):
         else:
             df["year"] = 2021
 
-        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 → age1..age11)
-        has_dep13 = "dep13" in df.columns
-        has_dep17 = "dep17" in df.columns
-        has_dep18 = "dep18" in df.columns
-        has_taxsim32 = has_dep13 or has_dep17 or has_dep18
+        # Vectorized TAXSIM32 dependent conversion (dep13/dep17/dep18 →
+        # age1..age11), mirroring convert_taxsim32_dependents: a row is
+        # converted when the caller supplied the TAXSIM-32 counts and gave
+        # that row no positive dependent age. Dependents beyond dep18 are
+        # adults (age 21), as in taxsimtest: the $500 credit for other
+        # dependents and head-of-household status, but no EITC or CTC.
+        supplied = set(df.columns if supplied_columns is None else supplied_columns)
+        if supplied & {"dep13", "dep17", "dep18"}:
+            supplied_ages = [
+                f"age{i}"
+                for i in range(1, 12)
+                if f"age{i}" in supplied and f"age{i}" in df.columns
+            ]
+            if supplied_ages:
+                convert = ~(df[supplied_ages].fillna(0) > 0).any(axis=1).values
+            else:
+                convert = np.ones(len(df), dtype=bool)
 
-        # Check if individual age fields already exist
-        has_individual_ages = any(
-            f"age{i}" in df.columns and df[f"age{i}"].notna().any()
-            for i in range(1, 12)
-        )
+            def count(col):
+                if col not in df.columns:
+                    return np.zeros(len(df), dtype=int)
+                return df[col].fillna(0).astype(int).values
 
-        if has_taxsim32 and not has_individual_ages:
-            dep13 = df.get("dep13", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            dep17 = df.get("dep17", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            dep18 = df.get("dep18", pd.Series(0, index=df.index)).fillna(0).astype(int)
-            depx = df["depx"].astype(int)
+            dep13, dep17, dep18 = count("dep13"), count("dep17"), count("dep18")
+            depx = df["depx"].astype(int).values
 
-            # Ensure depx >= dep18
-            df["depx"] = np.maximum(depx, dep18)
+            # The counts are cumulative; turn them into the last dependent
+            # slot that holds each age band.
+            last_under_13 = dep13
+            last_13_to_16 = last_under_13 + np.maximum(dep17 - dep13, 0)
+            last_17 = last_13_to_16 + np.maximum(dep18 - dep17, 0)
+            last_adult = last_17 + np.maximum(depx - dep18, 0)
 
-            num_under_13 = dep13
-            num_13_to_16 = dep17 - dep13
-            num_17 = dep18 - dep17
-            num_18_plus = np.maximum(depx - dep18, 0)
-
-            # Assign ages vectorized: iterate over dependent slots 1-11
-            dep_counter = np.ones(len(df), dtype=int)  # starts at 1
-
-            age_cols = {}
-            for age_val, count_series in [
-                (10, num_under_13),
-                (15, num_13_to_16),
-                (17, num_17),
-                (21, num_18_plus),
-            ]:
-                for _ in range(count_series.max() if len(count_series) > 0 else 0):
-                    for dep_slot in range(1, 12):
-                        col = f"age{dep_slot}"
-                        if col not in age_cols:
-                            age_cols[col] = np.zeros(len(df), dtype=int)
-                        mask = (dep_counter == dep_slot) & (count_series > 0)
-                        age_cols[col] = np.where(mask, age_val, age_cols[col])
-                    dep_counter = np.where(
-                        count_series > 0, dep_counter + 1, dep_counter
-                    )
-                    count_series = np.where(
-                        count_series > 0, count_series - 1, count_series
-                    )
-
-            for col, vals in age_cols.items():
+            df["depx"] = np.where(convert, np.maximum(depx, dep18), depx)
+            for slot in range(1, 12):
+                col = f"age{slot}"
+                age = np.select(
+                    [
+                        slot <= last_under_13,
+                        slot <= last_13_to_16,
+                        slot <= last_17,
+                        slot <= last_adult,
+                    ],
+                    [10, 15, 17, 21],
+                    default=0,
+                )
                 if col not in df.columns:
                     df[col] = 0
-                df[col] = np.where(df[col] == 0, vals, df[col])
+                df[col] = np.where(convert, age, df[col])
 
         # Normalize ages: NaN or 0 → 10 for dependent age fields
         for i in range(1, 12):
@@ -620,13 +880,14 @@ class TaxsimMicrosimDataset(Dataset):
     def generate(self) -> None:
         """Generate the dataset with all TAXSIM records."""
         n_records = len(self.input_df)
+        supplied_columns = set(self.input_df.columns)
 
         # Ensure all required columns exist with default values
         self.input_df = self._ensure_required_columns(self.input_df)
 
         # Set defaults and convert TAXSIM32 format (vectorized)
-        print("Setting defaults for TAXSIM records...")
-        self.input_df = self._apply_defaults_vectorized(self.input_df)
+        print("Setting defaults for TAXSIM records...", file=sys.stderr)
+        self.input_df = self._apply_defaults_vectorized(self.input_df, supplied_columns)
 
         # Extract years (assuming all records might have different years)
         # Years should already be converted to integers in the run() method
@@ -636,12 +897,13 @@ class TaxsimMicrosimDataset(Dataset):
         # Use SOI to FIPS mapping from core utils
 
         # Proper approach: Check mstat to determine household structure
-        # mstat 2 or 6 = spouse present → create multi-person household
-        # mstat 1,3,4,5 = no spouse → single-person household + dependents
+        # mstat 2 = joint return → head + spouse + dependents
+        # mstat 6 = married filing separately → head (is_separated) + dependents
+        # any other mstat = no spouse → head + dependents
         data = self._initialize_dataset_structure()
 
         # Process each year separately
-        print("Processing years for dataset generation...")
+        print("Processing years for dataset generation...", file=sys.stderr)
         for year in tqdm(unique_years, desc="Dataset generation by year"):
             year_mask = self.input_df["year"] == year
             year_data = self.input_df[year_mask].copy()
@@ -696,6 +958,9 @@ class TaxsimMicrosimDataset(Dataset):
             data["ok_use_tax"][year_int] = np.zeros(
                 n_year_records
             )  # Prevent Oklahoma use tax calculations
+            data["me_affordability_payment"][year_int] = np.zeros(
+                n_year_records
+            )  # Maine's 2025 affordability payment (HP 1491 Part T, $300/adult) is a direct payment mailed in 2026-27 based on the 2025 return, not a 1040ME line item; TAXSIM/TaxAct never report it, so keep it out of siitax
 
             # Set person-level variables that need to be set per person, not per tax unit
             total_people_for_year = len(person_data.get("person_id", []))
@@ -724,16 +989,19 @@ class TaxsimMicrosimDataset(Dataset):
                 data["commodity_supplemental_food_program"][year_int] = np.zeros(
                     total_people_for_year
                 )  # Set commodity supplemental food program to 0 to match TAXSIM (which doesn't model this program)
+                data["medical_expense_health_insurance_premiums"][year_int] = np.zeros(
+                    total_people_for_year
+                )  # TAXSIM has no medical-expense input; zero PE's imputed Medicare Part B premiums so they don't flow into state medical exemptions/deductions via the federal itemized medical deduction
+                data["ma_covid_19_essential_employee_premium_pay_program"][year_int] = (
+                    np.zeros(total_people_for_year)
+                )  # MA premium pay (Ch. 102, Acts of 2021, $500/worker) was mailed by check in 2022 and never appears on Form 1; TAXSIM/TaxAct don't report it, and leaving it in also shrinks the 62F rebate base
 
             # Household data
             data["household_id"][year_int] = year_household_ids
             data["household_weight"][year_int] = np.ones(n_year_records)
             # Convert SOI codes to FIPS codes for PolicyEngine
             data["state_fips"][year_int] = np.array(
-                [
-                    SOI_TO_FIPS_MAP.get(int(float(s)), 6)
-                    for s in year_data["state"].values
-                ]
+                [get_calculation_fips(s) for s in year_data["state"].values]
             )
 
             # Tax unit data
@@ -741,10 +1009,19 @@ class TaxsimMicrosimDataset(Dataset):
             data["tax_unit_weight"][year_int] = np.ones(n_year_records)
 
             # No explicit filing status mapping - let PolicyEngine auto-calculate based on:
-            # - Household structure (spouse presence from mstat 2/6)
+            # - Household structure (spouse presence from mstat 2)
             # - Dependents (depx > 0)
-            # - Other factors (separation, widow status, etc.)
+            # - is_separated (mstat 6), which yields SEPARATE, or
+            #   HEAD_OF_HOUSEHOLD when a qualifying child is present
             # This should correctly handle SINGLE vs HEAD_OF_HOUSEHOLD vs JOINT vs SEPARATE
+
+            # TAXSIM taxes an mstat 6 return as a spouse who did not live
+            # apart all year: Social Security uses the zero base amount of
+            # IRC 86(c)(1)(C). PE-US applies that base to SEPARATE units only
+            # when cohabitating_spouses is set.
+            data["cohabitating_spouses"][year_int] = (
+                year_data["mstat"].values.astype(int) == MSTAT_MARRIED_SEPARATE
+            )
 
             # Family data
             data["family_id"][year_int] = year_family_ids
@@ -803,6 +1080,25 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.assume_w2_wages = assume_w2_wages
         self.mappings = load_variable_mappings()
 
+    def _validate_input(self):
+        """Reject invalid state codes before any simulation.
+
+        TAXSIM stops at the first invalid state code. A missing state is 0 (no
+        state tax). TaxsimRunner skips this check because TAXSIM itself accepts
+        -1 (compute every state), which this runner does not support.
+        """
+        super()._validate_input()
+        if "state" not in self.input_df.columns:
+            self.input_df["state"] = NO_STATE
+            return
+        states = []
+        for taxsimid, state in zip(self.input_df["taxsimid"], self.input_df["state"]):
+            try:
+                states.append(validate_state_number(state))
+            except ValueError as error:
+                raise ValueError(f"Record {taxsimid}: {error}") from None
+        self.input_df["state"] = states
+
     def _ensure_required_columns(self, df):
         """
         Ensure all required columns exist in the DataFrame with default values.
@@ -838,73 +1134,341 @@ class PolicyEngineRunner(BaseTaxRunner):
         Run PolicyEngine Microsimulation on a single chunk of records.
         Each chunk must contain only one year.
 
+        TAXSIM runs a state-0 record with no state return, so it deducts no
+        state or local income or sales tax federally. PolicyEngine simulates
+        state 0 in Texas (NO_STATE_TAX_PROXY), which would otherwise take
+        Texas's sales-tax deduction; taxsimtest build cd2026081819 shows the
+        difference (a 2024 joint itemizer with $300,000 of wages, $3,000 of
+        property tax and $30,000 of mortgage interest owes 50,165.00 at state
+        0 but 49,618.30 at state 44).
+
+        A set_input override covers every record in a simulation, so a chunk
+        that mixes state-0 and other records is simulated twice from one
+        dataset, as is and with that deduction zeroed, and each record takes
+        its row from the matching run. Every other record therefore gets
+        exactly the computation it would get without state-0 batch-mates;
+        splitting the chunk would instead rebuild the dataset from a subset,
+        and dataset generation has made chunk-wide decisions (before #1217,
+        whether any record supplied a dependent age switched TAXSIM-32
+        dependent-count conversion off for the whole chunk).
+
         Returns:
             DataFrame with TAXSIM-formatted output variables
         """
+        no_state = (chunk_df["state"] == NO_STATE).to_numpy()
         dataset = TaxsimMicrosimDataset(chunk_df)
 
         try:
             dataset.generate()
-            sim = Microsimulation(dataset=dataset)
-
-            if self.disable_salt:
-                years = sorted(set(chunk_df["year"].unique()))
-                for year in years:
-                    year_mask = chunk_df["year"] == year
-                    n_year_records = year_mask.sum()
-                    sim.set_input(
-                        variable_name="state_and_local_sales_or_income_tax",
-                        value=np.zeros(n_year_records),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
+            if self.disable_salt or no_state.all():
+                return self._simulate(dataset, chunk_df, zero_salt=True)
+            results = self._simulate(dataset, chunk_df, zero_salt=False)
+            if no_state.any():
+                no_salt = self._simulate(dataset, chunk_df, zero_salt=True)
+                no_salt = no_salt.reindex(columns=results.columns)
+                for column in results.columns:
+                    results[column] = np.where(
+                        no_state, no_salt[column].to_numpy(), results[column]
                     )
-
-            if self.assume_w2_wages:
-                n_persons = sim.get_variable_population(
-                    "w2_wages_from_qualified_business"
-                ).count
-                years = sorted(set(chunk_df["year"].unique()))
-                for year in years:
-                    sim.set_input(
-                        variable_name="w2_wages_from_qualified_business",
-                        value=np.full(n_persons, 1e9),
-                        period=str(
-                            int(year)
-                            if isinstance(year, (float, np.floating))
-                            else year
-                        ),
-                    )
-
-            return self._extract_vectorized_results(sim, chunk_df)
+            return results
 
         finally:
             dataset.cleanup()
 
-    def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
-        """
-        Run PolicyEngine Microsimulation on all records, chunked by year
-        and then by CHUNK_SIZE to avoid memory issues with large datasets.
+    def _simulate(self, dataset, chunk_df: pd.DataFrame, zero_salt: bool):
+        """Simulate the chunk dataset and format the results as TAXSIM
+        output; ``zero_salt`` zeroes the state and local income or sales tax
+        deduction for every record."""
+        sim = self._build_configured_sim(dataset, chunk_df, zero_salt)
 
-        Args:
-            show_progress: Whether to show tqdm progress bar.
-            on_progress: Optional callback(chunks_done, total_chunks, rows_done, total_rows).
+        def rebate_free_sim_factory():
+            # Twin sim, identically configured, with the one-time state
+            # rebate variables forced to zero (set_input before any
+            # calculate). state_income_tax(twin) - state_income_tax(sim)
+            # is exactly the rebate amount PE netted into siitax.
+            twin = self._build_configured_sim(dataset, chunk_df, zero_salt)
+            self._zero_one_time_rebates(twin, chunk_df)
+            return twin
 
-        Returns:
-            DataFrame with TAXSIM-formatted output variables
-        """
+        return self._extract_vectorized_results(sim, chunk_df, rebate_free_sim_factory)
+
+    def _build_configured_sim(
+        self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
+    ):
+        """Build a Microsimulation from the chunk dataset and apply all
+        emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
+        imputed-transfer zeroing, MD local tax zeroing, ME rent utilities, NY
+        separate payments).
+
+        ``zero_salt`` zeroes the federal deduction for state and local income
+        or sales tax for every record in the chunk: state-0 records and
+        --disable-salt runs.
+
+        Every override goes through ``_pin_input`` so it stays fixed in the
+        marginal-rate branch as well as in the base simulation."""
+        sim = Microsimulation(dataset=dataset)
+
+        if zero_salt:
+            years = sorted(set(chunk_df["year"].unique()))
+            for year in years:
+                year_mask = chunk_df["year"] == year
+                _pin_input(
+                    sim,
+                    variable_name=_SALT_VARIABLE,
+                    value=np.zeros(int(year_mask.sum())),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+        if self.assume_w2_wages:
+            n_persons = sim.get_variable_population(
+                "w2_wages_from_qualified_business"
+            ).count
+            years = sorted(set(chunk_df["year"].unique()))
+            for year in years:
+                _pin_input(
+                    sim,
+                    variable_name="w2_wages_from_qualified_business",
+                    value=np.full(n_persons, 1e9),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+        # QBID gate on rental_income (TAXSIM `otherprop`): TAXSIM only
+        # triggers § 199A QBID via the explicit `pbusinc` input and never
+        # treats `otherprop` (Schedule E passive rents/royalties) as
+        # qualified. PE-US's `rental_income_would_be_qualified` defaults
+        # to True, which would generate a 20% QBID on emulator-routed
+        # rental income that TAXSIM does not produce. § 199A(c)(3)(A)
+        # requires the activity to rise to a § 162 trade or business;
+        # passive individual rentals generally do not qualify absent the
+        # § 1.199A-1(b)(14) safe harbor, which TAXSIM input never
+        # signals. We force the gate off for the whole chunk: every
+        # rental_income value in PE here originated as `otherprop` from
+        # TAXSIM, so the override has no side effect on non-emulated
+        # rental income.
+        if "otherprop" in chunk_df.columns and (chunk_df["otherprop"] != 0).any():
+            n_persons = sim.get_variable_population(
+                "rental_income_would_be_qualified"
+            ).count
+            years = sorted(set(chunk_df["year"].unique()))
+            for year in years:
+                _pin_input(
+                    sim,
+                    variable_name="rental_income_would_be_qualified",
+                    value=np.zeros(n_persons, dtype=bool),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+        # MN Renter's Credit: PE-US gates the credit on a Certificate
+        # of Rent Paid (CRP) input variable that defaults to False. Per
+        # Minn. Stat. § 290.0693, the credit is allowed for renters who
+        # paid rent and meet income criteria; subd. 4 places the CRP
+        # issuance obligation on the landlord (not the renter), and
+        # subd. 9 accepts proof "including but not limited to" the CRP.
+        # TAXSIM input never carries CRP info, so we assume any MN
+        # tax unit with rent > 0 has the supporting documentation.
+        if "rentpaid" in chunk_df.columns and "state" in chunk_df.columns:
+            mn_mask = (chunk_df["state"] == 24) & (chunk_df["rentpaid"] > 0)
+            if mn_mask.any():
+                years = sorted(set(chunk_df["year"].unique()))
+                for year in years:
+                    year_mask = (chunk_df["year"] == year) & mn_mask
+                    if year_mask.any():
+                        # qualifying_crp is on TaxUnit; vector aligns
+                        # with the chunk's tax-unit order, one row per
+                        # tax unit.
+                        _pin_input(
+                            sim,
+                            variable_name="mn_renters_credit_qualifying_crp",
+                            value=mn_mask[chunk_df["year"] == year].values,
+                            period=str(
+                                int(year)
+                                if isinstance(year, (float, np.floating))
+                                else year
+                            ),
+                        )
+
+        # PE imputes means-tested transfers (SSI, SNAP, TANF, WIC, and
+        # state SSI supplements) from the microsimulation's low-income
+        # records. TAXSIM has no input columns for any of these, so they
+        # must be zeroed to match TAXSIM's transfer-free world — otherwise
+        # PE's imputed benefits leak into state calculations that count
+        # cash public assistance as income (e.g. the MA Senior Circuit
+        # Breaker base, MGL c.62 §6(k); taxsim #1031). These are
+        # formula-based benefit variables, so the dataset-level zeroing is
+        # silently recomputed by the Microsimulation; they must be forced
+        # off with _pin_input after the sim is built (same mechanism as the
+        # overrides above), which holds them as fixed inputs.
+        years = sorted(set(chunk_df["year"].unique()))
+        for var in _ZERO_IMPUTED_TRANSFERS:
+            if var not in sim.tax_benefit_system.variables:
+                continue
+            n_entities = sim.get_variable_population(var).count
+            for year in years:
+                _pin_input(
+                    sim,
+                    variable_name=var,
+                    value=np.zeros(n_entities),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+        # Maryland county/local income tax: TAXSIM's MD `siitax` is
+        # state-only, so zero the MD local component of PE's state_income_tax
+        # to match. Maryland counties and Baltimore City tax Maryland taxable
+        # net income at the rate of the county of residence (Form 502
+        # Instruction 19: .0225 to .0320 in 2021-2024, up to .0330 in 2025,
+        # with income-tiered rates in Anne Arundel and Frederick from 2023).
+        # TAXSIM input has no county; with none, PE-US falls back to the first
+        # county in the state (Allegany, .0303-.0305) and applies that rate
+        # less the local EITC and poverty credits.
+        #
+        # TAXSIM's 2022+ MD routine (`mdtax22`) has a county block, a flat
+        # 3.2% of taxable income less 3.2% of the federal EITC, which the
+        # published source (build 2026092316) switches off; builds 20260521
+        # and cd2026090910 return state-only siitax. The August 2026 builds
+        # bundled in #1150 (cd2026081819 on macOS and Linux, cd2026081318 on
+        # Windows) ran the block, adding about $3,000 to MD siitax at $100k.
+        # tests/test_md_local_tax_parity.py pins the state-only values and
+        # flags any bundled build that turns the block back on.
+        #
+        # Zero the net local tax, not just the tax before credits: with
+        # negative earnings PE-US's local poverty credit goes negative, which
+        # would leave a positive local tax. Of the local taxes in PE's
+        # state_income_tax, only NYC's remains, and it needs a county the
+        # emulator never sets. See #1062.
+        if "state" in chunk_df.columns and (chunk_df["state"] == 21).any():
+            var = "md_local_income_tax_before_refundable_credits"
+            if var in sim.tax_benefit_system.variables:
+                n_md = sim.get_variable_population(var).count
+                for year in years:
+                    _pin_input(
+                        sim,
+                        variable_name=var,
+                        value=np.zeros(n_md),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
+        # Maine property tax fairness credit: TAXSIM's `rentpaid` is gross rent
+        # that includes heat/utilities, which Maine excludes before taking 15%
+        # of rent (Schedule PTFC/STFC line 5b/5c). Flag Maine (SOI code 20)
+        # renters so PE-US applies the worksheet's 15%-of-rent default rather
+        # than counting the full gross rent. `utilities_included_in_rent` also
+        # feeds Michigan's home heating credit, so this is scoped to Maine.
+        # Mirrors input_mapper.add_additional_units for the single-household
+        # path so both execution paths agree (taxsim #1126/#1128).
+        if "state" in chunk_df.columns and "rentpaid" in chunk_df.columns:
+            me_mask = (chunk_df["state"] == 20) & (chunk_df["rentpaid"] > 0)
+            var = "utilities_included_in_rent"
+            if me_mask.any() and var in sim.tax_benefit_system.variables:
+                for year in years:
+                    year_mask = chunk_df["year"] == year
+                    if (me_mask & year_mask).any():
+                        _pin_input(
+                            sim,
+                            variable_name=var,
+                            value=me_mask[year_mask].values,
+                            period=str(
+                                int(year)
+                                if isinstance(year, (float, np.floating))
+                                else year
+                            ),
+                        )
+
+        # New York separate-payment programs (Additional Empire State child
+        # credit payment, inflation refund): not on Form IT-201, excluded from
+        # TAXSIM's siitax. NY is state code 33.
+        if "state" in chunk_df.columns and (chunk_df["state"] == 33).any():
+            for var in NY_SEPARATE_PAYMENT_VARIABLES:
+                if var not in sim.tax_benefit_system.variables:
+                    continue
+                n_entities = sim.get_variable_population(var).count
+                for year in years:
+                    _pin_input(
+                        sim,
+                        variable_name=var,
+                        value=np.zeros(n_entities),
+                        period=str(
+                            int(year)
+                            if isinstance(year, (float, np.floating))
+                            else year
+                        ),
+                    )
+
+        return sim
+
+    def _zero_one_time_rebates(self, sim, chunk_df: pd.DataFrame) -> None:
+        """Force the one-time state rebate variables to zero. These are
+        formula variables, so they are pinned (with _pin_input, like every
+        other override) before any calculate on the sim."""
+        years = sorted(set(chunk_df["year"].unique()))
+        for var in ONE_TIME_REBATE_VARIABLES:
+            if var not in sim.tax_benefit_system.variables:
+                continue
+            n_entities = sim.get_variable_population(var).count
+            for year in years:
+                _pin_input(
+                    sim,
+                    variable_name=var,
+                    value=np.zeros(n_entities),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
+
+    # Columns whose semantics belong to the state-side of PE-US. When
+    # --disable-salt is set, we run PE twice: a full-SALT pass for the
+    # federal side, and a SALT-disabled pass for these state columns.
+    # That preserves the original intent of --disable-salt (matching
+    # TAXSIM's missing state↔federal SALT iteration) without polluting
+    # federal Schedule A on PE's side.
+    _STATE_OUTPUT_COLUMNS = frozenset(
+        {
+            "siitax",
+            "srate",
+            "v32",
+            "v33",
+            "v34",
+            "v35",
+            "v36",
+            "v37",
+            "v38",
+            "v39",
+            "v40",
+            "v41",
+            "v42",
+            "v43",
+            "v44",
+            "staxbc",
+            "srebate",
+            "senergy",
+            "sctc",
+            "sptcr",
+            "samt",
+        }
+    )
+
+    def _run_once(self, show_progress: bool, on_progress) -> pd.DataFrame:
+        """Single PE pass with the current self.disable_salt setting."""
         if show_progress:
             print(
-                f"Running PolicyEngine Microsimulation on {len(self.input_df)} records"
+                f"Running PolicyEngine Microsimulation on {len(self.input_df)} records",
+                file=sys.stderr,
             )
 
         # Ensure years are integers to handle decimal values like 2021.0
         self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
 
-        # Split by year first (required for correct dataset generation),
-        # then by chunk size within each year.
         frames = []
         years = sorted(self.input_df["year"].unique())
         total_chunks = sum(
@@ -933,11 +1497,38 @@ class PolicyEngineRunner(BaseTaxRunner):
                         on_progress(chunks_done, total_chunks, rows_done, total_rows)
 
         results_df = pd.concat(frames, ignore_index=True)
-
         if show_progress:
-            print("PolicyEngine Microsimulation completed")
-
+            print("PolicyEngine Microsimulation completed", file=sys.stderr)
         return results_df
+
+    def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
+        """
+        Run PolicyEngine Microsimulation on all records.
+
+        When ``disable_salt`` is set, runs a single SALT-disabled pass:
+        ``state_and_local_sales_or_income_tax`` is zeroed for both the state
+        and federal computation, so PE's federal Schedule A excludes state
+        income/sales tax (property tax via ``real_estate_taxes`` still flows
+        through). This matches TAXSIM-35, which deducts mortgage interest and
+        property tax federally but NOT state income tax — verified against the
+        ``taxsimtest`` binary across states/years (e.g. NY single $84K + $37K
+        mortgage → federal itemized $37K, state tax not deducted).
+
+        A previous three-pass re-introduced the computed state tax as fixed
+        federal SALT, which overshot TAXSIM by the full state-tax amount on
+        every itemizing record (see taxsim #971; ~$1,185 mean federal mismatch
+        on a 60-record itemizing sample, 0/60 within $15). Excluding the state
+        income tax brings PE back onto TAXSIM.
+
+        Without ``disable_salt``, runs a single PE pass with PE-US's native
+        (iterative, statutorily-correct) SALT handling, except that state-0
+        records (no state tax) deduct no state or local income or sales tax,
+        as in TAXSIM. A chunk that mixes state-0 and other records is
+        therefore simulated twice (see ``_run_chunk``), so an input file with
+        state-0 records spread through every chunk costs about twice the
+        simulation work.
+        """
+        return self._run_once(show_progress, on_progress)
 
     def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
         """
@@ -964,6 +1555,31 @@ class PolicyEngineRunner(BaseTaxRunner):
             and year < year_restricted_variables[variable_name]
         )
 
+    def _apply_de_staxbc_elected_path(self, result, state_codes, sim, year_str):
+        """Report Delaware tax before credits on the elected filing path.
+
+        `de_income_tax_before_non_refundable_credits_unit` (the variable
+        `staxbc` maps to for DE) always reflects the joint single-column
+        computation -- it must, to cap non-refundable credits and drive the
+        combined-separate election without a circular dependency. When a
+        married couple elects combined separate (Filing Status 4), the tax
+        before credits is instead the sum of the two per-column liabilities,
+        so report that for DE rows. Other states and DE joint filers are
+        unchanged.
+        """
+        de_mask = np.array(
+            [str(code).upper() == "DE" for code in np.atleast_1d(state_codes)]
+        )
+        if not de_mask.any():
+            return result
+        separately = self._calc_tax_unit(sim, "de_files_separately", year_str).astype(
+            bool
+        )
+        per_column = self._calc_tax_unit(
+            sim, "de_income_tax_before_non_refundable_credits_indv", year_str
+        )
+        return np.where(de_mask & separately, per_column, result)
+
     def _calc_tax_unit(self, sim, var_name, period):
         """Calculate a variable and ensure result is at tax_unit level.
 
@@ -982,6 +1598,25 @@ class PolicyEngineRunner(BaseTaxRunner):
             return np.array(sim.map_result(values, entity_key, "tax_unit"))
         return values
 
+    _MTR_BRANCH = "mtr_wage_perturbation"
+
+    def _wage_perturbation_branch(self, sim, year_str, perturbed_wages):
+        """Branch ``sim`` with ``employment_income`` set to ``perturbed_wages``.
+
+        Every cached array is cleared except the simulation's inputs, so the
+        branch recomputes each wage-dependent variable. The inputs include
+        every emulator override pinned with ``_pin_input`` (SALT, QBID W-2
+        wages, transfer zeroing, MD local tax, ...), so the branch keeps the
+        assumptions the base simulation ran under.
+        """
+        branch = sim.get_branch(self._MTR_BRANCH)
+        inputs = set(sim.input_variables)
+        for variable in sim.tax_benefit_system.variables:
+            if variable not in inputs or variable == "employment_income":
+                branch.delete_arrays(variable)
+        branch.set_input("employment_income", year_str, perturbed_wages)
+        return branch
+
     def _compute_marginal_rates(self, sim, year_str, year_data):
         """Compute TAXSIM-compatible marginal tax rates via wage perturbation.
 
@@ -989,7 +1624,8 @@ class PolicyEngineRunner(BaseTaxRunner):
         - Perturbs employment_income (wages) only, not self-employment
         - Splits perturbation between primary and spouse proportionally
           to their share of total wages (weighted average earnings)
-        - Uses $0.01 delta to match TAXSIM batch mode
+        - Uses a $100 delta (TAXSIM batch mode uses $0.01; PE's float32
+          arrays need the larger step)
         - Returns rates as percentages (22.0 for 22%)
 
         Returns:
@@ -998,11 +1634,14 @@ class PolicyEngineRunner(BaseTaxRunner):
         delta = (
             100.0  # $100: large enough for float32 precision, small for bracket safety
         )
-        # Get base tax values from the main simulation
-        # frate must match fiitax definition: income_tax + additional_medicare_tax
-        base_federal = self._calc_tax_unit(
-            sim, "income_tax", year_str
-        ) + self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
+        # Get base tax values from the main simulation.
+        # frate is the marginal rate of fiitax, so it uses the same
+        # definition: income_tax without the Additional Medicare Tax
+        # (see the fiitax note in _extract_vectorized_results). The
+        # bundled taxsimtest cd2026081819 returned frate = 0 for every
+        # record and mtr code probed, so there is no binary frate to
+        # compare against.
+        base_federal = self._calc_tax_unit(sim, "income_tax", year_str)
         base_state = self._calc_tax_unit(sim, "state_income_tax", year_str)
 
         # Get current employment_income at person level
@@ -1024,38 +1663,38 @@ class PolicyEngineRunner(BaseTaxRunner):
                 emp_income / tu_total_expanded,
                 0.0,
             )
-        # For zero-wage households, split 50/50 between head and spouse
+        # Zero-wage tax units: split 50/50 between head and spouse, or give
+        # the whole delta to a head with no spouse. Every unit's shares must
+        # sum to 1 because the rate divides by the full delta; a lone head
+        # at 0.5 halved the rate (OH single, $50k interest: frate 6 vs
+        # TAXSIM's 12).
         is_head = np.array(sim.calculate("is_tax_unit_head", period=year_str))
         is_spouse = np.array(sim.calculate("is_tax_unit_spouse", period=year_str))
+        tu_has_spouse = np.array(
+            sim.map_result(is_spouse.astype(float), "person", "tax_unit", how="sum")
+        )
+        head_share = np.where(tu_has_spouse[person_tu_id] > 0, 0.5, 1.0)
         zero_wage_mask = tu_total_expanded == 0
-        wage_share = np.where(zero_wage_mask & is_head, 0.5, wage_share)
+        wage_share = np.where(zero_wage_mask & is_head, head_share, wage_share)
         wage_share = np.where(zero_wage_mask & is_spouse, 0.5, wage_share)
 
         # Create perturbation: delta * wage_share for each person
         perturbation = delta * wage_share
 
         # Create branch simulation with perturbed wages
-        branch = sim.get_branch("mtr_wage_perturbation")
+        branch = self._wage_perturbation_branch(
+            sim, year_str, emp_income + perturbation
+        )
 
-        # Clear cached values for variables that depend on employment_income
-        for variable in sim.tax_benefit_system.variables:
-            if variable not in sim.input_variables or variable == "employment_income":
-                branch.delete_arrays(variable)
-
-        # Set perturbed employment income
-        branch.set_input("employment_income", year_str, emp_income + perturbation)
-
-        # Compute perturbed tax values
-        new_federal = self._calc_tax_unit(
-            branch, "income_tax", year_str
-        ) + self._calc_tax_unit(branch, "additional_medicare_tax", year_str)
+        # Compute perturbed tax values (match base_federal: no AddMed)
+        new_federal = self._calc_tax_unit(branch, "income_tax", year_str)
         new_state = self._calc_tax_unit(branch, "state_income_tax", year_str)
         # Compute rates as percentages: 100 * (new - base) / delta
         frate = 100.0 * (new_federal - base_federal) / delta
         srate = 100.0 * (new_state - base_state) / delta
 
         # Clean up branch
-        del sim.branches["mtr_wage_perturbation"]
+        del sim.branches[self._MTR_BRANCH]
 
         return {
             "frate": np.round(frate, 4),
@@ -1063,17 +1702,25 @@ class PolicyEngineRunner(BaseTaxRunner):
         }
 
     def _extract_vectorized_results(
-        self, sim: Microsimulation, input_df: pd.DataFrame
+        self,
+        sim: Microsimulation,
+        input_df: pd.DataFrame,
+        rebate_free_sim_factory=None,
     ) -> pd.DataFrame:
         """Extract results from Microsimulation and format as TAXSIM output.
 
         Uses vectorized sim.calculate() calls (one per variable, not per row)
         and builds the output DataFrame from arrays directly.
+
+        ``rebate_free_sim_factory`` lazily builds a twin sim with the
+        one-time state rebate variables zeroed; the srebate output is the
+        state_income_tax difference between the twin and the actual sim.
         """
         input_df = self._ensure_required_columns(input_df)
         pe_to_taxsim = self.mappings["policyengine_to_taxsim"]
         years = sorted(set(input_df["year"].unique()))
         year_frames = []
+        rebate_free_sim = None
 
         for year in tqdm(years, desc="Processing years"):
             year_str = str(year)
@@ -1085,12 +1732,16 @@ class PolicyEngineRunner(BaseTaxRunner):
             if n == 0:
                 continue
 
-            # Pre-compute state codes for all rows in this year (vectorized)
+            # Pre-compute state codes for all rows in this year (vectorized).
+            # state_codes are the simulated states (Texas for state 0); the
+            # output echoes the input number, so state 0 stays 0 as in TAXSIM.
             state_numbers = year_data["state"].values
-            state_codes = np.array([get_state_code(s) for s in state_numbers])
+            state_codes = np.array(
+                [get_calculation_state_code(s) for s in state_numbers]
+            )
             state_initials = np.char.lower(state_codes)
             output_state_numbers = np.array(
-                [get_state_number(sc) for sc in state_codes]
+                [validate_state_number(s) for s in state_numbers]
             )
 
             # Start building the result columns
@@ -1150,19 +1801,38 @@ class PolicyEngineRunner(BaseTaxRunner):
                     # Marginal rates are computed specially after this loop
                     continue
 
+                if pe_var == "srebate_computed":
+                    # srebate = state_income_tax with one-time rebates
+                    # zeroed minus actual state_income_tax — exactly the
+                    # amount PE netted into siitax this year (handles
+                    # non-refundable caps, pooling, and floors).
+                    if rebate_free_sim_factory is None:
+                        columns[taxsim_var] = np.zeros(n)
+                        continue
+                    if rebate_free_sim is None:
+                        rebate_free_sim = rebate_free_sim_factory()
+                    actual_tax = self._calc_tax_unit(sim, "state_income_tax", year_str)
+                    rebate_free_tax = self._calc_tax_unit(
+                        rebate_free_sim, "state_income_tax", year_str
+                    )
+                    columns[taxsim_var] = np.round(rebate_free_tax - actual_tax, 2)
+                    continue
+
                 try:
                     if is_output_adapter(pe_var):
-                        columns[taxsim_var] = np.round(
-                            calculate_output_adapter(
-                                mapping,
-                                state_codes,
-                                lambda variable: self._calc_tax_unit(
-                                    sim, variable, year_str
-                                ),
-                                sim.tax_benefit_system.parameters(year_str),
+                        adapter_result = calculate_output_adapter(
+                            mapping,
+                            state_codes,
+                            lambda variable: self._calc_tax_unit(
+                                sim, variable, year_str
                             ),
-                            2,
+                            sim.tax_benefit_system.parameters(year_str),
                         )
+                        if taxsim_var == "staxbc":
+                            adapter_result = self._apply_de_staxbc_elected_path(
+                                adapter_result, state_codes, sim, year_str
+                            )
+                        columns[taxsim_var] = np.round(adapter_result, 2)
                         continue
 
                     if has_state_variable_mapping(mapping):
@@ -1298,19 +1968,53 @@ class PolicyEngineRunner(BaseTaxRunner):
                             f"Error calculating {pe_var} for {taxsim_var}: {e}"
                         ) from e
 
-            # Apply fiitax special calculation (income_tax + additional_medicare_tax)
-            # TAXSIM includes Additional Medicare Tax (0.9% on wages above
-            # $200K/$250K) in fiitax. PE's income_tax does not include it,
-            # so we add it here.
-            addl_med = self._calc_tax_unit(sim, "additional_medicare_tax", year_str)
-            if "fiitax" in columns:
-                columns["fiitax"] = np.round(columns["fiitax"] + addl_med, 2)
-            else:
-                fiitax_arr = self._calc_tax_unit(sim, "income_tax", year_str) + addl_med
-                columns["fiitax"] = np.round(fiitax_arr, 2)
+            # v40 "Total Credits" reports credits actually applied. The raw
+            # sum of the state credit lists includes one-time rebates at
+            # their uncapped list values (e.g. MT 2021: the full $1,250
+            # rebate inflated v40 to 2,291.45 while TAXSIM reports 1,041.45
+            # — taxsim #1122). TAXSIM keeps those rebates out of v40 and
+            # reports them in `srebate`, so recompute v40 on the rebate-free
+            # twin (which zeroes ONE_TIME_REBATE_VARIABLES) whenever it
+            # exists; `srebate` continues to carry the netted rebate amount.
+            if "v40" in columns and rebate_free_sim is not None:
+                v40_variables = vars_to_compute["v40"]["mapping"].get("variables", [])
+                rebate_free_total = np.zeros(n)
+                for var in v40_variables:
+                    rebate_free_total += self._calc_tax_unit(
+                        rebate_free_sim, var, year_str
+                    )
+                columns["v40"] = np.round(rebate_free_total, 2)
+
+            # fiitax = income_tax, which includes NIIT (through
+            # income_tax_before_refundable_credits) but not the
+            # Additional Medicare Tax. AddMed is a FICA/SECA tax
+            # (IRC § 3101(b)(2) / § 1401(b)(2)) and TAXSIM puts it in
+            # fica and tfica, not fiitax (taxsim #416, #1225), so it is
+            # reported in tfica, fica and `addmed` in every year. The
+            # bundled taxsimtest cd2026081819 predates the correction
+            # reported on #1225 and still adds it to 2013-2023 fiitax as
+            # well; that is not copied
+            # (tests/test_addmed_excluded_from_fiitax.py).
+            if "fiitax" not in columns:
+                columns["fiitax"] = np.round(
+                    self._calc_tax_unit(sim, "income_tax", year_str), 2
+                )
+
+            # Apply v22 CTC split: TAXSIM v22 reports only the
+            # non-refundable CTC (capped at tax liability) for years
+            # where the CTC is not fully refundable. For fully-refundable
+            # years (e.g. 2021 ARPA), v22 reports the total CTC.
+            if "v22" in columns:
+                p = sim.tax_benefit_system.parameters(year_str)
+                if not p.gov.irs.credits.ctc.refundable.fully_refundable:
+                    ctc_arr = self._calc_tax_unit(sim, "ctc", year_str)
+                    limiting_tax = self._calc_tax_unit(
+                        sim, "ctc_limiting_tax_liability", year_str
+                    )
+                    columns["v22"] = np.round(np.minimum(ctc_arr, limiting_tax), 2)
 
             # Compute marginal rates if any idtl level requests them
-            mtr_vars = {"frate", "srate"}
+            mtr_vars = ("frate", "srate")  # ordered: stable output columns
             needs_mtr = any(v in vars_to_compute for v in mtr_vars)
             if needs_mtr:
                 try:

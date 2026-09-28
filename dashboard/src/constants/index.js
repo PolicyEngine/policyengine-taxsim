@@ -15,7 +15,7 @@ export const FIPS_TO_STATE = Object.entries(STATE_TO_FIPS).reduce((acc, [state, 
 }, {});
 
 // Available years for the dashboard
-export const AVAILABLE_YEARS = [2021, 2022, 2023, 2024];
+export const AVAILABLE_YEARS = [2021, 2022, 2023, 2024, 2025];
 
 // GitHub API configuration
 export const GITHUB_CONFIG = {
@@ -26,7 +26,27 @@ export const GITHUB_CONFIG = {
 };
 
 // Mismatch tolerance
-export const MISMATCH_TOLERANCE = 15; // $15 tolerance for mismatches
+export const MISMATCH_TOLERANCE = 15; // $15 absolute tolerance
+export const RELATIVE_TOLERANCE_PCT = 0.01; // 1% of gross income tolerance
+
+// Available tolerance modes for the dashboard headline metric
+export const TOLERANCE_MODES = {
+  ABSOLUTE: 'absolute',
+  RELATIVE: 'relative',
+  // Relative tolerance, with one-time state rebates netted out of siitax on
+  // both sides (srebate column) — removes the TAXSIM payout-year vs
+  // PolicyEngine liability-year rebate timing convention from the metric.
+  RELATIVE_NET: 'relative_net',
+};
+
+// Full-eCPS comparison data (111,347 records/year) is too large to load in
+// the browser, so the dashboard shows a sample + precomputed summary and
+// links to the complete per-year CSVs hosted as a GitHub Release asset.
+export const FULL_DATA_RELEASE_BASE =
+  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35953332152';
+
+export const fullDataUrl = (year) =>
+  `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv`;
 
 // Input variables for household comparison
 export const INPUT_VARIABLES = [
@@ -77,7 +97,7 @@ export const OUTPUT_VARIABLES = [
   { code: 'state', name: 'State code', policyengine: 'state_code' },
   
   // Primary Tax Calculations
-  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT, Additional Medicare Tax and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes', policyengine: 'income_tax' },
+  { code: 'fiitax', name: 'Federal income tax liability including capital gains rates, surtaxes, Maximum Tax, NIIT, AMT and refundable and non-refundable credits including CTC, ACTC and EIC etc, but not including self-employment or FICA taxes or the Additional Medicare Tax (reported in addmed, tfica and fica)', policyengine: 'income_tax' },
   { code: 'siitax', name: 'State income tax liability, also after all credits', policyengine: 'state_income_tax' },
 
   // Federal AGI and Income Components (v10-v12)
@@ -169,7 +189,7 @@ export const INPUT_FIELDS = [
 export const INPUT_VARIABLE_CATEGORIES = {
   basicInputs: ['taxsimid', 'year', 'state', 'mstat', 'page', 'sage', 'dependent_exemption', 'depx'],
   incomeInputs: ['pwages', 'swages', 'psemp', 'ssemp', 'dividends', 'intrec', 'stcg', 'ltcg', 'pensions', 'gssi', 'pui', 'sui'],
-  businessIncomeInputs: ['scorp', 'pbusinc', 'pprofinc'],
+  businessIncomeInputs: ['scorp', 'pbusinc', 'pprofinc', 'sprofinc'],
   expenseInputs: ['rentpaid', 'proptax', 'childcare', 'mortgage', 'otherprop', 'nonprop', 'transfers', 'otheritem']
 };
 

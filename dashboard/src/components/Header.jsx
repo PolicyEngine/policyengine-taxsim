@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { IconChevronDown, IconMenu2, IconWorld, IconX } from '@tabler/icons-react';
 import { assetUrl } from '../utils/basePath';
 
-// Design system tokens (from @policyengine/design-system)
+// Design system tokens (from @policyengine/ui-kit/legacy)
 const colors = {
   primary: {
     500: '#319795',
