@@ -1,3 +1,10 @@
+## [2.33.0] - 2026-09-29
+
+### Added
+
+- Accept TAXSIM-35's statefip input (state FIPS code) in batch, single-household and web API runs, converting it to the SOI state and rejecting records that give both state and statefip, as TAXSIM does.
+
+
 ## [2.32.2] - 2026-09-28
 
 ### Fixed
