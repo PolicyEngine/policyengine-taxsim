@@ -260,6 +260,24 @@ class TestKwargsForwarding:
 
         assert "TAXSIM will ignore" in caplog.text
 
+    @pytest.mark.parametrize("treatment,warned", [("passive", False), ("active", True)])
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
+    def test_scorp_warning_only_when_taxsim_rows_differ(
+        self, MockPE, MockTaxsim, treatment, warned, caplog
+    ):
+        """TAXSIM treats scorp as passive, so only an active setting is ignored."""
+        df = _make_input([(1, 2020), (2, 2024)])
+        MockPE.return_value.run.return_value = _make_result([(2, 2024)])
+        MockTaxsim.return_value.run.return_value = _make_result([(1, 2020)])
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            StitchedRunner(df, scorp_treatment=treatment).run(show_progress=False)
+
+        assert ("scorp_treatment" in caplog.text) is warned
+
 
 # ---------------------------------------------------------------------------
 # CLI integration

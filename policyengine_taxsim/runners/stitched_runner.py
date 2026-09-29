@@ -60,8 +60,14 @@ class StitchedRunner(BaseTaxRunner):
 
         # Warn if PE-only kwargs are set but some rows go to TAXSIM
         if taxsim_mask.any():
+            # TAXSIM rows follow TAXSIM's own (passive) S-corp convention, so
+            # only an active scorp_treatment is actually ignored there.
             active_pe_kwargs = {
-                k for k, v in self._pe_kwargs.items() if k in self._PE_ONLY_KWARGS and v
+                k
+                for k, v in self._pe_kwargs.items()
+                if k in self._PE_ONLY_KWARGS
+                and v
+                and not (k == "scorp_treatment" and v == "passive")
             }
             if active_pe_kwargs:
                 logger.warning(
