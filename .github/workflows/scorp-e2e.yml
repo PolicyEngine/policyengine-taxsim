@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e .
+      - run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install -U 'policyengine-us>=2.10.1' && pip install --no-deps -e .
       - run: python scripts/validate_scorp_alignment.py --year ${{ matrix.year }}
       - uses: actions/upload-artifact@v4
         if: always()
@@ -48,5 +48,5 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e . && pip install pytest modal fastapi httpx
+      - run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install -U 'policyengine-us>=2.10.1' && pip install --no-deps -e . && pip install pytest modal fastapi httpx
       - run: SCORP_E2E=1 pytest tests/test_scorp_e2e.py -v

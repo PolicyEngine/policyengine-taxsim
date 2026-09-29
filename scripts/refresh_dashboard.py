@@ -362,7 +362,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", nargs=2)
     parser.add_argument(
-        "--scorp-treatment", choices=["passive", "active"], default="passive"
+        "--scorp-treatment",
+        choices=["default", "passive", "active"],
+        default="default",
+        help="default: passive with policyengine-us 2.10.1+, otherwise active",
     )
     parser.add_argument("--year", type=int, choices=range(2021, 2026))
     parser.add_argument("--work-dir", type=Path, default=Path("refresh-work"))
@@ -376,6 +379,11 @@ def main():
     parser.add_argument("--max-memory-gb", type=float, default=5)
     parser.add_argument("--min-disk-gb", type=float, default=4)
     args = parser.parse_args()
+    if args.scorp_treatment == "default":
+        sys.path.insert(0, str(ROOT))
+        from policyengine_taxsim.core.scorp import validate_scorp_treatment
+
+        args.scorp_treatment = validate_scorp_treatment(None)
     if args.worker:
         worker(*args.worker, scorp_treatment=args.scorp_treatment)
         return

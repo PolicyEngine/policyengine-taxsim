@@ -20,6 +20,7 @@ try:
     from .core.input_mapper import form_household_situation
     from .core.utils import get_calculation_state_code, convert_taxsim32_dependents
     from .core.io import read_input, write_output
+    from .core.scorp import validate_scorp_treatment
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
@@ -36,6 +37,7 @@ except ImportError:
         convert_taxsim32_dependents,
     )
     from policyengine_taxsim.core.io import read_input, write_output
+    from policyengine_taxsim.core.scorp import validate_scorp_treatment
 
 
 def _scorp_option(fn):
@@ -43,7 +45,11 @@ def _scorp_option(fn):
         "--scorp-treatment",
         type=click.Choice(["passive", "active"]),
         default=None,
-        help="S-corp NIIT classification in PolicyEngine (default: passive). Does not change TAXSIM or QBI eligibility.",
+        help=(
+            "S-corp NIIT classification in PolicyEngine (default: passive with "
+            "policyengine-us 2.10.1+, otherwise active). Does not change TAXSIM "
+            "or QBI eligibility."
+        ),
     )(fn)
 
 
@@ -52,12 +58,12 @@ def _resolve_scorp_treatment(value):
     return (
         value
         or (ctx.parent.params.get("scorp_treatment") if ctx.parent else None)
-        or "passive"
+        or validate_scorp_treatment(None)
     )
 
 
 def _generate_yaml_files(
-    input_df: pd.DataFrame, results_df: pd.DataFrame, scorp_treatment="passive"
+    input_df: pd.DataFrame, results_df: pd.DataFrame, scorp_treatment=None
 ):
     """Generate YAML test files for each record when logs=True"""
     # Index results by taxsimid for reliable lookup (positional iloc

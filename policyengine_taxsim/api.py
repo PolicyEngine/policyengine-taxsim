@@ -192,7 +192,7 @@ def _run_taxsim(
     idtl,
     on_progress=None,
     use_remote_taxsim=False,
-    scorp_treatment="passive",
+    scorp_treatment=None,
 ):
     """Shared logic for both Modal and local endpoints."""
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
@@ -309,7 +309,7 @@ def _build_modal_app():
         csv: str
         disable_salt: bool = False
         assume_w2_wages: bool = False
-        scorp_treatment: Literal["passive", "active"] = "passive"
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
 
     class EmailRunRequest(BaseModel):
@@ -318,7 +318,7 @@ def _build_modal_app():
         filename: str = "input.csv"
         disable_salt: bool = False
         assume_w2_wages: bool = False
-        scorp_treatment: Literal["passive", "active"] = "passive"
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
         subscribe: bool = True
 
@@ -470,7 +470,7 @@ def _build_local_app():
         csv: str
         disable_salt: bool = False
         assume_w2_wages: bool = False
-        scorp_treatment: Literal["passive", "active"] = "passive"
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
 
     class EmailRunRequest(BaseModel):
@@ -479,7 +479,7 @@ def _build_local_app():
         filename: str = "input.csv"
         disable_salt: bool = False
         assume_w2_wages: bool = False
-        scorp_treatment: Literal["passive", "active"] = "passive"
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
         subscribe: bool = True
 

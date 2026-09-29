@@ -32,7 +32,9 @@ class StitchedRunner(BaseTaxRunner):
     ):
         from ..core.scorp import validate_scorp_treatment
 
-        validate_scorp_treatment(kwargs.get("scorp_treatment", "passive"))
+        kwargs["scorp_treatment"] = validate_scorp_treatment(
+            kwargs.get("scorp_treatment")
+        )
         super().__init__(input_df)
         self.pe_min_year = pe_min_year if pe_min_year is not None else self.PE_MIN_YEAR
         self.use_remote_taxsim = use_remote_taxsim

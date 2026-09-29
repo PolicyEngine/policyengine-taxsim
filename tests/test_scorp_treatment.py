@@ -11,6 +11,7 @@ from policyengine_us import Simulation
 
 from policyengine_taxsim import generate_household, export_household
 from policyengine_taxsim.cli import cli
+from policyengine_taxsim.core import scorp
 from policyengine_taxsim.core.scorp_reform import scorp_tax_benefit_system
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
 
@@ -102,14 +103,29 @@ def test_single_household_and_spouse_allocation(mode, results):
     )
 
 
+@pytest.mark.parametrize(
+    "pe_version,expected", [((2, 10, 1), "passive"), ((2, 10, 0), "active")]
+)
+def test_default_depends_on_policyengine_us_version(pe_version, expected, monkeypatch):
+    # Before policyengine-us 2.10.1 (pe-us#9572), a passive loss could offset
+    # interest and dividends in the EITC investment-income test.
+    monkeypatch.setattr(scorp, "_pe_version", lambda: pe_version)
+    if expected == "active":
+        with pytest.warns(UserWarning, match="treated as active"):
+            assert scorp.validate_scorp_treatment(None) == "active"
+        with pytest.warns(UserWarning, match="pe-us#9572"):
+            assert scorp.validate_scorp_treatment("passive") == "passive"
+    else:
+        assert scorp.validate_scorp_treatment(None) == "passive"
+    assert scorp.validate_scorp_treatment("active") == "active"
+
+
 def test_default_and_validation():
-    assert (
-        generate_household(record())["people"]["you"][
-            "passive_partnership_s_corp_income"
-        ]["2025"]
-        == 300000
-    )
-    assert PolicyEngineRunner(pd.DataFrame([record()])).scorp_treatment == "passive"
+    default = scorp.validate_scorp_treatment(None)
+    assert generate_household(record())["people"]["you"][
+        "passive_partnership_s_corp_income"
+    ]["2025"] == (300000 if default == "passive" else 0)
+    assert PolicyEngineRunner(pd.DataFrame([record()])).scorp_treatment == default
     with pytest.raises(ValueError, match="scorp_treatment"):
         generate_household(record(), scorp_treatment="typo")
     with pytest.raises(ValueError, match="scorp_treatment"):
@@ -118,7 +134,8 @@ def test_default_and_validation():
 
 def test_compatibility_reform_does_not_double_count():
     assert scorp_tax_benefit_system() is scorp_tax_benefit_system()
-    situation = generate_household(record())
+    # Explicit: on policyengine-us < 2.10.1 the default is active.
+    situation = generate_household(record(), scorp_treatment="passive")
     sim = Simulation(situation=situation, tax_benefit_system=scorp_tax_benefit_system())
     assert sim.calculate("adjusted_gross_income", "2025")[0] == pytest.approx(300000)
     assert sim.calculate("net_investment_income", "2025")[0] == pytest.approx(300000)

@@ -1075,7 +1075,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         logs: bool = False,
         disable_salt: bool = False,
         assume_w2_wages: bool = False,
-        scorp_treatment: str = "passive",
+        scorp_treatment: str = None,
     ):
         super().__init__(input_df)
         self.logs = logs

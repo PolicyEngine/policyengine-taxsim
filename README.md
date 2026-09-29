@@ -363,8 +363,12 @@ The emulator produces all standard TAXSIM output variables:
 
 `--scorp-treatment passive|active` selects how the **PolicyEngine emulator**
 classifies TAXSIM `scorp` income for net investment income tax (NIIT).
-The default is `passive`, matching TAXSIM's documented convention. Select
-`active` to retain the previous materially-participating-owner assumption.
+The default is `passive`, matching TAXSIM's documented convention, when
+policyengine-us 2.10.1 or later is installed. Older releases (including every
+Python 3.10 install, which resolves policyengine-us 1.x) default to `active`
+with a warning: before 2.10.1 a passive loss could offset interest and
+dividends in the EITC investment-income test (pe-us#9572). Select `active` to
+retain the previous materially-participating-owner assumption.
 
 ```sh
 policyengine-taxsim policyengine input.csv --scorp-treatment active
@@ -374,8 +378,9 @@ policyengine-taxsim --scorp-treatment active < input.csv > output.csv
 
 Python: `PolicyEngineRunner(df, scorp_treatment="active")` or
 `generate_household(record, scorp_treatment="active")` followed by
-`export_household`. API requests accept `"scorp_treatment": "active"` (default:
-`"passive"`) on run, streaming and email endpoints.
+`export_household`. API requests accept `"scorp_treatment": "active"` or
+`"passive"` on run, streaming and email endpoints; omitting it uses the default
+above.
 
 This classifies income already included in AGI; it does not add income again,
 change QBI eligibility, impose self-employment tax or implement section 469

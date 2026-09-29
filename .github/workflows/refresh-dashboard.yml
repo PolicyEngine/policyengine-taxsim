@@ -10,8 +10,8 @@ on:
       scorp_treatment:
         description: S-corp NIIT classification in PolicyEngine (TAXSIM remains unchanged)
         type: choice
-        options: [passive, active]
-        default: passive
+        options: [default, passive, active]
+        default: default
       resume_run_id:
         description: Optional failed run to restore checkpoints from (same code and settings)
         type: string
@@ -32,7 +32,7 @@ env:
   NUMEXPR_NUM_THREADS: '1'
   PYTHONUNBUFFERED: '1'
   PIP_NO_CACHE_DIR: '1'
-  SCORP_TREATMENT: ${{ inputs.scorp_treatment || 'passive' }}
+  SCORP_TREATMENT: ${{ inputs.scorp_treatment || 'default' }}
 
 jobs:
   smoke:

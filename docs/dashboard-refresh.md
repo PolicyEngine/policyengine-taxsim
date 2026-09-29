@@ -76,7 +76,9 @@ imports `spm_calculator.geoadj`; its compatibility constraint is in
 ## S-corp assumption
 
 Choose `scorp_treatment` when dispatching the workflow, or pass
-`--scorp-treatment passive|active` to the refresh script. Default: `passive`.
+`--scorp-treatment default|passive|active` to the refresh script. `default`
+resolves to `passive` with policyengine-us 2.10.1+ and `active` otherwise; the
+refresh provenance records the resolved value.
 The setting is part of checkpoint identity and output provenance, and is shown
 on the dashboard. TAXSIM itself remains in its default mode.
 
