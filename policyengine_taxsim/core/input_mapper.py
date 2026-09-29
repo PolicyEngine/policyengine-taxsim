@@ -1,5 +1,6 @@
 from .utils import (
     load_variable_mappings,
+    apply_statefip,
     get_calculation_state_code,
     get_ordinal,
     convert_taxsim32_dependents,
@@ -407,6 +408,8 @@ def generate_household(taxsim_vars):
     year = str(
         int(float(taxsim_vars.get("year", 2021)))
     )  # Ensure year is an integer string, handling decimals
+
+    taxsim_vars = apply_statefip(taxsim_vars)
 
     # Convert TAXSIM32 dependent format if present
     taxsim_vars = convert_taxsim32_dependents(taxsim_vars)

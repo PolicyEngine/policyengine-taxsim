@@ -1,5 +1,6 @@
 from .utils import (
     load_variable_mappings,
+    apply_statefip,
     get_state_label,
     to_roundedup_number,
     validate_state_number,
@@ -423,6 +424,9 @@ def export_household(taxsim_input, policyengine_situation, logs, disable_salt):
     """
     global disable_salt_variable
     disable_salt_variable = disable_salt
+
+    # Echo the SOI state when the record gave it as a FIPS code.
+    taxsim_input = apply_statefip(taxsim_input)
 
     mappings = load_variable_mappings()["policyengine_to_taxsim"]
 

@@ -1,1 +1,1 @@
-Add statefip (FIPS code) input support, matching TAXSIM-35 behavior.
+Accept TAXSIM-35's statefip input (state FIPS code) in batch, single-household and web API runs, converting it to the SOI state and rejecting records that give both state and statefip, as TAXSIM does.

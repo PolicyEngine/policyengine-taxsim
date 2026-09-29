@@ -7,10 +7,10 @@ from pathlib import Path
 
 try:
     from ..core.io import write_output
-    from ..core.utils import FIPS_TO_SOI_MAP
+    from ..core.utils import NO_STATE, resolve_statefip
 except ImportError:
     from policyengine_taxsim.core.io import write_output
-    from policyengine_taxsim.core.utils import FIPS_TO_SOI_MAP
+    from policyengine_taxsim.core.utils import NO_STATE, resolve_statefip
 
 
 class BaseTaxRunner(ABC):
@@ -43,27 +43,32 @@ class BaseTaxRunner(ABC):
         if "year" not in self.input_df.columns:
             raise ValueError("Input data must contain a 'year' column")
 
-        # Convert statefip (FIPS) to state (SOI) per row.
-        # Matches TAXSIM-35 behavior: for each record, if state==0
-        # and statefip is set, convert FIPS→SOI.
-        if "statefip" in self.input_df.columns:
-            if "state" not in self.input_df.columns:
-                self.input_df["state"] = 0
-            state_vals = pd.to_numeric(self.input_df["state"], errors="raise").fillna(0)
-            fips_vals = pd.to_numeric(self.input_df["statefip"], errors="raise").fillna(
-                0
-            )
-            use_fips = state_vals == 0
-            invalid = use_fips & ~fips_vals.isin([0, *FIPS_TO_SOI_MAP])
-            if invalid.any():
-                raise ValueError("statefip must be a valid US state FIPS code or 0")
-            soi_from_fips = fips_vals.map(FIPS_TO_SOI_MAP).fillna(0)
-            self.input_df["state"] = state_vals.where(~use_fips, soi_from_fips)
-
         # Auto-assign taxsimid if not present
         if "taxsimid" not in self.input_df.columns:
             # Assign sequential IDs starting from 1
             self.input_df["taxsimid"] = range(1, len(self.input_df) + 1)
+
+        # Records may give their state as a FIPS code in statefip instead of
+        # an SOI code in state. Convert before either backend runs, so the
+        # TAXSIM runners (which pass only `state` to the binary) and
+        # PolicyEngine see the same SOI state, then drop statefip: runners
+        # built from this input_df (StitchedRunner, sample, filter_by_year)
+        # would otherwise see both columns nonzero.
+        if "statefip" in self.input_df.columns:
+            if "state" not in self.input_df.columns:
+                self.input_df["state"] = NO_STATE
+            states = []
+            for taxsimid, state, statefip in zip(
+                self.input_df["taxsimid"],
+                self.input_df["state"],
+                self.input_df["statefip"],
+            ):
+                try:
+                    states.append(resolve_statefip(state, statefip))
+                except ValueError as error:
+                    raise ValueError(f"Record {taxsimid}: {error}") from None
+            self.input_df["state"] = states
+            self.input_df = self.input_df.drop(columns="statefip")
 
     @abstractmethod
     def run(self, show_progress: bool = True) -> pd.DataFrame:
