@@ -1,3 +1,6 @@
+import logging
+import weakref
+
 from .utils import (
     load_variable_mappings,
     get_state_label,
@@ -16,19 +19,24 @@ from policyengine_us import Simulation
 from .yaml_generator import generate_pe_tests_yaml
 from .marginal_rates import compute_marginal_rates_single
 
+logger = logging.getLogger(__name__)
+
 disable_salt_variable = False
 
+# Rebate-free twins keyed by the actual simulation, then by year, so srebate
+# and v40 share one twin per household (the batch runner shares one per chunk).
+_rebate_free_twins = weakref.WeakKeyDictionary()
 
-def compute_srebate_single(simulation, year):
-    """One-time state rebates PE netted into state_income_tax this year.
 
-    Computed as a difference: a twin simulation with the one-time rebate
-    variables forced to zero minus the actual simulation. This equals
-    exactly the rebate amount included in siitax (non-refundable caps,
-    credit pooling, and floors are handled automatically). TAXSIM reports
-    the same concept in `srebate` under its payout-year convention.
+def rebate_free_twin_single(simulation, year):
+    """Twin of ``simulation`` with ONE_TIME_REBATE_VARIABLES forced to zero.
+
+    Mirrors the batch runner's rebate-free twin. Inputs are sized to each
+    variable's population: ``mt_income_tax_rebate`` is person-level, so a
+    scalar fails for any household with more than one person.
     """
-    try:
+    twins = _rebate_free_twins.setdefault(simulation, {})
+    if year not in twins:
         twin = Simulation(situation=simulation.situation_input)
         if disable_salt_variable:
             twin.set_input(
@@ -41,27 +49,42 @@ def compute_srebate_single(simulation, year):
                 continue
             count = twin.get_variable_population(variable).count
             twin.set_input(variable_name=variable, value=[0.0] * count, period=year)
+        twins[year] = twin
+    return twins[year]
 
+
+def compute_srebate_single(simulation, year):
+    """One-time state rebates PE netted into state_income_tax this year.
+
+    Computed as a difference: a twin simulation with the one-time rebate
+    variables forced to zero minus the actual simulation. This equals
+    exactly the rebate amount included in siitax (non-refundable caps,
+    credit pooling, and floors are handled automatically). TAXSIM reports
+    the same concept in `srebate` under its payout-year convention.
+    """
+    try:
+        twin = rebate_free_twin_single(simulation, year)
         actual_tax = float(simulation.calculate("state_income_tax", period=year)[0])
         rebate_free_tax = float(twin.calculate("state_income_tax", period=year)[0])
         return to_roundedup_number(rebate_free_tax - actual_tax)
-    except Exception:
+    except Exception as error:
+        logger.warning("srebate could not be computed; reporting 0: %r", error)
         return 0.00
 
 
-def compute_or_v40_single(simulation, year, mapping):
-    """Keep the refundable kicker in srebate, outside ordinary credits.
+def compute_v40_single(simulation, year, variables):
+    """Total state credits with one-time rebates excluded.
 
-    The batch exporter evaluates credits with rebates zeroed. Oregon's
-    kicker is fully refundable, so removing its amount from the credit
-    sum gives the same result without constructing another simulation.
+    TAXSIM reports rebates in `srebate`, not v40, so v40 sums the credit
+    lists on the rebate-free twin, as the batch runner does (taxsim #1122,
+    #1241). Falls back to the actual simulation if the twin cannot be built.
     """
-    variables = mapping["variables"]
-    total = sum(
-        float(simulation.calculate(variable, period=year)[0]) for variable in variables
-    )
-    kicker = float(simulation.calculate("or_kicker", period=year)[0])
-    return to_roundedup_number(total - kicker)
+    try:
+        source = rebate_free_twin_single(simulation, year)
+    except Exception as error:
+        logger.warning("v40 computed with rebates included: %r", error)
+        source = simulation
+    return simulate_multiple(source, variables, year)
 
 
 def compute_de_staxbc_single(simulation, year):
@@ -145,11 +168,11 @@ def generate_non_description_output(
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
                         taxsim_output[key] = compute_srebate_single(simulation, year)
-            elif key == "v40" and state_name.upper() == "OR":
+            elif key == "v40":
                 for entry in each_item["idtl"]:
                     if output_type in entry.values():
-                        taxsim_output[key] = compute_or_v40_single(
-                            simulation, year, each_item
+                        taxsim_output[key] = compute_v40_single(
+                            simulation, year, each_item["variables"]
                         )
             elif key == "staxbc" and state_name.upper() == "DE":
                 # Delaware combined-separate (FS4) tax before credits is the
@@ -285,8 +308,8 @@ def generate_text_description_output(
                     value = mtr_results.get(var_name, 0.0)
                 elif each_item.get("variable") == "srebate_computed":
                     value = compute_srebate_single(simulation, year)
-                elif var_name == "v40" and state_name.upper() == "OR":
-                    value = compute_or_v40_single(simulation, year, each_item)
+                elif var_name == "v40":
+                    value = compute_v40_single(simulation, year, each_item["variables"])
                 elif var_name == "staxbc" and state_name.upper() == "DE":
                     # Delaware combined-separate (FS4) tax before credits is the
                     # sum of the two per-column liabilities, not the joint figure.
