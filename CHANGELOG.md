@@ -1,3 +1,10 @@
+## [3.0.0] - 2026-09-29
+
+### Breaking changes
+
+- Default emulator S-corp NIIT classification to passive, matching TAXSIM, when policyengine-us 2.10.1+ is installed (older releases, including Python 3.10 installs, default to active with a warning), and add scorp_treatment/--scorp-treatment to choose either. Preserve QBI eligibility and expose the assumption in refresh provenance and dashboard metadata.
+
+
 ## [2.33.1] - 2026-09-29
 
 ### Fixed
