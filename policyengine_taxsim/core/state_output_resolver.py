@@ -21,9 +21,11 @@ DIRECT_STATE_MAPPING_ADAPTERS = {
 # equals exactly the amount PE netted into siitax (wiring, non-refundable
 # caps, and floors are handled automatically), and v40 is summed with these
 # zeroed. The list is one-time rebates plus Oregon's kicker, which recurs
-# only when revenue exceeds forecast: with option 27 or 30 set to 1, TAXSIM
-# reports it in `srebate` for the base year, while PE credits it on the
-# return year (taxsim #1241). Recurring annual rebates (e.g.
+# only when revenue exceeds forecast: PE credits it on the return year, while
+# taxsimtest builds since cd2026081819 with option 27 or 30 set to 1 report
+# it in `srebate` for the base year (e.g. 2024; taxsim #1241). Builds that do
+# not model it (such as TAXSIM-35 2025Aug23) report no kicker, which the
+# rebate-neutral comparison also matches. Recurring annual rebates (e.g.
 # nm_low_income_comprehensive_tax_rebate, nm_property_tax_rebate,
 # pa_property_tax_or_rent_rebate, mt_property_tax_rebate) are excluded.
 # See taxsim #1068 / convention #716.
