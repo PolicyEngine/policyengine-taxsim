@@ -257,8 +257,9 @@ The emulator accepts CSV files with the following variables:
 |-----------|--------------------------------|---------------------------------------------|
 | taxsimid  | Unique identifier              |                                             |
 | year      | Tax year                       |                                             |
-| state     | State code                     |                                             |
-| mstat     | Marital status                 | Only supports: 1 (single), 2 (joint)        |
+| state     | State code                     | TAXSIM SOI code: 1 (Alabama) to 51 (Wyoming); 0 for no state tax |
+| statefip  | State FIPS code                | Alternative to `state`: 1 (Alabama) to 56 (Wyoming), converted to the SOI code. Give `state` or `statefip`, not both |
+| mstat     | Marital status                 | 1 (single/head of household), 2 (joint), 6 (married filing separately) |
 | page      | Primary taxpayer age           |                                             |
 | sage      | Age of secondary taxpayer                     |                                             |
 | depx      | Number of dependents           |                                             |

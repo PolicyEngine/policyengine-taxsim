@@ -1,5 +1,6 @@
 from .utils import (
     load_variable_mappings,
+    apply_statefip,
     get_calculation_state_code,
     get_ordinal,
     convert_taxsim32_dependents,
@@ -9,6 +10,11 @@ from .utils import (
 from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
 from .scorp import classify_scorp, validate_scorp_treatment
+
+# TAXSIM-35 mstat 6: "separate (married)" -- one spouse's married-filing-
+# separately return. TAXSIM requires swages and sage to be zero for it, so
+# the emulator builds a single-person tax unit whose head is is_separated.
+MSTAT_MARRIED_SEPARATE = 6
 
 
 def add_additional_units(state, year, situation, taxsim_vars):
@@ -227,6 +233,19 @@ def form_household_situation(year, state, taxsim_vars):
         "is_tax_unit_head": {str(year): True},
     }
 
+    if mstat == MSTAT_MARRIED_SEPARATE:
+        # PE-US derives filing_status SEPARATE from a separated head with no
+        # spouse in the unit (HEAD_OF_HOUSEHOLD instead when a qualifying
+        # child lets IRC 7703(b) treat them as unmarried). TAXSIM taxes the
+        # return as a spouse who did not live apart all year, so Social
+        # Security uses the zero base amount of IRC 86(c)(1)(C), which PE-US
+        # applies only when cohabitating_spouses is set. Mirrors the
+        # Microsimulation path in PolicyEngineRunner.
+        people["you"]["is_separated"] = {str(year): True}
+        household_situation["tax_units"]["your tax unit"]["cohabitating_spouses"] = {
+            str(year): True
+        }
+
     if mstat == 2:
         people["your partner"] = {
             "age": {str(year): int(taxsim_vars.get("sage") or 40)},
@@ -391,6 +410,8 @@ def generate_household(taxsim_vars, scorp_treatment="passive"):
     year = str(
         int(float(taxsim_vars.get("year", 2021)))
     )  # Ensure year is an integer string, handling decimals
+
+    taxsim_vars = apply_statefip(taxsim_vars)
 
     # Convert TAXSIM32 dependent format if present
     taxsim_vars = convert_taxsim32_dependents(taxsim_vars)

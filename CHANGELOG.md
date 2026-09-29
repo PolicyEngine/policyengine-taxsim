@@ -1,3 +1,19 @@
+## [2.33.0] - 2026-09-29
+
+### Added
+
+- Accept TAXSIM-35's statefip input (state FIPS code) in batch, single-household and web API runs, converting it to the SOI state and rejecting records that give both state and statefip, as TAXSIM does.
+
+
+## [2.32.2] - 2026-09-28
+
+### Fixed
+
+- Keep every emulator override (QBID W-2 wages, the rental QBID gate, MN CRP, state SSI-supplement zeroing, MD local-tax zeroing, ME rent utilities, NY separate payments) in the wage-perturbation branch that computes `frate`/`srate`. The branch had dropped them, so Maryland `srate` included the county tax the emulator zeroes (2253.01 instead of 4.75 for $80k single in 2024) and rental-income `frate` went far negative (-858 instead of 22). The `--disable-salt` SALT zeroing, which the branch already kept, is now held the same way as the others.
+- Give a zero-wage filer with no spouse the whole wage perturbation when computing `frate`/`srate`, in both the batch runner and the single-household path. It had received half, which halved the reported marginal rates (Ohio single with $50k interest in 2024: `frate` 6 instead of TAXSIM's 12).
+- Treat TAXSIM mstat 6 (married filing separately) as a separate return in both emulator paths. The batch/CLI path used to add a spouse, so PolicyEngine taxed mstat 6 as a joint return, and the single-household path taxed it as single. Both now build a one-person tax unit flagged `is_separated` and `cohabitating_spouses`, so PolicyEngine applies married-filing-separately brackets, standard deduction, SALT cap, capital-loss limit and NIIT threshold, the zero Social Security base amount, and head-of-household status when a qualifying child is present — matching taxsimtest.
+
+
 ## [2.32.1] - 2026-09-27
 
 ### Fixed

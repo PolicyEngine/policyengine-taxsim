@@ -915,6 +915,7 @@ taxsim_input_definition:
       type:
         - single: 1
         - joint: 2
+        - separate: 6
   - page:
       name: "5. Age of primary taxpayer"
       pair: sage

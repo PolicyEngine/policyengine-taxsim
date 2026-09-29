@@ -40,7 +40,8 @@
 #' \describe{
 #'   \item{year}{Tax year (e.g., 2023)}
 #'   \item{state}{State code (1-51, or two-letter abbreviation)}
-#'   \item{mstat}{Marital status: 1 = single, 2 = married filing jointly}
+#'   \item{mstat}{Marital status: 1 = single (or head of household with
+#'     dependents), 2 = married filing jointly, 6 = married filing separately}
 #' }
 #'
 #' **Common income columns:**

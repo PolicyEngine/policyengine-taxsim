@@ -50,6 +50,7 @@ KNOWN_COLUMNS = {
     "taxsimid",
     "year",
     "state",
+    "statefip",
     "mstat",
     "page",
     "sage",
@@ -157,6 +158,20 @@ def _validate_csv(csv_text):
                     f"Row {row_number}: {error}. Use a TAXSIM SOI state code "
                     "from 1 to 51, or 0 for no state tax."
                 ) from None
+
+    # statefip gives the state as a FIPS code instead; TAXSIM stops when a
+    # record has both state and statefip nonzero.
+    if "statefip" in df.columns:
+        from policyengine_taxsim.core.utils import resolve_statefip
+
+        states = df["state"] if "state" in df.columns else [0] * len(df)
+        for row_number, (state, statefip) in enumerate(
+            zip(states, df["statefip"]), start=1
+        ):
+            try:
+                resolve_statefip(state, statefip)
+            except ValueError as error:
+                raise ValueError(f"Row {row_number}: {error}.") from None
 
     # Warn about unrecognized columns (they'll be silently ignored)
     warnings = []
