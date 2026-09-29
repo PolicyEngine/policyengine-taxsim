@@ -9,6 +9,7 @@ from .utils import (
 )
 from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
+from .scorp import classify_scorp, validate_scorp_treatment
 
 # TAXSIM-35 mstat 6: "separate (married)" -- one spouse's married-filing-
 # separately return. TAXSIM requires swages and sage to be zero for it, so
@@ -394,7 +395,7 @@ def get_taxsim_defaults(year: int = 2021) -> dict:
     }
 
 
-def generate_household(taxsim_vars):
+def generate_household(taxsim_vars, scorp_treatment=None):
     """
     Convert TAXSIM input variables to a PolicyEngine situation.
 
@@ -405,6 +406,7 @@ def generate_household(taxsim_vars):
         dict: PolicyEngine situation dictionary
     """
 
+    scorp_treatment = validate_scorp_treatment(scorp_treatment)
     year = str(
         int(float(taxsim_vars.get("year", 2021)))
     )  # Ensure year is an integer string, handling decimals
@@ -420,4 +422,4 @@ def generate_household(taxsim_vars):
 
     situation = form_household_situation(year, state, taxsim_vars)
 
-    return situation
+    return classify_scorp(situation, scorp_treatment)

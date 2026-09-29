@@ -34,6 +34,7 @@
     "spmCalculatorVersion": "1.0.0.post1",
     "peakWorkerRssMiB": 1705,
     "assumeW2Wages": true,
+    "scorpTreatment": "active",
     "disableSalt": false,
     "policyengineOutputDetail": 5,
     "taxsimBinarySha256": "8aa880aeea33fd501f669d42125615e3b2a0ab19c17d93a76457e9de16615059"

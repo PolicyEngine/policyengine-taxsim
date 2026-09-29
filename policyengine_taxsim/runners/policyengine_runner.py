@@ -34,6 +34,8 @@ from policyengine_taxsim.core.input_mapper import (
 )
 
 from policyengine_us import Microsimulation
+from ..core.scorp import validate_scorp_treatment
+from ..core.scorp_reform import scorp_tax_benefit_system
 from policyengine_core.data import Dataset
 
 
@@ -1073,11 +1075,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         logs: bool = False,
         disable_salt: bool = False,
         assume_w2_wages: bool = False,
+        scorp_treatment: str = None,
     ):
         super().__init__(input_df)
         self.logs = logs
         self.disable_salt = disable_salt
         self.assume_w2_wages = assume_w2_wages
+        self.scorp_treatment = validate_scorp_treatment(scorp_treatment)
         self.mappings = load_variable_mappings()
 
     def _validate_input(self):
@@ -1206,7 +1210,22 @@ class PolicyEngineRunner(BaseTaxRunner):
 
         Every override goes through ``_pin_input`` so it stays fixed in the
         marginal-rate branch as well as in the base simulation."""
-        sim = Microsimulation(dataset=dataset)
+        sim = Microsimulation(
+            dataset=dataset, tax_benefit_system=scorp_tax_benefit_system()
+        )
+        for year in sorted(set(chunk_df["year"].astype(int))):
+            period = str(year)
+            income = sim.calculate("partnership_s_corp_income", period=period)
+            _pin_input(
+                sim,
+                variable_name="passive_partnership_s_corp_income",
+                value=(
+                    income
+                    if self.scorp_treatment == "passive"
+                    else np.zeros_like(income)
+                ),
+                period=period,
+            )
 
         if zero_salt:
             years = sorted(set(chunk_df["year"].unique()))

@@ -1,0 +1,59 @@
+"""Backport the NIIT classification input for supported older PE-US releases.
+
+Python 3.10 resolves PE-US 1.x. Newer PE-US already defines this input and
+includes it in NII, so this reform is a no-op there. It does not implement
+section 469 loss limits or change QBI/AGI/SECA.
+"""
+
+from functools import lru_cache
+
+from policyengine_us.model_api import Variable, Person, TaxUnit, YEAR, USD, Reform, add
+
+
+class passive_partnership_s_corp_income(Variable):
+    value_type = float
+    entity = Person
+    definition_period = YEAR
+    unit = USD
+    default_value = 0
+    label = "Passive subset of partnership and S-corporation income"
+
+
+class net_investment_income(Variable):
+    value_type = float
+    entity = TaxUnit
+    label = "Net investment income including passive pass-through income"
+    definition_period = YEAR
+    unit = USD
+
+    def formula(tax_unit, period, parameters):
+        sources = list(parameters(period).gov.irs.investment.income.sources)
+        if "passive_partnership_s_corp_income" not in sources:
+            sources.append("passive_partnership_s_corp_income")
+        return add(tax_unit, period, sources)
+
+
+class ScorpNIITCompatibility(Reform):
+    def apply(self):
+        if "passive_partnership_s_corp_income" not in self.variables:
+            self.add_variable(passive_partnership_s_corp_income)
+            self.replace_variable(net_investment_income)
+
+
+@lru_cache(maxsize=1)
+def scorp_tax_benefit_system():
+    """Construct the compatible system before loading any situation inputs.
+
+    Passing a structural reform to Simulation creates an unreformed baseline
+    branch in older core releases. That branch cannot hold the new input.
+    Supplying the already-configured system avoids that invalid baseline.
+    """
+    from policyengine_us import CountryTaxBenefitSystem, Simulation
+
+    # PE normally shares this system across simulations. Reconstructing it
+    # for each main/rebate/marginal-rate simulation duplicates the full model
+    # and can exceed the refresh memory budget even for a small input batch.
+    native = Simulation.default_tax_benefit_system_instance
+    if "passive_partnership_s_corp_income" in native.variables:
+        return native
+    return CountryTaxBenefitSystem(reform=ScorpNIITCompatibility)

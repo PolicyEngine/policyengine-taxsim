@@ -128,7 +128,7 @@ def match_flags(taxsim, pe):
     ]
 
 
-def worker(input_path, output_path):
+def worker(input_path, output_path, scorp_treatment="passive"):
     sys.path.insert(0, str(ROOT))
     import pandas as pd
     from policyengine_taxsim.runners import PolicyEngineRunner, TaxsimRunner
@@ -164,7 +164,11 @@ def worker(input_path, output_path):
     # Request detailed PE output (including staxbc), without changing tax inputs.
     pe_input["idtl"] = 5
     pe = PolicyEngineRunner(
-        pe_input, logs=False, assume_w2_wages=True, disable_salt=False
+        pe_input,
+        logs=False,
+        assume_w2_wages=True,
+        disable_salt=False,
+        scorp_treatment=scorp_treatment,
     ).run(show_progress=False)
     for name, result in [("PolicyEngine", pe), ("TAXSIM", ts)]:
         if result.taxsimid.duplicated().any() or set(result.taxsimid) != expected_ids:
@@ -201,7 +205,9 @@ def worker(input_path, output_path):
     os._exit(0)
 
 
-def run_bounded(input_path, output_path, max_memory_gb, min_disk_gb):
+def run_bounded(
+    input_path, output_path, max_memory_gb, min_disk_gb, scorp_treatment="passive"
+):
     import psutil
 
     started = time.monotonic()
@@ -212,6 +218,8 @@ def run_bounded(input_path, output_path, max_memory_gb, min_disk_gb):
         "--worker",
         str(input_path),
         str(output_path),
+        "--scorp-treatment",
+        scorp_treatment,
     ]
     child = subprocess.Popen(cmd, start_new_session=True)
     try:
@@ -353,6 +361,12 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", nargs=2)
+    parser.add_argument(
+        "--scorp-treatment",
+        choices=["default", "passive", "active"],
+        default="default",
+        help="default: passive with policyengine-us 2.10.1+, otherwise active",
+    )
     parser.add_argument("--year", type=int, choices=range(2021, 2026))
     parser.add_argument("--work-dir", type=Path, default=Path("refresh-work"))
     parser.add_argument("--batch-size", type=int, default=5000)
@@ -365,8 +379,13 @@ def main():
     parser.add_argument("--max-memory-gb", type=float, default=5)
     parser.add_argument("--min-disk-gb", type=float, default=4)
     args = parser.parse_args()
+    if args.scorp_treatment == "default":
+        sys.path.insert(0, str(ROOT))
+        from policyengine_taxsim.core.scorp import validate_scorp_treatment
+
+        args.scorp_treatment = validate_scorp_treatment(None)
     if args.worker:
-        worker(*args.worker)
+        worker(*args.worker, scorp_treatment=args.scorp_treatment)
         return
     if args.year is None or not 1 <= args.batch_size <= 10000 or args.limit < 0:
         parser.error("A year, batch size 1–10000, and nonnegative limit are required")
@@ -390,6 +409,7 @@ def main():
         "scriptSha256": digest(__file__),
         "batchSize": args.batch_size,
         "limit": args.limit,
+        "scorpTreatment": args.scorp_treatment,
     }
     manifest = work / "checkpoint.json"
     if manifest.exists() and json.loads(manifest.read_text()) != identity:
@@ -437,7 +457,11 @@ def main():
                     writer.writerows(batch)
                 temp = part.with_suffix(".tmp.gz")
                 usage = run_bounded(
-                    input_path, temp, args.max_memory_gb, args.min_disk_gb
+                    input_path,
+                    temp,
+                    args.max_memory_gb,
+                    args.min_disk_gb,
+                    args.scorp_treatment,
                 )
                 temp.replace(part)
                 atomic_json(
