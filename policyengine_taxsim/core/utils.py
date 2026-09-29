@@ -354,3 +354,56 @@ SOI_TO_FIPS_MAP = {
     50: 55,  # Wisconsin
     51: 56,  # Wyoming
 }
+
+# Reverse mapping: FIPS → SOI (for statefip input support). Identical to
+# TAXSIM's ifip2irs table (staten.for) for every state and DC.
+FIPS_TO_SOI_MAP = {fips: soi for soi, fips in SOI_TO_FIPS_MAP.items()}
+
+
+def resolve_statefip(state, statefip):
+    """Return a record's SOI state after applying TAXSIM-35's statefip input.
+
+    TAXSIM takes the state as either ``state`` (SOI code) or ``statefip``
+    (FIPS code, 1 for Alabama to 56 for Wyoming) and stops with an error when
+    both are nonzero. A missing ``statefip`` is 0 and leaves ``state`` as
+    given. TAXSIM computes no state tax for FIPS codes that are not a state or
+    DC (3, 7, 14, 43, 52); these raise instead, as almost certain input errors.
+    """
+    if isinstance(statefip, str):
+        statefip = statefip.strip() or None
+    if statefip is None or (np.ndim(statefip) == 0 and pd.isna(statefip)):
+        return state
+    try:
+        fips = float(statefip)
+    except (TypeError, ValueError):
+        raise ValueError(f"statefip must be a number, got {statefip!r}") from None
+    if fips == 0:
+        return state
+    if fips not in FIPS_TO_SOI_MAP:
+        raise ValueError(
+            "statefip must be a valid US state FIPS code (1-56, including DC) "
+            f"or 0, got {statefip!r}"
+        )
+    try:
+        given_state = validate_state_number(state)
+    except ValueError:
+        given_state = None  # invalid (e.g. -1), but not "no state"
+    if given_state != NO_STATE:
+        raise ValueError(
+            f"state {state!r} and statefip {statefip!r} are both nonzero; "
+            "TAXSIM accepts only one of them"
+        )
+    return FIPS_TO_SOI_MAP[int(fips)]
+
+
+def apply_statefip(taxsim_vars):
+    """Single-record input with ``statefip`` folded into ``state``.
+
+    Returns a copy when ``statefip`` is present, so the caller's record is
+    left as given and can be passed through the single-household path again.
+    """
+    if "statefip" not in taxsim_vars:
+        return taxsim_vars
+    record = dict(taxsim_vars)
+    record["state"] = resolve_statefip(record.get("state"), record.pop("statefip"))
+    return record
