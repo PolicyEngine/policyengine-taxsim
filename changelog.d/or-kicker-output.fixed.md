@@ -1,1 +1,0 @@
-Report Oregon's kicker in srebate and exclude it from v40, so rebate-neutral comparisons remove its timing difference. In single-household output, compute srebate correctly for households with more than one person (it was 0 in every state) and exclude every one-time rebate from v40, matching the batch runner.
