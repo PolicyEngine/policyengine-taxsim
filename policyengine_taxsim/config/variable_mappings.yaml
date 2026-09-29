@@ -603,7 +603,12 @@ policyengine_to_taxsim:
       # Form M1PR Homestead Credit Refund (homeowners). TAXSIM reports it in
       # v37 (and, as of 20260521, also nets it into siitax — see taxsim #968);
       # PE keeps siitax = Form M1 liability, so v37 is where it surfaces.
-      MN: mn_homestead_credit_refund
+      # From 2024 the renter's credit is a Form M1 refundable credit (M1REF
+      # line 4): it stays in siitax and is also shown here, where TAXSIM
+      # reports it (taxsim #1251, #1252).
+      MN:
+        - mn_homestead_credit_refund
+        - adapter:mn_renters_credit_component
       MT: mt_elderly_homeowner_or_renter_credit
       NJ: nj_property_tax_credit
       NM: nm_property_tax_rebate
@@ -687,7 +692,7 @@ policyengine_to_taxsim:
       MD: md_eitc
       ME: me_eitc
       MI: mi_eitc
-      MN: mn_wfc
+      MN: adapter:mn_working_family_credit_component
       MO: mo_wftc
       MT: mt_eitc
       NE: ne_eitc
@@ -713,8 +718,9 @@ policyengine_to_taxsim:
     group_column: 1
   sctc:
     # Value comes from pe-us taxsim_state_ctc (aggregates
-    # gov.states.household.state_ctcs). OK and MN require component splits
-    # handled via OUTPUT_ADAPTER_OVERRIDES in state_output_resolver.py.
+    # gov.states.household.state_ctcs). OK requires a component split and MN
+    # reports 0 (its combined credit is in v39), both via
+    # OUTPUT_ADAPTER_OVERRIDES in state_output_resolver.py.
     variable: taxsim_sctc
     implemented: true
     idtl:

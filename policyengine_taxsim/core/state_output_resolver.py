@@ -72,14 +72,18 @@ OUTPUT_ADAPTER_OVERRIDES = {
     # `mt_agi_joint` instead (PE-US naming, but applies to joint, single, HoH).
     "taxsim_v32_state_agi": {"MT": ["mt_agi_joint"]},
     "taxsim_v38_cdcc": {"OK": ["adapter:ok_child_care_credit_component"]},
-    "taxsim_v39_eitc": {"MN": ["mn_wfc"]},
+    # MN: TAXSIM (every taxsimtest build since cd2026081819) reports the whole
+    # Child and Working Family Credit in v39 and nothing in sctc; before 2023
+    # Minnesota had only the Working Family Credit.
+    "taxsim_v39_eitc": {"MN": ["adapter:mn_working_family_credit_component"]},
     "taxsim_sctc": {
-        "MN": ["adapter:mn_child_tax_credit_component"],
+        "MN": [],
         "OK": ["adapter:ok_child_tax_credit_component"],
     },
 }
 COMPONENT_ADAPTERS = {
-    "adapter:mn_child_tax_credit_component",
+    "adapter:mn_renters_credit_component",
+    "adapter:mn_working_family_credit_component",
     "adapter:mt_income_tax_before_non_refundable_credits",
     "adapter:ok_child_care_credit_component",
     "adapter:ok_child_tax_credit_component",
@@ -284,20 +288,25 @@ def _calculate_component_adapter(
         )
         return np.where(indiv_after < joint_after, indiv_before, joint_before)
 
-    if variable == "adapter:mn_child_tax_credit_component":
-        combined_credit = calculate_named_output(
-            "mn_child_and_working_families_credits",
-            state_codes,
-            calculate,
-            parameter_values,
-        )
-        working_family_credit = calculate_named_output(
-            "mn_wfc",
-            state_codes,
-            calculate,
-            parameter_values,
-        )
-        return np.maximum(0, combined_credit - working_family_credit)
+    if variable in {
+        "adapter:mn_renters_credit_component",
+        "adapter:mn_working_family_credit_component",
+    }:
+        # PE-US computes these credits in years they did not exist (its
+        # parameters are backdated), so report only the ones on Minnesota's
+        # refundable credit list for the year: the Working Family Credit
+        # (mn_wfc) before 2023, the combined Child and Working Family Credit
+        # from 2023, and the renter's credit from 2024 (Schedule M1REF).
+        refundable = parameter_values.gov.states.mn.tax.income.credits.refundable
+        if variable == "adapter:mn_renters_credit_component":
+            source = "mn_renters_credit" if "mn_renters_credit" in refundable else None
+        elif "mn_child_and_working_families_credits" in refundable:
+            source = "mn_child_and_working_families_credits"
+        else:
+            source = "mn_wfc"
+        if source is None:
+            return np.zeros(len(state_codes), dtype=float)
+        return calculate_named_output(source, state_codes, calculate, parameter_values)
 
     raise KeyError(f"Unsupported component adapter: {variable}")
 
