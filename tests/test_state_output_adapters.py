@@ -121,7 +121,9 @@ DICT_OUTPUT_CASES = [
             "idtl": 2,
             "mstat": 4,
         },
-        ["mn_wfc"],
+        # From 2023 v39 carries the whole Child and Working Family Credit, as
+        # TAXSIM reports it (taxsim #1252).
+        ["mn_child_and_working_families_credits"],
     ),
     (
         "v32",
@@ -215,7 +217,8 @@ TEXT_OUTPUT_CASES = [
             "idtl": 5,
             "mstat": 4,
         },
-        ["adapter:mn_child_tax_credit_component"],
+        # TAXSIM reports none of Minnesota's combined credit in sctc.
+        [],
     ),
 ]
 
@@ -321,18 +324,6 @@ def _expected_value(taxsim_input, variables):
                 )
             )
             total += child_tax_credit if child_tax_credit > child_care_credit else 0.0
-            continue
-
-        if variable == "adapter:mn_child_tax_credit_component":
-            combined_credit = simulation.calculate(
-                "mn_child_and_working_families_credits",
-                period=str(taxsim_input["year"]),
-            ).item()
-            working_family_credit = simulation.calculate(
-                "mn_wfc",
-                period=str(taxsim_input["year"]),
-            ).item()
-            total += max(0.0, combined_credit - working_family_credit)
             continue
 
         total += float(
