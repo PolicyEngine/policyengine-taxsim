@@ -3,11 +3,21 @@
 These are NBER's `taxsimtest` binaries, bundled per platform and used by
 `TaxsimRunner` (and CI) instead of downloading at run time.
 
-**All three platforms must be kept in sync.** In July 2026 the Linux/Windows
-binaries were ~10 months older than the macOS one; `taxsimtest` had since
-gained the opt(30) liability-year rebate handling, so
-`tests/test_taxsim_opt30.py` failed only on ubuntu/windows CI and looked like
-an upstream TAXSIM change (#1089). It wasn't — the bundled binaries were stale.
+## Pinned builds (verified September 23, 2026)
+
+| Platform | Build stamp | NBER download |
+| --- | --- | --- |
+| macOS | `cd2026090910` | https://taxsim.nber.org/out2psl/osx |
+| Linux | `cd2026090910` | https://taxsim.nber.org/out2psl/linux |
+| Windows | `cd2026090110` | https://taxsim.nber.org/taxsimtest/taxsimtest.exe |
+
+`manifest.json` records the source URLs, build stamps, download date, sizes,
+and SHA-256 checksums. Windows is the newest available Windows build found;
+its date differs from macOS/Linux, so do not assume cross-platform parity.
+The hosted test matrix exercises each platform's bundled executable.
+
+In July 2026, stale Linux/Windows binaries caused the opt(30) regression in
+#1089. Compare all platforms when updating, and record upstream differences.
 
 ## Checking build dates
 
@@ -17,19 +27,20 @@ To check a binary directly:
 
 ```bash
 printf "taxsimid year state mstat page sage depx pwages idtl\n1 2021 47 2 45 45 0 60000 2\n" \
-  | resources/taxsimtest/taxsimtest-osx.exe | head -1 | grep -o 'cdate-[^"]*'
+  | resources/taxsimtest/taxsimtest-osx.exe | head -1 | grep -oE 'cdate-[^"]*|cd[0-9]{10}'
 # or, without running it:
-strings resources/taxsimtest/taxsimtest-windows.exe | grep -o '"cdate-[^"]*"'
+strings resources/taxsimtest/taxsimtest-windows.exe | grep -oE 'cdate-[^"]*|cd[0-9]{10}'
 ```
 
 ## Updating
 
-Download the current builds (URLs from
-https://taxsim.nber.org/taxsimtest/low-level-local.html):
+Download the newest verified builds from the sources above. NBER’s
+[installation page](https://taxsim.nber.org/taxsimtest/low-level-local.html)
+also lists mirrors, which can lag the PolicyEngine comparison builds:
 
 ```bash
-curl -sL https://taxsim.nber.org/stata/taxsimtest/linux -o resources/taxsimtest/taxsimtest-linux.exe
-curl -sL https://taxsim.nber.org/stata/taxsimtest/osx -o resources/taxsimtest/taxsimtest-osx.exe
+curl -sL https://taxsim.nber.org/out2psl/linux -o resources/taxsimtest/taxsimtest-linux.exe
+curl -sL https://taxsim.nber.org/out2psl/osx -o resources/taxsimtest/taxsimtest-osx.exe
 curl -sL https://taxsim.nber.org/taxsimtest/taxsimtest.exe -o resources/taxsimtest/taxsimtest-windows.exe
 ```
 
@@ -43,7 +54,8 @@ in August 2026 those were newer (cd2026081819) than the stata-page osx (a
 2025 build). **Do not use `out2psl/windows`**: in August 2026 it served a
 stale 32-bit PE32 build (cd2026062510), older than the canonical
 `taxsimtest/taxsimtest.exe` (cd2026081318, PE32+). Whatever the source,
-always compare `cdate` stamps across all three platforms before committing.
+always compare build stamps across all three platforms before committing and refresh
+`manifest.json`. Do not overwrite a newer binary with an older mirror.
 
 Verify behavior before committing — the VA 2021 opt(30) record is the
 canonical probe (expect `siitax=2068.05`, `srebate=500`; a stale binary gives
