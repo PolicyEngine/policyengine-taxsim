@@ -1,3 +1,10 @@
+## [3.0.1] - 2026-09-30
+
+### Fixed
+
+- Report Minnesota's Child and Working Family Credit in v39 (not split into sctc) and the 2024+ renter's credit in v37, and apply the renter's-credit Certificate of Rent Paid assumption in single-household runs, matching the batch runner.
+
+
 ## [3.0.0] - 2026-09-29
 
 ### Breaking changes
