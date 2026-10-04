@@ -363,12 +363,8 @@ The emulator produces all standard TAXSIM output variables:
 
 `--scorp-treatment passive|active` selects how the **PolicyEngine emulator**
 classifies TAXSIM `scorp` income for net investment income tax (NIIT).
-The default is `passive`, matching TAXSIM's documented convention, when
-policyengine-us 2.10.1 or later is installed. Older releases (including every
-Python 3.10 install, which resolves policyengine-us 1.x) default to `active`
-with a warning: before 2.10.1 a passive loss could offset interest and
-dividends in the EITC investment-income test (pe-us#9572). Select `active` to
-retain the previous materially-participating-owner assumption.
+The default is `passive`, matching TAXSIM's documented convention. Select
+`active` to retain the previous materially-participating-owner assumption.
 
 ```sh
 policyengine-taxsim policyengine input.csv --scorp-treatment active
@@ -387,7 +383,13 @@ change QBI eligibility, impose self-employment tax or implement section 469
 passive-loss limitations. Signed losses are passed through; other loss rules
 remain unchanged. The W-2 wage assumption is an independent QBI setting.
 Python 3.10's older PE-US receives a compatibility reform for the NIIT input;
-modern PE-US uses its existing passive-income input.
+modern PE-US uses its existing passive-income input. On policyengine-us
+releases before 2.10.1 (every Python 3.10 install, and 2.x releases such as
+the dashboard's pinned 2.6.17), the same reform backports pe-us#9572's EITC
+investment-income test, so a passive or rental loss cannot offset interest and
+dividends (IRS Publication 596, Worksheet 1). YAML tests written with `--logs`
+record this compatibility system's results, so on those releases they can
+disagree with unmodified policyengine-us for NIIT and the EITC.
 
 The switch does **not** change the TAXSIM comparator or pre-2021 TAXSIM fallback.
 An active-mode comparison therefore deliberately compares different NIIT

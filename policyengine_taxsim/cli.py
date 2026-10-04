@@ -46,9 +46,8 @@ def _scorp_option(fn):
         type=click.Choice(["passive", "active"]),
         default=None,
         help=(
-            "S-corp NIIT classification in PolicyEngine (default: passive with "
-            "policyengine-us 2.10.1+, otherwise active). Does not change TAXSIM "
-            "or QBI eligibility."
+            "S-corp NIIT classification in PolicyEngine (default: passive). "
+            "Does not change TAXSIM or QBI eligibility."
         ),
     )(fn)
 
