@@ -1,0 +1,1 @@
+Add `--assume-w2-wages` to the stdin drop-in command (`policyengine-taxsim --assume-w2-wages < input.csv`), so it can match TAXSIM's QBI deduction without the W-2 wage limit. The default is unchanged.

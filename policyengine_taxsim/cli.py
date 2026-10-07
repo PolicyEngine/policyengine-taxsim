@@ -62,6 +62,25 @@ def _resolve_scorp_treatment(value):
     )
 
 
+def _assume_w2_wages_option(fn):
+    return click.option(
+        "--assume-w2-wages",
+        is_flag=True,
+        default=False,
+        help=(
+            "Assume large W-2 wages for QBID so the section 199A W-2 wage "
+            "limit never binds (TAXSIM has no wage limit; default: off)"
+        ),
+    )(fn)
+
+
+def _resolve_assume_w2_wages(value):
+    ctx = click.get_current_context()
+    return bool(
+        value or (ctx.parent.params.get("assume_w2_wages") if ctx.parent else False)
+    )
+
+
 def _generate_yaml_files(
     input_df: pd.DataFrame, results_df: pd.DataFrame, scorp_treatment=None
 ):
@@ -167,10 +186,11 @@ def _emit_results(input_df, results_df, out_stream):
 @click.option(
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
+@_assume_w2_wages_option
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
 @click.pass_context
-def cli(ctx, logs, disable_salt, sample, scorp_treatment):
+def cli(ctx, logs, disable_salt, assume_w2_wages, sample, scorp_treatment):
     """PolicyEngine-TAXSIM: drop-in replacement for TAXSIM-35.
 
     Reads CSV from stdin and writes results to stdout, just like taxsim35:
@@ -184,6 +204,7 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
         ctx.ensure_object(dict)
         ctx.obj["logs"] = logs
         ctx.obj["disable_salt"] = disable_salt
+        ctx.obj["assume_w2_wages"] = assume_w2_wages
         ctx.obj["sample"] = sample
         return
 
@@ -209,7 +230,11 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
         # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
         scorp_treatment = _resolve_scorp_treatment(scorp_treatment)
         runner = StitchedRunner(
-            df, logs=logs, disable_salt=disable_salt, scorp_treatment=scorp_treatment
+            df,
+            logs=logs,
+            disable_salt=disable_salt,
+            assume_w2_wages=assume_w2_wages,
+            scorp_treatment=scorp_treatment,
         )
         results_df = runner.run(show_progress=True)
 
@@ -244,12 +269,7 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
 @click.option(
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
-@click.option(
-    "--assume-w2-wages",
-    is_flag=True,
-    default=False,
-    help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
-)
+@_assume_w2_wages_option
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
 def policyengine(
@@ -275,7 +295,7 @@ def policyengine(
             df,
             logs=logs,
             disable_salt=disable_salt,
-            assume_w2_wages=assume_w2_wages,
+            assume_w2_wages=_resolve_assume_w2_wages(assume_w2_wages),
             scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
         )
         results_df = runner.run(show_progress=True)
@@ -348,12 +368,7 @@ def taxsim(input_file, output, sample, taxsim_path):
     help="Disable SALT deduction in PolicyEngine",
 )
 @click.option("--logs", is_flag=True, help="Generate PolicyEngine YAML logs")
-@click.option(
-    "--assume-w2-wages",
-    is_flag=True,
-    default=False,
-    help="Assume large W-2 wages for QBID (aligns with TAXSIM S-Corp handling)",
-)
+@_assume_w2_wages_option
 @click.option(
     "--rel-tolerance",
     type=float,
@@ -440,7 +455,7 @@ def compare(
             df,
             logs=logs,
             disable_salt=disable_salt,
-            assume_w2_wages=assume_w2_wages,
+            assume_w2_wages=_resolve_assume_w2_wages(assume_w2_wages),
             scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
         )
         pe_results = pe_runner.run()

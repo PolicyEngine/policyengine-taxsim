@@ -103,6 +103,7 @@ policyengine-taxsim policyengine your_input_file.csv
 | `--output`, `-o` | Specify the output file path (default: output.txt) |
 | `--logs` | Generate PolicyEngine YAML Tests Logs |
 | `--disable-salt` | Set State and Local Sales or Income Taxes used for the SALT deduction to 0 |
+| `--assume-w2-wages` | Assume large W-2 wages so the QBI deduction's W-2 wage limit never binds (see [W-2 wages and the QBI deduction](#w-2-wages-and-the-qbi-deduction)) |
 | `--sample N` | Sample N records from input for testing |
 
 **Example:**
@@ -146,6 +147,7 @@ policyengine-taxsim compare your_input_file.csv
 | `--sample N` | Sample N records for comparison |
 | `--disable-salt` | Disable SALT deduction in PolicyEngine |
 | `--logs` | Generate PolicyEngine YAML test logs |
+| `--assume-w2-wages` | Assume large W-2 wages so the QBI deduction's W-2 wage limit never binds |
 
 The comparison uses a $15 tolerance for both federal and state tax comparisons, which accounts for reasonable rounding differences.
 
@@ -397,6 +399,29 @@ other business-income treatments.
 Sources: [TAXSIM input definition](https://taxsim.nber.org/taxsimtest/),
 [IRS QBI instructions](https://www.irs.gov/instructions/i8995), and
 [discussion #1018](https://github.com/PolicyEngine/policyengine-taxsim/issues/1018).
+
+### W-2 wages and the QBI deduction
+
+TAXSIM computes the section 199A deduction with no W-2 wage or capital limit,
+and documents `pbusinc` as active income "assuming sufficient wages paid or
+capital to be eligible for the full deduction"
+([TAXSIM input definition](https://taxsim.nber.org/taxsimtest/), item 26).
+TAXSIM input has no W-2 wage column, so by default the emulator supplies no
+W-2 wages. PolicyEngine then applies the section 199A(b)(2)(B) limit, which
+is zero above the phase-in range: a single filer with $400,000 of `pbusinc`
+in 2024 gets a QBI deduction of 0.
+
+`--assume-w2-wages` supplies large W-2 wages so the limit never binds. It is
+off by default and works on every command, including the stdin drop-in:
+
+```sh
+policyengine-taxsim --assume-w2-wages < input.csv > output.csv
+policyengine-taxsim policyengine input.csv --assume-w2-wages
+policyengine-taxsim compare input.csv --assume-w2-wages
+```
+
+Python: `PolicyEngineRunner(df, assume_w2_wages=True)`. API requests accept
+`"assume_w2_wages": true`.
 
 ### Additional Medicare Tax and fiitax
 
