@@ -1,5 +1,5 @@
 // GitHub API utility for fetching issues from PolicyEngine/policyengine-taxsim repository
-import { GITHUB_CONFIG } from '../constants';
+import { GITHUB_CONFIG, STATE_TO_FIPS } from '../constants';
 
 // Cache for GitHub issues to avoid repeated API calls
 let issuesCache = null;
@@ -12,13 +12,22 @@ export const fetchGitHubIssues = async () => {
   }
 
   try {
-    const response = await fetch(`${GITHUB_CONFIG.API_BASE}/repos/${GITHUB_CONFIG.REPO_OWNER}/${GITHUB_CONFIG.REPO_NAME}/issues?state=open&per_page=100`);
-    
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-    }
+    // The API returns at most 100 issues per page, so read pages until a short one
+    const issues = [];
+    for (let page = 1; page <= GITHUB_CONFIG.MAX_ISSUE_PAGES; page += 1) {
+      const response = await fetch(`${GITHUB_CONFIG.API_BASE}/repos/${GITHUB_CONFIG.REPO_OWNER}/${GITHUB_CONFIG.REPO_NAME}/issues?state=open&per_page=${GITHUB_CONFIG.ISSUES_PER_PAGE}&page=${page}`);
 
-    const issues = await response.json();
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      }
+
+      const batch = await response.json();
+      // The issues endpoint also lists pull requests
+      issues.push(...batch.filter((item) => !item.pull_request));
+      if (batch.length < GITHUB_CONFIG.ISSUES_PER_PAGE) {
+        break;
+      }
+    }
     
     // Cache the results
     issuesCache = issues;
@@ -31,18 +40,20 @@ export const fetchGitHubIssues = async () => {
   }
 };
 
+const isStateCode = (code) => Object.prototype.hasOwnProperty.call(STATE_TO_FIPS, code);
+
 // Extract state codes from issue labels and title
 export const extractStateFromIssue = (issue) => {
   const stateLabels = issue.labels
-    .filter(label => label.name.length === 2 && /^[A-Z]{2}$/.test(label.name))
-    .map(label => label.name);
-  
-  // Also check title for state codes
-  const titleStateMatch = issue.title.match(/\b([A-Z]{2})\b/);
-  if (titleStateMatch && !stateLabels.includes(titleStateMatch[1])) {
-    stateLabels.push(titleStateMatch[1]);
+    .map(label => label.name)
+    .filter(isStateCode);
+
+  // Also check the title for a state code, skipping other capitals such as "IT-214" or "US"
+  const titleState = (issue.title.match(/\b[A-Z]{2}\b/g) || []).find(isStateCode);
+  if (titleState && !stateLabels.includes(titleState)) {
+    stateLabels.push(titleState);
   }
-  
+
   return stateLabels;
 };
 
