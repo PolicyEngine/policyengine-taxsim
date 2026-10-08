@@ -16,7 +16,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The versioning job below commits "Update package version" to main with an
+  # app token, which triggers this workflow again. That commit changes only
+  # the version, changelog and fragments, so skip the checks on it (as
+  # policyengine.py's push workflow does) instead of re-running the full
+  # six-OS matrix. versioning and publish need lint and test, so they skip too;
+  # on that commit they found no fragments and re-published nothing anyway.
   lint:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -27,6 +34,7 @@ jobs:
         run: ruff format --check .
 
   scorp-validation:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -46,6 +54,7 @@ jobs:
       - run: pytest tests/test_scorp_treatment.py -v
 
   test:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ${{ matrix.os }}
     # Slowest observed 2026-10-06..08: 85 minutes (macos-latest, Python 3.11).
     # Fail a hung job instead of holding a runner for the 6-hour default.
@@ -72,6 +81,7 @@ jobs:
         run: pytest tests/
 
   dashboard-test:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
