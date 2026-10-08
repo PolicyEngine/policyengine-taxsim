@@ -6,9 +6,19 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to a pull request supersedes the run on its previous head, so
+# cancel that run instead of letting its six-OS test matrix (macOS jobs take
+# up to 85 minutes, and the org can run only 5 macOS jobs at once) finish on a
+# stale commit. Pushes to main get their own group per run and are never
+# cancelled, because they version and publish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Install ruff
@@ -37,6 +47,9 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
+    # Slowest observed 2026-10-06..08: 85 minutes (macos-latest, Python 3.11).
+    # Fail a hung job instead of holding a runner for the 6-hour default.
+    timeout-minutes: 150
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -60,6 +73,7 @@ jobs:
 
   dashboard-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: dashboard
@@ -75,6 +89,7 @@ jobs:
   check-changelog:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -115,6 +130,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, test]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Generate GitHub App token
         id: app-token
