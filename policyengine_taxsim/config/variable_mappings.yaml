@@ -331,7 +331,9 @@ policyengine_to_taxsim:
       - income_tax_main_rates
       - capital_gains_tax
   v29:
-    variable: taxsim_tfica
+    # TAXSIM's v29 is the combined employee + employer FICA, the same amount
+    # as the `fica` column ("v29 = FICA"); `tfica` is the employee half.
+    variable: taxsim_fica
     implemented: true
     idtl:
       - full: 2
@@ -464,7 +466,11 @@ policyengine_to_taxsim:
       KS: ks_taxable_income
       KY: ky_taxable_income
       LA: la_taxable_income
-      MA: null
+      # TAXSIM's MA v36 is Part A + Part B + Part C taxable income.
+      MA:
+        - ma_part_a_taxable_income
+        - ma_part_b_taxable_income
+        - ma_part_c_taxable_income
       MD: md_taxable_income
       ME: me_taxable_income
       MI: mi_taxable_income
