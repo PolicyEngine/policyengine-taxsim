@@ -228,12 +228,15 @@ policyengine_to_taxsim:
     full_text_group: "Federal Tax Calculation"
     group_column: 1
   v19:
-    variable: income_tax_main_rates
+    # TAXSIM-35: "Tax on Taxable Income (no special capital gains rates)", the
+    # ordinary schedule on all taxable income. income_tax_main_rates leaves
+    # capital gains out. Needs policyengine-us 2.29.12+; older versions give 0.
+    variable: tax_on_taxable_income_at_main_rates
     implemented: true
     idtl:
       - full: 2
       - full_text: 5
-    text_description: "Federal Regular Tax"
+    text_description: "Tax on Taxable Income (no special capital gains rates)"
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
