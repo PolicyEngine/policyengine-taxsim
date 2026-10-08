@@ -139,7 +139,7 @@ import delimited using "output.raw", delimiter(",") clear`,
         id: 'python-pin',
         label: 'Pin policyengine-us version (optional)',
         language: 'cli',
-        code: `# For reproducible results, pin the underlying tax model version
+        code: `# For reproducible results, pin the underlying tax model version (Python 3.11 or later)
 uv pip install policyengine-us==2.25.2`
       },
       {
@@ -175,7 +175,7 @@ devtools::install_github(
         id: 'r-version-pin',
         label: 'Pin version & check versions',
         language: 'r',
-        code: `# Pin policyengine-us to a specific version for reproducible results
+        code: `# Pin policyengine-us to a specific version for reproducible results (needs Python 3.11 or later)
 setup_policyengine(force = TRUE, policyengine_us_version = "2.25.2")
 
 # Check installed package versions
