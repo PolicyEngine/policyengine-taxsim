@@ -1,1 +1,1 @@
-Add Future Plans & Maintenance docs (site + README) describing the Axiom backend roadmap, the stable public surfaces, and maintenance, with a contract test pinning the PolicyEngineRunner import path and run() DataFrame contract.
+Add Future Plans & Maintenance docs (site + README) and contract tests pinning the CLI's stdin/stdout TAXSIM CSV contract, the PolicyEngineRunner import path, and the run() DataFrame contract.

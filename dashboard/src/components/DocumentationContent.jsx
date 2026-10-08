@@ -1200,25 +1200,39 @@ python scripts/convert_h5_to_taxsim.py \\
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
               <h2 className="text-xl font-bold text-gray-900">Future plans</h2>
               <p className="text-gray-600">
-                When PolicyEngine moves its rules engine to the{' '}
+                We will keep powering the TAXSIM emulator for as long as people need it. Its
+                backend may move to{' '}
                 <a href="https://axiom.org" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
                   Axiom
-                </a>{' '}
-                backend — a new rules engine that follows the law exactly — the TAXSIM emulator
-                moves with it. The surfaces below stay stable, and we will make the transition as
-                invisible as possible.
+                </a>
+                , our next-generation rules engine, which encodes rules from the law with tests.
+                If it does, the emulator still runs through PolicyEngine&apos;s wrappers, and the
+                surfaces below stay backwards compatible.
               </p>
               <p className="text-gray-600">
-                Using PolicyEngine directly adds capabilities beyond the TAXSIM format (benefit
-                programs, and more accurate tax calculations from variables TAXSIM doesn&apos;t
-                support). Axiom will add substantially more.
+                Using PolicyEngine directly adds capabilities beyond the TAXSIM format: benefit
+                programs, and tax calculations that use variables TAXSIM doesn&apos;t support.
               </p>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Stable surfaces</h3>
               <p className="text-gray-600">
-                Pipelines build on these surfaces, and CI pins each one with a contract test:
+                Pipelines build on these surfaces, and CI pins each one with a contract test (
+                {['tests/test_public_contract.py', 'tests/test_cli_entry_point.py'].map((path, i) => (
+                  <React.Fragment key={path}>
+                    {i > 0 && ', '}
+                    <a
+                      href={`https://github.com/PolicyEngine/policyengine-taxsim/blob/main/${path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:underline"
+                    >
+                      <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">{path}</code>
+                    </a>
+                  </React.Fragment>
+                ))}
+                ):
               </p>
               <ul className="space-y-3">
                 <li className="flex gap-3">
@@ -1248,8 +1262,8 @@ python scripts/convert_h5_to_taxsim.py \\
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Maintenance</h3>
               <p className="text-gray-600">
-                policyengine-taxsim is MIT-licensed open source, and releases keep the model
-                current as federal and state tax law changes.
+                policyengine-taxsim is MIT-licensed open source. Its PolicyEngine calculations
+                come from policyengine-us, which is updated as federal and state tax law changes.
               </p>
             </div>
           </section>

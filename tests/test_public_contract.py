@@ -7,14 +7,25 @@ PolicyEngineRunner class, its constructor taking a TAXSIM-format DataFrame,
 and the documented zero-argument run() returning a TAXSIM-format DataFrame.
 Changing any of them is a breaking change that needs a deprecation path.
 The entry point's resolvability has its own pin in test_cli_entry_point.py.
+The README and documentation site cite these test files as the CI pins, so
+the last test fails if either doc names a test file that doesn't exist.
 """
 
 import inspect
 import io
+import re
 import shutil
 import subprocess
+from pathlib import Path
 
 import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DOCS_CITING_CONTRACT_TESTS = (
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "dashboard" / "src" / "components" / "DocumentationContent.jsx",
+)
+CONTRACT_TESTS = {"tests/test_public_contract.py", "tests/test_cli_entry_point.py"}
 
 TAXSIM_INPUT = pd.DataFrame(
     [
@@ -64,3 +75,13 @@ def test_cli_reads_taxsim_csv_stdin_and_writes_taxsim_csv_stdout():
     assert len(result) == 1
     for column in ("taxsimid", "year", "fiitax"):
         assert column in result.columns
+
+
+def test_docs_cite_only_contract_tests_that_exist():
+    for doc in DOCS_CITING_CONTRACT_TESTS:
+        cited = set(re.findall(r"tests/test_\w+\.py", doc.read_text(encoding="utf-8")))
+        assert CONTRACT_TESTS <= cited, (
+            f"{doc.name} no longer cites {CONTRACT_TESTS - cited}"
+        )
+        for path in cited:
+            assert (REPO_ROOT / path).is_file(), f"{doc.name} cites missing {path}"
