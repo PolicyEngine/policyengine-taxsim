@@ -1,0 +1,1 @@
+Make `policyengine-taxsim taxsim --taxsim-path` work: it failed on every run with "'str' object has no attribute 'exists'", and a bare executable name in the working directory failed with "command not found". TaxsimRunner now accepts the path as a str or Path and resolves it to an absolute path.
