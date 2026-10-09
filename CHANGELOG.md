@@ -1,3 +1,14 @@
+## [3.1.1] - 2026-10-09
+
+### Changed
+
+- Cancel superseded pull request CI runs and give CI jobs timeouts, so outdated or hung jobs free shared GitHub Actions runners.
+
+### Fixed
+
+- Version-pinning examples on the documentation page now use releases that exist on PyPI (policyengine-taxsim 3.0.1 with policyengine-us 2.25.2 on Python 3.11+).
+
+
 ## [3.1.0] - 2026-10-09
 
 ### Added
