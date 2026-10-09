@@ -1,0 +1,239 @@
+# What each TAXSIM input column means, for docs/input-guide.md.
+#
+# This file holds only what the code cannot say: the meaning, type and valid
+# values of each column. How the emulator reads a column (what a blank cell
+# becomes, which PolicyEngine variable it feeds, whether pre-2021 TAXSIM rows
+# receive it) is worked out from the code by scripts/generate_docs_reference.py.
+#
+# tests/test_docs_reference.py fails when this file is missing a column the
+# emulator reads, lists one it does not, or when docs/input-guide.md no longer
+# matches what the generator produces. After editing, run:
+#
+#     python scripts/generate_docs_reference.py
+#
+# Fields:
+#   group    section heading in the generated table
+#   meaning  what the column holds
+#   type     kind of value and units
+#   valid    accepted values; "TAXSIM-35" notes quote NBER's input documentation
+#            (https://taxsim.nber.org/taxsimtest/, retrieved 2026-10-09)
+
+taxsimid:
+  group: Record and filing unit
+  meaning: Record identifier, returned unchanged in the output so you can merge results back onto your data.
+  type: Number
+  valid: Any non-negative number. Give every record its own value; if the column is left out, records are numbered 1, 2, 3, ... in file order.
+year:
+  group: Record and filing unit
+  meaning: Tax year. Required.
+  type: Four-digit year
+  valid: A whole number. 2021 and later are computed by PolicyEngine; earlier years by the bundled TAXSIM-35 executable, which covers 1960 onward (state must be 0 before 1977, per TAXSIM-35).
+state:
+  group: Record and filing unit
+  meaning: State of residence, as a TAXSIM SOI code.
+  type: Code
+  valid: 1 (Alabama) to 51 (Wyoming), in alphabetical order with DC as 9; 0 for no state tax. -1 (TAXSIM's every-state option) is rejected. Use `state` or `statefip`, not both.
+statefip:
+  group: Record and filing unit
+  meaning: State of residence, as a FIPS code. An alternative to `state`.
+  type: Code
+  valid: 1 (Alabama) to 56 (Wyoming), including 11 for DC; 0 or blank to use `state` instead. Codes that are not a state or DC (3, 7, 14, 43, 52) are rejected, as is a record with both `state` and `statefip` nonzero.
+mstat:
+  group: Record and filing unit
+  meaning: Filing status.
+  type: Code
+  valid: 1 unmarried (filed as head of household when a dependent qualifies), 2 married filing jointly, 6 married filing separately. TAXSIM-35 also defines 8 (dependent taxpayer); see "Values the emulator does not check".
+page:
+  group: Record and filing unit
+  meaning: Age of the primary taxpayer on December 31 of the tax year.
+  type: Years
+  valid: A whole number of years.
+sage:
+  group: Record and filing unit
+  meaning: Age of the spouse on December 31 of the tax year. Read only on joint returns (`mstat` 2).
+  type: Years
+  valid: A whole number of years. TAXSIM-35 treats a nonzero `sage` on an unmarried return as an error.
+dependent_exemption:
+  group: Record and filing unit
+  meaning: Listed in the emulator's TAXSIM input definition, but neither engine reads it. Use `depx` and the dependent ages.
+  type: Number
+  valid: Ignored.
+depx:
+  group: Dependents
+  meaning: Number of dependents.
+  type: Count
+  valid: 0 to 11 on PolicyEngine rows. Pre-2021 TAXSIM rows receive ages for at most 10 dependents.
+age1:
+  group: Dependents
+  meaning: Age of dependent 1 on December 31 of the tax year. `age2` to `age11` hold the ages of dependents 2 to 11.
+  type: Years
+  valid: A whole number of years. Ages are read only for the first `depx` dependents. Code an infant as 1, as TAXSIM-35 instructs. `age11` reaches PolicyEngine rows only; the TAXSIM-35 executable rejects it, so pre-2021 rows drop it.
+age2: &dependent_age
+  group: Dependents
+  meaning: Age of a later dependent; see `age1`.
+  type: Years
+  valid: See `age1`.
+age3: *dependent_age
+age4: *dependent_age
+age5: *dependent_age
+age6: *dependent_age
+age7: *dependent_age
+age8: *dependent_age
+age9: *dependent_age
+age10: *dependent_age
+age11: *dependent_age
+dep13:
+  group: Dependents
+  meaning: TAXSIM-32 style count of dependents under 13. An alternative to the dependent ages.
+  type: Count
+  valid: Counts are cumulative, so dep13 is at most dep17, which is at most dep18. Converted to ages 10 (under 13), 15 (13 to 16), 17 (17) and 21 (any of `depx` beyond `dep18`). PolicyEngine rows use the counts when the record gives no positive dependent age; pre-2021 rows use them only when the file has no age columns at all.
+dep17:
+  group: Dependents
+  meaning: TAXSIM-32 style count of dependents under 17, including those under 13.
+  type: Count
+  valid: See `dep13`.
+dep18:
+  group: Dependents
+  meaning: TAXSIM-32 style count of dependents under 18, including those under 17.
+  type: Count
+  valid: See `dep13`.
+pwages:
+  group: Wages and self-employment
+  meaning: Wage and salary income of the primary taxpayer.
+  type: Dollars per year
+  valid: Any amount.
+swages:
+  group: Wages and self-employment
+  meaning: Wage and salary income of the spouse. Read only on joint returns.
+  type: Dollars per year
+  valid: Any amount. TAXSIM-35 requires zero on non-joint returns.
+psemp:
+  group: Wages and self-employment
+  meaning: Self-employment income of the primary taxpayer that is not qualified business income, before self-employment tax.
+  type: Dollars per year
+  valid: Any amount.
+ssemp:
+  group: Wages and self-employment
+  meaning: Self-employment income of the spouse; see `psemp`. Read only on joint returns.
+  type: Dollars per year
+  valid: Any amount.
+pbusinc:
+  group: Business income (QBI)
+  meaning: Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out.
+  type: Dollars per year
+  valid: Any amount.
+sbusinc:
+  group: Business income (QBI)
+  meaning: Spouse's active business income; see `pbusinc`. Read only on joint returns.
+  type: Dollars per year
+  valid: Any amount.
+pprofinc:
+  group: Business income (QBI)
+  meaning: Primary taxpayer's income from a specified service trade or business (SSTB), eligible for the qualified business income deduction subject to its phase-out.
+  type: Dollars per year
+  valid: Any amount.
+sprofinc:
+  group: Business income (QBI)
+  meaning: Spouse's SSTB income; see `pprofinc`. Read only on joint returns.
+  type: Dollars per year
+  valid: Any amount.
+scorp:
+  group: Business income (QBI)
+  meaning: S corporation and partnership profits (TAXSIM-35 describes this column as passive business income).
+  type: Dollars per year
+  valid: Any amount; losses are entered as negative amounts.
+dividends:
+  group: Investment and other income
+  meaning: Qualified dividends (all dividends before 2003). Non-qualified dividends belong in `intrec`.
+  type: Dollars per year
+  valid: Any amount.
+intrec:
+  group: Investment and other income
+  meaning: Taxable interest received, and non-qualified dividends.
+  type: Dollars per year
+  valid: Any amount.
+stcg:
+  group: Investment and other income
+  meaning: Short-term capital gains or losses.
+  type: Dollars per year
+  valid: Any amount; losses are negative.
+ltcg:
+  group: Investment and other income
+  meaning: Long-term capital gains or losses.
+  type: Dollars per year
+  valid: Any amount; losses are negative.
+otherprop:
+  group: Investment and other income
+  meaning: Other property income in AGI that is subject to the net investment income tax, such as rent not eligible for the QBI deduction.
+  type: Dollars per year
+  valid: Any amount; losses are negative.
+nonprop:
+  group: Investment and other income
+  meaning: Other non-property income in AGI not subject to the net investment income tax (TAXSIM-35 lists alimony, non-wage fellowships and state tax refunds; adjustments such as IRA contributions go in as negative amounts).
+  type: Dollars per year
+  valid: Any amount; adjustments are negative.
+pensions:
+  group: Retirement and benefits
+  meaning: Taxable pensions and IRA distributions.
+  type: Dollars per year
+  valid: Any amount.
+gssi:
+  group: Retirement and benefits
+  meaning: Gross Social Security benefits.
+  type: Dollars per year
+  valid: Any amount.
+pui:
+  group: Retirement and benefits
+  meaning: Unemployment compensation received by the primary taxpayer.
+  type: Dollars per year
+  valid: Any amount.
+sui:
+  group: Retirement and benefits
+  meaning: Unemployment compensation received by the spouse. Read only on joint returns.
+  type: Dollars per year
+  valid: Any amount.
+transfers:
+  group: Retirement and benefits
+  meaning: Non-taxable transfer income (welfare, workers' compensation, veterans' benefits, child support), which can affect state property tax rebates.
+  type: Dollars per year
+  valid: Any amount.
+rentpaid:
+  group: Deductions and expenses
+  meaning: Rent paid, used for state renter credits and property tax rebates.
+  type: Dollars per year
+  valid: Any amount.
+proptax:
+  group: Deductions and expenses
+  meaning: Real estate taxes paid.
+  type: Dollars per year
+  valid: Any amount.
+otheritem:
+  group: Deductions and expenses
+  meaning: Other itemized deductions that TAXSIM-35 treats as AMT preferences (other state and local taxes, the preference share of medical expenses, other interest, miscellaneous).
+  type: Dollars per year
+  valid: Any amount.
+mortgage:
+  group: Deductions and expenses
+  meaning: Itemized deductions that are not AMT preferences (home mortgage interest, charitable contributions, deductible medical expenses, and so on).
+  type: Dollars per year
+  valid: Any amount.
+childcare:
+  group: Deductions and expenses
+  meaning: Child care expenses.
+  type: Dollars per year
+  valid: Any amount.
+idtl:
+  group: Output and options
+  meaning: How much output to return for the record.
+  type: Code
+  valid: 0 standard output, 2 full output, 5 full output plus a text report. Any other value returns no tax amounts for the record on PolicyEngine rows.
+opt1:
+  group: Output and options
+  meaning: A TAXSIM-35 option number, passed to the TAXSIM-35 executable for pre-2021 rows (for example 30, its PSL-conformance mode).
+  type: Code
+  valid: See https://taxsim.nber.org/taxsimtest/options.html. PolicyEngine rows ignore it.
+opt1v:
+  group: Output and options
+  meaning: The value for the option in `opt1`.
+  type: Number
+  valid: See `opt1`.

@@ -1,0 +1,7 @@
+hh_id,tax_year,state_fips,marital_status,age_head,age_spouse,num_children,child_age_1,child_age_2,child_age_3,wages_head,wages_spouse,self_emp_head,interest,dividends,pension,social_security,unemployment,rent_paid,property_tax,mortgage_interest,charity,childcare_cost
+101,2023,6,1,38,36,2,4,9,,85000,42000,,300,,,,,,5500,12000,1500,6000
+102,2023,36,5,27,,1,0,,,38000,,,,,,,,16800,,,,4200
+103,2024,12,1,68,66,0,,,,,,,2500,1800,30000,34000,,,3200,,800,
+104,2024,48,5,29,,0,,,,52000,,8000,120,,,,,13200,,,,
+105,2022,39,1,44,41,3,2,6,15,60000,,,,,,,4000,14400,,,,3000
+106,2019,42,3,51,,0,,,,47000,,,900,400,,,,,2100,6000,,
