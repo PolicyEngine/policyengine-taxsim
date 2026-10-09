@@ -44,6 +44,7 @@ describe('DocumentationContent', () => {
       'All Runners & CLI',
       'Variable Mappings',
       'Sample Datasets',
+      'Future Plans',
     ].forEach(label => {
       expect(
         screen.getAllByRole('button', { name: label }).length
@@ -124,5 +125,29 @@ describe('DocumentationContent', () => {
     expect(
       await screen.findByPlaceholderText('Search variables...')
     ).toBeInTheDocument();
+  });
+
+  it('Future Plans section links Axiom and the contract tests behind the stable surfaces', async () => {
+    const { container } = await renderDoc();
+    const [plansTab] = screen.getAllByRole('button', { name: 'Future Plans' });
+    fireEvent.click(plansTab);
+    expect(screen.getByRole('link', { name: 'Axiom' }).getAttribute('href')).toBe(
+      'https://axiom.org'
+    );
+    expect(container.textContent).toContain(
+      'encodes rules from the law with tests'
+    );
+    expect(container.textContent).not.toContain('follows the law exactly');
+    ['tests/test_public_contract.py', 'tests/test_cli_entry_point.py'].forEach(
+      path => {
+        expect(screen.getByRole('link', { name: path }).getAttribute('href')).toBe(
+          `https://github.com/PolicyEngine/policyengine-taxsim/blob/main/${path}`
+        );
+      }
+    );
+    expect(container.textContent).toContain(
+      'from policyengine_taxsim.runners import PolicyEngineRunner'
+    );
+    expect(container.textContent).toContain('PolicyEngineRunner(df).run()');
   });
 });

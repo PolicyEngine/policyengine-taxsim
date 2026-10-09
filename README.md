@@ -4,6 +4,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
 
 ## Table of Contents
 - [Overview](#overview)
+- [Future plans and maintenance](#future-plans-and-maintenance)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
   - [From Source](#from-source)
@@ -39,6 +40,18 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 - **Interactive dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
 - **Flexible output options**: Standard, full, and text description output formats matching TAXSIM specifications
 - **YAML test generation**: Generate PolicyEngine test cases for reproducibility and validation
+
+## Future plans and maintenance
+
+We will keep powering the TAXSIM emulator for as long as people need it. Its backend may move to [Axiom](https://axiom.org), our next-generation rules engine, which encodes rules from the law with tests. If it does, the emulator still runs through PolicyEngine's wrappers, and the surfaces below stay backwards compatible. Using PolicyEngine directly adds capabilities beyond the TAXSIM format: benefit programs, and tax calculations that use variables TAXSIM doesn't support.
+
+Pipelines build on these surfaces, and CI pins each one with a contract test (`tests/test_public_contract.py`, `tests/test_cli_entry_point.py`):
+
+- The `policyengine-taxsim` CLI: TAXSIM-format CSV in, TAXSIM-format CSV out
+- The Python import path: `from policyengine_taxsim.runners import PolicyEngineRunner`
+- `PolicyEngineRunner(df).run()`: accepts a TAXSIM-format `DataFrame` and returns a TAXSIM-format `DataFrame`
+
+policyengine-taxsim is MIT-licensed open source. Its PolicyEngine calculations come from policyengine-us, which is updated as federal and state tax law changes.
 
 ## Quick Start
 
