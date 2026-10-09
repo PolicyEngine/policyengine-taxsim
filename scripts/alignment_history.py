@@ -409,7 +409,10 @@ def build_reference(tag, work, years, summaries_dir=None, keep_downloads=False):
             "comparisonSha256": sha,
             "referenceSha256": refresh.digest(compact),
             "taxsimBinarySha256": provenance.get("taxsimBinarySha256"),
-            "taxsimBinaryBuild": binary_build(
+            # Refresh provenance records the build itself once #1414 lands;
+            # older releases need it read from the binary at the tag.
+            "taxsimBinaryBuild": provenance.get("taxsimBinaryBuild")
+            or binary_build(
                 tag,
                 "resources/taxsimtest/taxsimtest-linux.exe",
                 provenance.get("taxsimBinarySha256"),

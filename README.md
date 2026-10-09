@@ -236,6 +236,7 @@ The project includes a comprehensive React-based interactive dashboard for visua
 - **Smart Tolerance**: Uses $15 tolerance accounting for reasonable calculation differences
 - **Real-Time Statistics**: Dynamic summary statistics that update with filtering
 - **GitHub Integration**: Direct links to relevant issues and documentation
+- **Agreement by Release**: Federal and state agreement for each released `policyengine-taxsim` / `policyengine-us` pair, scored against the same TAXSIM run, with releases PyPI can no longer install listed with the reason (see [docs/alignment-history.md](docs/alignment-history.md))
 
 ### Data Management
 
