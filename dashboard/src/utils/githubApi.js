@@ -94,6 +94,31 @@ export const getIssuesForState = (issues, stateCode) => {
   });
 };
 
+// Fetch the labeled feed directly so older issues are not hidden by unrelated ones.
+export const fetchIssuesByLabel = async (labelName) => {
+  if (!labelName) return [];
+  const issues = [];
+  for (let page = 1; ; page += 1) {
+    const url = `${GITHUB_CONFIG.API_BASE}/repos/${GITHUB_CONFIG.REPO_OWNER}/${GITHUB_CONFIG.REPO_NAME}/issues?state=open&per_page=100&labels=${encodeURIComponent(labelName)}&page=${page}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+    const batch = await response.json();
+    issues.push(...batch.filter(issue => !issue.pull_request));
+    if (batch.length < 100) return issues;
+  }
+};
+
+// Get issues with a specific label
+export const getIssuesByLabel = (issues, labelName) => {
+  if (!labelName) return [];
+
+  return issues.filter(issue =>
+    issue.labels.some(label => label.name === labelName)
+  );
+};
+
 // Format issue data for display
 export const formatIssue = (issue) => {
   return {
