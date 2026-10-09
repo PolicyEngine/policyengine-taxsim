@@ -14,7 +14,7 @@
 #' @param force If TRUE, will reinstall even if environment already exists.
 #'   Default is FALSE.
 #' @param policyengine_us_version Optional. Pin policyengine-us to a specific
-#'   version (e.g., "1.555.0"). If NULL (default), uses whatever version pip
+#'   version (e.g., "2.25.2"). If NULL (default), uses whatever version pip
 #'   resolves. Use this for reproducible results across model runs.
 #'
 #' @return Invisibly returns TRUE if setup was successful.
@@ -28,7 +28,7 @@
 #' setup_policyengine(force = TRUE)
 #'
 #' # Pin to a specific policyengine-us version for reproducibility
-#' setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
+#' setup_policyengine(force = TRUE, policyengine_us_version = "2.25.2")
 #' }
 #'
 #' @export
