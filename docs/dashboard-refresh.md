@@ -77,8 +77,10 @@ imports `spm_calculator.geoadj`; its compatibility constraint is in
 
 Choose `scorp_treatment` when dispatching the workflow, or pass
 `--scorp-treatment default|passive|active` to the refresh script. `default`
-resolves to `passive` with policyengine-us 2.10.1+ and `active` otherwise; the
-refresh provenance records the resolved value.
+resolves to `passive`; the refresh provenance records the resolved value.
+The pinned policyengine-us 2.6.17 predates the EITC investment-income fix in
+2.10.1 (pe-us#9572); the emulator backports it, so passive S-corp losses do not
+offset interest and dividends in the EITC test.
 The setting is part of checkpoint identity and output provenance, and is shown
 on the dashboard. TAXSIM itself remains in its default mode.
 
