@@ -1,0 +1,1 @@
+A stdin run now writes only the TAXSIM-format output to stdout: TAXSIM progress messages (printed for any record before 2021) and `--logs` diagnostics go to stderr. `policyengine-taxsim taxsim --taxsim-path PATH` no longer fails with "'str' object has no attribute 'exists'".

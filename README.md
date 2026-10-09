@@ -14,6 +14,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
   - [TAXSIM Calculations](#taxsim-calculations)
   - [Comparison Analysis](#comparison-analysis)
   - [Data Sampling](#data-sampling)
+  - [Recording versions](#recording-versions)
 - [Dashboard](#dashboard)
   - [Setup](#dashboard-setup)
   - [Features](#dashboard-features)
@@ -117,6 +118,7 @@ policyengine-taxsim policyengine your_input_file.csv
 | `--logs` | Generate PolicyEngine YAML Tests Logs |
 | `--disable-salt` | Set State and Local Sales or Income Taxes used for the SALT deduction to 0 |
 | `--sample N` | Sample N records from input for testing |
+| `--provenance PATH` | Also write a JSON record of the versions and inputs behind this run (see [Recording versions](#recording-versions)) |
 
 **Example:**
 ```bash
@@ -137,6 +139,7 @@ policyengine-taxsim taxsim your_input_file.csv
 | `--output`, `-o` | Output file path (default: taxsim_output.csv) |
 | `--sample N` | Sample N records from input |
 | `--taxsim-path` | Custom path to TAXSIM executable |
+| `--provenance PATH` | Also write a JSON record of the versions and inputs behind this run |
 
 **Example:**
 ```bash
@@ -159,6 +162,7 @@ policyengine-taxsim compare your_input_file.csv
 | `--sample N` | Sample N records for comparison |
 | `--disable-salt` | Disable SALT deduction in PolicyEngine |
 | `--logs` | Generate PolicyEngine YAML test logs |
+| `--provenance PATH` | Also write a JSON record of the versions and inputs behind this run |
 
 The comparison uses a $15 tolerance for both federal and state tax comparisons, which accounts for reasonable rounding differences.
 
@@ -199,6 +203,44 @@ policyengine-taxsim sample-data input.csv --sample 1000
 |--------|-------------|
 | `--sample N` | Number of records to sample |
 | `--output`, `-o` | Output file (auto-generated if not specified) |
+
+### Recording versions
+
+Results depend on the policyengine-taxsim and policyengine-us versions and on
+the build of the bundled TAXSIM binary, which computes tax years before 2021
+in the stdin command and the `policyengine` subcommand, and every record in the
+`taxsim` and `compare` subcommands. To see which ones are installed:
+
+```bash
+policyengine-taxsim --version
+```
+
+```
+policyengine-taxsim: 3.0.1
+policyengine-us:     2.34.0
+policyengine-core:   3.32.23
+TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)
+Python:              3.11.15
+```
+
+To record them with a run, add `--provenance PATH` to the stdin command or to
+the `policyengine`, `taxsim` or `compare` subcommands. The TAXSIM-format
+output is unchanged. The JSON file records the versions above, the TAXSIM
+binary's path and SHA-256, the options used, the SHA-256 and record count of
+the input and output, the number of records each engine computed, and the
+version of every installed package.
+
+```bash
+policyengine-taxsim --provenance run.json < input.csv > output.csv
+policyengine-taxsim policyengine input.csv -o output.csv --provenance run.json
+```
+
+The JSON file is never written over anything but an earlier provenance file:
+a path that already holds other data (the run's input or output, the TAXSIM
+binary, a file a shell redirect is writing) is refused before the run starts.
+
+PyPI does not keep every policyengine-us release, so record versions when
+you run and keep the JSON file with your output.
 
 ## Dashboard
 

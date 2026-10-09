@@ -1,4 +1,9 @@
+import codecs
+import hashlib
 import logging
+import os
+import sys
+import tempfile
 
 import click
 import pandas as pd
@@ -12,7 +17,7 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 try:
     from .runners.policyengine_runner import PolicyEngineRunner
-    from .runners.taxsim_runner import TaxsimRunner
+    from .runners.taxsim_runner import TaxsimRunner, default_taxsim_executable
     from .runners.stitched_runner import StitchedRunner
     from .comparison.comparator import TaxComparator, ComparisonConfig
     from .comparison.statistics import ComparisonStatistics
@@ -21,9 +26,13 @@ try:
     from .core.utils import get_calculation_state_code, convert_taxsim32_dependents
     from .core.io import read_input, write_output
     from .core.scorp import validate_scorp_treatment
+    from .core import provenance as prov
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
-    from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+    from policyengine_taxsim.runners.taxsim_runner import (
+        TaxsimRunner,
+        default_taxsim_executable,
+    )
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
     from policyengine_taxsim.comparison.comparator import (
         TaxComparator,
@@ -38,6 +47,7 @@ except ImportError:
     )
     from policyengine_taxsim.core.io import read_input, write_output
     from policyengine_taxsim.core.scorp import validate_scorp_treatment
+    from policyengine_taxsim.core import provenance as prov
 
 
 def _scorp_option(fn):
@@ -62,13 +72,182 @@ def _resolve_scorp_treatment(value):
     )
 
 
+def _print_versions(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(prov.format_version_report(prov.collect_versions()))
+    ctx.exit()
+
+
+def _check_provenance_path(ctx, param, value):
+    # Fail before a long run, not after it, when the sidecar can't be written.
+    if value is None or ctx.resilient_parsing:  # not set, or shell completion
+        return value
+    if not value.strip():
+        raise click.BadParameter("give a file path for the provenance JSON")
+    try:
+        directory = Path(value).resolve().parent
+    except (OSError, RuntimeError) as e:  # e.g. a symlink loop
+        raise click.BadParameter(f"cannot resolve {value}: {e}")
+    _refuse_replacing_non_record(value)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=directory):
+            pass
+    except OSError as e:
+        raise click.BadParameter(f"cannot write to {directory}: {e.strerror or e}")
+    return value
+
+
+def _provenance_option(fn):
+    return click.option(
+        "--provenance",
+        type=click.Path(dir_okay=False, writable=True),
+        default=None,
+        callback=_check_provenance_path,
+        help=(
+            "Also write a JSON file recording the policyengine-taxsim, "
+            "policyengine-us and policyengine-core versions, the TAXSIM "
+            "binary build, the options and SHA-256 hashes of the input and "
+            "output. The TAXSIM output itself is unchanged."
+        ),
+    )(fn)
+
+
+def _resolve_provenance(value):
+    ctx = click.get_current_context()
+    return value or (ctx.parent.params.get("provenance") if ctx.parent else None)
+
+
+def _same_file(a, b):
+    """Whether two paths name one file, through symlinks, hard links or a
+    case-insensitive filesystem when both exist."""
+    try:
+        if os.path.exists(a) and os.path.exists(b):
+            return os.path.samefile(a, b)
+    except OSError:
+        pass
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(
+        os.path.realpath(b)
+    )
+
+
+def _stream_is_file(stream, path):
+    """Whether a standard stream reads from or writes to ``path``."""
+    try:
+        return os.path.samestat(os.fstat(stream.fileno()), os.stat(path))
+    except (AttributeError, OSError, ValueError):  # no file behind it
+        return False
+
+
+def _refuse_replacing_non_record(provenance):
+    """The sidecar may replace only an earlier provenance record. Anything
+    else at that path (data, an executable, a file a redirect is filling,
+    a device) is the run's or the user's, and is never overwritten."""
+    if os.path.lexists(provenance) and not prov.is_provenance_record(provenance):
+        raise click.BadParameter(
+            f"{provenance} exists and is not a provenance record; "
+            "choose another path or remove it",
+            param_hint="'--provenance'",
+        )
+
+
+def _default_binary():
+    try:
+        return default_taxsim_executable()
+    except OSError:  # no bundled binary for this operating system
+        return None
+
+
+def _refuse_data_file_as_sidecar(provenance, *paths):
+    """The sidecar must never replace the run's input or output."""
+    for path in paths:
+        if path is not None and _same_file(provenance, path):
+            raise click.BadParameter(
+                f"is the run's input or output file ({path})",
+                param_hint="'--provenance'",
+            )
+
+
+def _record_provenance(
+    path, input_info, output_info, engines, taxsim_path=None, data_files=()
+):
+    """Write the provenance sidecar for the current command's run, unless
+    ``path`` turns out to be one of ``data_files``, the files the run wrote
+    or read (e.g. a case-only alias of an output that did not exist before
+    the run, or a --logs YAML file)."""
+    _refuse_data_file_as_sidecar(path, *data_files)
+    _refuse_replacing_non_record(path)
+    ctx = click.get_current_context()
+    options = {k: v for k, v in ctx.params.items() if k != "provenance"}
+    if "scorp_treatment" in options:
+        options["scorp_treatment"] = _resolve_scorp_treatment(
+            options["scorp_treatment"]
+        )
+    record = prov.build_provenance(
+        ctx.command_path, options, input_info, output_info, engines, taxsim_path
+    )
+    prov.write_provenance(path, record)
+    click.echo(f"Provenance saved to {path}", err=True)
+
+
+def _file_info(path, records):
+    return {
+        "path": str(Path(path).absolute()),
+        "sha256": prov.sha256_file(path),
+        "records": records,
+    }
+
+
+def _read_stdin():
+    """Return stdin as text, plus the raw bytes the provenance hash covers."""
+    stream = getattr(sys.stdin, "buffer", None)
+    if stream is None:
+        text = sys.stdin.read()
+        return text, text.encode("utf-8")
+    raw = stream.read()
+    text = raw.decode(sys.stdin.encoding or "utf-8", sys.stdin.errors or "strict")
+    return text, raw
+
+
+class _HashingStdout:
+    """Stand-in for sys.stdout that passes every write through and hashes
+    the bytes the real stream writes for it: Python's text stdout turns "\n"
+    into the platform line separator and encodes with its own encoding."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self._digest = hashlib.sha256()
+        # Incremental, like the stream's own encoder: a BOM-writing encoding
+        # (utf-8-sig, utf-16) writes one BOM, not one per write.
+        self._encoder = codecs.getincrementalencoder(stream.encoding or "utf-8")(
+            stream.errors or "strict"
+        )
+
+    def write(self, text):
+        self._digest.update(self._encoder.encode(text.replace("\n", os.linesep)))
+        return self.stream.write(text)
+
+    def writelines(self, lines):
+        for line in lines:
+            self.write(line)
+
+    def hexdigest(self):
+        return self._digest.hexdigest()
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
 def _generate_yaml_files(
     input_df: pd.DataFrame, results_df: pd.DataFrame, scorp_treatment=None
 ):
-    """Generate YAML test files for each record when logs=True"""
+    """Generate YAML test files for each record when logs=True. Returns the
+    paths written."""
     # Index results by taxsimid for reliable lookup (positional iloc
     # breaks when StitchedRunner reorders rows from two engines).
     results_by_id = results_df.set_index("taxsimid")
+    written = []
 
     for idx, row in input_df.iterrows():
         try:
@@ -111,9 +290,15 @@ def _generate_yaml_files(
             taxsim_id = int(row["taxsimid"]) if "taxsimid" in row else idx + 1
             yaml_filename = f"taxsim_record_{taxsim_id}_{year}.yaml"
             generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
+            written.append(yaml_filename)
 
         except Exception as e:
-            print(f"Warning: Could not generate YAML for record {idx}: {e}")
+            print(
+                f"Warning: Could not generate YAML for record {idx}: {e}",
+                file=sys.stderr,
+            )
+
+    return written
 
 
 def _emit_results(input_df, results_df, out_stream):
@@ -163,14 +348,26 @@ def _emit_results(input_df, results_df, out_stream):
 
 
 @click.group(invoke_without_command=True)
+@click.option(
+    "--version",
+    is_flag=True,
+    expose_value=False,
+    is_eager=True,
+    callback=_print_versions,
+    help=(
+        "Show the policyengine-taxsim, policyengine-us and policyengine-core "
+        "versions and the bundled TAXSIM binary's build, then exit."
+    ),
+)
 @click.option("--logs", is_flag=True, help="Generate PE YAML Tests Logs")
 @click.option(
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
+@_provenance_option
 @click.pass_context
-def cli(ctx, logs, disable_salt, sample, scorp_treatment):
+def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
     """PolicyEngine-TAXSIM: drop-in replacement for TAXSIM-35.
 
     Reads CSV from stdin and writes results to stdout, just like taxsim35:
@@ -180,6 +377,11 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
     Or use subcommands for additional features (compare, taxsim, sample-data).
     """
     if ctx.invoked_subcommand is not None:
+        subcommand = ctx.command.get_command(ctx, ctx.invoked_subcommand)
+        if provenance and "provenance" not in {p.name for p in subcommand.params}:
+            raise click.UsageError(
+                f"--provenance does not apply to {ctx.invoked_subcommand}"
+            )
         # Store options for potential use by subcommands
         ctx.ensure_object(dict)
         ctx.obj["logs"] = logs
@@ -188,15 +390,32 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
         return
 
     # Default behavior: read stdin, write stdout (like taxsim35)
-    import sys
-
     if sys.stdin.isatty():
         click.echo(ctx.get_help())
         return
 
+    if provenance and any(
+        _stream_is_file(stream, provenance)
+        for stream in (sys.stdin, sys.stdout, sys.stderr)
+    ):
+        raise click.BadParameter(
+            "is the file stdin, stdout or stderr is redirected to",
+            param_hint="'--provenance'",
+        )
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, _default_binary())
+
+    hashing_stdout = None
     try:
-        df = pd.read_csv(sys.stdin)
+        if provenance:
+            text, raw_input = _read_stdin()
+            df = pd.read_csv(StringIO(text))
+            # Hash every byte the run writes to stdout, whatever writes it.
+            hashing_stdout = sys.stdout = _HashingStdout(sys.stdout)
+        else:
+            df = pd.read_csv(sys.stdin)
         df.columns = [c.strip() for c in df.columns]
+        input_records = len(df)
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -217,18 +436,40 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
         df_with_ids = runner.input_df
 
         # Generate YAML files if requested
+        yaml_files = []
         if logs:
             click.echo("Generating PolicyEngine YAML test files...", err=True)
-            _generate_yaml_files(
+            yaml_files = _generate_yaml_files(
                 df_with_ids, results_df, _resolve_scorp_treatment(scorp_treatment)
             )
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
 
         _emit_results(df_with_ids, results_df, sys.stdout)
 
+        if provenance:
+            sys.stdout.flush()
+            _record_provenance(
+                provenance,
+                {
+                    "path": "<stdin>",
+                    "sha256": prov.sha256_bytes(raw_input),
+                    "records": input_records,
+                },
+                {
+                    "path": "<stdout>",
+                    "sha256": hashing_stdout.hexdigest(),
+                    "records": len(results_df),
+                },
+                runner.engine_counts(),
+                data_files=yaml_files,
+            )
+
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
         raise
+    finally:
+        if hashing_stdout is not None:
+            sys.stdout = hashing_stdout.stream
 
 
 @cli.command()
@@ -252,8 +493,16 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
+@_provenance_option
 def policyengine(
-    input_file, output, logs, disable_salt, assume_w2_wages, sample, scorp_treatment
+    input_file,
+    output,
+    logs,
+    disable_salt,
+    assume_w2_wages,
+    sample,
+    scorp_treatment,
+    provenance,
 ):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
@@ -261,9 +510,14 @@ def policyengine(
     This is the file-based interface. For stdin/stdout like taxsim35, omit the
     subcommand: policyengine-taxsim < input.csv > output.csv
     """
+    provenance = _resolve_provenance(provenance)
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, input_file, output, _default_binary())
     try:
         # Read input file
         df = read_input(input_file)
+        # Hash the input as read: an -o naming the input overwrites it.
+        input_info = _file_info(input_file, len(df)) if provenance else None
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -284,9 +538,10 @@ def policyengine(
         df_with_ids = runner.input_df
 
         # Generate YAML files if requested
+        yaml_files = []
         if logs:
             click.echo("Generating PolicyEngine YAML test files...", err=True)
-            _generate_yaml_files(
+            yaml_files = _generate_yaml_files(
                 df_with_ids, results_df, _resolve_scorp_treatment(scorp_treatment)
             )
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
@@ -294,6 +549,15 @@ def policyengine(
         # Save results to output file
         write_output(results_df, output)
         click.echo(f"Results saved to {output}", err=True)
+
+        if provenance:
+            _record_provenance(
+                provenance,
+                input_info,
+                _file_info(output, len(results_df)),
+                runner.engine_counts(),
+                data_files=(input_file, output, *yaml_files),
+            )
 
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
@@ -309,11 +573,19 @@ def policyengine(
     type=click.Path(exists=True),
     help="Custom path to TAXSIM executable",
 )
-def taxsim(input_file, output, sample, taxsim_path):
+@_provenance_option
+def taxsim(input_file, output, sample, taxsim_path, provenance):
     """Run TAXSIM-35 tax calculations"""
+    provenance = _resolve_provenance(provenance)
+    if provenance:
+        _refuse_data_file_as_sidecar(
+            provenance, input_file, output, taxsim_path or _default_binary()
+        )
     try:
         # Load and optionally sample data
         df = read_input(input_file)
+        # Hash the input as read: an -o naming the input overwrites it.
+        input_info = _file_info(input_file, len(df)) if provenance else None
 
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
@@ -327,6 +599,18 @@ def taxsim(input_file, output, sample, taxsim_path):
         write_output(results, output)
         click.echo(f"TAXSIM results saved to: {output}")
 
+        if provenance:
+            _record_provenance(
+                provenance,
+                input_info,
+                _file_info(output, len(results)),
+                {"policyengine": 0, "taxsim": len(df)},
+                taxsim_path=runner.taxsim_path,
+                data_files=(input_file, output, runner.taxsim_path),
+            )
+
+    except click.ClickException:
+        raise
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
@@ -393,6 +677,7 @@ def taxsim(input_file, output, sample, taxsim_path):
     ),
 )
 @_scorp_option
+@_provenance_option
 def compare(
     input_file,
     sample,
@@ -405,11 +690,16 @@ def compare(
     net_of_rebates,
     taxsim_opt30,
     scorp_treatment,
+    provenance,
 ):
     """Compare PolicyEngine and TAXSIM results"""
+    provenance = _resolve_provenance(provenance)
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, input_file, _default_binary())
     try:
         # Load and optionally sample data
         df = read_input(input_file)
+        input_info = _file_info(input_file, len(df)) if provenance else None
 
         # Override year column if specified
         if year is not None and "year" in df.columns:
@@ -427,6 +717,11 @@ def compare(
             year = 2021
             df["year"] = year
             click.echo(f"No year specified or found in data, defaulting to {year}")
+
+        # The consolidated results file is named after the year.
+        consolidated = Path(output_dir) / f"comparison_results_{year}.csv"
+        if provenance:
+            _refuse_data_file_as_sidecar(provenance, consolidated)
 
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
@@ -449,9 +744,10 @@ def compare(
         df_with_ids = pe_runner.input_df
 
         # Generate YAML files if requested
+        yaml_files = []
         if logs:
             click.echo("Generating PolicyEngine YAML test files...")
-            _generate_yaml_files(
+            yaml_files = _generate_yaml_files(
                 df_with_ids, pe_results, _resolve_scorp_treatment(scorp_treatment)
             )
             click.echo(f"Generated {len(df_with_ids)} YAML test files")
@@ -507,6 +803,24 @@ def compare(
 
         click.echo(f"\nComparison results saved to: {output_path}")
 
+        if provenance:
+            # Two rows per household (TAXSIM and PolicyEngine).
+            _record_provenance(
+                provenance,
+                input_info,
+                _file_info(consolidated, len(pd.read_csv(consolidated))),
+                {"policyengine": len(df), "taxsim": len(df)},
+                taxsim_path=taxsim_runner.taxsim_path,
+                data_files=(
+                    input_file,
+                    consolidated,
+                    taxsim_runner.taxsim_path,
+                    *yaml_files,
+                ),
+            )
+
+    except click.ClickException:
+        raise
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
