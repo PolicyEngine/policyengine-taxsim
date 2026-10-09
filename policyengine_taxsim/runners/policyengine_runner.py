@@ -1488,8 +1488,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Ensure years are integers to handle decimal values like 2021.0
         self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
 
+        # Chunks hold one year each, so rows are simulated year by year. Keep
+        # each chunk's input positions to return the rows in input order, as
+        # TAXSIM does (taxsimid can repeat, so positions rather than ids).
         frames = []
+        frame_positions = []
         years = sorted(self.input_df["year"].unique())
+        year_values = self.input_df["year"].to_numpy()
         total_chunks = sum(
             (len(self.input_df[self.input_df["year"] == y]) + self.CHUNK_SIZE - 1)
             // self.CHUNK_SIZE
@@ -1505,10 +1510,12 @@ class PolicyEngineRunner(BaseTaxRunner):
             disable=not show_progress,
         ) as pbar:
             for year in years:
-                year_df = self.input_df[self.input_df["year"] == year].copy()
-                for start in range(0, len(year_df), self.CHUNK_SIZE):
-                    chunk_df = year_df.iloc[start : start + self.CHUNK_SIZE].copy()
+                year_positions = np.flatnonzero(year_values == year)
+                for start in range(0, len(year_positions), self.CHUNK_SIZE):
+                    positions = year_positions[start : start + self.CHUNK_SIZE]
+                    chunk_df = self.input_df.iloc[positions].copy()
                     frames.append(self._run_chunk(chunk_df))
+                    frame_positions.append(positions)
                     chunks_done += 1
                     rows_done += len(chunk_df)
                     pbar.update(1)
@@ -1516,6 +1523,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                         on_progress(chunks_done, total_chunks, rows_done, total_rows)
 
         results_df = pd.concat(frames, ignore_index=True)
+        order = np.argsort(np.concatenate(frame_positions), kind="mergesort")
+        results_df = results_df.iloc[order].reset_index(drop=True)
         if show_progress:
             print("PolicyEngine Microsimulation completed", file=sys.stderr)
         return results_df

@@ -93,12 +93,8 @@ class StitchedRunner(BaseTaxRunner):
             frames.append(
                 pe_runner.run(show_progress=show_progress, on_progress=on_progress)
             )
-            # PolicyEngineRunner emits rows sorted by year ascending
-            # (stable within a year), so the original positions follow the
-            # same stable sort key.
-            frame_positions.append(
-                pe_subset.sort_values("year", kind="mergesort").index.to_numpy()
-            )
+            # PolicyEngineRunner returns rows in the order of its input.
+            frame_positions.append(pe_subset.index.to_numpy())
 
         if not taxsim_subset.empty:
             taxsim_runner = self._make_taxsim_runner(taxsim_subset)
