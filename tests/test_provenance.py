@@ -694,8 +694,9 @@ def test_sidecar_symlinked_to_input_is_refused(tmp_path, fake_runner):
 
 
 def test_sidecar_case_alias_of_new_output_is_refused(tmp_path, fake_runner):
-    """On a case-insensitive filesystem OUT.CSV is out.csv; the output does
-    not exist before the run, so the check before writing catches it."""
+    """On a case-insensitive filesystem OUT.CSV is out.csv. Windows path
+    normalization refuses it before the run; on macOS the output does not
+    exist yet, so the check before writing the sidecar catches it."""
     probe = tmp_path / "probe"
     probe.write_text("")
     if not (tmp_path / "PROBE").exists():
@@ -709,7 +710,33 @@ def test_sidecar_case_alias_of_new_output_is_refused(tmp_path, fake_runner):
         + ["--provenance", str(tmp_path / "OUT.CSV")],
     )
     assert result.exit_code == 2, result.output
-    assert out.read_bytes().startswith(b"taxsimid,")  # still the CSV
+    # Either no run happened, or the CSV survived; never JSON in its place.
+    assert not out.exists() or out.read_bytes().startswith(b"taxsimid,")
+
+
+def test_sidecar_must_not_be_a_logs_yaml_file(tmp_path, fake_runner, monkeypatch):
+    """--logs writes taxsim_record_<id>_<year>.yaml; the sidecar can't
+    replace one."""
+    monkeypatch.chdir(tmp_path)
+    yaml_file = tmp_path / "taxsim_record_1_2019.yaml"
+    result = CliRunner().invoke(
+        cli,
+        ["--logs", "--provenance", yaml_file.name],
+        input=csv_bytes([PRE_2021_RECORD]),
+    )
+    assert result.exit_code == 2, result.output
+    assert "is the run's input or output file" in result.output
+    assert not yaml_file.read_text().lstrip().startswith("{")  # still YAML
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+def test_sidecar_symlink_loop_is_a_usage_error(tmp_path, fake_runner):
+    loop = tmp_path / "loop.json"
+    loop.symlink_to(loop)
+    result = CliRunner().invoke(
+        cli, ["--provenance", str(loop)], input=csv_bytes([PRE_2021_RECORD])
+    )
+    assert result.exit_code == 2, result.output
 
 
 def test_compare_sidecar_must_not_be_the_results_file(tmp_path, monkeypatch):

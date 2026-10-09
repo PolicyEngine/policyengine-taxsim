@@ -82,7 +82,10 @@ def _check_provenance_path(ctx, param, value):
         return value
     if not value.strip():
         raise click.BadParameter("give a file path for the provenance JSON")
-    directory = Path(value).resolve().parent
+    try:
+        directory = Path(value).resolve().parent
+    except (OSError, RuntimeError) as e:  # e.g. a symlink loop
+        raise click.BadParameter(f"cannot resolve {value}: {e}")
     try:
         directory.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryFile(dir=directory):
@@ -147,8 +150,9 @@ def _record_provenance(
     path, input_info, output_info, engines, taxsim_path=None, data_files=()
 ):
     """Write the provenance sidecar for the current command's run, unless
-    ``path`` turns out to be one of ``data_files`` (e.g. a case-only alias
-    of an output that did not exist before the run)."""
+    ``path`` turns out to be one of ``data_files``, the files the run wrote
+    or read (e.g. a case-only alias of an output that did not exist before
+    the run, or a --logs YAML file)."""
     _refuse_data_file_as_sidecar(path, *data_files)
     ctx = click.get_current_context()
     options = {k: v for k, v in ctx.params.items() if k != "provenance"}
@@ -214,10 +218,12 @@ class _HashingStdout:
 def _generate_yaml_files(
     input_df: pd.DataFrame, results_df: pd.DataFrame, scorp_treatment=None
 ):
-    """Generate YAML test files for each record when logs=True"""
+    """Generate YAML test files for each record when logs=True. Returns the
+    paths written."""
     # Index results by taxsimid for reliable lookup (positional iloc
     # breaks when StitchedRunner reorders rows from two engines).
     results_by_id = results_df.set_index("taxsimid")
+    written = []
 
     for idx, row in input_df.iterrows():
         try:
@@ -260,12 +266,15 @@ def _generate_yaml_files(
             taxsim_id = int(row["taxsimid"]) if "taxsimid" in row else idx + 1
             yaml_filename = f"taxsim_record_{taxsim_id}_{year}.yaml"
             generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
+            written.append(yaml_filename)
 
         except Exception as e:
             print(
                 f"Warning: Could not generate YAML for record {idx}: {e}",
                 file=sys.stderr,
             )
+
+    return written
 
 
 def _emit_results(input_df, results_df, out_stream):
@@ -401,9 +410,10 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
         df_with_ids = runner.input_df
 
         # Generate YAML files if requested
+        yaml_files = []
         if logs:
             click.echo("Generating PolicyEngine YAML test files...", err=True)
-            _generate_yaml_files(
+            yaml_files = _generate_yaml_files(
                 df_with_ids, results_df, _resolve_scorp_treatment(scorp_treatment)
             )
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
@@ -425,6 +435,7 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
                     "records": len(results_df),
                 },
                 runner.engine_counts(),
+                data_files=yaml_files,
             )
 
     except Exception as e:
@@ -501,9 +512,10 @@ def policyengine(
         df_with_ids = runner.input_df
 
         # Generate YAML files if requested
+        yaml_files = []
         if logs:
             click.echo("Generating PolicyEngine YAML test files...", err=True)
-            _generate_yaml_files(
+            yaml_files = _generate_yaml_files(
                 df_with_ids, results_df, _resolve_scorp_treatment(scorp_treatment)
             )
             click.echo(f"Generated {len(df_with_ids)} YAML test files", err=True)
@@ -518,7 +530,7 @@ def policyengine(
                 input_info,
                 _file_info(output, len(results_df)),
                 runner.engine_counts(),
-                data_files=(input_file, output),
+                data_files=(input_file, output, *yaml_files),
             )
 
     except Exception as e:
@@ -704,9 +716,10 @@ def compare(
         df_with_ids = pe_runner.input_df
 
         # Generate YAML files if requested
+        yaml_files = []
         if logs:
             click.echo("Generating PolicyEngine YAML test files...")
-            _generate_yaml_files(
+            yaml_files = _generate_yaml_files(
                 df_with_ids, pe_results, _resolve_scorp_treatment(scorp_treatment)
             )
             click.echo(f"Generated {len(df_with_ids)} YAML test files")
@@ -770,7 +783,7 @@ def compare(
                 _file_info(consolidated, len(pd.read_csv(consolidated))),
                 {"policyengine": len(df), "taxsim": len(df)},
                 taxsim_path=taxsim_runner.taxsim_path,
-                data_files=(input_file, consolidated),
+                data_files=(input_file, consolidated, *yaml_files),
             )
 
     except click.ClickException:
