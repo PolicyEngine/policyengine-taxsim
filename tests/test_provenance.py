@@ -22,6 +22,8 @@ import json
 import os
 import platform
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -179,7 +181,8 @@ def test_parse_rejects_other_header_columns(token):
     assert prov.parse_build_stamp(token) is None
 
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+# No deadline: each example writes a file, which can stall on a busy runner.
+@settings(deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(
     prefix=st.binary(max_size=200),
     suffix=st.binary(max_size=200),
@@ -409,7 +412,7 @@ def test_sample_data_rejects_group_provenance(tmp_path):
     assert "does not apply to sample-data" in result.output
 
 
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 @given(
     chunks=st.lists(st.text(max_size=30), max_size=8),
     encoding=st.sampled_from(["utf-8", "utf-8-sig", "utf-16", "latin-1"]),
@@ -604,20 +607,25 @@ def test_executable_binary_is_not_chmodded(tmp_path, monkeypatch):
     assert TaxsimRunner(df, taxsim_path=str(copy)).taxsim_path == copy
 
 
+class TaxsimAsPolicyEngine:
+    """Stand-in PolicyEngineRunner for compare tests: returns TAXSIM's results."""
+
+    def __init__(self, df, **kwargs):
+        self._runner = TaxsimRunner(df)
+        self.input_df = self._runner.input_df
+
+    def run(self, *args, **kwargs):
+        return self._runner.run(show_progress=False)
+
+
 def test_compare_subcommand(tmp_path, monkeypatch):
-    class TaxsimAsPolicyEngine:
-        """Stand-in PolicyEngineRunner that returns TAXSIM's results."""
-
-        def __init__(self, df, **kwargs):
-            self._runner = TaxsimRunner(df)
-            self.input_df = self._runner.input_df
-
-        def run(self, *args, **kwargs):
-            return self._runner.run(show_progress=False)
-
     monkeypatch.setattr(CLI_MODULE, "PolicyEngineRunner", TaxsimAsPolicyEngine)
     input_file = tmp_path / "in.csv"
     input_file.write_bytes(csv_bytes([PRE_2021_RECORD]))
+    plain_dir = tmp_path / "plain"
+    CliRunner().invoke(
+        cli, ["compare", str(input_file), "--output-dir", str(plain_dir)]
+    )
     # The sidecar lives inside an --output-dir that compare creates.
     out_dir = tmp_path / "cmp"
     sidecar = out_dir / "run.json"
@@ -635,6 +643,10 @@ def test_compare_subcommand(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     record = json.loads(sidecar.read_text())
     consolidated = out_dir / "comparison_results_2019.csv"
+    assert (
+        consolidated.read_bytes()
+        == (plain_dir / "comparison_results_2019.csv").read_bytes()
+    )
     assert record["output"] == {
         "path": str(consolidated),
         "sha256": sha256(consolidated.read_bytes()),
@@ -644,6 +656,120 @@ def test_compare_subcommand(tmp_path, monkeypatch):
     # Options are recorded as passed: no --year, so each record kept its own
     # year (the output file is named after the first record's).
     assert record["options"]["year"] is None
+
+
+# The sidecar never replaces the run's data -------------------------------------
+
+
+@pytest.mark.parametrize("target", ["output", "input"])
+def test_sidecar_path_must_not_be_a_data_file(tmp_path, target):
+    input_file = tmp_path / "in.csv"
+    original = csv_bytes([PRE_2021_RECORD])
+    input_file.write_bytes(original)
+    out = tmp_path / "out.csv"
+    sidecar = out if target == "output" else input_file
+    result = CliRunner().invoke(
+        cli, ["taxsim", str(input_file), "-o", str(out), "--provenance", str(sidecar)]
+    )
+    assert result.exit_code == 2, result.output
+    assert "is the run's input or output file" in result.output
+    assert not out.exists()  # refused before the run
+    assert input_file.read_bytes() == original
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+def test_sidecar_symlinked_to_input_is_refused(tmp_path, fake_runner):
+    input_file = tmp_path / "in.csv"
+    original = csv_bytes([PRE_2021_RECORD])
+    input_file.write_bytes(original)
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(input_file)
+    result = CliRunner().invoke(
+        cli,
+        ["policyengine", str(input_file), "-o", str(tmp_path / "out.csv")]
+        + ["--provenance", str(alias)],
+    )
+    assert result.exit_code == 2, result.output
+    assert input_file.read_bytes() == original
+
+
+def test_sidecar_case_alias_of_new_output_is_refused(tmp_path, fake_runner):
+    """On a case-insensitive filesystem OUT.CSV is out.csv; the output does
+    not exist before the run, so the check before writing catches it."""
+    probe = tmp_path / "probe"
+    probe.write_text("")
+    if not (tmp_path / "PROBE").exists():
+        pytest.skip("case-sensitive filesystem")
+    input_file = tmp_path / "in.csv"
+    input_file.write_bytes(csv_bytes([PRE_2021_RECORD]))
+    out = tmp_path / "out.csv"
+    result = CliRunner().invoke(
+        cli,
+        ["policyengine", str(input_file), "-o", str(out)]
+        + ["--provenance", str(tmp_path / "OUT.CSV")],
+    )
+    assert result.exit_code == 2, result.output
+    assert out.read_bytes().startswith(b"taxsimid,")  # still the CSV
+
+
+def test_compare_sidecar_must_not_be_the_results_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(CLI_MODULE, "PolicyEngineRunner", TaxsimAsPolicyEngine)
+    input_file = tmp_path / "in.csv"
+    input_file.write_bytes(csv_bytes([PRE_2021_RECORD]))
+    out_dir = tmp_path / "cmp"
+    result = CliRunner().invoke(
+        cli,
+        ["compare", str(input_file), "--output-dir", str(out_dir)]
+        + ["--provenance", str(out_dir / "comparison_results_2019.csv")],
+    )
+    assert result.exit_code == 2, result.output
+    assert not (out_dir / "comparison_results_2019.csv").exists()
+
+
+def test_in_place_run_hashes_the_input_as_read(tmp_path, fake_runner):
+    """-o naming the input overwrites it; the sidecar still records the
+    input's original bytes."""
+    data = tmp_path / "data.csv"
+    original = csv_bytes([PRE_2021_RECORD, "2,2022,5,1,40,0,0,1,2"])
+    data.write_bytes(original)
+    sidecar = tmp_path / "run.json"
+    result = CliRunner().invoke(
+        cli, ["policyengine", str(data), "-o", str(data), "--provenance", str(sidecar)]
+    )
+    assert result.exit_code == 0, result.output
+    record = json.loads(sidecar.read_text())
+    assert record["input"]["sha256"] == sha256(original)
+    assert record["output"]["sha256"] == sha256(data.read_bytes())
+    assert record["input"]["sha256"] != record["output"]["sha256"]
+
+
+def test_stream_is_file(tmp_path):
+    path = tmp_path / "in.csv"
+    path.write_bytes(b"x")
+    with open(path, "rb") as stream:
+        assert CLI_MODULE._stream_is_file(stream, str(path))
+        assert not CLI_MODULE._stream_is_file(stream, str(tmp_path / "other"))
+    assert not CLI_MODULE._stream_is_file(io.StringIO(), str(path))
+
+
+def test_sidecar_cannot_be_redirected_stdout(tmp_path):
+    """`--provenance out.csv > out.csv` is refused (a real process, since
+    the check reads the file behind stdout)."""
+    executable = shutil.which("policyengine-taxsim")
+    if executable is None:
+        pytest.skip("policyengine-taxsim console script not on PATH")
+    out = tmp_path / "out.csv"
+    with open(out, "wb") as stdout:
+        process = subprocess.run(
+            [executable, "--provenance", str(out)],
+            input=csv_bytes([PRE_2021_RECORD]),
+            stdout=stdout,
+            stderr=subprocess.PIPE,
+            timeout=600,
+        )
+    assert process.returncode == 2, process.stderr.decode()
+    assert b"stdout is written to" in process.stderr
+    assert out.read_bytes() == b""
 
 
 # Package sources --------------------------------------------------------------

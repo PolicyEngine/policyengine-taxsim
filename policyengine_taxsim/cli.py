@@ -112,8 +112,44 @@ def _resolve_provenance(value):
     return value or (ctx.parent.params.get("provenance") if ctx.parent else None)
 
 
-def _record_provenance(path, input_info, output_info, engines, taxsim_path=None):
-    """Write the provenance sidecar for the current command's run."""
+def _same_file(a, b):
+    """Whether two paths name one file, through symlinks, hard links or a
+    case-insensitive filesystem when both exist."""
+    try:
+        if os.path.exists(a) and os.path.exists(b):
+            return os.path.samefile(a, b)
+    except OSError:
+        pass
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(
+        os.path.realpath(b)
+    )
+
+
+def _stream_is_file(stream, path):
+    """Whether a standard stream reads from or writes to ``path``."""
+    try:
+        return os.path.samestat(os.fstat(stream.fileno()), os.stat(path))
+    except (AttributeError, OSError, ValueError):  # no file behind it
+        return False
+
+
+def _refuse_data_file_as_sidecar(provenance, *paths):
+    """The sidecar must never replace the run's input or output."""
+    for path in paths:
+        if path is not None and _same_file(provenance, path):
+            raise click.BadParameter(
+                f"is the run's input or output file ({path})",
+                param_hint="'--provenance'",
+            )
+
+
+def _record_provenance(
+    path, input_info, output_info, engines, taxsim_path=None, data_files=()
+):
+    """Write the provenance sidecar for the current command's run, unless
+    ``path`` turns out to be one of ``data_files`` (e.g. a case-only alias
+    of an output that did not exist before the run)."""
+    _refuse_data_file_as_sidecar(path, *data_files)
     ctx = click.get_current_context()
     options = {k: v for k, v in ctx.params.items() if k != "provenance"}
     if "scorp_treatment" in options:
@@ -325,6 +361,15 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
         click.echo(ctx.get_help())
         return
 
+    if provenance and (
+        _stream_is_file(sys.stdout, provenance)
+        or _stream_is_file(sys.stdin, provenance)
+    ):
+        raise click.BadParameter(
+            "is the file stdin is read from or stdout is written to",
+            param_hint="'--provenance'",
+        )
+
     hashing_stdout = None
     try:
         if provenance:
@@ -428,10 +473,14 @@ def policyengine(
     This is the file-based interface. For stdin/stdout like taxsim35, omit the
     subcommand: policyengine-taxsim < input.csv > output.csv
     """
+    provenance = _resolve_provenance(provenance)
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, input_file, output)
     try:
         # Read input file
         df = read_input(input_file)
-        input_records = len(df)
+        # Hash the input as read: an -o naming the input overwrites it.
+        input_info = _file_info(input_file, len(df)) if provenance else None
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -463,13 +512,13 @@ def policyengine(
         write_output(results_df, output)
         click.echo(f"Results saved to {output}", err=True)
 
-        provenance = _resolve_provenance(provenance)
         if provenance:
             _record_provenance(
                 provenance,
-                _file_info(input_file, input_records),
+                input_info,
                 _file_info(output, len(results_df)),
                 runner.engine_counts(),
+                data_files=(input_file, output),
             )
 
     except Exception as e:
@@ -489,10 +538,14 @@ def policyengine(
 @_provenance_option
 def taxsim(input_file, output, sample, taxsim_path, provenance):
     """Run TAXSIM-35 tax calculations"""
+    provenance = _resolve_provenance(provenance)
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, input_file, output)
     try:
         # Load and optionally sample data
         df = read_input(input_file)
-        input_records = len(df)
+        # Hash the input as read: an -o naming the input overwrites it.
+        input_info = _file_info(input_file, len(df)) if provenance else None
 
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
@@ -506,16 +559,18 @@ def taxsim(input_file, output, sample, taxsim_path, provenance):
         write_output(results, output)
         click.echo(f"TAXSIM results saved to: {output}")
 
-        provenance = _resolve_provenance(provenance)
         if provenance:
             _record_provenance(
                 provenance,
-                _file_info(input_file, input_records),
+                input_info,
                 _file_info(output, len(results)),
                 {"policyengine": 0, "taxsim": len(df)},
                 taxsim_path=runner.taxsim_path,
+                data_files=(input_file, output),
             )
 
+    except click.ClickException:
+        raise
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
@@ -598,10 +653,13 @@ def compare(
     provenance,
 ):
     """Compare PolicyEngine and TAXSIM results"""
+    provenance = _resolve_provenance(provenance)
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, input_file)
     try:
         # Load and optionally sample data
         df = read_input(input_file)
-        input_records = len(df)
+        input_info = _file_info(input_file, len(df)) if provenance else None
 
         # Override year column if specified
         if year is not None and "year" in df.columns:
@@ -619,6 +677,11 @@ def compare(
             year = 2021
             df["year"] = year
             click.echo(f"No year specified or found in data, defaulting to {year}")
+
+        # The consolidated results file is named after the year.
+        consolidated = Path(output_dir) / f"comparison_results_{year}.csv"
+        if provenance:
+            _refuse_data_file_as_sidecar(provenance, consolidated)
 
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
@@ -699,18 +762,19 @@ def compare(
 
         click.echo(f"\nComparison results saved to: {output_path}")
 
-        provenance = _resolve_provenance(provenance)
         if provenance:
             # Two rows per household (TAXSIM and PolicyEngine).
-            consolidated = output_path / f"comparison_results_{year}.csv"
             _record_provenance(
                 provenance,
-                _file_info(input_file, input_records),
+                input_info,
                 _file_info(consolidated, len(pd.read_csv(consolidated))),
                 {"policyengine": len(df), "taxsim": len(df)},
                 taxsim_path=taxsim_runner.taxsim_path,
+                data_files=(input_file, consolidated),
             )
 
+    except click.ClickException:
+        raise
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
