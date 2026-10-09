@@ -238,6 +238,11 @@ policyengine-taxsim policyengine input.csv -o output.csv --provenance run.json
 PyPI does not keep every policyengine-us release, so record versions when
 you run and keep the JSON file with your output.
 
+In R, `policyengine_versions()` prints the same report, and
+`policyengine_calculate_taxes()` and `compare_with_taxsim()` take a
+`provenance` argument that writes the same JSON file (see the
+[R package README](r-package/policyenginetaxsim/README.md#recording-versions)).
+
 ## Dashboard
 
 The project includes a comprehensive React-based interactive dashboard for visualizing and exploring tax calculation comparisons across multiple years and states.

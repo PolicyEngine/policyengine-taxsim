@@ -125,6 +125,43 @@ mean(comparison$siitax_match)  # State match rate
 summary_comparison(comparison)
 ```
 
+## Recording versions
+
+Results depend on the policyengine-taxsim, policyengine-us and policyengine-core
+versions in the Python environment, and `compare_with_taxsim()` also depends on
+the build of the bundled TAXSIM binary. To see them:
+
+```r
+policyengine_versions()
+#> policyengine-taxsim: 3.0.1
+#> policyengine-us:     2.25.2
+#> policyengine-core:   3.32.21
+#> TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)
+#> Python:              3.11.15
+```
+
+This is the report `policyengine-taxsim --version` prints. The function also
+returns the values as a list (`policyengine_taxsim`, `policyengine_us`,
+`policyengine_core`, `taxsim_binary`, `taxsim_binary_build`,
+`taxsim_binary_path`, `taxsim_binary_sha256`, `python_version`, `platform`).
+
+To record them with a run, pass `provenance`:
+
+```r
+results <- policyengine_calculate_taxes(my_data, provenance = "run.json")
+comparison <- compare_with_taxsim(my_data, provenance = "compare.json")
+```
+
+The results are unchanged. The JSON file records the versions above, the TAXSIM
+binary's path and SHA-256, the options, the SHA-256 and row count of the input
+and output (each hashed as the CSV pandas writes for it), the number of records
+each engine computed (`policyengine_calculate_taxes()` computes every record with
+PolicyEngine), the version of every installed Python package, and the
+policyenginetaxsim and R versions. It has the same fields as the file
+`policyengine-taxsim --provenance` writes, plus `rPackageVersion` and `rVersion`.
+PyPI does not keep every policyengine-us release, so keep the file with your
+results.
+
 ## Troubleshooting
 
 ```r
@@ -133,6 +170,9 @@ check_policyengine_setup()
 
 # Reinstall if something went wrong
 setup_policyengine(force = TRUE)
+
+# Show the installed versions
+policyengine_versions()
 ```
 
 ## License

@@ -1,0 +1,1 @@
+The R package now requires reticulate 1.45.0 or later, the first release that converts pandas 3 data frames. With an older reticulate and the pandas 3 that `setup_policyengine()` installs, `policyengine_calculate_taxes()` failed with "cannot coerce class 'pandas.DataFrame' to a data.frame".

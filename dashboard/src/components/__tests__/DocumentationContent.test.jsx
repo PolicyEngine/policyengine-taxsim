@@ -48,6 +48,20 @@ describe('DocumentationContent', () => {
     );
   });
 
+  it('R tab shows the TAXSIM build and the provenance argument', async () => {
+    const { container } = await renderDoc();
+    fireEvent.click(screen.getByRole('button', { name: 'R' }));
+    const text = container.textContent;
+    expect(text).toContain('policyengine_versions()');
+    expect(text).toContain('#> TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)');
+    expect(text).toContain(
+      'policyengine_calculate_taxes(my_data, provenance = "run.json")'
+    );
+    expect(text).toContain(
+      'compare_with_taxsim(my_data, provenance = "compare.json")'
+    );
+  });
+
   it('shows the section tabs', async () => {
     await renderDoc();
     [

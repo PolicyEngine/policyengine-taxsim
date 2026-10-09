@@ -173,16 +173,22 @@ devtools::install_github(
       },
       {
         id: 'r-version-pin',
-        label: 'Pin version & check versions',
+        label: 'Pin, check & record versions',
         language: 'r',
         code: `# Pin policyengine-us to a specific version for reproducible results (needs Python 3.11 or later)
 setup_policyengine(force = TRUE, policyengine_us_version = "2.25.2")
 
-# Check installed package versions
+# Check installed versions and the bundled TAXSIM binary's build
 policyengine_versions()
 #> policyengine-taxsim: 3.0.1
 #> policyengine-us:     2.25.2
-#> policyengine-core:   3.32.21`
+#> policyengine-core:   3.32.21
+#> TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)
+#> Python:              3.11.15
+
+# Record them with a run (results unchanged)
+result <- policyengine_calculate_taxes(my_data, provenance = "run.json")
+comparison <- compare_with_taxsim(my_data, provenance = "compare.json")`
       }
     ],
   };

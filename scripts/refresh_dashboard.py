@@ -25,6 +25,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # TAXSIM inputs for 111,347 eCPS tax units (Alabama's CPS-income half was
 # dropped in d317b05); the tax year is set per run.
 SOURCE = ROOT / "cps_households.csv"
+# The TAXSIM binary the workers run on the Linux runners the refresh uses.
+TAXSIM_BINARY = ROOT / "resources/taxsimtest/taxsimtest-linux.exe"
 EXPECTED_RECORDS = 111347
 STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split()
 INPUT_COLUMNS = (
@@ -205,6 +207,47 @@ def worker(input_path, output_path, scorp_treatment="passive"):
     os._exit(0)
 
 
+def write_versions(output_path):
+    """Save collect_versions() for this checkout and TAXSIM_BINARY."""
+    sys.path.insert(0, str(ROOT))
+    from policyengine_taxsim.core.provenance import collect_versions
+
+    atomic_json(output_path, collect_versions(taxsim_path=TAXSIM_BINARY))
+
+
+def emulator_versions(work):
+    """collect_versions() from a child process, as the workers run, so the
+    coordinator need not import policyengine_taxsim (which imports
+    PolicyEngine) to record the emulator version and TAXSIM build."""
+    path = Path(work) / "versions.json"
+    subprocess.run(
+        [sys.executable, str(Path(__file__).resolve()), "--versions", str(path)],
+        check=True,
+    )
+    versions = json.loads(path.read_text())
+    path.unlink()
+    return versions
+
+
+def run_metadata(identity, versions, peak):
+    """Provenance for a completed run: the checkpoint identity, model versions
+    and resource use."""
+    return {
+        **identity,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "policyengineTaxsimVersion": versions["policyengineTaxsimVersion"],
+        "policyengineUsVersion": importlib.metadata.version("policyengine-us"),
+        "policyengineCoreVersion": importlib.metadata.version("policyengine-core"),
+        "spmCalculatorVersion": importlib.metadata.version("spm-calculator"),
+        "peakWorkerRssMiB": peak,
+        "assumeW2Wages": True,
+        "disableSalt": False,
+        "policyengineOutputDetail": 5,
+        "taxsimBinaryBuild": versions["taxsimBinaryBuild"],
+        "taxsimBinarySha256": digest(TAXSIM_BINARY) if TAXSIM_BINARY.exists() else None,
+    }
+
+
 def run_bounded(
     input_path, output_path, max_memory_gb, min_disk_gb, scorp_treatment="passive"
 ):
@@ -361,6 +404,7 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", nargs=2)
+    parser.add_argument("--versions", type=Path, help=argparse.SUPPRESS)
     parser.add_argument(
         "--scorp-treatment",
         choices=["default", "passive", "active"],
@@ -379,6 +423,9 @@ def main():
     parser.add_argument("--max-memory-gb", type=float, default=5)
     parser.add_argument("--min-disk-gb", type=float, default=4)
     args = parser.parse_args()
+    if args.versions:
+        write_versions(args.versions)
+        return
     if args.scorp_treatment == "default":
         sys.path.insert(0, str(ROOT))
         from policyengine_taxsim.core.scorp import validate_scorp_treatment
@@ -396,6 +443,8 @@ def main():
     source = SOURCE
     if check_source(source) != EXPECTED_RECORDS:
         raise ValueError(f"Expected {EXPECTED_RECORDS} source households")
+    # Before the batches, so a broken environment fails in seconds, not hours.
+    versions = emulator_versions(work)
     identity = {
         "source": source.name,
         "sourceSha256": digest(source),
@@ -479,20 +528,7 @@ def main():
     expected = min(args.limit, EXPECTED_RECORDS) if args.limit else EXPECTED_RECORDS
     if processed != expected:
         raise ValueError(f"Expected {expected} source households, got {processed}")
-    metadata = {
-        **identity,
-        "generatedAt": datetime.now(timezone.utc).isoformat(),
-        "policyengineUsVersion": importlib.metadata.version("policyengine-us"),
-        "policyengineCoreVersion": importlib.metadata.version("policyengine-core"),
-        "spmCalculatorVersion": importlib.metadata.version("spm-calculator"),
-        "peakWorkerRssMiB": peak,
-        "assumeW2Wages": True,
-        "disableSalt": False,
-        "policyengineOutputDetail": 5,
-        "taxsimBinarySha256": digest(ROOT / "resources/taxsimtest/taxsimtest-linux.exe")
-        if (ROOT / "resources/taxsimtest/taxsimtest-linux.exe").exists()
-        else None,
-    }
+    metadata = run_metadata(identity, versions, peak)
     actual = summarize(parts, work / "output", args.year, metadata, sample_ids)
     if actual != expected:
         raise ValueError("Output record count mismatch")

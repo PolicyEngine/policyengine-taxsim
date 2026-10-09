@@ -7,6 +7,14 @@
 #' @param tolerance Numeric. Maximum dollar difference to consider a "match".
 #'   Default is 15.
 #' @param show_progress Logical. Show progress messages. Default is TRUE.
+#' @param provenance Optional path of a JSON file to write a record of the
+#'   run to, as `policyengine-taxsim compare --provenance` does: the versions
+#'   [policyengine_versions()] reports, the build, path and SHA-256 of the
+#'   TAXSIM binary this function ran, the tolerance, the SHA-256 and row
+#'   count of the input and of the comparison (each hashed as the CSV pandas
+#'   writes for it), the version of every installed Python package, and the
+#'   policyenginetaxsim and R versions. The comparison is unchanged. The path
+#'   is checked before either calculation starts.
 #'
 #' @return A tibble with columns for both calculations and comparison metrics:
 #'   \describe{
@@ -37,10 +45,14 @@
 #' # Check match rates
 #' mean(comparison$fiitax_match)  # Federal match rate
 #' mean(comparison$siitax_match)  # State match rate
+#'
+#' # Record the versions, including the TAXSIM binary build, with the run
+#' comparison <- compare_with_taxsim(my_data, provenance = "compare.json")
 #' }
 #'
 #' @export
-compare_with_taxsim <- function(.data, tolerance = 15, show_progress = TRUE) {
+compare_with_taxsim <- function(.data, tolerance = 15, show_progress = TRUE,
+                                provenance = NULL) {
 
   # Auto-setup on first use
   if (!check_policyengine_setup(quiet = TRUE)) {
@@ -73,6 +85,12 @@ compare_with_taxsim <- function(.data, tolerance = 15, show_progress = TRUE) {
 
   # Activate Python environment
   reticulate::use_virtualenv("policyengine-taxsim", required = TRUE)
+
+  # Check the provenance path and module before the calculations, not after
+  if (!is.null(provenance)) {
+    provenance <- .check_provenance_path(provenance)
+    prov <- .provenance_module()
+  }
 
   # Import runners
   runners <- reticulate::import("policyengine_taxsim.runners")
@@ -124,6 +142,20 @@ compare_with_taxsim <- function(.data, tolerance = 15, show_progress = TRUE) {
     "fiitax_taxsim", "fiitax_pe", "fiitax_diff", "fiitax_match",
     "siitax_taxsim", "siitax_pe", "siitax_diff", "siitax_match"
   )]
+
+  if (!is.null(provenance)) {
+    .write_provenance(
+      prov,
+      provenance,
+      command = "policyenginetaxsim::compare_with_taxsim",
+      options = list(tolerance = tolerance),
+      input = reticulate::r_to_py(input_df, convert = FALSE),
+      output = reticulate::r_to_py(comparison, convert = FALSE),
+      engines = list(policyengine = nrow(input_df), taxsim = nrow(input_df)),
+      taxsim_path = taxsim_runner$taxsim_path
+    )
+    if (show_progress) message("Provenance saved to ", provenance)
+  }
 
   # Print summary if showing progress
   if (show_progress) {
