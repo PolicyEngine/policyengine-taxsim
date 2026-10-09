@@ -1,4 +1,9 @@
+import codecs
+import hashlib
 import logging
+import os
+import sys
+import tempfile
 
 import click
 import pandas as pd
@@ -21,6 +26,7 @@ try:
     from .core.utils import get_calculation_state_code, convert_taxsim32_dependents
     from .core.io import read_input, write_output
     from .core.scorp import validate_scorp_treatment
+    from .core import provenance as prov
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
     from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
@@ -38,6 +44,7 @@ except ImportError:
     )
     from policyengine_taxsim.core.io import read_input, write_output
     from policyengine_taxsim.core.scorp import validate_scorp_treatment
+    from policyengine_taxsim.core import provenance as prov
 
 
 def _scorp_option(fn):
@@ -60,6 +67,116 @@ def _resolve_scorp_treatment(value):
         or (ctx.parent.params.get("scorp_treatment") if ctx.parent else None)
         or validate_scorp_treatment(None)
     )
+
+
+def _print_versions(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(prov.format_version_report(prov.collect_versions()))
+    ctx.exit()
+
+
+def _check_provenance_path(ctx, param, value):
+    # Fail before a long run, not after it, when the sidecar can't be written.
+    if value is None or ctx.resilient_parsing:  # not set, or shell completion
+        return value
+    if not value.strip():
+        raise click.BadParameter("give a file path for the provenance JSON")
+    directory = Path(value).resolve().parent
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=directory):
+            pass
+    except OSError as e:
+        raise click.BadParameter(f"cannot write to {directory}: {e.strerror or e}")
+    return value
+
+
+def _provenance_option(fn):
+    return click.option(
+        "--provenance",
+        type=click.Path(dir_okay=False, writable=True),
+        default=None,
+        callback=_check_provenance_path,
+        help=(
+            "Also write a JSON file recording the policyengine-taxsim, "
+            "policyengine-us and policyengine-core versions, the TAXSIM "
+            "binary build, the options and SHA-256 hashes of the input and "
+            "output. The TAXSIM output itself is unchanged."
+        ),
+    )(fn)
+
+
+def _resolve_provenance(value):
+    ctx = click.get_current_context()
+    return value or (ctx.parent.params.get("provenance") if ctx.parent else None)
+
+
+def _record_provenance(
+    path, input_info, output_info, engines, taxsim_path=None, resolved=None
+):
+    """Write the provenance sidecar for the current command's run.
+    ``resolved`` replaces options the command filled in itself."""
+    ctx = click.get_current_context()
+    options = {k: v for k, v in ctx.params.items() if k != "provenance"}
+    options.update(resolved or {})
+    if "scorp_treatment" in options:
+        options["scorp_treatment"] = _resolve_scorp_treatment(
+            options["scorp_treatment"]
+        )
+    record = prov.build_provenance(
+        ctx.command_path, options, input_info, output_info, engines, taxsim_path
+    )
+    prov.write_provenance(path, record)
+    click.echo(f"Provenance saved to {path}", err=True)
+
+
+def _file_info(path, records):
+    return {
+        "path": str(Path(path).absolute()),
+        "sha256": prov.sha256_file(path),
+        "records": records,
+    }
+
+
+def _read_stdin():
+    """Return stdin as text, plus the raw bytes the provenance hash covers."""
+    stream = getattr(sys.stdin, "buffer", None)
+    if stream is None:
+        text = sys.stdin.read()
+        return text, text.encode("utf-8")
+    raw = stream.read()
+    text = raw.decode(sys.stdin.encoding or "utf-8", sys.stdin.errors or "strict")
+    return text, raw
+
+
+class _HashingStdout:
+    """Stand-in for sys.stdout that passes every write through and hashes
+    the bytes the real stream writes for it: Python's text stdout turns "\n"
+    into the platform line separator and encodes with its own encoding."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self._digest = hashlib.sha256()
+        # Incremental, like the stream's own encoder: a BOM-writing encoding
+        # (utf-8-sig, utf-16) writes one BOM, not one per write.
+        self._encoder = codecs.getincrementalencoder(stream.encoding or "utf-8")(
+            stream.errors or "strict"
+        )
+
+    def write(self, text):
+        self._digest.update(self._encoder.encode(text.replace("\n", os.linesep)))
+        return self.stream.write(text)
+
+    def writelines(self, lines):
+        for line in lines:
+            self.write(line)
+
+    def hexdigest(self):
+        return self._digest.hexdigest()
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
 
 
 def _generate_yaml_files(
@@ -113,7 +230,10 @@ def _generate_yaml_files(
             generate_pe_tests_yaml(household, outputs, yaml_filename, logs=True)
 
         except Exception as e:
-            print(f"Warning: Could not generate YAML for record {idx}: {e}")
+            print(
+                f"Warning: Could not generate YAML for record {idx}: {e}",
+                file=sys.stderr,
+            )
 
 
 def _emit_results(input_df, results_df, out_stream):
@@ -163,14 +283,26 @@ def _emit_results(input_df, results_df, out_stream):
 
 
 @click.group(invoke_without_command=True)
+@click.option(
+    "--version",
+    is_flag=True,
+    expose_value=False,
+    is_eager=True,
+    callback=_print_versions,
+    help=(
+        "Show the policyengine-taxsim, policyengine-us and policyengine-core "
+        "versions and the bundled TAXSIM binary's build, then exit."
+    ),
+)
 @click.option("--logs", is_flag=True, help="Generate PE YAML Tests Logs")
 @click.option(
     "--disable-salt", is_flag=True, default=False, help="Set SALT Deduction to 0"
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
+@_provenance_option
 @click.pass_context
-def cli(ctx, logs, disable_salt, sample, scorp_treatment):
+def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
     """PolicyEngine-TAXSIM: drop-in replacement for TAXSIM-35.
 
     Reads CSV from stdin and writes results to stdout, just like taxsim35:
@@ -180,6 +312,8 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
     Or use subcommands for additional features (compare, taxsim, sample-data).
     """
     if ctx.invoked_subcommand is not None:
+        if provenance and ctx.invoked_subcommand == "sample-data":
+            raise click.UsageError("--provenance does not apply to sample-data")
         # Store options for potential use by subcommands
         ctx.ensure_object(dict)
         ctx.obj["logs"] = logs
@@ -188,15 +322,21 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
         return
 
     # Default behavior: read stdin, write stdout (like taxsim35)
-    import sys
-
     if sys.stdin.isatty():
         click.echo(ctx.get_help())
         return
 
+    hashing_stdout = None
     try:
-        df = pd.read_csv(sys.stdin)
+        if provenance:
+            text, raw_input = _read_stdin()
+            df = pd.read_csv(StringIO(text))
+            # Hash every byte the run writes to stdout, whatever writes it.
+            hashing_stdout = sys.stdout = _HashingStdout(sys.stdout)
+        else:
+            df = pd.read_csv(sys.stdin)
         df.columns = [c.strip() for c in df.columns]
+        input_records = len(df)
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -226,9 +366,29 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
 
         _emit_results(df_with_ids, results_df, sys.stdout)
 
+        if provenance:
+            sys.stdout.flush()
+            _record_provenance(
+                provenance,
+                {
+                    "path": "<stdin>",
+                    "sha256": prov.sha256_bytes(raw_input),
+                    "records": input_records,
+                },
+                {
+                    "path": "<stdout>",
+                    "sha256": hashing_stdout.hexdigest(),
+                    "records": len(results_df),
+                },
+                runner.engine_counts(),
+            )
+
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
         raise
+    finally:
+        if hashing_stdout is not None:
+            sys.stdout = hashing_stdout.stream
 
 
 @cli.command()
@@ -252,8 +412,16 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
+@_provenance_option
 def policyengine(
-    input_file, output, logs, disable_salt, assume_w2_wages, sample, scorp_treatment
+    input_file,
+    output,
+    logs,
+    disable_salt,
+    assume_w2_wages,
+    sample,
+    scorp_treatment,
+    provenance,
 ):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
@@ -264,6 +432,7 @@ def policyengine(
     try:
         # Read input file
         df = read_input(input_file)
+        input_records = len(df)
 
         # Apply sampling if requested
         if sample and sample < len(df):
@@ -295,6 +464,15 @@ def policyengine(
         write_output(results_df, output)
         click.echo(f"Results saved to {output}", err=True)
 
+        provenance = _resolve_provenance(provenance)
+        if provenance:
+            _record_provenance(
+                provenance,
+                _file_info(input_file, input_records),
+                _file_info(output, len(results_df)),
+                runner.engine_counts(),
+            )
+
     except Exception as e:
         click.echo(f"Error processing input: {str(e)}", err=True)
         raise
@@ -309,11 +487,13 @@ def policyengine(
     type=click.Path(exists=True),
     help="Custom path to TAXSIM executable",
 )
-def taxsim(input_file, output, sample, taxsim_path):
+@_provenance_option
+def taxsim(input_file, output, sample, taxsim_path, provenance):
     """Run TAXSIM-35 tax calculations"""
     try:
         # Load and optionally sample data
         df = read_input(input_file)
+        input_records = len(df)
 
         if sample and sample < len(df):
             click.echo(f"Sampling {sample} records from {len(df)} total records")
@@ -326,6 +506,16 @@ def taxsim(input_file, output, sample, taxsim_path):
         # Save results
         write_output(results, output)
         click.echo(f"TAXSIM results saved to: {output}")
+
+        provenance = _resolve_provenance(provenance)
+        if provenance:
+            _record_provenance(
+                provenance,
+                _file_info(input_file, input_records),
+                _file_info(output, len(results)),
+                {"policyengine": 0, "taxsim": len(df)},
+                taxsim_path=runner.taxsim_path,
+            )
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
@@ -393,6 +583,7 @@ def taxsim(input_file, output, sample, taxsim_path):
     ),
 )
 @_scorp_option
+@_provenance_option
 def compare(
     input_file,
     sample,
@@ -405,11 +596,13 @@ def compare(
     net_of_rebates,
     taxsim_opt30,
     scorp_treatment,
+    provenance,
 ):
     """Compare PolicyEngine and TAXSIM results"""
     try:
         # Load and optionally sample data
         df = read_input(input_file)
+        input_records = len(df)
 
         # Override year column if specified
         if year is not None and "year" in df.columns:
@@ -506,6 +699,19 @@ def compare(
         comparison_results.save_consolidated_results(output_path, df_with_ids, year)
 
         click.echo(f"\nComparison results saved to: {output_path}")
+
+        provenance = _resolve_provenance(provenance)
+        if provenance:
+            # Two rows per household (TAXSIM and PolicyEngine).
+            consolidated = output_path / f"comparison_results_{year}.csv"
+            _record_provenance(
+                provenance,
+                _file_info(input_file, input_records),
+                _file_info(consolidated, len(pd.read_csv(consolidated))),
+                {"policyengine": len(df), "taxsim": len(df)},
+                taxsim_path=taxsim_runner.taxsim_path,
+                resolved={"year": year},
+            )
 
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
