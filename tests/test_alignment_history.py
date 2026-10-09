@@ -535,3 +535,91 @@ def test_worker_passes_only_supported_options_and_records_failed_years(tmp_path)
         ("1", "2021", 100.0),
         ("2", "2021", 200.0),
     ]
+
+
+# ------------------------------------------------------- worker scheduling
+
+# Stands in for alignment_worker.py: fails 2022 the way a release without
+# 2022 rules would, crashes on household 13 unless it is alone in its batch
+# or the batch is small, and always crashes on household 99.
+STUB_WORKER = textwrap.dedent(
+    """
+    import csv, gzip, json, sys
+    input_path, output_path, settings_path, year = sys.argv[-4:]
+    rows = list(csv.DictReader(open(input_path)))
+    ids = [r["taxsimid"] for r in rows]
+    if "99" in ids or ("13" in ids and len(ids) > 2):
+        sys.exit(3)
+    errors = {year: "RuntimeError: no 2022 rules"} if year == "2022" else {}
+    with gzip.open(output_path, "wt", newline="") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(["taxsimid", "year", "fiitax", "siitax", "srebate"])
+        if not errors:
+            writer.writerows([i, year, 1, 2, 0] for i in ids)
+    json.dump(
+        {"versions": {"policyengine-taxsim": "9.9.9"}, "applied": {}, "unsupported": [],
+         "scorpTreatment": None, "errors": errors},
+        open(settings_path, "w"),
+    )
+    """
+)
+
+
+@pytest.fixture
+def stub_worker(tmp_path, monkeypatch):
+    if os.name == "nt":
+        pytest.skip("workers use POSIX process groups")
+    pytest.importorskip("psutil")
+    script = tmp_path / "stub_worker.py"
+    script.write_text(STUB_WORKER)
+    monkeypatch.setattr(history, "WORKER", script)
+    monkeypatch.setattr(history, "POLL_SECONDS", 0.05)
+    work = tmp_path / "work"
+    work.mkdir()
+
+    def run(ids, years, batch_size=4, workers=3):
+        households = [{"taxsimid": str(i), "state": 14} for i in ids]
+        batches = [
+            households[i : i + batch_size]
+            for i in range(0, len(households), batch_size)
+        ]
+        return history.run_workers(
+            sys.executable, batches, years, work, workers, 6, 60, log=lambda *_: None
+        )
+
+    return run
+
+
+def scored_ids(paths):
+    ids = []
+    for path in paths:
+        with gzip.open(path, "rt", newline="") as stream:
+            ids += [row["taxsimid"] for row in csv.DictReader(stream)]
+    return ids
+
+
+def test_every_batch_and_year_runs_once(stub_worker):
+    done, errors, settings, _ = stub_worker(range(1, 11), [2021, 2023])
+    assert errors == {}
+    assert settings["versions"] == {"policyengine-taxsim": "9.9.9"}
+    for year in (2021, 2023):
+        assert sorted(scored_ids(done[year]), key=int) == [str(i) for i in range(1, 11)]
+
+
+def test_a_year_the_release_cannot_compute_is_reported_and_skipped(stub_worker):
+    done, errors, _, _ = stub_worker(range(1, 11), [2021, 2022], workers=1)
+    assert list(errors) == [2022] and "no 2022 rules" in errors[2022]
+    assert done[2022] == []
+    assert sorted(scored_ids(done[2021]), key=int) == [str(i) for i in range(1, 11)]
+
+
+def test_a_stopped_batch_is_retried_in_halves_without_losing_households(stub_worker):
+    # Household 13 crashes a batch of four; each half of two then succeeds.
+    done, errors, _, _ = stub_worker(range(10, 18), [2021])
+    assert errors == {}
+    assert sorted(scored_ids(done[2021]), key=int) == [str(i) for i in range(10, 18)]
+
+
+def test_a_worker_that_keeps_crashing_fails_the_measurement(stub_worker):
+    with pytest.raises(history.WorkerFailure, match="worker exited 3"):
+        stub_worker(range(96, 104), [2021])

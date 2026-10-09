@@ -52,6 +52,8 @@ SCHEMA_VERSION = 1
 INSTALL_GRACE = timedelta(minutes=1)
 # Rows a single workflow run may measure (a GitHub matrix holds 256 jobs).
 MAX_PAIRS = 250
+# How often the coordinator checks its workers' memory and state.
+POLL_SECONDS = 2
 
 _spec = importlib.util.spec_from_file_location(
     "refresh_dashboard", Path(__file__).resolve().parent / "refresh_dashboard.py"
@@ -695,7 +697,6 @@ def plan(
     history=None,
     taxsim_version=None,
     us_repo=None,
-    retry_failed=False,
     us_ref="HEAD",
     since_days=7,
     max_pairs=MAX_PAIRS,
@@ -829,10 +830,11 @@ def plan(
             ]
         else:
             merged[entry["id"]] = entry
+    # A pair whose earlier attempt failed is planned again while it is in scope.
     recorded = {
         row["id"]
         for row in (history or {}).get("rows", [])
-        if not retry_failed or row.get("status") in ("measured", "not-installable")
+        if row.get("status") in ("measured", "partial", "not-installable")
     }
     todo = [e for e in merged.values() if e["id"] not in recorded]
     measure = [e for e in todo if e.get("status") != "not-installable"]
@@ -870,9 +872,14 @@ def install(env, pairs_spec, as_of, log_path):
     ]
     with log_path.open("w") as log:
         for command in commands:
-            log.write("$ " + " ".join(command) + "\n")
-            log.flush()
-            result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
+            # A network error looks like a failed resolution; try three times.
+            for attempt in range(3):
+                log.write("$ " + " ".join(command) + "\n")
+                log.flush()
+                result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
+                if result.returncode == 0:
+                    break
+                time.sleep(10 * (attempt + 1))
             if result.returncode != 0:
                 break
     tail = log_path.read_text()[-3000:]
@@ -913,6 +920,10 @@ def rss(process, psutil):
         return 0
 
 
+class WorkerFailure(RuntimeError):
+    """A worker was stopped or crashed: the measurement is incomplete, not wrong."""
+
+
 def run_workers(
     python,
     batches,
@@ -924,112 +935,161 @@ def run_workers(
     total_memory_gb=None,
     log=print,
 ):
-    """Run batches through the worker, at most `workers` at once.
+    """Run every batch and year through its own worker process, `workers` at once.
 
-    Each worker is stopped above max_memory_gb of RSS (with its children) or
-    after `timeout` seconds; a stopped batch is retried once, split in two.
-    If the workers together pass total_memory_gb, the newest is stopped and its
-    batch requeued (not a failure), and one fewer worker runs from then on.
-    Returns [(output, settings)] per completed batch, failures, and peak RSS.
+    One process per batch and year, as the dashboard refresh does. A process
+    that ran all five years in turn passed 6 GiB in the first full run (run
+    37981903700); the refresh's one-year workers peaked at 3.2 GiB.
+
+    - A worker over max_memory_gb of RSS (with its children) or `timeout`
+      seconds is stopped and its batch retried once, split in two. A second
+      stop, or a crash, raises WorkerFailure: the caller writes no row, so the
+      pair is measured again later.
+    - If the workers together pass total_memory_gb, the newest is stopped and
+      requeued (not a failure), and one fewer worker runs from then on.
+    - A year the release itself cannot compute (the worker reports the
+      exception) is returned in `errors`, and its remaining batches are skipped.
+
+    Returns ({year: [output paths]}, {year: message}, settings, peak RSS).
     """
     import psutil
     import signal
 
-    queue = [(i, batch, True) for i, batch in enumerate(batches)]
-    running, done, failures, peak = [], [], [], 0
-    counter = len(batches)
-    while queue or running:
-        while queue and len(running) < workers:
-            index, batch, retry = queue.pop(0)
-            stem = work / f"part-{index:05}"
-            input_path = stem.with_suffix(".input.csv")
-            with input_path.open("w", newline="") as f:
-                writer = csv.DictWriter(f, refresh.INPUT_COLUMNS)
-                writer.writeheader()
-                writer.writerows(batch)
-            output = stem.with_suffix(".csv.gz")
-            settings = stem.with_suffix(".json")
-            child = subprocess.Popen(
-                [
-                    str(python),
-                    "-I",
-                    str(WORKER),
-                    str(input_path),
-                    str(output),
-                    str(settings),
-                    *map(str, years),
-                ],
-                cwd=work,
-                start_new_session=True,
-            )
-            try:
-                process = psutil.Process(child.pid)
-            except psutil.NoSuchProcess:
-                process = None
-            running.append(
-                dict(
-                    child=child,
-                    process=process,
-                    started=time.monotonic(),
-                    index=index,
-                    batch=batch,
-                    retry=retry,
-                    input=input_path,
-                    output=output,
-                    settings=settings,
-                )
-            )
-        time.sleep(2)
-        total = sum(rss(job["process"], psutil) for job in running)
-        if total_memory_gb and total > total_memory_gb * 1024**3 and len(running) > 1:
-            job = max(running, key=lambda j: j["started"])
+    queue = [
+        dict(index=i * len(years) + j, year=year, batch=batch, retry=True)
+        for i, batch in enumerate(batches)
+        for j, year in enumerate(years)
+    ]
+    counter = len(queue)
+    running, peak = [], 0
+    done = {year: [] for year in years}
+    errors, settings = {}, None
+
+    def stop(job):
+        try:
             os.killpg(job["child"].pid, signal.SIGKILL)
-            job["child"].wait()
-            running.remove(job)
-            job["input"].unlink(missing_ok=True)
-            queue.insert(0, (job["index"], job["batch"], job["retry"]))
-            workers = max(1, len(running))
-            log(
-                f"Workers together passed {total_memory_gb} GiB; requeued batch "
-                f"{job['index']} and continuing with {workers} at a time"
-            )
-        for job in list(running):
-            child = job["child"]
-            reason = None
-            if child.poll() is None:
-                used = rss(job["process"], psutil)
-                peak = max(peak, used)
-                if used > max_memory_gb * 1024**3:
-                    reason = f"exceeded {max_memory_gb} GiB"
-                elif time.monotonic() - job["started"] > timeout:
-                    reason = f"exceeded {timeout} s"
-                if reason is None:
-                    continue
-                os.killpg(child.pid, signal.SIGKILL)
-                child.wait()
-            elif child.returncode != 0 or not job["settings"].exists():
-                reason = f"exited {child.returncode}"
-            running.remove(job)
-            job["input"].unlink(missing_ok=True)
-            if reason is None:
-                done.append((job["index"], job["output"], job["settings"]))
+        except ProcessLookupError:
+            pass
+        job["child"].wait()
+        job["input"].unlink(missing_ok=True)
+
+    try:
+        while queue or running:
+            while queue and len(running) < workers:
+                job = queue.pop(0)
+                stem = work / f"part-{job['index']:05}-{job['year']}"
+                job["input"] = stem.with_suffix(".input.csv")
+                with job["input"].open("w", newline="") as f:
+                    writer = csv.DictWriter(f, refresh.INPUT_COLUMNS)
+                    writer.writeheader()
+                    writer.writerows(job["batch"])
+                job["output"] = stem.with_suffix(".csv.gz")
+                job["settings"] = stem.with_suffix(".json")
+                job["child"] = subprocess.Popen(
+                    [
+                        str(python),
+                        "-I",
+                        str(WORKER),
+                        str(job["input"]),
+                        str(job["output"]),
+                        str(job["settings"]),
+                        str(job["year"]),
+                    ],
+                    cwd=work,
+                    start_new_session=True,
+                )
+                try:
+                    job["process"] = psutil.Process(job["child"].pid)
+                except psutil.NoSuchProcess:
+                    job["process"] = None
+                job["started"] = time.monotonic()
+                running.append(job)
+            time.sleep(POLL_SECONDS)
+            usage = {id(job): rss(job["process"], psutil) for job in running}
+            peak = max([peak, *usage.values()])
+            if (
+                total_memory_gb
+                and sum(usage.values()) > total_memory_gb * 1024**3
+                and len(running) > 1
+            ):
+                job = max(running, key=lambda j: j["started"])
+                stop(job)
+                running.remove(job)
+                queue.insert(0, job)
+                workers = max(1, len(running))
                 log(
-                    f"Batch {job['index']}: {len(job['batch'])} households "
-                    f"in {time.monotonic() - job['started']:.0f} s",
+                    f"Workers together passed {total_memory_gb} GiB; requeued batch "
+                    f"{job['index']} and continuing with {workers} at a time"
                 )
-            elif job["retry"] and len(job["batch"]) > 1:
-                half = len(job["batch"]) // 2
-                log(f"Batch {job['index']} {reason}; retrying in two halves")
-                for part in (job["batch"][:half], job["batch"][half:]):
-                    queue.insert(0, (counter, part, False))
-                    counter += 1
-            else:
-                failures.append(
-                    f"{len(job['batch'])} households (batch {job['index']}) {reason}"
-                )
-                log(f"Batch {job['index']} {reason}; giving up")
-    done.sort()
-    return [(output, settings) for _, output, settings in done], failures, peak
+                continue
+            for job in list(running):
+                child = job["child"]
+                label = f"Batch {job['index']} ({job['year']})"
+                reason = None
+                if child.poll() is None:
+                    if usage[id(job)] > max_memory_gb * 1024**3:
+                        reason = f"exceeded {max_memory_gb} GiB"
+                    elif time.monotonic() - job["started"] > timeout:
+                        reason = f"exceeded {timeout} s"
+                    if reason is None:
+                        continue
+                    stop(job)
+                elif child.returncode != 0 or not job["settings"].exists():
+                    reason = f"exited {child.returncode}"
+                running.remove(job)
+                job["input"].unlink(missing_ok=True)
+                if reason is None:
+                    result = json.loads(job["settings"].read_text())
+                    identity = {
+                        k: result.get(k)
+                        for k in (
+                            "versions",
+                            "applied",
+                            "unsupported",
+                            "scorpTreatment",
+                        )
+                    }
+                    if settings is None:
+                        settings = result
+                    elif identity != {k: settings.get(k) for k in identity}:
+                        raise WorkerFailure(f"{label}: workers disagree on settings")
+                    message = result.get("errors", {}).get(str(job["year"]))
+                    if message:
+                        if job["year"] not in errors:
+                            errors[job["year"]] = message
+                            skipped = [j for j in queue if j["year"] == job["year"]]
+                            queue = [j for j in queue if j["year"] != job["year"]]
+                            log(
+                                f"{label}: the release cannot compute {job['year']}; "
+                                f"skipping its {len(skipped)} remaining batches"
+                            )
+                    else:
+                        done[job["year"]].append(job["output"])
+                        log(
+                            f"{label}: {len(job['batch'])} households in "
+                            f"{time.monotonic() - job['started']:.0f} s"
+                        )
+                elif job["year"] in errors:
+                    continue
+                elif job["retry"] and len(job["batch"]) > 1:
+                    half = len(job["batch"]) // 2
+                    log(f"{label} {reason}; retrying in two halves")
+                    for part in (job["batch"][half:], job["batch"][:half]):
+                        queue.insert(
+                            0,
+                            dict(
+                                index=counter, year=job["year"], batch=part, retry=False
+                            ),
+                        )
+                        counter += 1
+                else:
+                    raise WorkerFailure(
+                        f"{label}, {len(job['batch'])} households: worker {reason}"
+                    )
+    finally:
+        for job in running:
+            stop(job)
+    return done, errors, settings or {}, peak
 
 
 def measure(args):
@@ -1103,7 +1163,7 @@ def measure(args):
         for i in range(0, len(households), args.batch_size)
     ]
     started = time.monotonic()
-    parts, failures, peak = run_workers(
+    done, errors, first, peak = run_workers(
         python,
         batches,
         years,
@@ -1113,16 +1173,6 @@ def measure(args):
         args.timeout,
         args.total_memory_gb,
     )
-    settings = [json.loads(path.read_text()) for _, path in parts]
-    first = settings[0] if settings else {}
-    for other in settings[1:]:
-        for key in ("versions", "applied", "unsupported", "scorpTreatment"):
-            if other.get(key) != first.get(key):
-                raise RuntimeError(f"Workers disagree on {key}")
-    errors = {}
-    for item in settings:
-        for year, message in item.get("errors", {}).items():
-            errors.setdefault(year, message)
     row.update(
         policyengineTaxsimVersion=first.get("versions", installed)[
             "policyengine-taxsim"
@@ -1148,21 +1198,17 @@ def measure(args):
     keep = {household_id(h) for h in households}
     row["years"] = {}
     for year in years:
-        if failures:
-            row["years"][str(year)] = {"status": "failed", "reason": failures[0]}
-            continue
-        if str(year) in errors:
-            row["years"][str(year)] = {"status": "failed", "reason": errors[str(year)]}
+        if year in errors:
+            row["years"][str(year)] = {"status": "failed", "reason": errors[year]}
             continue
         outputs = {}
-        for output, _ in parts:
+        for output in done[year]:
             with gzip.open(output, "rt", newline="") as stream:
                 for record in csv.DictReader(stream):
-                    if int(record["year"]) == year:
-                        key = household_id(record)
-                        if key in outputs:
-                            raise ValueError(f"{year}: household {key} scored twice")
-                        outputs[key] = {k: record[k] for k in OUTPUTS}
+                    key = household_id(record)
+                    if int(record["year"]) != year or key in outputs:
+                        raise ValueError(f"{year}: household {key} scored twice")
+                    outputs[key] = {k: record[k] for k in OUTPUTS}
         reference = [
             r for r in read_reference(args.reference_dir, year) if r["taxsimid"] in keep
         ]
@@ -1439,7 +1485,6 @@ def main(argv=None):
     p.add_argument("--us-ref", default="HEAD", help="its branch holding every release")
     p.add_argument("--reference", help="release tag (default: the dashboard's)")
     p.add_argument("--history", type=Path, default=HISTORY)
-    p.add_argument("--retry-failed", action="store_true")
     p.add_argument("--output", type=Path, required=True)
 
     r = sub.add_parser("reference", help="extract the TAXSIM reference")
@@ -1456,13 +1501,14 @@ def main(argv=None):
     m.add_argument("--reference-dir", type=Path, required=True)
     m.add_argument("--work-dir", type=Path, required=True)
     m.add_argument("--years", type=int, nargs="*")
-    # Defaults fit a GitHub-hosted runner (4 CPUs, 16 GB): importing
-    # policyengine-us costs ~3 GB per worker, so batches are large.
+    # Defaults fit a GitHub-hosted runner (4 CPUs, 16 GB). A worker costs about
+    # 3 GB whatever its batch (51 households peaked at 3.3 GB), so batches are
+    # as large as the refresh's.
     m.add_argument("--batch-size", type=int, default=5000)
     m.add_argument("--workers", type=int, default=3)
     m.add_argument("--max-memory-gb", type=float, default=6)
     m.add_argument("--total-memory-gb", type=float, default=13)
-    m.add_argument("--timeout", type=int, default=3600, help="seconds per batch")
+    m.add_argument("--timeout", type=int, default=1200, help="seconds per worker")
     m.add_argument("--limit", type=int, default=0, help="smoke test: households")
 
     g = sub.add_parser("merge", help="add rows to the history")
@@ -1481,7 +1527,6 @@ def main(argv=None):
             load_history(args.history),
             args.taxsim_version,
             args.us_repo,
-            args.retry_failed,
             args.us_ref,
             args.since_days,
             min(args.max_pairs, MAX_PAIRS),

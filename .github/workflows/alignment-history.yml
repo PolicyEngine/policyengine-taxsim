@@ -30,12 +30,8 @@ on:
         description: policyengine-taxsim version (mode release)
         type: string
         default: ''
-      retry_failed:
-        description: Re-measure pairs whose earlier attempt failed
-        type: boolean
-        default: false
       max_parallel:
-        description: Pairs measured at once (each takes one runner for ~40 minutes)
+        description: Pairs measured at once (each takes one runner)
         type: number
         default: 4
   pull_request:
@@ -153,9 +149,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ inputs.mode || 'recent' }}
           TAXSIM_VERSION: ${{ inputs.taxsim_version }}
-          RETRY: ${{ inputs.retry_failed && '--retry-failed' || '' }}
         run: |
-          ARGS=(--mode "$MODE" --output plan.json $RETRY)
+          ARGS=(--mode "$MODE" --output plan.json)
           if [ "$MODE" = release ]; then ARGS+=(--taxsim-version "$TAXSIM_VERSION"); fi
           if [ "$MODE" = backfill ]; then ARGS+=(--us-repo us-repo); fi
           if [ "$MODE" = recent ]; then ARGS+=(--since-days 7); fi

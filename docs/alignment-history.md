@@ -69,7 +69,16 @@ The workflow runs:
   every release since the first.
 
 It runs `plan`, then `reference`, then one `measure` job per pair, then
-`record`. `record` merges the rows and commits the file to `main`. It first
+`record`. `measure` runs one worker process per batch of 5,000 households and
+tax year, as the dashboard refresh does. Two kinds of failure are kept apart:
+
+- A year the release itself can't compute (the worker reports the exception)
+  is recorded as a failed year, with the message.
+- A worker that is stopped for memory or time, or crashes, fails the job and
+  records nothing, so a later run measures the pair again. A pair whose earlier
+  attempt failed is planned again while it is in scope.
+
+`record` merges the rows and commits the file to `main`. It first
 waits until no CI `versioning` job is running, because that job pushes without
 pulling. Per-household PolicyEngine outputs for each pair stay as workflow
 artifacts for 90 days, and each row stores their SHA-256.
@@ -108,6 +117,5 @@ python scripts/alignment_history.py measure --taxsim-version 3.1.1 \
   --reference-dir reference --work-dir work                                 # smoke test
 ```
 
-A full measurement (111,347 households, five years) takes about an hour on a
-4-CPU, 16 GB runner. Don't run one on a laptop. A `--limit` smoke test is
-never recorded.
+Don't run a full measurement (111,347 households, five years) on a laptop: each
+worker holds about 3 GB. A `--limit` smoke test is never recorded.
