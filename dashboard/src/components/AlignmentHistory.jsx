@@ -44,14 +44,25 @@ function useWidth(ref, fallback = 720) {
   return width;
 }
 
-const monthTicks = (start, end) => {
+// First-of-month ticks, labelled by month. A span with fewer than two of
+// them (a few days of releases) labels its first and last day instead.
+const timeTicks = (start, end) => {
   const ticks = [];
   const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
   while (d <= end) {
-    ticks.push(new Date(d));
+    ticks.push({
+      date: new Date(d),
+      label:
+        d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }) +
+        (d.getUTCMonth() === 0 ? ` ${d.getUTCFullYear()}` : ''),
+    });
     d.setUTCMonth(d.getUTCMonth() + 1);
   }
-  return ticks;
+  if (ticks.length >= 2) return ticks;
+  const day = (date) =>
+    date.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const ends = start.getTime() === end.getTime() ? [start] : [start, end];
+  return ends.map((date) => ({ date, label: day(date) }));
 };
 
 const pct = (value) => (value == null ? '—' : `${round1(value).toFixed(1)}%`);
@@ -101,7 +112,7 @@ function ReleaseChart({ points, title }) {
   // Direct end labels only when they don't collide; the legend always names the lines.
   const showEndLabels = Math.abs(endLabels[0].y - endLabels[1].y) >= 14;
   const point = active == null ? null : points[active];
-  const tipLeft = point ? Math.min(Math.max(xs[active] + 12, 0), width - 260) : 0;
+  const tipLeft = point ? Math.max(0, Math.min(xs[active] + 12, width - 260)) : 0;
 
   return (
     <div ref={box} className="relative">
@@ -140,16 +151,15 @@ function ReleaseChart({ points, title }) {
             </text>
           </g>
         ))}
-        {monthTicks(new Date(t0), new Date(t0 + span)).map((tick) => (
+        {timeTicks(new Date(t0), new Date(t1)).map((tick) => (
           <text
-            key={tick.toISOString()}
-            x={x(tick.getTime())}
+            key={tick.date.toISOString()}
+            x={x(tick.date.getTime())}
             y={HEIGHT - 10}
             textAnchor="middle"
             className="fill-gray-500 text-[11px]"
           >
-            {tick.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })}
-            {tick.getUTCMonth() === 0 ? ` ${tick.getUTCFullYear()}` : ''}
+            {tick.label}
           </text>
         ))}
         {point && (

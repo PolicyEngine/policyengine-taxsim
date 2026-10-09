@@ -209,11 +209,16 @@ jobs:
           PAIR: ${{ matrix.pair }}
         run: python scripts/alignment_history.py measure --pair "$PAIR" --reference-dir reference --work-dir work
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: row-${{ strategy.job-index }}
+          path: work/row.json
+          retention-days: 90
+      # Per-household PolicyEngine outputs and the install log, for diagnosis.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: outputs-${{ strategy.job-index }}
           path: |
-            work/row.json
             work/install.log
             work/policyengine_*.csv.gz
           retention-days: 90
@@ -239,46 +244,62 @@ jobs:
       - run: pip install "packaging==$PACKAGING_VERSION"
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-      - name: Wait until no release is being versioned on main
-        if: github.ref_name == 'main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # CI's versioning job pushes without pulling, so a commit landing
-          # while it runs would fail that release. Push only between them.
-          for i in $(seq 1 90); do
-            BUSY=""
-            for RUN in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
-                --json databaseId,status --jq '.[] | select(.status != "completed") | .databaseId'); do
-              BUSY+=$(gh run view "$RUN" -R "$GITHUB_REPOSITORY" --json jobs \
-                --jq '.jobs[] | select(.name == "versioning" and .status != "completed" and .status != "queued") | .name')
-            done
-            [ -z "$BUSY" ] && exit 0
-            sleep 20
-          done
-          echo "A versioning job has run for 30 minutes; recording anyway" >&2
+          name: plan
+          path: artifacts/plan
+      - uses: actions/download-artifact@v4
+        with:
+          name: reference
+          path: artifacts/reference
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: row-*
+          path: artifacts/rows
       - name: Merge the rows and push
         env:
+          GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          ROWS=$(find artifacts -name row.json | wc -l)
-          for attempt in 1 2 3 4 5; do
+          mkdir -p artifacts/rows
+          ROWS=$(find artifacts/rows -name row.json | wc -l)
+
+          # CI's versioning job pushes "Update package version" without
+          # pulling, so a commit that lands on main between its checkout and
+          # its push fails that release (the next merge's CI then releases
+          # both). Push only while no versioning job is running.
+          versioning_running() {
+            [ "$BRANCH" = main ] || return 1
+            for RUN in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+                --limit 50 --json databaseId,status \
+                --jq '.[] | select(.status != "completed") | .databaseId'); do
+              gh run view "$RUN" -R "$GITHUB_REPOSITORY" --json jobs --jq \
+                '.jobs[] | select(.name == "versioning" and .status == "in_progress") | .name' \
+                | grep -q . && return 0
+            done
+            return 1
+          }
+
+          for attempt in $(seq 1 60); do
             git fetch --quiet origin "$BRANCH"
             git reset --quiet --hard "origin/$BRANCH"
-            python scripts/alignment_history.py merge artifacts \
+            python scripts/alignment_history.py merge artifacts/rows \
               --plan artifacts/plan/plan.json \
-              --reference-meta artifacts/reference/reference.json | tee -a "$GITHUB_STEP_SUMMARY"
+              --reference-meta artifacts/reference/reference.json
             python scripts/alignment_history.py merge --check
             if git diff --quiet -- dashboard/public/data/alignment_history.json; then
-              echo "Nothing new to record"; exit 0
+              echo "Nothing new to record" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
             fi
             git add dashboard/public/data/alignment_history.json
             git commit --quiet -m "Record TAXSIM alignment ($ROWS measured pairs)" \
               -m "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-            git push --quiet origin "HEAD:$BRANCH" && exit 0
-            sleep $((attempt * 15))
+            # Check right before pushing; if a release is being versioned, wait
+            # and merge again onto whatever it pushed.
+            if versioning_running; then sleep 30; continue; fi
+            if git push --quiet origin "HEAD:$BRANCH"; then
+              echo "Recorded $ROWS measured pairs" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+            fi
+            sleep 10
           done
+          echo "Could not record after 60 attempts" >&2
           exit 1
