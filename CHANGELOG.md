@@ -1,3 +1,14 @@
+## [3.1.0] - 2026-10-09
+
+### Added
+
+- Add Future Plans & Maintenance docs (site + README) and contract tests pinning the CLI's stdin/stdout TAXSIM CSV contract, the PolicyEngineRunner import path, and the run() DataFrame contract.
+
+### Fixed
+
+- Dashboard GitHub issues panel reads every page of open issues (it stopped at the first 100), skips pull requests, and takes only real state codes from labels and titles.
+
+
 ## [3.0.1] - 2026-09-30
 
 ### Fixed
