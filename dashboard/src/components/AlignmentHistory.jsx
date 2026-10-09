@@ -392,7 +392,8 @@ export default function AlignmentHistory({ selectedYear, selectedState, toleranc
       {series.unmeasured.length > 0 && (
         <details className="mt-4 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm">
           <summary className="cursor-pointer font-semibold text-gray-700">
-            {series.unmeasured.length} releases not scored for {selectedYear}
+            {series.unmeasured.length} release{series.unmeasured.length === 1 ? '' : 's'} not
+            scored for {selectedYear}
           </summary>
           <p className="mt-2 text-gray-500">
             PyPI no longer serves every release: older ones have been deleted, and some

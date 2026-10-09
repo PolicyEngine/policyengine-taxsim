@@ -212,10 +212,10 @@
     },
     {
       "taxsim": "otheritem",
-      "policyengine": "na_pe",
+      "policyengine": "deductible_mortgage_interest",
       "description": "Other Itemized Deds",
-      "implemented": false,
-      "githubLink": null
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/person/deductible_mortgage_interest.py"
     }
   ],
   "incomeSplittingRules": {
@@ -281,5 +281,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-09-24T11:44:50.158Z"
+  "lastUpdated": "2026-10-09T19:45:09.863Z"
 }
