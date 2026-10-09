@@ -127,7 +127,7 @@ def format_version_report(versions):
     if binary is None:
         build = "none bundled for this operating system"
     elif versions["taxsimBinaryPath"] is None:
-        build = f"not found ({binary})"
+        build = f"not found or unreadable ({binary})"
     else:
         build = f"{versions['taxsimBinaryBuild'] or 'unknown build'} ({binary})"
     rows = [

@@ -136,7 +136,7 @@ def test_version_report_when_binary_missing(tmp_path):
     assert versions["taxsimBinaryBuild"] is None
     assert versions["taxsimBinarySha256"] is None
     report = version_lines(prov.format_version_report(versions))
-    assert report["TAXSIM binary"] == "not found (taxsimtest-none.exe)"
+    assert report["TAXSIM binary"] == "not found or unreadable (taxsimtest-none.exe)"
 
 
 # Build stamps --------------------------------------------------------------
@@ -566,6 +566,28 @@ def test_relative_taxsim_path(tmp_path, monkeypatch):
     assert Path(record["input"]["path"]).resolve() == (tmp_path / "in.csv").resolve()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell quoting")
+def test_taxsim_path_in_directory_with_shell_metacharacters(tmp_path, monkeypatch):
+    """The shell command quotes paths, so a working directory whose name
+    holds $ or a backtick neither breaks the run nor runs a command."""
+    workdir = tmp_path / "dollar$HOME `touch injected` dir"
+    (workdir / "sub").mkdir(parents=True)
+    default = default_taxsim_executable().resolve()
+    binary = workdir / "sub" / default.name
+    binary.write_bytes(default.read_bytes())
+    binary.chmod(0o755)
+    monkeypatch.chdir(workdir)
+    Path("in.csv").write_bytes(csv_bytes([PRE_2021_RECORD]))
+    result = CliRunner().invoke(
+        cli,
+        ["taxsim", "in.csv", "-o", "out.csv", "--taxsim-path", f"sub/{default.name}"],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(pd.read_csv("out.csv")) == 1
+    assert not (workdir / "injected").exists()
+    assert not (tmp_path / "injected").exists()
+
+
 def test_executable_binary_is_not_chmodded(tmp_path, monkeypatch):
     """A binary that is already executable is used as is, so one the user
     doesn't own (e.g. a shared TAXSIM-35 install) still runs."""
@@ -619,7 +641,9 @@ def test_compare_subcommand(tmp_path, monkeypatch):
         "records": len(pd.read_csv(consolidated)),
     }
     assert record["engines"] == {"policyengine": 1, "taxsim": 1}
-    assert record["options"]["year"] == 2019  # resolved from the data
+    # Options are recorded as passed: no --year, so each record kept its own
+    # year (the output file is named after the first record's).
+    assert record["options"]["year"] is None
 
 
 # Package sources --------------------------------------------------------------

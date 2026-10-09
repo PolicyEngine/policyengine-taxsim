@@ -1,6 +1,7 @@
 import os
 import platform
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -277,7 +278,13 @@ class TaxsimRunner(BaseTaxRunner):
         system = platform.system().lower()
 
         if system != "windows":
-            cmd = f'cat "{input_file}" | "{str(self.taxsim_path)}" > "{output_file}"'
+            # shlex.quote: double quotes still let the shell expand $ and
+            # backticks in a path (e.g. a working directory named "a$b").
+            cmd = (
+                f"cat {shlex.quote(str(input_file))}"
+                f" | {shlex.quote(str(self.taxsim_path))}"
+                f" > {shlex.quote(str(output_file))}"
+            )
         else:
             cmd = f'cmd.exe /c "type "{input_file}" | "{str(self.taxsim_path)}" > "{output_file}""'
 

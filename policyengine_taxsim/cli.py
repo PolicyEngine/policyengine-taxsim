@@ -112,14 +112,10 @@ def _resolve_provenance(value):
     return value or (ctx.parent.params.get("provenance") if ctx.parent else None)
 
 
-def _record_provenance(
-    path, input_info, output_info, engines, taxsim_path=None, resolved=None
-):
-    """Write the provenance sidecar for the current command's run.
-    ``resolved`` replaces options the command filled in itself."""
+def _record_provenance(path, input_info, output_info, engines, taxsim_path=None):
+    """Write the provenance sidecar for the current command's run."""
     ctx = click.get_current_context()
     options = {k: v for k, v in ctx.params.items() if k != "provenance"}
-    options.update(resolved or {})
     if "scorp_treatment" in options:
         options["scorp_treatment"] = _resolve_scorp_treatment(
             options["scorp_treatment"]
@@ -312,8 +308,11 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
     Or use subcommands for additional features (compare, taxsim, sample-data).
     """
     if ctx.invoked_subcommand is not None:
-        if provenance and ctx.invoked_subcommand == "sample-data":
-            raise click.UsageError("--provenance does not apply to sample-data")
+        subcommand = ctx.command.get_command(ctx, ctx.invoked_subcommand)
+        if provenance and "provenance" not in {p.name for p in subcommand.params}:
+            raise click.UsageError(
+                f"--provenance does not apply to {ctx.invoked_subcommand}"
+            )
         # Store options for potential use by subcommands
         ctx.ensure_object(dict)
         ctx.obj["logs"] = logs
@@ -710,7 +709,6 @@ def compare(
                 _file_info(consolidated, len(pd.read_csv(consolidated))),
                 {"policyengine": len(df), "taxsim": len(df)},
                 taxsim_path=taxsim_runner.taxsim_path,
-                resolved={"year": year},
             )
 
     except Exception as e:
