@@ -11,6 +11,7 @@ it runs. Neither option changes the TAXSIM-format output.
 import hashlib
 import importlib.metadata
 import json
+import os
 import platform
 import re
 from datetime import datetime, timezone
@@ -200,6 +201,19 @@ def build_provenance(
         "packageSources": sources,
         "installedPackages": packages,
     }
+
+
+def is_provenance_record(path):
+    """Whether ``path`` is a regular file holding a provenance record, the
+    only kind of existing file a new record may replace."""
+    try:
+        if not os.path.isfile(path) or os.path.getsize(path) > 10_000_000:
+            return False
+        with open(path, encoding="utf-8") as stream:
+            record = json.load(stream)
+    except (OSError, ValueError):
+        return False
+    return isinstance(record, dict) and "schemaVersion" in record
 
 
 def write_provenance(path, record):

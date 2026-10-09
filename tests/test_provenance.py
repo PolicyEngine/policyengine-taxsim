@@ -672,7 +672,7 @@ def test_sidecar_path_must_not_be_a_data_file(tmp_path, target):
         cli, ["taxsim", str(input_file), "-o", str(out), "--provenance", str(sidecar)]
     )
     assert result.exit_code == 2, result.output
-    assert "is the run's input or output file" in result.output
+    assert "--provenance" in result.output
     assert not out.exists()  # refused before the run
     assert input_file.read_bytes() == original
 
@@ -770,6 +770,85 @@ def test_in_place_run_hashes_the_input_as_read(tmp_path, fake_runner):
     assert record["input"]["sha256"] != record["output"]["sha256"]
 
 
+def test_sidecar_must_not_be_the_taxsim_binary(tmp_path):
+    default = default_taxsim_executable()
+    binary = tmp_path / default.name
+    binary.write_bytes(default.read_bytes())
+    binary.chmod(0o755)
+    before = sha256(binary.read_bytes())
+    input_file = tmp_path / "in.csv"
+    input_file.write_bytes(csv_bytes([PRE_2021_RECORD]))
+    out = tmp_path / "out.csv"
+    result = CliRunner().invoke(
+        cli,
+        ["taxsim", str(input_file), "-o", str(out), "--taxsim-path", str(binary)]
+        + ["--provenance", str(binary)],
+    )
+    assert result.exit_code == 2, result.output
+    assert sha256(binary.read_bytes()) == before
+    assert not out.exists()
+
+
+def test_sidecar_must_not_be_the_default_binary(tmp_path, fake_runner, monkeypatch):
+    """Checked against a copy: the bundled binary itself is never at risk."""
+    default = default_taxsim_executable()
+    binary = tmp_path / default.name
+    binary.write_bytes(default.read_bytes())
+    monkeypatch.setattr(CLI_MODULE, "default_taxsim_executable", lambda: binary)
+    before = sha256(binary.read_bytes())
+    result = CliRunner().invoke(
+        cli, ["--provenance", str(binary)], input=csv_bytes([PRE_2021_RECORD])
+    )
+    assert result.exit_code == 2, result.output
+    assert sha256(binary.read_bytes()) == before
+
+
+@pytest.mark.parametrize("content", [b"my notes\n", b""], ids=["text", "empty"])
+def test_existing_non_record_is_never_replaced(tmp_path, fake_runner, content):
+    """Only an earlier provenance record may be overwritten. An empty file
+    is what `> run.json` or `2> run.json` leaves before the run starts."""
+    path = tmp_path / "run.json"
+    path.write_bytes(content)
+    result = CliRunner().invoke(
+        cli, ["--provenance", str(path)], input=csv_bytes([PRE_2021_RECORD])
+    )
+    assert result.exit_code == 2, result.output
+    assert "is not a provenance record" in result.output
+    assert path.read_bytes() == content
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX device path")
+def test_device_is_never_a_sidecar(fake_runner):
+    result = CliRunner().invoke(
+        cli, ["--provenance", "/dev/stdout"], input=csv_bytes([PRE_2021_RECORD])
+    )
+    assert result.exit_code == 2, result.output
+
+
+def test_earlier_record_is_replaced(tmp_path, fake_runner):
+    path = tmp_path / "run.json"
+    for wages in ["50000", "60000"]:
+        record = PRE_2021_RECORD.replace("50000", wages)
+        result = CliRunner().invoke(
+            cli, ["--provenance", str(path)], input=csv_bytes([record])
+        )
+        assert result.exit_code == 0, result.output
+    assert json.loads(path.read_text())["input"]["sha256"] == sha256(
+        csv_bytes([PRE_2021_RECORD.replace("50000", "60000")])
+    )
+
+
+def test_is_provenance_record(tmp_path):
+    path = tmp_path / "x.json"
+    path.write_text(json.dumps({"schemaVersion": 1, "generatedAt": "t"}))
+    assert prov.is_provenance_record(path)
+    for content in ["[]", '{"other": 1}', "not json", ""]:
+        path.write_text(content)
+        assert not prov.is_provenance_record(path), content
+    assert not prov.is_provenance_record(tmp_path / "missing.json")
+    assert not prov.is_provenance_record(default_taxsim_executable())
+
+
 def test_stream_is_file(tmp_path):
     path = tmp_path / "in.csv"
     path.write_bytes(b"x")
@@ -795,7 +874,7 @@ def test_sidecar_cannot_be_redirected_stdout(tmp_path):
             timeout=600,
         )
     assert process.returncode == 2, process.stderr.decode()
-    assert b"stdout is written to" in process.stderr
+    assert b"--provenance" in process.stderr
     assert out.read_bytes() == b""
 
 

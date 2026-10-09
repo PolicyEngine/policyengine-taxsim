@@ -17,7 +17,7 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 try:
     from .runners.policyengine_runner import PolicyEngineRunner
-    from .runners.taxsim_runner import TaxsimRunner
+    from .runners.taxsim_runner import TaxsimRunner, default_taxsim_executable
     from .runners.stitched_runner import StitchedRunner
     from .comparison.comparator import TaxComparator, ComparisonConfig
     from .comparison.statistics import ComparisonStatistics
@@ -29,7 +29,10 @@ try:
     from .core import provenance as prov
 except ImportError:
     from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
-    from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+    from policyengine_taxsim.runners.taxsim_runner import (
+        TaxsimRunner,
+        default_taxsim_executable,
+    )
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
     from policyengine_taxsim.comparison.comparator import (
         TaxComparator,
@@ -86,6 +89,7 @@ def _check_provenance_path(ctx, param, value):
         directory = Path(value).resolve().parent
     except (OSError, RuntimeError) as e:  # e.g. a symlink loop
         raise click.BadParameter(f"cannot resolve {value}: {e}")
+    _refuse_replacing_non_record(value)
     try:
         directory.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryFile(dir=directory):
@@ -136,6 +140,25 @@ def _stream_is_file(stream, path):
         return False
 
 
+def _refuse_replacing_non_record(provenance):
+    """The sidecar may replace only an earlier provenance record. Anything
+    else at that path (data, an executable, a file a redirect is filling,
+    a device) is the run's or the user's, and is never overwritten."""
+    if os.path.lexists(provenance) and not prov.is_provenance_record(provenance):
+        raise click.BadParameter(
+            f"{provenance} exists and is not a provenance record; "
+            "choose another path or remove it",
+            param_hint="'--provenance'",
+        )
+
+
+def _default_binary():
+    try:
+        return default_taxsim_executable()
+    except OSError:  # no bundled binary for this operating system
+        return None
+
+
 def _refuse_data_file_as_sidecar(provenance, *paths):
     """The sidecar must never replace the run's input or output."""
     for path in paths:
@@ -154,6 +177,7 @@ def _record_provenance(
     or read (e.g. a case-only alias of an output that did not exist before
     the run, or a --logs YAML file)."""
     _refuse_data_file_as_sidecar(path, *data_files)
+    _refuse_replacing_non_record(path)
     ctx = click.get_current_context()
     options = {k: v for k, v in ctx.params.items() if k != "provenance"}
     if "scorp_treatment" in options:
@@ -370,14 +394,16 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment, provenance):
         click.echo(ctx.get_help())
         return
 
-    if provenance and (
-        _stream_is_file(sys.stdout, provenance)
-        or _stream_is_file(sys.stdin, provenance)
+    if provenance and any(
+        _stream_is_file(stream, provenance)
+        for stream in (sys.stdin, sys.stdout, sys.stderr)
     ):
         raise click.BadParameter(
-            "is the file stdin is read from or stdout is written to",
+            "is the file stdin, stdout or stderr is redirected to",
             param_hint="'--provenance'",
         )
+    if provenance:
+        _refuse_data_file_as_sidecar(provenance, _default_binary())
 
     hashing_stdout = None
     try:
@@ -486,7 +512,7 @@ def policyengine(
     """
     provenance = _resolve_provenance(provenance)
     if provenance:
-        _refuse_data_file_as_sidecar(provenance, input_file, output)
+        _refuse_data_file_as_sidecar(provenance, input_file, output, _default_binary())
     try:
         # Read input file
         df = read_input(input_file)
@@ -552,7 +578,9 @@ def taxsim(input_file, output, sample, taxsim_path, provenance):
     """Run TAXSIM-35 tax calculations"""
     provenance = _resolve_provenance(provenance)
     if provenance:
-        _refuse_data_file_as_sidecar(provenance, input_file, output)
+        _refuse_data_file_as_sidecar(
+            provenance, input_file, output, taxsim_path or _default_binary()
+        )
     try:
         # Load and optionally sample data
         df = read_input(input_file)
@@ -578,7 +606,7 @@ def taxsim(input_file, output, sample, taxsim_path, provenance):
                 _file_info(output, len(results)),
                 {"policyengine": 0, "taxsim": len(df)},
                 taxsim_path=runner.taxsim_path,
-                data_files=(input_file, output),
+                data_files=(input_file, output, runner.taxsim_path),
             )
 
     except click.ClickException:
@@ -667,7 +695,7 @@ def compare(
     """Compare PolicyEngine and TAXSIM results"""
     provenance = _resolve_provenance(provenance)
     if provenance:
-        _refuse_data_file_as_sidecar(provenance, input_file)
+        _refuse_data_file_as_sidecar(provenance, input_file, _default_binary())
     try:
         # Load and optionally sample data
         df = read_input(input_file)
@@ -783,7 +811,12 @@ def compare(
                 _file_info(consolidated, len(pd.read_csv(consolidated))),
                 {"policyengine": len(df), "taxsim": len(df)},
                 taxsim_path=taxsim_runner.taxsim_path,
-                data_files=(input_file, consolidated, *yaml_files),
+                data_files=(
+                    input_file,
+                    consolidated,
+                    taxsim_runner.taxsim_path,
+                    *yaml_files,
+                ),
             )
 
     except click.ClickException:

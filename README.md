@@ -235,6 +235,10 @@ policyengine-taxsim --provenance run.json < input.csv > output.csv
 policyengine-taxsim policyengine input.csv -o output.csv --provenance run.json
 ```
 
+The JSON file is never written over anything but an earlier provenance file:
+a path that already holds other data (the run's input or output, the TAXSIM
+binary, a file a shell redirect is writing) is refused before the run starts.
+
 PyPI does not keep every policyengine-us release, so record versions when
 you run and keep the JSON file with your output.
 
