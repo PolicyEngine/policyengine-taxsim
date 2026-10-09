@@ -6,6 +6,7 @@ import YearTabs from '@/components/YearTabs';
 import StateFilter from '@/components/StateFilter';
 import MetricsRow from '@/components/MetricsRow';
 import StateTable from '@/components/StateTable';
+import AlignmentHistory from '@/components/AlignmentHistory';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ErrorMessage from '@/components/common/ErrorMessage';
 import { useYearData } from '@/hooks/useYearData';
@@ -166,6 +167,12 @@ export default function DashboardContent() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <MetricsRow
           data={currentYearData}
+          selectedState={selectedState}
+          toleranceMode={toleranceMode}
+        />
+
+        <AlignmentHistory
+          selectedYear={selectedYear}
           selectedState={selectedState}
           toleranceMode={toleranceMode}
         />

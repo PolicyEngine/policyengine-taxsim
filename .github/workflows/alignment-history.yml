@@ -1,0 +1,289 @@
+name: Alignment history
+
+# Scores released policyengine-taxsim / policyengine-us pairs against the
+# dashboard's TAXSIM reference and appends one row per pair to
+# dashboard/public/data/alignment_history.json (see docs/alignment-history.md).
+#
+# - After CI finishes on main (which publishes any new release), and daily for
+#   new policyengine-us releases: measure the pairs released in the last week
+#   that are not recorded yet.
+# - Manually: `backfill` re-plans every release since the first one; `release`
+#   measures one policyengine-taxsim release.
+# - On pull requests that touch the alignment code: a smoke test that records
+#   nothing.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: recent (last 7 days), release (one version) or backfill (all)
+        type: choice
+        options: [recent, release, backfill]
+        default: recent
+      taxsim_version:
+        description: policyengine-taxsim version (mode release)
+        type: string
+        default: ''
+      retry_failed:
+        description: Re-measure pairs whose earlier attempt failed
+        type: boolean
+        default: false
+      max_parallel:
+        description: Pairs measured at once (each takes one runner for ~40 minutes)
+        type: number
+        default: 4
+  pull_request:
+    paths:
+      - scripts/alignment_history.py
+      - scripts/alignment_worker.py
+      - scripts/refresh_dashboard.py
+      - .github/workflows/alignment-history.yml
+
+permissions:
+  contents: read
+
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  NUMEXPR_NUM_THREADS: '1'
+  PYTHONUNBUFFERED: '1'
+  PIP_NO_CACHE_DIR: '1'
+  UV_VERSION: '0.12.13'
+  PACKAGING_VERSION: '26.0'
+  PSUTIL_VERSION: '6.1.1'
+
+jobs:
+  # ------------------------------------------------------------- pull request
+  smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install the dashboard refresh environment and tools
+        run: |
+          pip install -r scripts/dashboard-refresh-requirements.txt
+          pip install --no-deps -e .
+          pip install "uv==$UV_VERSION" "packaging==$PACKAGING_VERSION" pytest hypothesis
+      - name: Unit tests
+        run: pytest tests/test_alignment_history.py -q
+      - name: Extract and verify the 2023 TAXSIM reference
+        run: python scripts/alignment_history.py reference --years 2023 --work-dir reference
+      - name: Score this checkout on 102 households
+        run: |
+          US=$(python -c "import importlib.metadata as m; print(m.version('policyengine-us'))")
+          python scripts/alignment_history.py measure --taxsim-spec . --taxsim-version local \
+            --us-version "$US" --years 2023 --limit 102 --reference-dir reference --work-dir local
+      - name: Score them with the dashboard refresh
+        run: python scripts/refresh_dashboard.py --year 2023 --limit 102 --work-dir refresh
+      - name: Differential check against the refresh's PolicyEngine outputs
+        run: |
+          python - <<'EOF'
+          import csv, gzip, math
+          refresh = {}
+          with open("refresh/output/comparison_results_2023.csv", newline="") as f:
+              for row in csv.DictReader(f):
+                  if row["source"] == "policyengine":
+                      refresh[str(int(float(row["taxsimid"])))] = row
+          with gzip.open("local/policyengine_2023.csv.gz", "rt", newline="") as f:
+              history = {row["taxsimid"]: row for row in csv.DictReader(f)}
+          assert set(history) == set(refresh) and len(history) == 102, "household sets differ"
+          bad = [
+              (key, name, history[key][name], refresh[key][name])
+              for key in history
+              for name in ("fiitax", "siitax", "srebate")
+              if not math.isclose(float(history[key][name]), float(refresh[key][name] or 0),
+                                  rel_tol=1e-9, abs_tol=1e-6)
+          ]
+          assert not bad, f"{len(bad)} outputs differ, e.g. {bad[:5]}"
+          print("History worker reproduces the refresh's PolicyEngine outputs for 102 households")
+          EOF
+      - name: Score the newest release on 102 households
+        run: |
+          python scripts/alignment_history.py plan --mode latest --output plan.json
+          PAIR=$(python -c "import json; print(json.dumps(json.load(open('plan.json'))['measure'][0]))" 2>/dev/null || true)
+          if [ -z "$PAIR" ]; then echo "Newest pair already recorded"; exit 0; fi
+          python scripts/alignment_history.py measure --pair "$PAIR" --years 2023 --limit 102 \
+            --reference-dir reference --work-dir latest
+
+  # ------------------------------------------------------------------- record
+  plan:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      count: ${{ steps.plan.outputs.count }}
+      unavailable: ${{ steps.plan.outputs.unavailable }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install "packaging==$PACKAGING_VERSION"
+      - name: Wait for a release CI just published to reach PyPI
+        if: github.event_name == 'workflow_run'
+        run: |
+          VERSION=$(python -c "import re; print(re.search(r'version = \"(.+?)\"', open('pyproject.toml').read()).group(1))")
+          for i in $(seq 1 30); do
+            curl -sf "https://pypi.org/pypi/policyengine-taxsim/$VERSION/json" > /dev/null && exit 0
+            sleep 30
+          done
+          echo "policyengine-taxsim $VERSION is not on PyPI yet; a later run will pick it up"
+      - name: Clone policyengine-us for exact release times (backfill)
+        if: inputs.mode == 'backfill'
+        run: git clone --quiet --shallow-since=2025-07-01 --single-branch https://github.com/PolicyEngine/policyengine-us us-repo
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode || 'recent' }}
+          TAXSIM_VERSION: ${{ inputs.taxsim_version }}
+          RETRY: ${{ inputs.retry_failed && '--retry-failed' || '' }}
+        run: |
+          ARGS=(--mode "$MODE" --output plan.json $RETRY)
+          if [ "$MODE" = release ]; then ARGS+=(--taxsim-version "$TAXSIM_VERSION"); fi
+          if [ "$MODE" = backfill ]; then ARGS+=(--us-repo us-repo); fi
+          if [ "$MODE" = recent ]; then ARGS+=(--since-days 7); fi
+          python scripts/alignment_history.py plan "${ARGS[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: plan.json
+          retention-days: 90
+
+  reference:
+    needs: plan
+    if: needs.plan.outputs.count != '0' || needs.plan.outputs.unavailable != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install "packaging==$PACKAGING_VERSION"
+      - name: Extract and verify the TAXSIM reference
+        run: python scripts/alignment_history.py reference --work-dir reference
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reference
+          path: |
+            reference/reference.json
+            reference/reference_*.csv.gz
+          retention-days: 7
+
+  measure:
+    needs: [plan, reference]
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.max_parallel || 4) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: measure ${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install "uv==$UV_VERSION" "packaging==$PACKAGING_VERSION" "psutil==$PSUTIL_VERSION"
+      - uses: actions/download-artifact@v4
+        with:
+          name: reference
+          path: reference
+      - name: Install the pair and score it
+        env:
+          PAIR: ${{ matrix.pair }}
+        run: python scripts/alignment_history.py measure --pair "$PAIR" --reference-dir reference --work-dir work
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: row-${{ strategy.job-index }}
+          path: |
+            work/row.json
+            work/install.log
+            work/policyengine_*.csv.gz
+          retention-days: 90
+
+  record:
+    needs: [plan, reference, measure]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.reference.result == 'success' &&
+      (needs.plan.outputs.count != '0' || needs.plan.outputs.unavailable != '0')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install "packaging==$PACKAGING_VERSION"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Wait until no release is being versioned on main
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # CI's versioning job pushes without pulling, so a commit landing
+          # while it runs would fail that release. Push only between them.
+          for i in $(seq 1 90); do
+            BUSY=""
+            for RUN in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+                --json databaseId,status --jq '.[] | select(.status != "completed") | .databaseId'); do
+              BUSY+=$(gh run view "$RUN" -R "$GITHUB_REPOSITORY" --json jobs \
+                --jq '.jobs[] | select(.name == "versioning" and .status != "completed" and .status != "queued") | .name')
+            done
+            [ -z "$BUSY" ] && exit 0
+            sleep 20
+          done
+          echo "A versioning job has run for 30 minutes; recording anyway" >&2
+      - name: Merge the rows and push
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          ROWS=$(find artifacts -name row.json | wc -l)
+          for attempt in 1 2 3 4 5; do
+            git fetch --quiet origin "$BRANCH"
+            git reset --quiet --hard "origin/$BRANCH"
+            python scripts/alignment_history.py merge artifacts \
+              --plan artifacts/plan/plan.json \
+              --reference-meta artifacts/reference/reference.json | tee -a "$GITHUB_STEP_SUMMARY"
+            python scripts/alignment_history.py merge --check
+            if git diff --quiet -- dashboard/public/data/alignment_history.json; then
+              echo "Nothing new to record"; exit 0
+            fi
+            git add dashboard/public/data/alignment_history.json
+            git commit --quiet -m "Record TAXSIM alignment ($ROWS measured pairs)" \
+              -m "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            git push --quiet origin "HEAD:$BRANCH" && exit 0
+            sleep $((attempt * 15))
+          done
+          exit 1
