@@ -11,7 +11,8 @@ TAXSIM documentation (https://taxsim.nber.org/taxsimtest/, input 15):
 
 The emulator routes the positive part of nonprop to `alimony_income` and the
 magnitude of the negative part to `alimony_expense` (SIGNED_INPUT_SPLITS in
-core/utils.py), split 50/50 between spouses for MFJ.
+core/utils.py), split 50/50 between spouses for MFJ. Before this, a nonzero
+nonprop was ignored (taxsim #1424).
 
 Every expected tax value below is taxsimtest output: the bundled
 resources/taxsimtest/taxsimtest-osx.exe (build cd2026081819), idtl=2, run on
@@ -41,8 +42,10 @@ therefore keeps nonprop out of earned income; the EITC tests below pin that.
 import numpy as np
 import pandas as pd
 import pytest
+from hypothesis import HealthCheck, example, given, settings
+from hypothesis import strategies as st
 
-from policyengine_taxsim import generate_household
+from policyengine_taxsim import export_household, generate_household
 from policyengine_taxsim.core.utils import (
     SIGNED_INPUT_SPLITS,
     load_variable_mappings,
@@ -52,6 +55,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     PolicyEngineRunner,
     TaxsimMicrosimDataset,
 )
+from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 
 SINGLE = dict(mstat=1, page=40, sage=0, pwages=50_000, swages=0)
 MFJ = dict(mstat=2, page=40, sage=40, pwages=30_000, swages=20_000)
@@ -319,3 +323,313 @@ def test_signed_part_properties():
 
     check()
     assert signed_part(None, 1) == 0
+
+
+# ---------------------------------------------------------------------------
+# More taxsimtest-pinned records (taxsim #1424). Same bundled binary and
+# idtl=2; run without disable_salt. These cover what the grid above does
+# not: the NIIT exclusion, no FICA/SECA, AGI below zero, TY2018, the EITC
+# AGI phase-out, and the KY, IL and NY state bases.
+# ---------------------------------------------------------------------------
+
+# (case id, record inputs, taxsimtest output). State 0 = federal only.
+EXTRA_CASES = [
+    (
+        # Not in the NIIT base: the same record with otherprop gives niit
+        # 3,800. fiitax is not compared because taxsimtest includes the
+        # Additional Medicare Tax in it and the emulator does not (#1239).
+        "not_in_niit_base_2023",
+        dict(year=2023, state=0, mstat=1, page=40, pwages=300_000, nonprop=100_000),
+        {"v10": 400_000.0, "v18": 386_150.0, "v28": 107_047.0, "niit": 0.0},
+    ),
+    (
+        # Not earnings: no FICA or SECA.
+        "nonprop_only_2023",
+        dict(year=2023, state=0, mstat=1, page=40, nonprop=30_000),
+        {"v10": 30_000.0, "v18": 16_150.0, "fiitax": 1718.0, "tfica": 0.0},
+    ),
+    (
+        # A negative amount can take AGI below zero. (taxsimtest also zeroes
+        # the EITC here because it counts nonprop as earned income; PE keeps
+        # the 7.65% credit on the $5,000 of wages. See the module docstring.)
+        "negative_agi_2023",
+        dict(year=2023, state=0, mstat=1, page=40, pwages=5000, nonprop=-20_000),
+        {"v10": -15_000.0, "v18": 0.0},
+    ),
+    (
+        "single_positive_2018",
+        dict(year=2018, state=0, mstat=1, page=40, pwages=60_000, nonprop=12_000),
+        {"v10": 72_000.0, "v18": 60_000.0, "fiitax": 9139.5},
+    ),
+    (
+        "single_negative_2018",
+        dict(year=2018, state=0, mstat=1, page=40, pwages=60_000, nonprop=-12_000),
+        {"v10": 48_000.0, "v18": 36_000.0, "fiitax": 4129.5},
+    ),
+    (
+        # Above the EITC plateau nonprop moves the credit only through the
+        # AGI phase-out, where both engines agree.
+        "eitc_phaseout_on_agi_2024",
+        dict(
+            year=2024,
+            state=0,
+            mstat=1,
+            page=35,
+            depx=1,
+            age1=5,
+            pwages=20_000,
+            nonprop=12_000,
+        ),
+        {"v10": 32_000.0, "v25": 2730.06, "fiitax": -3720.06},
+    ),
+    (
+        "ny_joint_negative_2024",
+        dict(
+            year=2024,
+            state=33,
+            mstat=2,
+            page=40,
+            sage=40,
+            pwages=50_000,
+            swages=30_000,
+            nonprop=-12_000,
+        ),
+        {"v10": 68_000.0, "fiitax": 4192.0, "siitax": 2524.75},
+    ),
+    (
+        # One earner: with nonprop all on the primary filer, siitax is 3,473.60.
+        "ky_joint_split_2024",
+        dict(
+            year=2024,
+            state=18,
+            mstat=2,
+            page=40,
+            sage=40,
+            pwages=60_000,
+            nonprop=30_000,
+        ),
+        {"v10": 90_000.0, "fiitax": 6832.0, "siitax": 3347.2},
+    ),
+    (
+        # Illinois exempts the pension and Social Security, not nonprop.
+        "il_joint_retired_2024",
+        dict(
+            year=2024,
+            state=14,
+            mstat=2,
+            page=70,
+            sage=68,
+            pensions=30_000,
+            gssi=20_000,
+            nonprop=10_000,
+        ),
+        {"v10": 51_100.0, "fiitax": 1880.0, "siitax": 121.28},
+    ),
+]
+EXTRA_IDS = [case[0] for case in EXTRA_CASES]
+
+
+def _extra_record(taxsimid, inputs):
+    return {"taxsimid": taxsimid, "sage": 0, "depx": 0, "idtl": 2, **inputs}
+
+
+@pytest.fixture(scope="module")
+def extra_results():
+    df = pd.DataFrame(
+        [_extra_record(i + 1, inputs) for i, (_, inputs, _) in enumerate(EXTRA_CASES)]
+    ).fillna(0)
+    out = PolicyEngineRunner(df, logs=False).run(show_progress=False)
+    out["taxsimid"] = out["taxsimid"].astype(float).astype(int)
+    return out.set_index("taxsimid")
+
+
+@pytest.mark.parametrize("case", EXTRA_CASES, ids=EXTRA_IDS)
+def test_extra_cases_runner_matches_taxsim(case, extra_results):
+    case_id, _, expected = case
+    row = extra_results.loc[EXTRA_IDS.index(case_id) + 1]
+    for column, value in expected.items():
+        assert float(row[column]) == pytest.approx(value, abs=1.0), (
+            f"{case_id} {column}: emulator {row[column]} vs taxsimtest {value}"
+        )
+
+
+@pytest.mark.parametrize("case", EXTRA_CASES, ids=EXTRA_IDS)
+def test_extra_cases_single_household_path_matches_taxsim(case):
+    case_id, inputs, expected = case
+    record = _extra_record(1, inputs)
+    output = export_household(
+        dict(record), generate_household(dict(record)), False, False
+    )
+    for column, value in expected.items():
+        assert float(output[column]) == pytest.approx(value, abs=1.0), (
+            f"{case_id} {column}: single-household path {output[column]} "
+            f"vs taxsimtest {value}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Guard every hard-coded taxsimtest number in this module: the bundled binary
+# must still produce them, including the EITC values PolicyEngine diverges
+# from by design. If NBER changes behavior, this fails here first instead of
+# leaving stale expectations and a stale divergence note.
+# ---------------------------------------------------------------------------
+
+# taxsimtest siitax at nonprop 0 / +10,000 / -5,000 (see the delta test).
+DELTA_LEVELS = {
+    (47, 2022): (847.00, 1408.05, 597.00),
+    (11, 2024): (901.40, 1440.40, 631.90),
+}
+# taxsimtest EITC (v25), TX 2023, head of household, one child aged 5,
+# pwages 8,000, at nonprop 0 / +4,000 / -2,000.
+EITC_TAXSIM = (2720.0, 3995.0, 2040.0)
+
+
+def test_bundled_taxsimtest_still_produces_expected_values():
+    rows, checks = [], []
+    for rec in TAXSIM_RECORDS:
+        taxsimid, state, year, filer, nonprop, agi, fiitax, siitax = rec
+        rows.append(_input_row(taxsimid, state, year, filer, nonprop))
+        checks.append((taxsimid, {"v10": agi, "fiitax": fiitax, "siitax": siitax}))
+    for k, ((state, year), levels) in enumerate(DELTA_LEVELS.items()):
+        for j, (nonprop, siitax) in enumerate(zip((0, 10_000, -5_000), levels)):
+            taxsimid = 5000 + 10 * k + j
+            rows.append(_input_row(taxsimid, state, year, MFJ, nonprop))
+            checks.append((taxsimid, {"siitax": siitax}))
+    for j, (nonprop, eitc) in enumerate(zip((0, 4000, -2000), EITC_TAXSIM)):
+        taxsimid = 6000 + j
+        rows.append(
+            dict(
+                _input_row(taxsimid, 44, 2023, SINGLE, nonprop),
+                pwages=8000,
+                depx=1,
+                age1=5,
+            )
+        )
+        checks.append((taxsimid, {"v25": eitc}))
+    for i, (_, inputs, expected) in enumerate(EXTRA_CASES):
+        rows.append(_extra_record(7000 + i, inputs))
+        checks.append((7000 + i, expected))
+    output = TaxsimRunner(pd.DataFrame(rows).fillna(0)).run(show_progress=False)
+    output["taxsimid"] = output["taxsimid"].astype(float).astype(int)
+    output = output.set_index("taxsimid")
+    for taxsimid, expected in checks:
+        for column, value in expected.items():
+            assert float(output.loc[taxsimid, column]) == pytest.approx(
+                value, abs=0.01
+            ), f"taxsimid {taxsimid} {column}"
+
+
+# ---------------------------------------------------------------------------
+# Invariants of the computed return, on random federal records without
+# Social Security (whose taxable share would make AGI nonlinear in nonprop):
+#   - AGI moves one-for-one with nonprop;
+#   - federal income tax is nondecreasing in nonprop;
+#   - NIIT never exceeds 3.8% of interest plus dividends (nonprop is outside
+#     the net-investment-income base);
+#   - the runner and the single-household path agree.
+# ---------------------------------------------------------------------------
+
+_NONPROP_STEPS = (-40_000.0, -7500.0, 0.0, 9000.0, 60_000.0)
+
+
+@st.composite
+def _federal_record(draw):
+    mstat = draw(st.sampled_from([1, 2]))
+    depx = draw(st.integers(min_value=0, max_value=2))
+    record = {
+        "year": draw(st.sampled_from([2019, 2021, 2023, 2024, 2025])),
+        "state": 0,
+        "mstat": mstat,
+        "page": draw(st.integers(min_value=20, max_value=80)),
+        "sage": draw(st.integers(min_value=20, max_value=80)) if mstat == 2 else 0,
+        "depx": depx,
+        "pwages": float(draw(st.integers(min_value=0, max_value=400_000))),
+        "swages": (
+            float(draw(st.integers(min_value=0, max_value=150_000)))
+            if mstat == 2
+            else 0.0
+        ),
+        "intrec": float(draw(st.sampled_from([0, 0, 3000, 250_000]))),
+        "dividends": float(draw(st.sampled_from([0, 0, 5000]))),
+    }
+    for d in range(1, depx + 1):
+        record[f"age{d}"] = draw(st.integers(min_value=1, max_value=16))
+    return record
+
+
+FIXED_RECORDS = [
+    {
+        "year": 2023,
+        "state": 0,
+        "mstat": 2,
+        "page": 45,
+        "sage": 43,
+        "depx": 2,
+        "age1": 4,
+        "age2": 9,
+        "pwages": 31_000.0,
+        "swages": 0.0,
+        "intrec": 3000.0,
+        "dividends": 0.0,
+    },
+    {
+        "year": 2025,
+        "state": 0,
+        "mstat": 1,
+        "page": 67,
+        "sage": 0,
+        "depx": 0,
+        "pwages": 180_000.0,
+        "swages": 0.0,
+        "intrec": 250_000.0,
+        "dividends": 5000.0,
+    },
+]
+
+
+@settings(
+    max_examples=3,
+    deadline=None,
+    derandomize=True,
+    database=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large],
+)
+@given(records=st.lists(_federal_record(), min_size=2, max_size=4))
+@example(records=FIXED_RECORDS)
+def test_property_return_invariants(records):
+    rows = []
+    for r, record in enumerate(records):
+        for s, step in enumerate(_NONPROP_STEPS):
+            rows.append(
+                {**record, "taxsimid": 100 * (r + 1) + s, "nonprop": step, "idtl": 2}
+            )
+    df = pd.DataFrame(rows).fillna(0)
+    out = PolicyEngineRunner(df, logs=False).run(show_progress=False)
+    out["taxsimid"] = out["taxsimid"].astype(float).astype(int)
+    out = out.set_index("taxsimid")
+    inputs = df.set_index("taxsimid")
+    for r, record in enumerate(records):
+        ids = [100 * (r + 1) + s for s in range(len(_NONPROP_STEPS))]
+        base = ids[_NONPROP_STEPS.index(0.0)]
+        agi = out.loc[ids, "v10"].astype(float).to_numpy()
+        np.testing.assert_allclose(
+            agi - float(out.loc[base, "v10"]),
+            np.array(_NONPROP_STEPS),
+            atol=0.01,
+            err_msg=f"AGI not one-for-one in nonprop: {record}",
+        )
+        tax = out.loc[ids, "fiitax"].astype(float).to_numpy()
+        assert (np.diff(tax) >= -0.01).all(), (
+            f"fiitax fell as nonprop rose: {tax.tolist()} for {record}"
+        )
+        cap = 0.038 * (record["intrec"] + record["dividends"]) + 0.01
+        assert (out.loc[ids, "niit"].astype(float) <= cap).all(), record
+        tid = ids[-1]
+        record_in = dict(inputs.loc[tid], taxsimid=tid)
+        single = export_household(
+            dict(record_in), generate_household(dict(record_in)), False, False
+        )
+        for column in ("v10", "fiitax"):
+            assert float(single[column]) == pytest.approx(
+                float(out.loc[tid, column]), abs=1.0
+            ), (column, record)
