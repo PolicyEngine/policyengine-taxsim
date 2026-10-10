@@ -96,6 +96,37 @@ jobs:
       - name: Run dashboard tests
         run: bun run test
 
+  r-package:
+    if: github.event.head_commit.message != 'Update package version'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      PIP_NO_CACHE_DIR: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      # The environment setup_policyengine() creates, with this checkout's
+      # policyengine-taxsim, where reticulate looks for it.
+      - name: Create the policyengine-taxsim virtual environment
+        run: |
+          python -m venv ~/.virtualenvs/policyengine-taxsim
+          ~/.virtualenvs/policyengine-taxsim/bin/pip install -e .
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: r-package/policyenginetaxsim
+      - name: Run R package tests
+        working-directory: r-package/policyenginetaxsim
+        env:
+          POLICYENGINETAXSIM_REQUIRE_PYTHON: 'true'
+        run: Rscript -e 'testthat::test_local(".", stop_on_failure = TRUE)'
+
   check-changelog:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -135,6 +166,62 @@ jobs:
                 ;;
             esac
           done
+
+  # setup_policyengine() itself, which the r-package job above does not run:
+  # the default installation from PyPI, and installations from a folder of
+  # wheels in a network namespace with no network. Each test creates its own
+  # virtual environment and runs in its own R process.
+  r-package-install:
+    if: github.event.head_commit.message != 'Update package version'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      RUN_INSTALL_TEST: 'testthat::test_local(".", filter = "install", stop_on_failure = TRUE)'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        id: python
+        with:
+          python-version: '3.11'
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: r-package/policyenginetaxsim
+      - name: First use installs the default release from PyPI
+        working-directory: r-package/policyenginetaxsim
+        env:
+          POLICYENGINETAXSIM_TEST_INSTALL: pypi
+          # The Python reticulate builds the environment from.
+          RETICULATE_VIRTUALENV_STARTER: ${{ steps.python.outputs.python-path }}
+          RETICULATE_VIRTUALENV_ROOT: ${{ runner.temp }}/virtualenvs-pypi
+          WORKON_HOME: ${{ runner.temp }}/virtualenvs-pypi
+        run: Rscript -e "$RUN_INSTALL_TEST"
+      # The command the R package's README gives for building the folder.
+      - name: Download wheels
+        run: |
+          python -m pip download --only-binary=:all: --dest "$RUNNER_TEMP/wheels" policyengine-taxsim
+      - name: Install from the wheels with no network access
+        working-directory: r-package/policyenginetaxsim
+        env:
+          POLICYENGINETAXSIM_TEST_INSTALL: offline
+          POLICYENGINETAXSIM_TEST_WHEEL_DIR: ${{ runner.temp }}/wheels
+          POLICYENGINETAXSIM_TEST_PYTHON: ${{ steps.python.outputs.python-path }}
+          RETICULATE_VIRTUALENV_ROOT: ${{ runner.temp }}/virtualenvs-offline
+          WORKON_HOME: ${{ runner.temp }}/virtualenvs-offline
+        run: sh "$GITHUB_WORKSPACE/.github/without-network.sh" Rscript -e "$RUN_INSTALL_TEST"
+      - name: Install pinned versions from the wheels with no network access
+        working-directory: r-package/policyenginetaxsim
+        env:
+          POLICYENGINETAXSIM_TEST_INSTALL: offline-pinned
+          POLICYENGINETAXSIM_TEST_WHEEL_DIR: ${{ runner.temp }}/wheels
+          POLICYENGINETAXSIM_TEST_PYTHON: ${{ steps.python.outputs.python-path }}
+          RETICULATE_VIRTUALENV_ROOT: ${{ runner.temp }}/virtualenvs-offline-pinned
+          WORKON_HOME: ${{ runner.temp }}/virtualenvs-offline-pinned
+        run: sh "$GITHUB_WORKSPACE/.github/without-network.sh" Rscript -e "$RUN_INSTALL_TEST"
 
   versioning:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

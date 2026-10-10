@@ -46,3 +46,8 @@ To check the package:
 ```r
 devtools::check("r-package/policyenginetaxsim")
 ```
+
+Tests that run `setup_policyengine()` for real (`tests/testthat/test-install.R`)
+create virtual environments and install Python packages, so they run only when
+`POLICYENGINETAXSIM_TEST_INSTALL` is set; the top of that file says how. CI runs
+them in the `r-package-install` job.
