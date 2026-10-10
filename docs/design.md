@@ -241,6 +241,7 @@ Calculations:
 - **Maryland.** `siitax` excludes county income tax, as TAXSIM-35's does.
 - **New York.** `siitax` excludes the payments made outside Form IT-201.
 - **Itemized deductions.** `mortgage` and `otheritem` are treated alike; in some states and years TAXSIM-35 leaves `otheritem` out of the state itemized deduction. See the README.
+- **Active business income (`pbusinc`, `sbusinc`).** The emulator treats it like `psemp`: subject to self-employment tax and eligible for the QBI deduction, as NBER's input documentation describes. The bundled TAXSIM-35 build (cd2026081819) applies no self-employment tax to it. For a single filer with $100,000 of `pbusinc` in 2023, the emulator reports `fiitax` 9,226.50 and `fica` 14,129.55; the build reports 10,469.90 and 0 (checked 2026-10-09). `tests/test_passthrough_qbid.py` pins the emulator's treatment, which its docstring traces to a June 2026 comparison by TAXSIM's author.
 - **S corporation income and the net investment income tax.** Passive by default with policyengine-us 2.10.1 or later; see `--scorp-treatment` in the README.
 - **Married filing separately.** `tests/test_married_filing_separately.py` documents the separate-return cases where the bundled TAXSIM-35 build and the emulator differ and the emulator deliberately does not copy TAXSIM-35.
 - **Marginal rates.** A $100 wage change instead of one cent; see above.

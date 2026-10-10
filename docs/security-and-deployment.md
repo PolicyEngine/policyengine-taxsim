@@ -170,8 +170,8 @@ Every package an installation pulls in, resolved for Linux x86-64, with the pack
 | certifi | 2026.7.22 | 2026.7.22 | 2026.7.22 | 2026.7.22 | 2026.7.22 | httpcore, httpx, requests | MPL-2.0 |
 | charset-normalizer | 3.5.2 | 3.5.2 | 3.5.2 | 3.5.2 | 3.5.2 | requests | MIT |
 | click | 8.5.0 | 8.5.0 | 8.5.0 | 8.5.0 | 8.5.0 | huggingface-hub, policyengine-taxsim | BSD-3-Clause |
-| contourpy | 1.3.2 | 1.3.3 | 1.4.0 | 1.4.0 | 1.4.0 | matplotlib | BSD-style (full text in metadata) |
-| cycler | 0.12.1 | 0.12.1 | 0.12.1 | 0.12.1 | 0.12.1 | matplotlib | BSD-style (full text in metadata) |
+| contourpy | 1.3.2 | 1.3.3 | 1.4.0 | 1.4.0 | 1.4.0 | matplotlib | BSD License |
+| cycler | 0.12.1 | 0.12.1 | 0.12.1 | 0.12.1 | 0.12.1 | matplotlib | BSD License |
 | decorator | 5.3.1 | 5.3.1 | 5.3.1 | 5.3.1 | 5.3.1 | ipython | BSD-2-Clause |
 | dpath | 2.2.0 | 2.2.0 | 2.2.0 | 2.2.0 | 2.2.0 | policyengine-core | MIT |
 | et-xmlfile | 2.0.0 | 2.0.0 | 2.0.0 | 2.0.0 | 2.0.0 | openpyxl | MIT |
@@ -190,7 +190,7 @@ Every package an installation pulls in, resolved for Linux x86-64, with the pack
 | httpx | - | 0.28.1 | 0.28.1 | 0.28.1 | 0.28.1 | blosc2 | BSD-3-Clause |
 | httpx2 | 2.13.1 | 2.13.1 | 2.13.1 | 2.13.1 | 2.13.1 | huggingface-hub | BSD-3-Clause |
 | huggingface-hub | 2.2.0 | 2.2.0 | 2.2.0 | 2.2.0 | 2.2.0 | policyengine-core | Apache-2.0 |
-| hyperframe | - | 6.1.0 | 6.1.0 | 6.1.0 | 6.1.0 | h2 | MIT-style (full text in metadata) |
+| hyperframe | - | 6.1.0 | 6.1.0 | 6.1.0 | 6.1.0 | h2 | MIT License |
 | idna | 3.20 | 3.20 | 3.20 | 3.20 | 3.20 | anyio, httpx, httpx2, requests | BSD-3-Clause |
 | iniconfig | 2.3.1 | 2.3.1 | 2.3.1 | 2.3.1 | 2.3.1 | pytest | MIT |
 | ipython | 8.39.0 | 8.39.0 | 8.39.0 | 8.39.0 | 8.39.0 | policyengine-core, pyvis | BSD-3-Clause |
@@ -198,10 +198,10 @@ Every package an installation pulls in, resolved for Linux x86-64, with the pack
 | jellyfish | 1.2.1 | 1.2.1 | 1.2.1 | 1.2.1 | 1.2.1 | us | MIT License |
 | jinja2 | 3.1.6 | 3.1.6 | 3.1.6 | 3.1.6 | 3.1.6 | pyvis | BSD License |
 | jsonpickle | 4.1.3 | 4.1.3 | 4.1.3 | 4.1.3 | 4.1.3 | pyvis | BSD-3-Clause |
-| kiwisolver | 1.5.1 | 1.5.1 | 1.5.1 | 1.5.1 | 1.5.1 | matplotlib | BSD-style (full text in metadata) |
+| kiwisolver | 1.5.1 | 1.5.1 | 1.5.1 | 1.5.1 | 1.5.1 | matplotlib | BSD License |
 | markdown-it-py | - | 4.2.0 | 4.2.0 | 4.2.0 | 4.2.0 | rich | MIT License |
 | markupsafe | 3.0.4 | 3.0.4 | 3.0.4 | 3.0.4 | 3.0.4 | jinja2 | BSD-3-Clause |
-| matplotlib | 3.10.9 | 3.11.2 | 3.11.2 | 3.11.2 | 3.11.2 | policyengine-taxsim | MIT-style (full text in metadata) |
+| matplotlib | 3.10.9 | 3.11.2 | 3.11.2 | 3.11.2 | 3.11.2 | policyengine-taxsim | Python Software Foundation License |
 | matplotlib-inline | 0.2.2 | 0.2.2 | 0.2.2 | 0.2.2 | 0.2.2 | ipython | BSD-3-Clause |
 | mdurl | - | 0.1.2 | 0.1.2 | 0.1.2 | 0.1.2 | markdown-it-py | MIT License |
 | microdf-python | 1.5.11 | 1.5.11 | 1.5.11 | 1.5.11 | 1.5.11 | policyengine-core, policyengine-us | MIT |
@@ -209,10 +209,10 @@ Every package an installation pulls in, resolved for Linux x86-64, with the pack
 | ndindex | 1.10.1 | 1.10.1 | 1.10.1 | 1.10.1 | 1.10.1 | blosc2 | MIT |
 | networkx | 3.4.2 | 3.6.1 | 3.7 | 3.7 | 3.7 | pyvis | BSD License |
 | numexpr | 2.14.1 | 2.14.2 | 2.14.2 | 2.14.2 | 2.14.2 | blosc2, policyengine-core, tables | MIT |
-| numpy | 2.2.6 | 2.4.6 | 2.5.3 | 2.5.3 | 2.5.3 | blosc2, contourpy, h5py, matplotlib, microdf-python, numexpr, pandas, policyengine-core, policyengine-taxsim, spm-calculator, tables | BSD-style (full text in metadata) |
+| numpy | 2.2.6 | 2.4.6 | 2.5.3 | 2.5.3 | 2.5.3 | blosc2, contourpy, h5py, matplotlib, microdf-python, numexpr, pandas, policyengine-core, policyengine-taxsim, spm-calculator, tables | BSD License |
 | openpyxl | 3.1.5 | 3.1.5 | 3.1.5 | 3.1.5 | 3.1.5 | spm-calculator | MIT |
 | packaging | 26.3 | 26.3 | 26.3 | 26.3 | 26.3 | huggingface-hub, matplotlib, plotly, pytest, tables, wheel | Apache-2.0 OR BSD-2-Clause |
-| pandas | 2.3.3 | 3.0.6 | 3.0.6 | 3.0.6 | 3.0.6 | microdf-python, policyengine-core, policyengine-taxsim, policyengine-us, spm-calculator | BSD-style (full text in metadata) |
+| pandas | 2.3.3 | 3.0.6 | 3.0.6 | 3.0.6 | 3.0.6 | microdf-python, policyengine-core, policyengine-taxsim, policyengine-us, spm-calculator | BSD License |
 | parso | 0.8.7 | 0.8.7 | 0.8.7 | 0.8.7 | 0.8.7 | jedi | MIT |
 | pexpect | 4.9.0 | 4.9.0 | 4.9.0 | 4.9.0 | 4.9.0 | ipython | ISC license |
 | pillow | 12.3.0 | 12.3.0 | 12.3.0 | 12.3.0 | 12.3.0 | matplotlib | MIT-CMU |
@@ -246,7 +246,7 @@ Every package an installation pulls in, resolved for Linux x86-64, with the pack
 | threadpoolctl | 3.7.0 | 3.7.0 | 3.7.0 | 3.7.0 | 3.7.0 | blosc2 | BSD-3-Clause |
 | tomli | 2.5.0 | - | - | - | - | huggingface-hub, pytest | MIT |
 | tqdm | 4.70.1 | 4.70.1 | 4.70.1 | 4.70.1 | 4.70.1 | huggingface-hub, policyengine-taxsim, policyengine-us | MPL-2.0 AND MIT |
-| traitlets | 5.16.1 | 5.16.1 | 5.16.1 | 5.16.1 | 5.16.1 | ipython, matplotlib-inline | BSD-style (full text in metadata) |
+| traitlets | 5.16.1 | 5.16.1 | 5.16.1 | 5.16.1 | 5.16.1 | ipython, matplotlib-inline | BSD License |
 | truststore | 0.10.4 | 0.10.4 | 0.10.4 | 0.10.4 | 0.10.4 | httpcore2, httpx2 | MIT |
 | typing-extensions | 4.16.0 | 4.16.0 | 4.16.0 | 4.16.0 | 4.16.0 | anyio, exceptiongroup, httpx2, huggingface-hub, ipython, pydantic, pydantic-core, tables, typing-inspection | PSF-2.0 |
 | typing-inspection | 0.4.4 | 0.4.4 | 0.4.4 | 0.4.4 | 0.4.4 | pydantic | MIT |
@@ -277,7 +277,7 @@ The snapshot fixes one reviewed set of versions. Each `docs/dependencies/require
 python scripts/generate_docs_reference.py --refresh-dependencies 2026-10-09T19:00:00Z
 ```
 
-The committed snapshot was resolved with uv 0.12.13 (Homebrew 2026-09-10 aarch64-apple-darwin) for `x86_64-manylinux_2_28` and packages published before 2026-10-09T19:00:00Z.
+The committed snapshot was resolved with uv 0.11.7 (9d177269e 2026-04-15 aarch64-apple-darwin) for `x86_64-manylinux_2_28` and packages published before 2026-10-09T19:00:00Z.
 <!-- END GENERATED: snapshot-command -->
 
 The resolution is reproducible: re-running the command with the same timestamp gives the same versions, as long as PyPI still has them. For a platform other than Linux, run the `uv pip compile` command at the top of a snapshot file with a different `--python-platform` (for example `x86_64-pc-windows-msvc`).

@@ -325,8 +325,8 @@ def blank_handling(column: str, used: bool) -> tuple[str, str]:
             record[column] = math.nan
         try:
             results.append(_effective_value(column, read_inputs(record)))
-        except ProbeError as error:
-            results.append(f"Error: {error}")
+        except ProbeError:
+            results.append("The run stops with an error")
     blank, absent = results
     if column != "year":
         zero = _effective_value(column, read_inputs({**_base_for(column), column: 0}))
@@ -482,7 +482,7 @@ def _structural_target(column: str) -> str | None:
     return None
 
 
-MSTAT_PROBES = (1, 2, 6, 8, 3)
+MSTAT_PROBES = tuple(range(1, 10))
 
 
 def _mstat_structure(code: int) -> tuple:
@@ -496,23 +496,27 @@ def _mstat_structure(code: int) -> tuple:
 
 
 def mstat_handling() -> str:
-    """How each filing-status code shapes the tax unit, read from probes."""
+    """How each filing-status code from 1 to 9 shapes the tax unit, read from
+    probes."""
     groups = defaultdict(list)
     for code in MSTAT_PROBES:
         groups[_mstat_structure(code)].append(code)
     sentences = []
-    for (spouse, separated, cohabiting), codes in groups.items():
-        label = _codes(codes)
+    for (spouse, separated, cohabiting), codes in sorted(
+        groups.items(), key=lambda item: len(item[1])
+    ):
         if spouse:
-            sentences.append(f"{label} adds a spouse to the tax unit")
+            sentences.append(f"{_codes(codes)}: a spouse is added to the tax unit")
         elif separated and cohabiting:
             sentences.append(
-                f"{label} builds a one-adult unit with `is_separated` and "
+                f"{_codes(codes)}: one adult, with `is_separated` and "
                 "`cohabitating_spouses` set"
             )
+        elif not separated and not cohabiting:
+            sentences.append(f"{_codes(codes)}: one adult, treated as unmarried")
         else:
-            sentences.append(f"{label} builds a one-adult unit")
-    return "; ".join(sentences) + ". Tested codes: " + _codes(MSTAT_PROBES)
+            raise ValueError(f"mstat {codes}: unrecognized structure")
+    return ". ".join(sentences)
 
 
 def _codes(codes) -> str:
@@ -1122,6 +1126,9 @@ def _pypi_json(name: str, version: str | None = None) -> dict:
 
 
 def _pypi_license(name: str, version: str) -> str:
+    """The license a package declares on PyPI: its SPDX expression, else a
+    short license field, else its license classifiers, else the family its
+    license text belongs to."""
     info = _pypi_json(name, version)["info"]
     expression = info.get("license_expression")
     if expression:
@@ -1129,25 +1136,21 @@ def _pypi_license(name: str, version: str) -> str:
     text = (info.get("license") or "").strip()
     if text and len(text) <= 60 and "\n" not in text:
         return text
-    for phrase, name in (
-        (
-            "Redistribution and use in source and binary forms",
-            "BSD-style (full text in metadata)",
-        ),
-        (
-            "Permission is hereby granted, free of charge",
-            "MIT-style (full text in metadata)",
-        ),
-        ("Apache License", "Apache (full text in metadata)"),
-    ):
-        if phrase in text:
-            return name
     classifiers = [
         c.split(" :: ")[-1]
         for c in info.get("classifiers") or []
         if c.startswith("License ::") and c != "License :: OSI Approved"
     ]
-    return ", ".join(classifiers) or "See the package's metadata"
+    if classifiers:
+        return ", ".join(classifiers)
+    for phrase, family in (
+        ("Redistribution and use in source and binary forms", "BSD-style"),
+        ("Permission is hereby granted, free of charge", "MIT-style"),
+        ("Apache License", "Apache"),
+    ):
+        if phrase in text:
+            return f"{family} (full text in metadata)"
+    return "See the package's metadata"
 
 
 # ---------------------------------------------------------------------------

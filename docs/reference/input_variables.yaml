@@ -109,7 +109,7 @@ swages:
   valid: Any amount. TAXSIM-35 requires zero on non-joint returns.
 psemp:
   group: Wages and self-employment
-  meaning: Self-employment income of the primary taxpayer that is not qualified business income, before self-employment tax.
+  meaning: Self-employment income of the primary taxpayer, before self-employment tax. NBER's page describes it as not eligible for the qualified business income deduction, but the emulator and the bundled TAXSIM-35 build both apply the deduction to it.
   type: Dollars per year
   valid: Any amount.
 ssemp:
@@ -119,7 +119,7 @@ ssemp:
   valid: Any amount.
 pbusinc:
   group: Business income (QBI)
-  meaning: Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out.
+  meaning: Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out. The emulator also applies self-employment tax to it; the bundled TAXSIM-35 build does not (see the design document's known differences).
   type: Dollars per year
   valid: Any amount.
 sbusinc:
