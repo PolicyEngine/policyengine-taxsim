@@ -266,8 +266,6 @@ Packages that differ from Linux on other platforms:
 
 Most of these come from policyengine-core and policyengine-us rather than from the emulator. Some exist for tasks a tax calculation never performs: pytest and IPython (developer tools), plotly, matplotlib and pyvis (charts), huggingface-hub (dataset downloads), census, openpyxl and us (spm-calculator's survey tools). They are installed because their parent packages declare them, not because a run uses them.
 
-The repository's `uv.lock` is not used by CI and is out of date (it pins policyengine-us 1.550.2, below the minimum in `pyproject.toml` and no longer on PyPI). Use the snapshot here instead.
-
 ### The snapshot
 
 The snapshot fixes one reviewed set of versions. Each `docs/dependencies/requirements-py3.X.txt` lists every package with its version and SHA-256 hashes, and `snapshot.json` records the platform differences and licenses. To regenerate it for a later date:

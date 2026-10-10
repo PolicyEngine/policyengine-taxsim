@@ -216,7 +216,7 @@ A new policyengine-us release can change results for any year, including past ye
        print(package, version(package))
    ```
    In R, `policyengine_versions()` prints the same. For pre-2021 records, the progress message names the TAXSIM-35 build. [#1412](https://github.com/PolicyEngine/policyengine-taxsim/pull/1412) proposes a `--version` flag and a provenance file written with each run.
-3. **Keep a copy of the packages.** PyPI does not keep every release. On 2026-10-09 the oldest policyengine-us release still on PyPI was 1.691.1, uploaded 2026-05-12, and the oldest policyengine-taxsim release was 2.10.0, uploaded 2026-02-26. Earlier releases can no longer be installed by version number, and policyengine-us has no git tags for most releases either. Download the exact files you run (`pip download`) and keep them with your results; the [security notes](security-and-deployment.md#installing-without-internet-access) show how.
+3. **Keep a copy of the packages.** PyPI's index does not keep every release. On 2026-10-09 the oldest policyengine-us release listed there was 1.691.1, uploaded 2026-05-12, and the oldest policyengine-taxsim release was 2.10.0, uploaded 2026-02-26. Earlier releases can no longer be installed by version number, and policyengine-us has no git tags for most releases either. Download the exact files you run (`pip download`) and keep them with your results; the [security notes](security-and-deployment.md#installing-without-internet-access) show how.
 
 **TAXSIM-35 build.** The executables ship inside the policyengine-taxsim package, so pinning policyengine-taxsim pins them too.
 
