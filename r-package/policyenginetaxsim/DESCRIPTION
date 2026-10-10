@@ -18,6 +18,7 @@ Imports:
     tibble
 Suggests:
     testthat (>= 3.1.7),
+    jsonlite,
     withr,
     knitr,
     rmarkdown

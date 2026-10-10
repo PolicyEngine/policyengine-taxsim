@@ -54,8 +54,8 @@
 #'
 #' Before version 0.2.0 this function computed every year with PolicyEngine.
 #' Results for records before 2021 therefore change: they now come from
-#' TAXSIM-35. PolicyEngine's results are compared with TAXSIM-35 from 2021 on
-#' only. To keep computing every year with PolicyEngine, pass
+#' TAXSIM-35. This project compares PolicyEngine with TAXSIM-35 only for 2021
+#' and later. To keep computing every year with PolicyEngine, pass
 #' `engine = "policyengine"`.
 #'
 #' The function sets the TAXSIM `idtl` option itself, from
