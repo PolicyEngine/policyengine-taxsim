@@ -1,34 +1,48 @@
 """
 The emulator applies self-employment tax to active business income
-(`pbusinc`, `sbusinc`), as NBER's input documentation describes. The
-bundled taxsimtest builds do not.
+(`pbusinc`, `sbusinc`). The bundled taxsimtest builds do not.
 
-Basis for the emulator's treatment:
-- NBER's taxsimtest input page (https://taxsim.nber.org/taxsimtest/,
-  "Date last modified: 28 February 2026", retrieved 2026-10-09), item 26,
-  under "The following are for the TCJA Business Tax Deduction":
-  "pbusinc and sbusinc Primary and secondary Taxpayer's active income
-  eligible for the QBI deduction without phaseout and assuming
-  sufficient wages paid or capital to be eligible for the full
-  deduction. Subject to NIIT, SECA and Medicare additional Earnings
-  Tax."
-- The emulator adds `pbusinc` to `psemp` and `sbusinc` to `ssemp` in
-  PolicyEngine's `self_employment_income` (variable_mappings.yaml,
-  taxsim #1051), so it bears self-employment tax and the Additional
-  Medicare Tax. It bears no net investment income tax. The three taxes
-  NBER's sentence lists cannot all fall on the same income: 26 U.S.C.
-  1411(c)(6), under "Net investment income", says "Net investment
-  income shall not include any item taken into account in determining
-  self-employment income for such taxable year on which a tax is
-  imposed by section 1401(b)."
-- The macOS builds bundled earlier (cdate-2025Jul5, cdate-2025Aug23,
-  cdate-20260521) gave `pbusinc` the same 2023 row as `psemp` below.
+NBER's taxsimtest input page (https://taxsim.nber.org/taxsimtest/,
+retrieved 2026-10-10):
+- Item 26, under "The following are for the TCJA Business Tax
+  Deduction" (footer "Date last modified: 28 February 2026"): "pbusinc
+  and sbusinc Primary and secondary Taxpayer's active income eligible
+  for the QBI deduction without phaseout and assuming sufficient wages
+  paid or capital to be eligible for the full deduction. Subject to
+  NIIT, SECA and Medicare additional Earnings Tax." Internet Archive
+  captures of the page from 2025-08-21 and 2026-04-17 end item 26 with
+  "Subject to SECA and Medicare additional Earnings Tax."
+- "Random Notes" (footer "Date last modified: August 23, 2024"): "The
+  values you supply for psemp and ssemp should be pre-FICA while the
+  vaues you supply for the other QBI eligible amounts should be
+  post-FICA, consistent with the information returns supplied to
+  taxpayers." Both captures have this note too, from when the bundled
+  builds applied self-employment tax to `pbusinc`, and it also covers
+  `pprofinc`, which every bundled build taxes.
+
+The emulator follows item 26's self-employment tax. It adds `pbusinc` to
+`psemp` and `sbusinc` to `ssemp` in PolicyEngine's
+`self_employment_income` (variable_mappings.yaml, taxsim #1051), so the
+income bears self-employment tax and the Additional Medicare Tax, and a
+`pbusinc` loss offsets `psemp`. It bears no net investment income tax:
+26 U.S.C. 1411(c)(1)(A)(ii) counts "other gross income derived from a
+trade or business described in paragraph (2)", paragraph (2) describes
+"(A) a passive activity (within the meaning of section 469) with
+respect to the taxpayer, or (B) a trade or business of trading in
+financial instruments or commodities", and 1411(c)(6) says "Net
+investment income shall not include any item taken into account in
+determining self-employment income for such taxable year on which a tax
+is imposed by section 1401(b)."
 
 Bundled-binary difference: the bundled builds (cd2026081819 for macOS
-and Linux) apply no self-employment tax and no Additional Medicare Tax
-to `pbusinc` and `sbusinc`, and apply the net investment income tax
-instead. On the records below the `pbusinc` row equals the `scorp` row.
-taxsimtest cd2026081819, single, age 40, idtl=2:
+and Linux, cd2026081318 for Windows) apply no self-employment tax and no
+Additional Medicare Tax to `pbusinc` and `sbusinc`, and apply the net
+investment income tax instead. On the records below the `pbusinc` row
+equals the `scorp` row, and the emulator gives the same figures for
+`scorp` treated as passive. The macOS builds bundled earlier
+(cdate-2025Jul5, cdate-2025Aug23, cdate-20260521) gave `pbusinc` the
+`psemp` figures in these columns. taxsimtest cd2026081819, single, age
+40, idtl=2:
 
     year state input    amount  fiitax    fica      v10        qbid      niit     addmed
     2023 CA    psemp    100000   9226.50  14129.55   92935.23  15817.05     0.00    0.00
@@ -36,13 +50,16 @@ taxsimtest cd2026081819, single, age 40, idtl=2:
     2024 none  psemp    300000  47044.47  29634.30  285529.58  54185.92     0.00  693.45
     2024 none  pbusinc  300000  54548.90      0.00  300000.00  57080.00  3800.00    0.00
 
-Open question: taxsim #1254 asks TAXSIM's author whether taxsimtest
-should skip SECA on `pbusinc`. He replied (2026-09-29) that with SECA on
-it "there is no passthru that is free of SECA", and asked to settle "the
-treatment of all relevant 7 variables" together. Until that is settled,
-the emulator keeps the documented treatment. The `test_taxsimtest_*`
-tests pin the binary's own behavior, so a refreshed build that changes
-it gets noticed.
+Open question: taxsim #1254 reports this to TAXSIM's author. He replied
+(2026-09-29): "If businc is subject to FICA, and scorp is subject to EIC
+(and therefore subject to SECA) and semp is subject to SECA (as it has
+been since the start of Taxsim) then there is no passthru that is free
+of SECA, which then means that there is no place in taxsim to put pure
+profits, such as real estate, manufacturing, etc." He asked to discuss
+"the treatment of all relevant 7 variables" together. Until that is
+settled, the emulator keeps item 26's self-employment tax. The
+`test_taxsimtest_*` tests pin the bundled builds, so a refreshed build
+that changes this gets noticed.
 """
 
 import importlib.util
@@ -81,11 +98,11 @@ TAXSIMTEST = {
     },
 }
 OUTPUTS = ["fiitax", "fica", "v10", "qbid", "niit", "addmed"]
-SOURCES = ["psemp", "pbusinc", "scorp"]
+SOURCES = ["psemp", "pbusinc", "pprofinc", "scorp"]
 
 REVISIT = (
     "The bundled taxsimtest build treats pbusinc differently from "
-    "cd2026081819. Check taxsim #1254 and NBER's input page, then revisit "
+    "cd2026081819 and cd2026081318. Check taxsim #1254 and NBER's input page, then revisit "
     "the 'Active business income' bullet in docs/design.md, the pbusinc "
     "entry in docs/reference/input_variables.yaml (and run "
     "scripts/generate_docs_reference.py), and the notes in this module."
@@ -105,6 +122,7 @@ def _record(taxsimid, year, state, **amounts):
         "ssemp": 0.0,
         "pbusinc": 0.0,
         "sbusinc": 0.0,
+        "pprofinc": 0.0,
         "scorp": 0.0,
         "idtl": 2,
         **amounts,
@@ -129,9 +147,12 @@ def _row(results, case, source):
 
 @pytest.fixture(scope="module")
 def emulator():
-    # taxsimtest has no wage limit on the QBI deduction, so the comparison
-    # assumes enough W-2 wages (taxsim #1404).
-    runner = PolicyEngineRunner(_single_source_frame(), assume_w2_wages=True)
+    # Item 26 has taxsimtest assume enough wages for the full QBI deduction,
+    # so the comparison does too (taxsim #1404). scorp is set to passive,
+    # the default from policyengine-us 2.10.1, so Python 3.10 runs match.
+    runner = PolicyEngineRunner(
+        _single_source_frame(), assume_w2_wages=True, scorp_treatment="passive"
+    )
     return runner.run(show_progress=False).set_index("taxsimid")
 
 
@@ -151,7 +172,8 @@ def test_emulator_taxes_pbusinc_as_taxsimtest_taxes_psemp(emulator, case):
     and, above the threshold, the Additional Medicare Tax."""
     row = _row(emulator, case, "pbusinc")
     for name, expected in zip(OUTPUTS, TAXSIMTEST[case]["psemp"]):
-        assert row[name] == pytest.approx(expected, abs=1.0), (case, name)
+        # The emulator's outputs are float32, a few cents coarse at $300,000.
+        assert row[name] == pytest.approx(expected, abs=0.05), (case, name)
 
 
 @pytest.mark.parametrize("case", list(TAXSIMTEST))
@@ -162,15 +184,30 @@ def test_emulator_gives_pbusinc_and_psemp_the_same_result(emulator, case):
 
 
 @pytest.mark.parametrize("case", list(TAXSIMTEST))
-def test_taxsimtest_applies_self_employment_tax_to_psemp(taxsimtest, case):
-    """The reference the emulator's `pbusinc` treatment is checked against.
-    Only the taxes are pinned: the bundled Windows build is older than the
-    macOS and Linux builds and differs from them in other amounts."""
-    row = _row(taxsimtest, case, "psemp")
-    _, fica, *_ = TAXSIMTEST[case]["psemp"]
+def test_emulator_gives_scorp_the_bundled_builds_pbusinc_result(
+    emulator, taxsimtest, case
+):
+    """For these records, entering the amount as `scorp` gives the bundled
+    builds' `pbusinc` figures, as docs/design.md says."""
+    scorp = _row(emulator, case, "scorp")
+    pbusinc = _row(taxsimtest, case, "pbusinc")
+    for name in OUTPUTS + ["siitax", "tfica"]:
+        assert scorp[name] == pytest.approx(pbusinc[name], abs=0.05), (case, name)
+
+
+@pytest.mark.parametrize("source", ["psemp", "pprofinc"])
+@pytest.mark.parametrize("case", list(TAXSIMTEST))
+def test_taxsimtest_applies_self_employment_tax_to_psemp_and_pprofinc(
+    taxsimtest, case, source
+):
+    """The reference the emulator's `pbusinc` treatment is checked against,
+    and the other self-employment input the bundled builds still tax."""
+    row = _row(taxsimtest, case, source)
+    _, fica, _, _, niit, addmed = TAXSIMTEST[case]["psemp"]
     assert row["fica"] == pytest.approx(fica, abs=0.01)
+    assert row["addmed"] == pytest.approx(addmed, abs=0.01)
+    assert row["niit"] == niit
     assert row["v10"] < case[2]
-    assert row["niit"] == 0
 
 
 @pytest.mark.parametrize("case", list(TAXSIMTEST))
@@ -200,8 +237,8 @@ GRID_AMOUNTS = [1_000.0, 15_000.0, 50_000.0, 100_000.0, 200_000.0, 300_000.0, 1e
 
 
 def test_taxsimtest_pbusinc_and_sbusinc_bear_no_self_employment_tax_in_any_year():
-    """For every year the emulator computes and from $1,000 to $1 million,
-    on single and joint returns: `psemp` and `ssemp` bear self-employment
+    """For 2021 to 2025 and from $1,000 to $1 million, on single and joint
+    returns: `psemp` and `ssemp` bear self-employment
     tax, `pbusinc` and `sbusinc` bear none and enter AGI in full."""
     records = []
     for year in GRID_YEARS:
@@ -250,16 +287,17 @@ whole_dollars = st.integers(min_value=-2_000_000, max_value=2_000_000)
     sage=st.integers(min_value=18, max_value=95),
     state=st.integers(min_value=1, max_value=51),
     depx=st.integers(min_value=0, max_value=3),
+    year=st.sampled_from(GRID_YEARS),
 )
 def test_pbusinc_is_interchangeable_with_psemp(
-    psemp, pbusinc, ssemp, sbusinc, mstat, page, sage, state, depx
+    psemp, pbusinc, ssemp, sbusinc, mstat, page, sage, state, depx, year
 ):
-    """Invariant: whatever the filing status, ages and state, moving
-    `pbusinc` into `psemp` and `sbusinc` into `ssemp` leaves every
-    PolicyEngine input unchanged. The emulator has no other treatment of
-    active business income."""
+    """Invariant: whatever the year, filing status, ages and state, moving
+    `pbusinc` into `psemp` and `sbusinc` into `ssemp` leaves every input
+    of the dataset the emulator builds unchanged. The emulator has no
+    other treatment of active business income."""
     record = {
-        "year": 2023,
+        "year": year,
         "state": state,
         "mstat": mstat,
         "page": page,
@@ -334,8 +372,8 @@ def test_single_household_path_sums_them_like_the_runner(
 
 def test_design_document_quotes_these_figures():
     """docs/design.md's known-differences entry gives the 2023 figures
-    pinned above and points to the open question."""
-    design = (REPO / "docs" / "design.md").read_text()
+    pinned above, the `scorp` alternative and the open question."""
+    design = (REPO / "docs" / "design.md").read_text(encoding="utf-8")
     entry = next(
         line
         for line in design.splitlines()
@@ -346,4 +384,5 @@ def test_design_document_quotes_these_figures():
     for amount in (emulator_row[0], emulator_row[1], binary_row[0]):
         assert f"{amount:,.2f}" in entry, amount
     assert "issues/1254" in entry
+    assert "entered as `scorp`" in entry
     assert "tests/test_pbusinc_self_employment_tax.py" in entry

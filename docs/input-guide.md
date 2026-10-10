@@ -104,7 +104,7 @@ What each column means. The descriptions come from [`docs/reference/input_variab
 
 | Column | Meaning | Type | Valid values |
 |---|---|---|---|
-| `pbusinc` | Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out. The emulator applies self-employment tax to it, as NBER's page describes; the bundled TAXSIM-35 build applies the net investment income tax instead (see the design document's known differences). Neither applies self-employment tax to `scorp`. | Dollars per year | Any amount. |
+| `pbusinc` | Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out. The emulator adds it to `psemp`, so it bears self-employment tax and a loss offsets `psemp`. The bundled TAXSIM-35 builds apply no self-employment tax to it (see the design document's known differences). | Dollars per year | Any amount. |
 | `sbusinc` | Spouse's active business income; see `pbusinc`. Read only on joint returns. | Dollars per year | Any amount. |
 | `pprofinc` | Primary taxpayer's income from a specified service trade or business (SSTB), eligible for the qualified business income deduction subject to its phase-out. | Dollars per year | Any amount. |
 | `sprofinc` | Spouse's SSTB income; see `pprofinc`. Read only on joint returns. | Dollars per year | Any amount. |
