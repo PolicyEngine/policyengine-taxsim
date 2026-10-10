@@ -1,8 +1,11 @@
 #' Calculate US Income Taxes using PolicyEngine
 #'
-#' Calculates federal and state income taxes for US tax units using the
-#' PolicyEngine microsimulation model. This function provides a TAXSIM-compatible
-#' interface, accepting the same input variables and returning similar output.
+#' Calculates federal and state income taxes for US tax units. This function
+#' provides a TAXSIM-compatible interface, accepting the same input variables
+#' and returning similar output. Like the `policyengine-taxsim` command line,
+#' it computes tax years from 2021 on with the PolicyEngine microsimulation
+#' model and earlier years with the TAXSIM-35 program bundled with the Python
+#' package. See Details.
 #'
 #' @param .data A data frame containing tax unit information. See Details for
 #'   required and optional columns.
@@ -13,9 +16,13 @@
 #'   uses the 'year' column from the data.
 #' @param show_progress Logical. If TRUE (default), shows progress messages
 #'   during calculation.
+#' @param engine Which program computes each record. `"auto"` (default) uses
+#'   PolicyEngine for tax years from 2021 on and TAXSIM-35 for earlier years,
+#'   as the command line does. `"policyengine"` uses PolicyEngine for every
+#'   year, as this function did before version 0.2.0. See Details.
 #'
-#' @return A tibble with tax calculation results. Each row corresponds to a row
-#'   in `.data`, linked by `taxsimid`. Basic output includes:
+#' @return A tibble with tax calculation results, one row for each row of
+#'   `.data`, in the same order and linked by `taxsimid`. Basic output includes:
 #'   \describe{
 #'     \item{taxsimid}{Record identifier from input}
 #'     \item{year}{Tax year}
@@ -29,7 +36,31 @@
 #'   When `return_all_information = TRUE`, additional variables are returned
 #'   including AGI, deductions, credits, and state-specific calculations.
 #'
+#'   Data that mix years before 2021 with later years have the columns of both
+#'   engines; a cell is `NA` where the engine that computed the row does not
+#'   produce that column. TAXSIM-35 also adds a column named for its build,
+#'   such as `cd2026081819`.
+#'
 #' @details
+#'
+#' ## Which engine computes each record
+#'
+#' With `engine = "auto"`, each record goes by its `year` to one of two
+#' engines, as it does on the `policyengine-taxsim` command line: PolicyEngine
+#' US for 2021 and later, and for earlier years the TAXSIM-35 program from
+#' NBER that is bundled with the policyengine-taxsim Python package and runs
+#' on this machine. The progress message reports how many records each engine
+#' computed.
+#'
+#' Before version 0.2.0 this function computed every year with PolicyEngine.
+#' Results for records before 2021 therefore change: they now come from
+#' TAXSIM-35. PolicyEngine's results are compared with TAXSIM-35 from 2021 on
+#' only. To keep computing every year with PolicyEngine, pass
+#' `engine = "policyengine"`.
+#'
+#' The function sets the TAXSIM `idtl` option itself, from
+#' `return_all_information` (0 for basic output, 2 for all information), and
+#' ignores an `idtl` column in `.data`.
 #'
 #' ## Input Data Format
 #'
@@ -77,6 +108,18 @@
 #' results <- policyengine_calculate_taxes(my_data)
 #' print(results)
 #'
+#' # Records before 2021 are computed by TAXSIM-35, later ones by PolicyEngine
+#' panel <- data.frame(
+#'   year = c(2019, 2023),
+#'   state = "CA",
+#'   mstat = 1,
+#'   pwages = 50000
+#' )
+#' results <- policyengine_calculate_taxes(panel)
+#'
+#' # Compute every year with PolicyEngine instead
+#' results <- policyengine_calculate_taxes(panel, engine = "policyengine")
+#'
 #' # Married couple with multiple income sources
 #' couple_data <- data.frame(
 #'   year = 2023,
@@ -100,7 +143,10 @@
 policyengine_calculate_taxes <- function(.data,
                                           return_all_information = FALSE,
                                           year = NULL,
-                                          show_progress = TRUE) {
+                                          show_progress = TRUE,
+                                          engine = c("auto", "policyengine")) {
+
+  engine <- match.arg(engine)
 
   # Auto-setup on first use
   if (!check_policyengine_setup(quiet = TRUE)) {
@@ -138,6 +184,9 @@ policyengine_calculate_taxes <- function(.data,
     stop("Input data must contain a 'year' column.", call. = FALSE)
   }
 
+  # The year decides which engine computes a record, so every record needs one
+  input_df$year <- .tax_years(input_df$year)
+
   # Convert state abbreviations to codes if needed
   input_df <- .convert_state_codes(input_df)
 
@@ -152,11 +201,11 @@ policyengine_calculate_taxes <- function(.data,
   py_df <- reticulate::r_to_py(input_df)
 
   # Create runner and execute
+  runner <- .make_runner(runners, py_df, engine)
   if (show_progress) {
-    message("Running PolicyEngine tax calculations...")
+    message(.engine_message(input_df$year, .pe_min_year(), engine))
   }
 
-  runner <- runners$PolicyEngineRunner(py_df)
   py_results <- runner$run(show_progress = show_progress)
 
   # Convert results back to R
@@ -170,6 +219,123 @@ policyengine_calculate_taxes <- function(.data,
   }
 
   results
+}
+
+
+#' Check the tax years and return them as integers
+#'
+#' @param year The `year` column.
+#' @return The years as an integer vector.
+#' @keywords internal
+.tax_years <- function(year) {
+  years <- if (is.numeric(year)) {
+    as.numeric(year)
+  } else {
+    suppressWarnings(as.numeric(as.character(year)))
+  }
+  if (!all(is.finite(years))) {
+    stop(
+      "`year` is missing or not a number in ", sum(!is.finite(years)),
+      " record(s). Every record needs a tax year.",
+      call. = FALSE
+    )
+  }
+  # A fractional year such as 2021.0 or 2020.5 counts as the year it is in.
+  as.integer(trunc(years))
+}
+
+
+#' The first tax year PolicyEngine computes when records go by year
+#'
+#' @return `StitchedRunner.PE_MIN_YEAR` from the installed policyengine-taxsim.
+#' @keywords internal
+.pe_min_year <- function() {
+  runners <- reticulate::import("policyengine_taxsim.runners")
+  as.integer(runners$StitchedRunner$PE_MIN_YEAR)
+}
+
+
+#' Count the records each engine computes
+#'
+#' @param years Integer tax years, one per record.
+#' @param pe_min_year First tax year PolicyEngine computes.
+#' @param engine The `engine` argument.
+#' @return A list of two record counts, `policyengine` and `taxsim`.
+#' @keywords internal
+.engine_counts <- function(years, pe_min_year, engine = "auto") {
+  policyengine <- if (engine == "policyengine") {
+    length(years)
+  } else {
+    sum(years >= pe_min_year)
+  }
+  list(policyengine = policyengine, taxsim = length(years) - policyengine)
+}
+
+
+#' The progress message saying which engine computes the records
+#'
+#' @inheritParams .engine_counts
+#' @keywords internal
+.engine_message <- function(years, pe_min_year, engine = "auto") {
+  counts <- .engine_counts(years, pe_min_year, engine)
+  records <- function(n) paste(n, if (n == 1) "record" else "records")
+  if (engine == "policyengine") {
+    before <- sum(years < pe_min_year)
+    return(paste0(
+      "Calculating taxes for ", records(length(years)),
+      " with PolicyEngine (engine = \"policyengine\")",
+      if (before > 0) {
+        paste0(
+          "; ", before, " of them ", if (before == 1) "is" else "are",
+          " for tax years before ", pe_min_year,
+          ", which engine = \"auto\" computes with TAXSIM-35"
+        )
+      },
+      "..."
+    ))
+  }
+  if (counts$taxsim == 0) {
+    return(paste0(
+      "Calculating taxes for ", records(counts$policyengine),
+      " with PolicyEngine..."
+    ))
+  }
+  if (counts$policyengine == 0) {
+    return(paste0(
+      "Calculating taxes for ", records(counts$taxsim),
+      " with TAXSIM-35 (tax years before ", pe_min_year, ")..."
+    ))
+  }
+  paste0(
+    "Calculating taxes: ", records(counts$policyengine),
+    " with PolicyEngine (tax years from ", pe_min_year, " on), ",
+    counts$taxsim, " with TAXSIM-35 (earlier years)..."
+  )
+}
+
+
+#' Create the Python runner for the chosen engine
+#'
+#' @param runners The `policyengine_taxsim.runners` module.
+#' @param py_df The input as a pandas DataFrame.
+#' @param engine The `engine` argument.
+#' @return A runner with a `run()` method.
+#' @keywords internal
+.make_runner <- function(runners, py_df, engine = "auto") {
+  if (!reticulate::py_has_attr(runners, "StitchedRunner")) {
+    stop(
+      "The installed policyengine-taxsim has no StitchedRunner, which this ",
+      "version of the R package needs. Update it with ",
+      "setup_policyengine(force = TRUE).",
+      call. = FALSE
+    )
+  }
+  if (engine == "policyengine") {
+    # A first PolicyEngine year of 0 sends every record to PolicyEngine;
+    # StitchedRunner still returns the rows in input order.
+    return(runners$StitchedRunner(py_df, pe_min_year = 0L))
+  }
+  runners$StitchedRunner(py_df)
 }
 
 
