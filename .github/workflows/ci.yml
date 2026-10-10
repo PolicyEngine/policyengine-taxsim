@@ -202,7 +202,8 @@ jobs:
         run: Rscript -e "$RUN_INSTALL_TEST"
       # The command the R package's README gives for building the folder.
       - name: Download wheels
-        run: python -m pip download --only-binary=:all: --dest "$RUNNER_TEMP/wheels" policyengine-taxsim
+        run: |
+          python -m pip download --only-binary=:all: --dest "$RUNNER_TEMP/wheels" policyengine-taxsim
       - name: Install from the wheels with no network access
         working-directory: r-package/policyenginetaxsim
         env:
