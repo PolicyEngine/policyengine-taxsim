@@ -7,7 +7,8 @@ feeds the input to the emulator and checks both that the guide still quotes the
 message and that the emulator still behaves that way. The rejections all
 happen before any simulation; the unchecked cases are read off the
 PolicyEngine inputs the emulator builds, and one simulation covers the cases
-that only show in the output.
+that only show in the output. A property-based test checks that amount
+columns are conserved on their way into PolicyEngine.
 """
 
 import importlib.util
@@ -17,6 +18,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from policyengine_taxsim.runners import PolicyEngineRunner, StitchedRunner
 
@@ -194,3 +197,53 @@ def test_output_level_claims():
     duplicates = results[results["taxsimid"] == 2]
     assert len(duplicates) == 2
     assert duplicates["fiitax"].nunique() == 2
+
+
+# Columns that go to the spouse, so they count only on joint returns.
+SPOUSE_COLUMNS = {"swages", "ssemp", "sbusinc", "sprofinc", "sui"}
+# Read on pre-2021 rows only: PolicyEngine rows ignore it (the guide says so,
+# and #1245 proposes mapping it). An intended exception to conservation.
+UNMAPPED_COLUMNS = {"nonprop"}
+AMOUNT_COLUMNS = sorted(
+    name
+    for name, entry in generator.load_input_metadata().items()
+    if entry["type"] == "Dollars per year"
+)
+
+
+@settings(max_examples=75, deadline=None)
+@given(
+    column=st.sampled_from(AMOUNT_COLUMNS),
+    amount=st.integers(min_value=-5_000_000, max_value=5_000_000).filter(bool),
+    mstat=st.sampled_from([1, 2, 6]),
+    page=st.integers(min_value=18, max_value=95),
+    sage=st.integers(min_value=18, max_value=95),
+    state=st.integers(min_value=1, max_value=51),
+    depx=st.integers(min_value=0, max_value=3),
+)
+def test_every_dollar_reaches_policyengine_exactly_once(
+    column, amount, mstat, page, sage, state, depx
+):
+    """Conservation: whatever the filing status, ages and state, an amount
+    column adds exactly its value to the PolicyEngine inputs, summed over
+    people and variables. Splitting between spouses and the pension age rule
+    move money between people but never create or lose it. Spouse columns add
+    nothing off joint returns, and nonprop adds nothing at all."""
+    record = {
+        "year": 2023,
+        "state": state,
+        "mstat": mstat,
+        "page": page,
+        "sage": sage,
+        "depx": depx,
+    }
+    with_amount = generator.read_inputs({**record, column: amount})
+    without = generator.read_inputs({**record, column: 0})
+    added = sum(
+        float(delta.sum())
+        for delta in generator.changed_inputs(with_amount, without).values()
+    )
+    counts = column not in UNMAPPED_COLUMNS and (
+        column not in SPOUSE_COLUMNS or mstat == 2
+    )
+    assert added == (amount if counts else 0)
