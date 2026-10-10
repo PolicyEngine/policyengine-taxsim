@@ -34,6 +34,9 @@ on:
         description: Pairs measured at once (each takes one runner)
         type: number
         default: 4
+  # TEMPORARY (scratch branch only): backfill from this branch, recording here.
+  push:
+    branches: [alignment-history-backfill]
   pull_request:
     paths:
       - scripts/alignment_history.py
@@ -145,7 +148,7 @@ jobs:
       # deleted, or never published.
       - name: Clone policyengine-us release history
         env:
-          MODE: ${{ inputs.mode || 'recent' }}
+          MODE: ${{ inputs.mode || (github.event_name == 'push' && 'backfill') || 'recent' }}
         run: |
           if [ "$MODE" = backfill ]; then SINCE=2025-07-01; else SINCE=$(date -u -d '45 days ago' +%F); fi
           git clone --quiet --no-checkout --single-branch --shallow-since="$SINCE" \
@@ -154,7 +157,7 @@ jobs:
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
-          MODE: ${{ inputs.mode || 'recent' }}
+          MODE: ${{ inputs.mode || (github.event_name == 'push' && 'backfill') || 'recent' }}
           TAXSIM_VERSION: ${{ inputs.taxsim_version }}
         run: |
           set -o pipefail
@@ -198,7 +201,7 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
-      max-parallel: ${{ fromJSON(inputs.max_parallel || 4) }}
+      max-parallel: ${{ fromJSON(inputs.max_parallel || (github.event_name == 'push' && 10) || 4) }}
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     name: measure ${{ matrix.id }}
     steps:
