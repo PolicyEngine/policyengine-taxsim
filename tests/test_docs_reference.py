@@ -36,7 +36,7 @@ REGENERATE = "Run: python scripts/generate_docs_reference.py"
 
 @pytest.mark.parametrize("document", sorted(generator.GENERATED))
 def test_generated_blocks_are_current(document):
-    text = (REPO / "docs" / document).read_text()
+    text = (REPO / "docs" / document).read_text(encoding="utf-8")
     assert generator.render(document, text) == text, (
         f"docs/{document} no longer matches the code. {REGENERATE}"
     )
@@ -60,7 +60,9 @@ def test_input_metadata_entries_are_complete():
 def test_web_runner_knows_the_documented_columns():
     """The web runner warns about columns outside api.KNOWN_COLUMNS. api.py
     imports modal at import time, so the set is read from its source."""
-    tree = ast.parse((REPO / "policyengine_taxsim" / "api.py").read_text())
+    tree = ast.parse(
+        (REPO / "policyengine_taxsim" / "api.py").read_text(encoding="utf-8")
+    )
     known = next(
         ast.literal_eval(node.value)
         for node in tree.body
@@ -78,7 +80,7 @@ def test_web_runner_knows_the_documented_columns():
 def test_every_run_time_pin_is_in_the_design_doc():
     """docs/design.md's "Adjustments at run time" table names every variable
     PolicyEngineRunner holds fixed on the Microsimulation."""
-    design = (REPO / "docs" / "design.md").read_text()
+    design = (REPO / "docs" / "design.md").read_text(encoding="utf-8")
     section = design.split("## Adjustments at run time")[1].split("\n## ")[0]
     named = set(re.findall(r"`(\w+)`", section))
     missing = [name for name in generator.run_time_pins() if name not in named]
@@ -109,7 +111,7 @@ def test_dependency_snapshot_satisfies_pyproject(python):
 
 def test_snapshot_files_are_the_resolutions_snapshot_json_records():
     snapshot = json.loads(
-        (REPO / "docs" / "dependencies" / "snapshot.json").read_text()
+        (REPO / "docs" / "dependencies" / "snapshot.json").read_text(encoding="utf-8")
     )
     for python in generator.SNAPSHOT_PYTHONS:
         resolved = generator.parse_requirements(

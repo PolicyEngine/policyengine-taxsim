@@ -24,7 +24,7 @@ from hypothesis import strategies as st
 from policyengine_taxsim.runners import PolicyEngineRunner, StitchedRunner
 
 REPO = Path(__file__).resolve().parents[1]
-GUIDE = (REPO / "docs" / "input-guide.md").read_text()
+GUIDE = (REPO / "docs" / "input-guide.md").read_text(encoding="utf-8")
 
 _spec = importlib.util.spec_from_file_location(
     "generate_docs_reference", REPO / "scripts" / "generate_docs_reference.py"

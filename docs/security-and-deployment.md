@@ -69,7 +69,7 @@ On 2026-10-09, with policyengine-taxsim at this commit, policyengine-us 2.38.0 (
 4. **Inspecting the executables'** imported libraries and symbols (below).
 5. **Installing offline.** The [offline installation](#installing-without-internet-access) was carried out on macOS with Python 3.11 inside the same no-network sandbox, using uv's equivalents of the pip commands (`uv pip install --no-index --find-links ... --require-hashes`), and the check command printed the expected result. Every package in the Python 3.11 snapshot was confirmed to have a wheel with a listed hash for Linux x86-64 (manylinux 2.28) and for macOS on Apple silicon.
 
-`tests/test_no_network.py` repeats step 2 in CI on Linux, macOS and Windows with Python 3.10 and 3.11: it runs the command line with an audit hook that raises on any connection, DNS lookup or HTTP request, so a change that adds one fails the build. To check an installation yourself, run the same command with your firewall blocking the Python process; the [worked example](input-guide.md#worked-example-from-a-survey-file-to-taxes) is a suitable input.
+`tests/test_no_network.py` repeats step 2 in CI on Linux, macOS and Windows with Python 3.10 and 3.11: it runs the command line with an audit hook that refuses any connection leaving the machine, DNS lookup or HTTP request made through Python, so a change that adds one fails the build. The hook does not see inside the TAXSIM-35 executable, which is why step 4 inspects its imports. To check an installation yourself, run the same command with your firewall blocking the Python process; the [worked example](input-guide.md#worked-example-from-a-survey-file-to-taxes) is a suitable input.
 
 ## Files and processes
 

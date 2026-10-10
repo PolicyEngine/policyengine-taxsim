@@ -122,7 +122,7 @@ def test_r_example_recodes_and_merges_like_python(python_run, tmp_path):
         env=environment,
     )
     assert result.returncode == 0, result.stderr[-3000:]
-    assert log.read_text().split() == [
+    assert log.read_text(encoding="utf-8").split() == [
         "policyengine",
         "taxsim_input.csv",
         "-o",

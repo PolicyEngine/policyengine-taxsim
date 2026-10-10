@@ -186,7 +186,10 @@ def read_taxsim_file(record: dict) -> dict:
     try:
         written = pd.read_csv(path)
     finally:
-        path.unlink()
+        try:
+            path.unlink()
+        except OSError:  # as TaxsimRunner.run: Windows may still hold it
+            pass
     return written.iloc[0].to_dict()
 
 
@@ -196,7 +199,7 @@ def read_taxsim_file(record: dict) -> dict:
 
 
 def load_input_metadata() -> dict:
-    with open(INPUT_METADATA) as stream:
+    with open(INPUT_METADATA, encoding="utf-8") as stream:
         return yaml.safe_load(stream)
 
 
@@ -637,7 +640,7 @@ def block_example(name: str):
     def render() -> str:
         path = EXAMPLES / name
         fence = language[path.suffix]
-        return f"```{fence}\n{path.read_text().rstrip()}\n```\n"
+        return f"```{fence}\n{path.read_text(encoding='utf-8').rstrip()}\n```\n"
 
     return render
 
@@ -896,10 +899,10 @@ def _pyproject() -> dict:
 
 def block_python_versions() -> str:
     project = _pyproject()["project"]
-    with open(REPO / ".github" / "workflows" / "ci.yml") as stream:
+    with open(REPO / ".github" / "workflows" / "ci.yml", encoding="utf-8") as stream:
         ci = yaml.safe_load(stream)
     matrix = ci["jobs"]["test"]["strategy"]["matrix"]
-    snapshot = json.loads(SNAPSHOT.read_text())
+    snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     lines = [
         f"- `pyproject.toml` requires Python `{project['requires-python']}`.",
         "- CI runs the test suite on "
@@ -941,7 +944,7 @@ def parse_requirements(path: Path) -> dict:
     """name -> (version, [required by]) from a `uv pip compile` file."""
     packages = {}
     current = None
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==(\S+)", line)
         if match:
             current = match.group(1).lower()
@@ -954,7 +957,7 @@ def parse_requirements(path: Path) -> dict:
 
 
 def block_dependency_tree() -> str:
-    snapshot = json.loads(SNAPSHOT.read_text())
+    snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     resolved = {
         python: parse_requirements(DEPENDENCIES / f"requirements-py{python}.txt")
         for python in SNAPSHOT_PYTHONS
@@ -1014,7 +1017,7 @@ def block_dependency_tree() -> str:
 
 
 def block_snapshot_command() -> str:
-    snapshot = json.loads(SNAPSHOT.read_text())
+    snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     return (
         "```bash\n"
         f"python scripts/generate_docs_reference.py --refresh-dependencies "
@@ -1096,7 +1099,9 @@ def refresh_dependencies(exclude_newer: str) -> None:
             indent=1,
             sort_keys=True,
         )
-        + "\n"
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
 
 
@@ -1206,7 +1211,7 @@ def stale_documents() -> list:
     stale = []
     for document in GENERATED:
         path = DOCS / document
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         if render(document, text) != text:
             stale.append(document)
     return stale
@@ -1233,10 +1238,10 @@ def main(argv=None) -> int:
         return 1 if stale else 0
     for document in GENERATED:
         path = DOCS / document
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         rendered = render(document, text)
         if rendered != text:
-            path.write_text(rendered)
+            path.write_text(rendered, encoding="utf-8", newline="\n")
             print(f"Updated docs/{document}")
     return 0
 

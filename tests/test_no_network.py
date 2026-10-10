@@ -2,14 +2,19 @@
 
 docs/security-and-deployment.md says a local run sends nothing anywhere. This
 runs the command line in a fresh Python process with an audit hook installed
-before anything is imported. The hook records and refuses every outbound
-connection, DNS lookup and HTTP request, so the run fails if one is attempted,
-and the test fails even if the caller swallowed the refusal. The input mixes
-years computed by the bundled TAXSIM-35 executable and by PolicyEngine,
-including a record with no state tax.
+before anything is imported. The hook records and refuses every connection
+that would leave the machine, every DNS lookup and every HTTP request, so the
+run fails if one is attempted, and the test fails even if the caller swallowed
+the refusal. The input mixes years computed by the bundled TAXSIM-35
+executable and by PolicyEngine, including a record with no state tax.
 
-urllib3 binds a socket to the loopback address on import to test for IPv6;
-that sends nothing and is allowed.
+Sockets that stay on the machine are allowed: connections to the loopback
+address, and urllib3's bind to it on import to test for IPv6.
+
+The hook sees Python's own network calls. It does not see inside the
+TAXSIM-35 executable, a separate process whose imports contain no networking
+functions (docs/security-and-deployment.md), or inside compiled extensions
+that open sockets without Python's socket module.
 """
 
 import os
@@ -29,11 +34,23 @@ BLOCKED = {
     "smtplib.connect", "imaplib.open", "poplib.connect", "nntplib.connect",
     "telnetlib.Telnet.open", "webbrowser.open",
 }
+LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 log_path = sys.argv[1]
 
 
+def stays_on_this_machine(event, args):
+    # A socket connected to the loopback address or to a Unix-domain path
+    # (as asyncio's self-pipe is on Windows) never leaves the machine.
+    if event != "socket.connect":
+        return False
+    address = args[1]
+    return isinstance(address, (str, bytes)) or (
+        isinstance(address, tuple) and address and address[0] in LOOPBACK
+    )
+
+
 def guard(event, args):
-    if event in BLOCKED:
+    if event in BLOCKED and not stays_on_this_machine(event, args):
         with open(log_path, "a") as log:
             log.write(f"{event} {args!r}\n")
         raise RuntimeError(f"network access during a run: {event}")
@@ -71,8 +88,8 @@ def test_command_line_run_opens_no_connection(tmp_path):
         text=True,
         env=environment,
     )
-    assert attempts.read_text() == "", (
-        f"network access attempted:\n{attempts.read_text()}"
+    assert attempts.read_text(encoding="utf-8") == "", (
+        f"network access attempted:\n{attempts.read_text(encoding='utf-8')}"
     )
     assert result.returncode == 0, result.stderr[-3000:]
     results = pd.read_csv(output)
