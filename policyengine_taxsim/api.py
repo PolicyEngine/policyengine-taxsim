@@ -133,8 +133,9 @@ def _validate_csv(csv_text):
             "See the documentation for the full list of input variables."
         )
 
-    # Validate numeric columns have parseable values
-    for col in set(df.columns) & NUMERIC_COLUMNS:
+    # Validate numeric columns have parseable values. Check them in input
+    # order, not set order, so the error names the same column every run.
+    for col in [c for c in df.columns if c in NUMERIC_COLUMNS]:
         try:
             pd.to_numeric(df[col])
         except (ValueError, TypeError):

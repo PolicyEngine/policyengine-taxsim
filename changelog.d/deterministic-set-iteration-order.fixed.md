@@ -1,0 +1,1 @@
+Stop set iteration order from leaking into user-visible output: the API's non-numeric-column error names the first bad column in input order, `validate_required_columns` returns columns in declared and input order, and `compare`'s consolidated CSV lists records in taxsimid order.
