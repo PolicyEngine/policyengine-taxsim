@@ -1052,8 +1052,8 @@ def run_workers(
     """Run every batch and year through its own worker process, `workers` at once.
 
     One process per batch and year, as the dashboard refresh does. A process
-    that ran all five years in turn passed 6 GiB in the first full run (run
-    37981903700); the refresh's one-year workers peaked at 3.2 GiB.
+    that ran all five years in turn passed 6 GiB (run 37981903700); one-year
+    workers peaked at 4,480 MiB (run 38006256962).
 
     - A worker over max_memory_gb of RSS (with its children) or `timeout`
       seconds is stopped and its batch retried once, split in two. A second
@@ -1670,9 +1670,9 @@ def main(argv=None):
     m.add_argument("--reference-dir", type=Path, required=True)
     m.add_argument("--work-dir", type=Path, required=True)
     m.add_argument("--years", type=int, nargs="*")
-    # Defaults fit a GitHub-hosted runner (4 CPUs, 16 GB). A worker costs about
-    # 3 GB whatever its batch (51 households peaked at 3.3 GB), so batches are
-    # as large as the refresh's.
+    # Defaults fit a GitHub-hosted runner (4 CPUs, 16 GB). Three one-year
+    # workers of 5,000 households each peaked at 4,480 MiB apiece and took 34
+    # minutes for a pair (run 38006256962).
     m.add_argument("--batch-size", type=int, default=5000)
     m.add_argument("--workers", type=int, default=3)
     m.add_argument("--max-memory-gb", type=float, default=6)

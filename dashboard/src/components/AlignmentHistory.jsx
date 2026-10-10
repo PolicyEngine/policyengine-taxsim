@@ -30,6 +30,8 @@ const TOLERANCE_TEXT = {
 const TABLE_ROWS = 12;
 const HEIGHT = 260;
 const MARGIN = { top: 16, right: 96, bottom: 32, left: 44 };
+// Width one date label needs ("Sep 2026" at 11px, with a gap).
+const TICK_ROOM = 64;
 
 function useWidth(ref, fallback = 720) {
   const [width, setWidth] = useState(fallback);
@@ -46,8 +48,8 @@ function useWidth(ref, fallback = 720) {
 
 // First-of-month ticks, labelled by month. A span with fewer than two of
 // them (a few days of releases) labels its first and last day instead.
-const timeTicks = (start, end) => {
-  const ticks = [];
+export const timeTicks = (start, end, room = Infinity) => {
+  let ticks = [];
   const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
   while (d <= end) {
     ticks.push({
@@ -58,7 +60,12 @@ const timeTicks = (start, end) => {
     });
     d.setUTCMonth(d.getUTCMonth() + 1);
   }
-  if (ticks.length >= 2) return ticks;
+  if (ticks.length >= 2) {
+    // Keep every k-th month when there isn't room for all of them.
+    const step = Math.ceil(ticks.length / Math.max(1, room));
+    if (step > 1) ticks = ticks.filter((_, i) => i % step === 0);
+    return ticks;
+  }
   const day = (date) =>
     date.toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   const ends = start.getTime() === end.getTime() ? [start] : [start, end];
@@ -151,7 +158,7 @@ function ReleaseChart({ points, title }) {
             </text>
           </g>
         ))}
-        {timeTicks(new Date(t0), new Date(t1)).map((tick) => (
+        {timeTicks(new Date(t0), new Date(t1), Math.floor(plotW / TICK_ROOM)).map((tick) => (
           <text
             key={tick.date.toISOString()}
             x={x(tick.date.getTime())}
@@ -293,13 +300,31 @@ export default function AlignmentHistory({ selectedYear, selectedState, toleranc
         </h2>
         <p className="mt-1 max-w-3xl text-sm text-gray-500">
           Each point is a released policyengine-taxsim and policyengine-us pair, installed
-          as PyPI stood when it came out and scored against the same TAXSIM run: share of{' '}
+          as of its release and scored against the same TAXSIM run: share of{' '}
           {where} {tolerance}, tax year {selectedYear}. TAXSIM does not change between
           points, so a move comes from the emulator or the model.
         </p>
       </div>
 
       {error && <p className="text-sm text-red-600">Could not load the release history: {error}</p>}
+
+      {/* Shown whatever the selected reference holds, so an empty one can be left. */}
+      {references.length > 1 && (
+        <label className="mb-3 inline-flex items-center gap-2 text-xs text-gray-600">
+          TAXSIM reference
+          <select
+            className="rounded border border-gray-200 bg-white px-2 py-1 font-mono text-[11px]"
+            value={activeReference}
+            onChange={(event) => setReference(event.target.value)}
+          >
+            {references.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {doc === undefined && !error && (
         <div className="h-[260px] animate-pulse rounded-xl border border-gray-200 bg-white" />
@@ -325,22 +350,6 @@ export default function AlignmentHistory({ selectedYear, selectedState, toleranc
               {series.points.length} release pairs scored
               {series.unmeasured.length > 0 && ` · ${series.unmeasured.length} not scored`}
             </span>
-            {references.length > 1 && (
-              <label className="ml-auto inline-flex items-center gap-2">
-                TAXSIM reference
-                <select
-                  className="rounded border border-gray-200 bg-white px-2 py-1 font-mono text-[11px]"
-                  value={activeReference}
-                  onChange={(event) => setReference(event.target.value)}
-                >
-                  {references.map((id) => (
-                    <option key={id} value={id}>
-                      {id}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
           </div>
           <ReleaseChart
             points={series.points}
@@ -406,8 +415,8 @@ export default function AlignmentHistory({ selectedYear, selectedState, toleranc
             scored for {selectedYear}
           </summary>
           <p className="mt-2 text-gray-500">
-            PyPI no longer serves every release: older ones have been deleted, and some
-            failed to publish. These pairs are listed rather than scored with a substitute.
+            A pair that needs a release PyPI no longer serves is listed here, not scored
+            with a substitute. Any other reason is given beside the pair.
           </p>
           <ul className="mt-2 divide-y divide-gray-100">
             {[...series.unmeasured].reverse().map(({ row, reason }) => (

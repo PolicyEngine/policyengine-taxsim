@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import AlignmentHistory from '../AlignmentHistory';
+import AlignmentHistory, { timeTicks } from '../AlignmentHistory';
 import { dashboardReference } from '../../utils/alignmentHistory';
 import { TOLERANCE_MODES } from '../../constants';
 
@@ -138,6 +138,30 @@ describe('AlignmentHistory', () => {
       <AlignmentHistory selectedYear={2021} selectedState={null} toleranceMode={TOLERANCE_MODES.RELATIVE} />
     );
     expect(await screen.findByText(/No release has been scored for 2021 yet/)).toBeTruthy();
+  });
+
+  it('keeps the reference selector when the chosen reference has nothing scored', async () => {
+    const other = 'full-ecps-comparison-older';
+    mockFetch({ ...FIXTURE, references: { ...FIXTURE.references, [other]: { release: other, years: {} } } });
+    render(
+      <AlignmentHistory selectedYear={2023} selectedState={null} toleranceMode={TOLERANCE_MODES.RELATIVE} />
+    );
+    const select = await screen.findByRole('combobox');
+    fireEvent.change(select, { target: { value: other } });
+    expect(screen.getByText(/No release has been scored for 2023 yet/)).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: REF } });
+    expect(screen.getByRole('table')).toBeTruthy();
+  });
+
+  it('thins month labels to the room there is, and labels days on a short span', () => {
+    const start = new Date(Date.UTC(2025, 0, 15));
+    const end = new Date(Date.UTC(2027, 0, 15));
+    expect(timeTicks(start, end)).toHaveLength(24);
+    const thinned = timeTicks(start, end, 3);
+    expect(thinned.length).toBeLessThanOrEqual(3);
+    expect(thinned[0].label).toBe('Feb');
+    const days = timeTicks(new Date(Date.UTC(2026, 9, 2)), new Date(Date.UTC(2026, 9, 9)));
+    expect(days.map((t) => t.label)).toEqual(['Oct 2', 'Oct 9']);
   });
 
   it('treats a missing history file as no scored releases', async () => {

@@ -779,6 +779,7 @@ def stub_worker(tmp_path, monkeypatch):
             sys.executable, batches, years, work, workers, 6, 60, log=lambda *_: None
         )
 
+    run.work = work
     return run
 
 
@@ -861,9 +862,16 @@ def test_workers_over_the_total_memory_budget_are_requeued_not_failed(
     monkeypatch.setattr(history, "rss", lambda process, psutil: 2 * 1024**3)
     households = [{"taxsimid": str(i), "state": 14} for i in range(1, 13)]
     batches = [households[i : i + 2] for i in range(0, 12, 2)]
-    work = next(iter(history.WORKER.parent.glob("work")))
     done, errors, _, peak = history.run_workers(
-        sys.executable, batches, [2021], work, 3, 6, 60, 3, log=messages.append
+        sys.executable,
+        batches,
+        [2021],
+        stub_worker.work,
+        3,
+        6,
+        60,
+        3,
+        log=messages.append,
     )
     assert errors == {} and peak == 2 * 1024**3
     assert sorted(scored_ids(done[2021]), key=int) == [str(i) for i in range(1, 13)]
