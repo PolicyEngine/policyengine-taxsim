@@ -278,7 +278,8 @@ function extractSystemAssumptions() {
     },
     maritalStatusCodes: {
       single: 1,
-      marriedFilingJointly: 2
+      marriedFilingJointly: 2,
+      marriedFilingSeparately: 6
     },
     missingIncomeValue: 0
   };

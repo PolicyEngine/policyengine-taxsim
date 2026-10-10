@@ -5,6 +5,7 @@ exits after atomically saving its result, releasing all model caches to the OS.
 """
 
 import argparse
+from collections import Counter
 import csv
 import gzip
 import hashlib
@@ -18,11 +19,12 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib.request
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_TAG = "full-ecps-comparison-2026.07.07"
+# TAXSIM inputs for 111,347 eCPS tax units (Alabama's CPS-income half was
+# dropped in d317b05); the tax year is set per run.
+SOURCE = ROOT / "cps_households.csv"
 EXPECTED_RECORDS = 111347
 STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split()
 INPUT_COLUMNS = (
@@ -51,6 +53,39 @@ def number(value):
     if not math.isfinite(value):
         raise ValueError("Non-finite comparison value")
     return value
+
+
+def check_source(path):
+    """Validate the TAXSIM inputs before any model runs; return the row count.
+
+    TAXSIM reads state 0 as "no state tax" and stops at other invalid codes.
+    Every eCPS household has a state, so reject state 0, any other code that
+    is not an integer from 1 to 51, and any state without households.
+    """
+    counts = Counter()
+    invalid = {}
+    with path.open(newline="") as stream:
+        reader = csv.DictReader(stream)
+        if reader.fieldnames != INPUT_COLUMNS:
+            raise ValueError("Source columns differ from the TAXSIM input columns")
+        for row in reader:
+            try:
+                state = float(row["state"])
+            except ValueError:
+                state = math.nan
+            if state.is_integer() and 1 <= state <= len(STATES):
+                counts[int(state)] += 1
+            else:
+                invalid.setdefault(row["state"], row["taxsimid"])
+    if invalid:
+        examples = ", ".join(
+            f"{code!r} (taxsimid {id})" for code, id in invalid.items()
+        )
+        raise ValueError(f"Source has invalid TAXSIM state codes: {examples}")
+    missing = [code for i, code in enumerate(STATES, 1) if not counts[i]]
+    if missing:
+        raise ValueError(f"Source has no households in {' '.join(missing)}")
+    return sum(counts.values())
 
 
 def match_flags(taxsim, pe):
@@ -93,7 +128,7 @@ def match_flags(taxsim, pe):
     ]
 
 
-def worker(input_path, output_path):
+def worker(input_path, output_path, scorp_treatment="passive"):
     sys.path.insert(0, str(ROOT))
     import pandas as pd
     from policyengine_taxsim.runners import PolicyEngineRunner, TaxsimRunner
@@ -129,7 +164,11 @@ def worker(input_path, output_path):
     # Request detailed PE output (including staxbc), without changing tax inputs.
     pe_input["idtl"] = 5
     pe = PolicyEngineRunner(
-        pe_input, logs=False, assume_w2_wages=True, disable_salt=False
+        pe_input,
+        logs=False,
+        assume_w2_wages=True,
+        disable_salt=False,
+        scorp_treatment=scorp_treatment,
     ).run(show_progress=False)
     for name, result in [("PolicyEngine", pe), ("TAXSIM", ts)]:
         if result.taxsimid.duplicated().any() or set(result.taxsimid) != expected_ids:
@@ -147,7 +186,7 @@ def worker(input_path, output_path):
                 **results[key],
                 **raw,
                 "source": source,
-                "state_code": get_state_code(int(raw["state"])),
+                "state_code": get_state_code(raw["state"]),
             }
             rows.append(row)
         flags = match_flags(*rows)
@@ -166,7 +205,9 @@ def worker(input_path, output_path):
     os._exit(0)
 
 
-def run_bounded(input_path, output_path, max_memory_gb, min_disk_gb):
+def run_bounded(
+    input_path, output_path, max_memory_gb, min_disk_gb, scorp_treatment="passive"
+):
     import psutil
 
     started = time.monotonic()
@@ -177,6 +218,8 @@ def run_bounded(input_path, output_path, max_memory_gb, min_disk_gb):
         "--worker",
         str(input_path),
         str(output_path),
+        "--scorp-treatment",
+        scorp_treatment,
     ]
     child = subprocess.Popen(cmd, start_new_session=True)
     try:
@@ -247,6 +290,8 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
                     ):
                         raise ValueError("Invalid or duplicate household pair")
                     seen.add(key)
+                    if taxsim["state_code"] not in STATES:
+                        raise ValueError(f"Household {key} has no valid state code")
                     flags = match_flags(taxsim, pe)
                     state_counts = by_state.setdefault(taxsim["state_code"], [0] * 6)
                     for tally in (counts, state_counts):
@@ -316,6 +361,12 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", nargs=2)
+    parser.add_argument(
+        "--scorp-treatment",
+        choices=["default", "passive", "active"],
+        default="default",
+        help="default: passive with policyengine-us 2.10.1+, otherwise active",
+    )
     parser.add_argument("--year", type=int, choices=range(2021, 2026))
     parser.add_argument("--work-dir", type=Path, default=Path("refresh-work"))
     parser.add_argument("--batch-size", type=int, default=5000)
@@ -328,8 +379,13 @@ def main():
     parser.add_argument("--max-memory-gb", type=float, default=5)
     parser.add_argument("--min-disk-gb", type=float, default=4)
     args = parser.parse_args()
+    if args.scorp_treatment == "default":
+        sys.path.insert(0, str(ROOT))
+        from policyengine_taxsim.core.scorp import validate_scorp_treatment
+
+        args.scorp_treatment = validate_scorp_treatment(None)
     if args.worker:
-        worker(*args.worker)
+        worker(*args.worker, scorp_treatment=args.scorp_treatment)
         return
     if args.year is None or not 1 <= args.batch_size <= 10000 or args.limit < 0:
         parser.error("A year, batch size 1–10000, and nonnegative limit are required")
@@ -337,17 +393,11 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(work).free < args.min_disk_gb * 1024**3:
         raise RuntimeError("Insufficient free disk space")
-    source = work / "source.csv"
-    if not source.exists():
-        url = f"https://github.com/PolicyEngine/policyengine-taxsim/releases/download/{SOURCE_TAG}/comparison_results_{args.year}.csv"
-        with (
-            urllib.request.urlopen(url, timeout=120) as response,
-            source.with_suffix(".tmp").open("wb") as target,
-        ):
-            shutil.copyfileobj(response, target, length=1024 * 1024)
-        source.with_suffix(".tmp").replace(source)
+    source = SOURCE
+    if check_source(source) != EXPECTED_RECORDS:
+        raise ValueError(f"Expected {EXPECTED_RECORDS} source households")
     identity = {
-        "sourceTag": SOURCE_TAG,
+        "source": source.name,
         "sourceSha256": digest(source),
         "year": args.year,
         "emulatorCommit": subprocess.check_output(
@@ -359,6 +409,7 @@ def main():
         "scriptSha256": digest(__file__),
         "batchSize": args.batch_size,
         "limit": args.limit,
+        "scorpTreatment": args.scorp_treatment,
     }
     manifest = work / "checkpoint.json"
     if manifest.exists() and json.loads(manifest.read_text()) != identity:
@@ -374,10 +425,9 @@ def main():
     processed = 0
     peak = 0
     with source.open(newline="") as stream:
-        reader = csv.DictReader(stream)
-        rows = (row for row in reader if row["source"] == "taxsim")
+        rows = (dict(row, year=args.year) for row in csv.DictReader(stream))
         if args.limit:
-            # Cover every state in the smoke test; the source is state-sorted.
+            # Cover every state in the smoke test.
             per_state = {}
             quota = math.ceil(args.limit / len(STATES))
             for row in rows:
@@ -404,13 +454,14 @@ def main():
                 with input_path.open("w", newline="") as f:
                     writer = csv.DictWriter(f, INPUT_COLUMNS)
                     writer.writeheader()
-                    for row in batch:
-                        if int(float(row["year"])) != args.year:
-                            raise ValueError("Source year mismatch")
-                        writer.writerow({k: row.get(k, "") for k in INPUT_COLUMNS})
+                    writer.writerows(batch)
                 temp = part.with_suffix(".tmp.gz")
                 usage = run_bounded(
-                    input_path, temp, args.max_memory_gb, args.min_disk_gb
+                    input_path,
+                    temp,
+                    args.max_memory_gb,
+                    args.min_disk_gb,
+                    args.scorp_treatment,
                 )
                 temp.replace(part)
                 atomic_json(
@@ -445,7 +496,6 @@ def main():
     actual = summarize(parts, work / "output", args.year, metadata, sample_ids)
     if actual != expected:
         raise ValueError("Output record count mismatch")
-    source.unlink()  # A completed job only retains results/checkpoints.
 
 
 if __name__ == "__main__":

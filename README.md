@@ -4,6 +4,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
 
 ## Table of Contents
 - [Overview](#overview)
+- [Future plans and maintenance](#future-plans-and-maintenance)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
   - [From Source](#from-source)
@@ -39,6 +40,18 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 - **Interactive dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
 - **Flexible output options**: Standard, full, and text description output formats matching TAXSIM specifications
 - **YAML test generation**: Generate PolicyEngine test cases for reproducibility and validation
+
+## Future plans and maintenance
+
+We will keep powering the TAXSIM emulator for as long as people need it. Its backend may move to [Axiom](https://axiom.org), our next-generation rules engine, which encodes rules from the law with tests. If it does, the emulator still runs through PolicyEngine's wrappers, and the surfaces below stay backwards compatible. Using PolicyEngine directly adds capabilities beyond the TAXSIM format: benefit programs, and tax calculations that use variables TAXSIM doesn't support.
+
+Pipelines build on these surfaces, and CI pins each one with a contract test (`tests/test_public_contract.py`, `tests/test_cli_entry_point.py`):
+
+- The `policyengine-taxsim` CLI: TAXSIM-format CSV in, TAXSIM-format CSV out
+- The Python import path: `from policyengine_taxsim.runners import PolicyEngineRunner`
+- `PolicyEngineRunner(df).run()`: accepts a TAXSIM-format `DataFrame` and returns a TAXSIM-format `DataFrame`
+
+policyengine-taxsim is MIT-licensed open source. Its PolicyEngine calculations come from policyengine-us, which is updated as federal and state tax law changes.
 
 ## Quick Start
 
@@ -257,8 +270,9 @@ The emulator accepts CSV files with the following variables:
 |-----------|--------------------------------|---------------------------------------------|
 | taxsimid  | Unique identifier              |                                             |
 | year      | Tax year                       |                                             |
-| state     | State code                     |                                             |
-| mstat     | Marital status                 | Only supports: 1 (single), 2 (joint)        |
+| state     | State code                     | TAXSIM SOI code: 1 (Alabama) to 51 (Wyoming); 0 for no state tax |
+| statefip  | State FIPS code                | Alternative to `state`: 1 (Alabama) to 56 (Wyoming), converted to the SOI code. Give `state` or `statefip`, not both |
+| mstat     | Marital status                 | 1 (single/head of household), 2 (joint), 6 (married filing separately) |
 | page      | Primary taxpayer age           |                                             |
 | sage      | Age of secondary taxpayer                     |                                             |
 | depx      | Number of dependents           |                                             |
@@ -357,6 +371,45 @@ The emulator produces all standard TAXSIM output variables:
 | niit | Net investment income tax |
 | addmed | Additional Medicare Tax (Form 8959; idtl = 2 only) |
 | cares | COVID-related recovery rebate credit |
+
+### S-corp NIIT treatment
+
+`--scorp-treatment passive|active` selects how the **PolicyEngine emulator**
+classifies TAXSIM `scorp` income for net investment income tax (NIIT).
+The default is `passive`, matching TAXSIM's documented convention, when
+policyengine-us 2.10.1 or later is installed. Older releases (including every
+Python 3.10 install, which resolves policyengine-us 1.x) default to `active`
+with a warning: before 2.10.1 a passive loss could offset interest and
+dividends in the EITC investment-income test (pe-us#9572). Select `active` to
+retain the previous materially-participating-owner assumption.
+
+```sh
+policyengine-taxsim policyengine input.csv --scorp-treatment active
+policyengine-taxsim compare input.csv --scorp-treatment passive --assume-w2-wages
+policyengine-taxsim --scorp-treatment active < input.csv > output.csv
+```
+
+Python: `PolicyEngineRunner(df, scorp_treatment="active")` or
+`generate_household(record, scorp_treatment="active")` followed by
+`export_household`. API requests accept `"scorp_treatment": "active"` or
+`"passive"` on run, streaming and email endpoints; omitting it uses the default
+above.
+
+This classifies income already included in AGI; it does not add income again,
+change QBI eligibility, impose self-employment tax or implement section 469
+passive-loss limitations. Signed losses are passed through; other loss rules
+remain unchanged. The W-2 wage assumption is an independent QBI setting.
+Python 3.10's older PE-US receives a compatibility reform for the NIIT input;
+modern PE-US uses its existing passive-income input.
+
+The switch does **not** change the TAXSIM comparator or pre-2021 TAXSIM fallback.
+An active-mode comparison therefore deliberately compares different NIIT
+assumptions. TAXSIM option 31 is not enabled automatically: it also changes
+other business-income treatments.
+
+Sources: [TAXSIM input definition](https://taxsim.nber.org/taxsimtest/),
+[IRS QBI instructions](https://www.irs.gov/instructions/i8995), and
+[discussion #1018](https://github.com/PolicyEngine/policyengine-taxsim/issues/1018).
 
 ### Additional Medicare Tax and fiitax
 

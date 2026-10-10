@@ -393,17 +393,12 @@ class ComparisonResults:
             for col in input_record.index:
                 row[col] = input_record[col]
 
-        # Add state code column based on numeric state value
+        # Add state code column based on numeric state value; blank for state 0
+        # (no state tax), which must not be counted under any real state.
         if "state" in row:
-            row["state_code"] = get_state_code(
-                int(float(row["state"])) if pd.notna(row["state"]) else 0
-            )
+            row["state_code"] = get_state_code(row["state"])
         elif "state" in result_record.index:
-            row["state_code"] = get_state_code(
-                int(float(result_record["state"]))
-                if pd.notna(result_record["state"])
-                else 0
-            )
+            row["state_code"] = get_state_code(result_record["state"])
 
         # Add source identifier and match status
         row["source"] = source

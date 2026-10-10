@@ -12,6 +12,7 @@ Local (no Modal):
 """
 
 import modal
+from typing import Literal
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -49,6 +50,7 @@ KNOWN_COLUMNS = {
     "taxsimid",
     "year",
     "state",
+    "statefip",
     "mstat",
     "page",
     "sage",
@@ -143,6 +145,34 @@ def _validate_csv(csv_text):
                 "All input variables must be numbers."
             )
 
+    # State must be a TAXSIM SOI code from 0 to 51. TAXSIM stops at an invalid
+    # code, and the emulator does not support -1 (TAXSIM's every-state option).
+    if "state" in df.columns:
+        from policyengine_taxsim.core.utils import validate_state_number
+
+        for row_number, state in enumerate(df["state"], start=1):
+            try:
+                validate_state_number(state)
+            except ValueError as error:
+                raise ValueError(
+                    f"Row {row_number}: {error}. Use a TAXSIM SOI state code "
+                    "from 1 to 51, or 0 for no state tax."
+                ) from None
+
+    # statefip gives the state as a FIPS code instead; TAXSIM stops when a
+    # record has both state and statefip nonzero.
+    if "statefip" in df.columns:
+        from policyengine_taxsim.core.utils import resolve_statefip
+
+        states = df["state"] if "state" in df.columns else [0] * len(df)
+        for row_number, (state, statefip) in enumerate(
+            zip(states, df["statefip"]), start=1
+        ):
+            try:
+                resolve_statefip(state, statefip)
+            except ValueError as error:
+                raise ValueError(f"Row {row_number}: {error}.") from None
+
     # Warn about unrecognized columns (they'll be silently ignored)
     warnings = []
     unknown = set(df.columns) - KNOWN_COLUMNS
@@ -162,6 +192,7 @@ def _run_taxsim(
     idtl,
     on_progress=None,
     use_remote_taxsim=False,
+    scorp_treatment=None,
 ):
     """Shared logic for both Modal and local endpoints."""
     from policyengine_taxsim.runners.stitched_runner import StitchedRunner
@@ -176,6 +207,7 @@ def _run_taxsim(
         logs=False,
         disable_salt=disable_salt,
         assume_w2_wages=assume_w2_wages,
+        scorp_treatment=scorp_treatment,
     )
     if use_remote_taxsim:
         runner_kwargs["use_remote_taxsim"] = True
@@ -277,6 +309,7 @@ def _build_modal_app():
         csv: str
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
 
     class EmailRunRequest(BaseModel):
@@ -285,6 +318,7 @@ def _build_modal_app():
         filename: str = "input.csv"
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
         subscribe: bool = True
 
@@ -295,6 +329,7 @@ def _build_modal_app():
                 req.csv,
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
+                scorp_treatment=req.scorp_treatment,
                 idtl=req.idtl,
             )
         except ValueError as e:
@@ -331,6 +366,7 @@ def _build_modal_app():
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
+                        scorp_treatment=req.scorp_treatment,
                         idtl=req.idtl,
                         on_progress=on_progress,
                     )
@@ -373,6 +409,7 @@ def _build_modal_app():
                 req.csv,
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
+                scorp_treatment=req.scorp_treatment,
                 idtl=req.idtl,
             )
         except Exception as e:
@@ -433,6 +470,7 @@ def _build_local_app():
         csv: str
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
 
     class EmailRunRequest(BaseModel):
@@ -441,6 +479,7 @@ def _build_local_app():
         filename: str = "input.csv"
         disable_salt: bool = False
         assume_w2_wages: bool = False
+        scorp_treatment: Optional[Literal["passive", "active"]] = None
         idtl: Optional[int] = None
         subscribe: bool = True
 
@@ -451,6 +490,7 @@ def _build_local_app():
                 req.csv,
                 disable_salt=req.disable_salt,
                 assume_w2_wages=req.assume_w2_wages,
+                scorp_treatment=req.scorp_treatment,
                 idtl=req.idtl,
                 use_remote_taxsim=True,
             )
@@ -488,6 +528,7 @@ def _build_local_app():
                         req.csv,
                         disable_salt=req.disable_salt,
                         assume_w2_wages=req.assume_w2_wages,
+                        scorp_treatment=req.scorp_treatment,
                         idtl=req.idtl,
                         on_progress=on_progress,
                         use_remote_taxsim=True,
@@ -538,6 +579,7 @@ def _build_local_app():
                     req.csv,
                     disable_salt=req.disable_salt,
                     assume_w2_wages=req.assume_w2_wages,
+                    scorp_treatment=req.scorp_treatment,
                     idtl=req.idtl,
                     use_remote_taxsim=True,
                 )

@@ -22,7 +22,9 @@ export const GITHUB_CONFIG = {
   API_BASE: 'https://api.github.com',
   REPO_OWNER: 'PolicyEngine',
   REPO_NAME: 'policyengine-taxsim',
-  CACHE_DURATION: 5 * 60 * 1000 // 5 minutes
+  CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+  ISSUES_PER_PAGE: 100,
+  MAX_ISSUE_PAGES: 10
 };
 
 // Mismatch tolerance

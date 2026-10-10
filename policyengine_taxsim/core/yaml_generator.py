@@ -80,7 +80,11 @@ class PETestsYAMLGenerator:
             "PR": 72,
             "VI": 78,
         }
-        return state_fips.get(state_name, 0)
+        try:
+            return state_fips[state_name]
+        except KeyError:
+            # FIPS 0 is no state; never write it into a PolicyEngine test.
+            raise ValueError(f"No FIPS code for state {state_name!r}") from None
 
     def _format_value(self, value: Any) -> Any:
         """Format values for YAML output."""

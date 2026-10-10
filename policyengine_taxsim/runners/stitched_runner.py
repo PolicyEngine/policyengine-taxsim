@@ -21,7 +21,7 @@ class StitchedRunner(BaseTaxRunner):
     PE_MIN_YEAR = 2021
 
     # kwargs that only PolicyEngineRunner understands
-    _PE_ONLY_KWARGS = {"logs", "disable_salt", "assume_w2_wages"}
+    _PE_ONLY_KWARGS = {"logs", "disable_salt", "assume_w2_wages", "scorp_treatment"}
 
     def __init__(
         self,
@@ -30,6 +30,11 @@ class StitchedRunner(BaseTaxRunner):
         use_remote_taxsim=False,
         **kwargs,
     ):
+        from ..core.scorp import validate_scorp_treatment
+
+        kwargs["scorp_treatment"] = validate_scorp_treatment(
+            kwargs.get("scorp_treatment")
+        )
         super().__init__(input_df)
         self.pe_min_year = pe_min_year if pe_min_year is not None else self.PE_MIN_YEAR
         self.use_remote_taxsim = use_remote_taxsim
@@ -55,8 +60,14 @@ class StitchedRunner(BaseTaxRunner):
 
         # Warn if PE-only kwargs are set but some rows go to TAXSIM
         if taxsim_mask.any():
+            # TAXSIM rows follow TAXSIM's own (passive) S-corp convention, so
+            # only an active scorp_treatment is actually ignored there.
             active_pe_kwargs = {
-                k for k, v in self._pe_kwargs.items() if k in self._PE_ONLY_KWARGS and v
+                k
+                for k, v in self._pe_kwargs.items()
+                if k in self._PE_ONLY_KWARGS
+                and v
+                and not (k == "scorp_treatment" and v == "passive")
             }
             if active_pe_kwargs:
                 logger.warning(

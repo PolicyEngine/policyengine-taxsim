@@ -10,7 +10,8 @@ import argparse
 import numpy as np
 import pandas as pd
 
-# FIPS state code -> TAXSIM SOI state code
+# FIPS state code -> TAXSIM SOI state code. The exact inverse of
+# policyengine_taxsim.core.utils.SOI_TO_FIPS_MAP (tests/test_state_codes.py).
 FIPS_TO_SOI = {
     1: 1,
     2: 2,
@@ -66,6 +67,20 @@ FIPS_TO_SOI = {
 }
 
 SMALL_ECPS_REVISION = "c24d1444f381e10f81103ea853ab57a46ed3f10e"
+
+
+def fips_to_soi(fips) -> int:
+    """Return the TAXSIM SOI state code for a state FIPS code.
+
+    Unknown codes raise rather than default to 0, because TAXSIM reads state 0
+    as "no state tax". The converter that built cps_households.csv had no
+    entry for FIPS 1 and fell back to 0, so every Alabama household was
+    scored without state income tax.
+    """
+    try:
+        return FIPS_TO_SOI[int(fips)]
+    except KeyError:
+        raise ValueError(f"No TAXSIM state code for FIPS {fips!r}") from None
 
 
 def load_sim(dataset_name: str, year: int, revision: str):
@@ -210,7 +225,7 @@ def extract_taxsim_csv(sim, year: int) -> pd.DataFrame:
         row = {
             "taxsimid": int(tu_id),
             "year": year,
-            "state": FIPS_TO_SOI.get(int(hh_state.get(hh_id, 0)), 0),
+            "state": fips_to_soi(hh_state[hh_id]),
             "mstat": mstat,
             "page": max(int(age[head_idx]), 0),
             "sage": max(int(age[spouse_idx]), 0) if spouse_idx is not None else 0,
