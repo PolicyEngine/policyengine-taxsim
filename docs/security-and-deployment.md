@@ -67,7 +67,7 @@ On 2026-10-09, with policyengine-taxsim at this commit, policyengine-us 2.38.0 (
 2. **Recording every network call.** A Python audit hook logged socket, DNS and HTTP events during a command-line run of records from 2019 (computed by TAXSIM-35) and 2023 to 2025 (PolicyEngine), with empty download caches. It recorded no connection, DNS lookup or HTTP request; the only socket event was urllib3's loopback test.
 3. **Blocking the network.** The same run under macOS's `sandbox-exec` with all inbound and outbound network access denied completed and produced the same output.
 4. **Inspecting the executables'** imported libraries and symbols (below).
-5. **Installing offline.** The [offline installation](#installing-without-internet-access) was carried out on macOS with Python 3.11 inside the same no-network sandbox, using uv's equivalents of the pip commands (`uv pip install --no-index --find-links ... --require-hashes`), and the check command printed the expected result. Every package in the Python 3.11 snapshot was confirmed to have a wheel with a listed hash for Linux x86-64 (manylinux 2.28) and for macOS on Apple silicon.
+5. **Installing offline.** The install step of the [offline installation](#installing-without-internet-access) was carried out on macOS with Python 3.11 inside the same no-network sandbox, using uv's equivalents of the pip commands (`uv pip install --no-index --find-links ... --require-hashes`), and the check command printed the expected result. The `pip download` commands themselves were not run. Their `--platform` flags were checked by computing the tags pip accepts with the `packaging` library: in each of the five snapshots, every package has a file with a listed hash that those flags accept.
 
 `tests/test_no_network.py` repeats step 2 in CI on Linux, macOS and Windows with Python 3.10 and 3.11: it runs the command line with an audit hook that refuses any connection leaving the machine, DNS lookup or HTTP request made through Python, so a change that adds one fails the build. The hook does not see inside the TAXSIM-35 executable, which is why step 4 inspects its imports. To check an installation yourself, run the same command with your firewall blocking the Python process; the [worked example](input-guide.md#worked-example-from-a-survey-file-to-taxes) is a suitable input.
 
@@ -284,16 +284,20 @@ The resolution is reproducible: re-running the command with the same timestamp g
 
 ## Installing without internet access
 
-On a machine with internet access, download every file the installation needs. This example targets a Linux x86-64 server with Python 3.11; change `--platform` and `--python-version` for other targets (`win_amd64` for 64-bit Windows):
+On a machine with internet access, download every file the installation needs. This example targets a Linux x86-64 server with Python 3.11, the platform the snapshot is resolved for:
 
 ```bash
 pip download --dest wheels --only-binary=:all: \
-    --platform manylinux_2_28_x86_64 --python-version 3.11 \
+    --platform manylinux_2_28_x86_64 --platform manylinux2014_x86_64 \
+    --python-version 3.11 \
     --require-hashes -r docs/dependencies/requirements-py3.11.txt
 pip download --dest wheels --only-binary=:all: --no-deps \
-    --platform manylinux_2_28_x86_64 --python-version 3.11 \
+    --platform manylinux_2_28_x86_64 --platform manylinux2014_x86_64 \
+    --python-version 3.11 \
     policyengine-taxsim==3.1.1
 ```
+
+Both `--platform` flags are needed: pip matches each one exactly, and the packages' Linux files carry one tag or the other. For another Python version, change `--python-version` and the requirements file. On Windows and macOS a few packages differ (see the list under the dependency table), so first resolve the snapshot for that platform: run the `uv pip compile` command at the top of the requirements file with a different `--python-platform`, then download with that platform's tag (`win_amd64` for 64-bit Windows). If the connected machine has the same operating system and Python version as the target, leave out `--platform` and `--python-version`.
 
 Copy `wheels/` and the requirements file to the target machine, then install from them with no network access:
 
