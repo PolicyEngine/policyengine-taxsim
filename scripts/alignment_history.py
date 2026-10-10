@@ -54,6 +54,9 @@ INSTALL_GRACE = timedelta(minutes=1)
 MAX_PAIRS = 250
 # How often the coordinator checks its workers' memory and state.
 POLL_SECONDS = 2
+# A release whose publish job succeeded this recently may not be in PyPI's
+# index yet; don't conclude from its absence that PyPI deleted it.
+RECENT_PUBLISH = timedelta(days=1)
 
 _spec = importlib.util.spec_from_file_location(
     "refresh_dashboard", Path(__file__).resolve().parent / "refresh_dashboard.py"
@@ -279,6 +282,37 @@ def source_rows(source=None):
         yield from csv.DictReader(stream)
 
 
+def blank(value):
+    return value is None or str(value).strip().lower() in ("", "nan")
+
+
+def check_published_household(taxsim, raw, year):
+    """Require a published TAXSIM row to be this source household, in this year.
+
+    Every TAXSIM input must equal the source's (so PolicyEngine is run on what
+    TAXSIM was run on), the tax year must be the one asked for, and the state
+    code must be the source state's.
+    """
+    key = household_id(taxsim)
+    if blank(taxsim.get("year")) or int(float(taxsim["year"])) != year:
+        raise ValueError(f"{year}: household {key} was run for {taxsim.get('year')}")
+    if taxsim["state_code"] != STATES[int(float(raw["state"])) - 1]:
+        raise ValueError(f"{year}: household {key} state differs from the source")
+    for name in refresh.INPUT_COLUMNS:
+        if name == "year":
+            continue
+        ours, theirs = raw.get(name), taxsim.get(name)
+        if blank(ours) or blank(theirs):
+            same = blank(ours) and blank(theirs)
+        else:
+            same = math.isclose(float(ours), float(theirs), rel_tol=1e-9, abs_tol=1e-6)
+        if not same:
+            raise ValueError(
+                f"{year}: household {key} {name} is {theirs!r} in the release "
+                f"and {ours!r} in the source"
+            )
+
+
 def summary_check(published, summary):
     """Compare a recomputed year with the dashboard's committed summary."""
     problems = []
@@ -350,6 +384,8 @@ def build_reference(tag, work, years, summaries_dir=None, keep_downloads=False):
     meta = {"release": tag, "url": f"{REPO_URL}/releases/tag/{tag}", "years": {}}
     for year in years:
         provenance = json.loads(fetch(f"{base}/provenance_{year}.json"))
+        if provenance.get("year") != year:
+            raise ValueError(f"{year}: the release's provenance is for another year")
         full = work / f"comparison_results_{year}.csv"
         sha = download(f"{base}/comparison_results_{year}.csv", full)
         if sha != provenance["outputSha256"]:
@@ -364,16 +400,7 @@ def build_reference(tag, work, years, summaries_dir=None, keep_downloads=False):
             raw = source.get(key)
             if raw is None:
                 raise ValueError(f"{year}: household {key} is not in the source")
-            if taxsim["state_code"] != STATES[int(float(raw["state"])) - 1]:
-                raise ValueError(f"{year}: household {key} state differs")
-            for name in GROSS_FIELDS:
-                if not math.isclose(
-                    refresh.number(taxsim.get(name)),
-                    refresh.number(raw.get(name)),
-                    rel_tol=1e-9,
-                    abs_tol=1e-6,
-                ):
-                    raise ValueError(f"{year}: household {key} {name} differs")
+            check_published_household(taxsim, raw, year)
             row = {name: taxsim.get(name, "") for name in REFERENCE_FIELDS}
             row["taxsimid"] = key
             rows.append(row)
@@ -435,6 +462,20 @@ def build_reference(tag, work, years, summaries_dir=None, keep_downloads=False):
     return meta
 
 
+def check_reference(meta, folder, years=None):
+    """Refuse a reference whose files, or whose source, are not the ones verified."""
+    if meta.get("sourceSha256") != refresh.digest(refresh.SOURCE):
+        raise ValueError(
+            f"{refresh.SOURCE.name} is not the source the reference was built from"
+        )
+    for year, entry in meta["years"].items():
+        if years and int(year) not in years:
+            continue
+        path = folder / f"reference_{year}.csv.gz"
+        if refresh.digest(path) != entry["referenceSha256"]:
+            raise ValueError(f"{path.name} is not the verified {year} reference")
+
+
 def read_reference(work, year):
     with gzip.open(work / f"reference_{year}.csv.gz", "rt", newline="") as stream:
         return list(csv.DictReader(stream))
@@ -444,14 +485,21 @@ def read_reference(work, year):
 
 
 def pypi_releases(name):
-    """{version: {"uploaded": datetime, "requiresPython": str|None}} from PyPI."""
+    """PyPI's releases: {version: {"available", "complete", "requiresPython"}}.
+
+    `available` is when the first file was uploaded: from then the release can
+    be installed, and `uv --exclude-newer` filters file by file. `complete` is
+    when the last file was.
+    """
     data = json.loads(fetch(PYPI.format(name)))
     releases = {}
     for version, files in data["releases"].items():
         files = [f for f in files if not f.get("yanked")]
         if files:
+            times = [parse_time(f["upload_time"]) for f in files]
             releases[version] = {
-                "uploaded": max(parse_time(f["upload_time"]) for f in files),
+                "available": min(times),
+                "complete": max(times),
                 "requiresPython": next(
                     (
                         f.get("requires_python")
@@ -475,7 +523,8 @@ def changelog_dates(text):
 def us_release_times(repo, ref="HEAD"):
     """{version: (commit time, commit)} of policyengine-us version bumps in a clone.
 
-    The commit that first sets a version is its bump; PyPI's upload follows it.
+    The commit that first sets a version is its bump. PyPI's upload follows it,
+    so the commit time is only a lower bound on when the release came out.
     """
     log = subprocess.run(
         [
@@ -504,100 +553,92 @@ def us_release_times(repo, ref="HEAD"):
     return found
 
 
-def publish_conclusion(sha, repo="PolicyEngine/policyengine-us"):
-    """The conclusion of the Publish job for a version-bump commit, if any."""
-    runs = json.loads(
+def gh_api(path):
+    return json.loads(
         subprocess.run(
-            ["gh", "api", f"repos/{repo}/actions/runs?head_sha={sha}&per_page=50"],
-            capture_output=True,
-            text=True,
-            check=True,
+            ["gh", "api", path], capture_output=True, text=True, check=True
         ).stdout
-    )["workflow_runs"]
-    for run in runs:
+    )
+
+
+def publish_evidence(sha, repo="PolicyEngine/policyengine-us", job_name="Publish"):
+    """What the publish job of a version-bump commit shows about a release.
+
+    Returns (state, started, completed):
+    - "published": the job succeeded, so the upload happened between its start
+      and its completion.
+    - "never": the job failed, was skipped or cancelled, or has not finished.
+      Used only for releases PyPI lacks now, which then never reached it.
+    - "unknown": no such job is on record.
+    """
+    state = ("unknown", None, None)
+    for run in gh_api(f"repos/{repo}/actions/runs?head_sha={sha}&per_page=50")[
+        "workflow_runs"
+    ]:
         if run["event"] != "push":
             continue
-        jobs = json.loads(
-            subprocess.run(
-                [
-                    "gh",
-                    "api",
-                    f"repos/{repo}/actions/runs/{run['id']}/jobs?per_page=100",
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout
-        )["jobs"]
-        for job in jobs:
-            if job["name"] == "Publish":
-                return job["conclusion"]
-    return None
+        jobs = gh_api(f"repos/{repo}/actions/runs/{run['id']}/jobs?per_page=100")
+        for job in jobs["jobs"]:
+            if job["name"] != job_name:
+                continue
+            if job["conclusion"] == "success":
+                return (
+                    "published",
+                    parse_time(job["started_at"]),
+                    parse_time(job["completed_at"]),
+                )
+            state = ("never", None, None)
+    return state
 
 
-def timeline(available, dated, precise=None):
-    """Every known release, oldest first, with the window it was published in.
+def timeline(available, dated, bumps=None, end=None):
+    """Every known release, oldest first, with the window it came out in.
 
-    available: PyPI releases (exact upload times). dated: changelog dates for
-    every release, including those PyPI has deleted. precise: optional exact
-    times for deleted releases. Returns dicts with version, lo, hi (the earliest
-    and latest moment the release can have been published) and onPypi.
+    available: PyPI releases. dated: changelog dates for every release,
+    including those PyPI lacks. bumps: optional {version: (commit time, commit)}.
+    Returns dicts with version, lo and hi (the earliest and latest moment the
+    release can first have been installable), onPypi and commit.
 
-    Releases are numbered in time order, so a deleted release known only by
-    its date was published that day, after the nearest earlier release with a
-    known time and before the nearest later one. A changelog entry newer than
-    everything on PyPI is not published yet and is left out.
+    A release on PyPI came out when its first file was uploaded. For one PyPI
+    lacks, assuming releases publish in version order: it came out no earlier
+    than its changelog date, its version-bump commit, and the previous release
+    PyPI has; and no later than the next release PyPI has (`end` if none).
+    Whether it came out at all is for publish_evidence() to say.
     """
-    precise = {
-        v: t if isinstance(t, tuple) else (t, None) for v, t in (precise or {}).items()
-    }
+    bumps = bumps or {}
+    end = end or now()
     versions = sorted(set(available) | set(dated), key=version_key)
-    if available:
-        newest = max(available, key=version_key)
-        versions = [v for v in versions if version_key(v) <= version_key(newest)]
-    known = {}
+    following, upcoming = {}, end
+    for version in reversed(versions):
+        following[version] = upcoming
+        if version in available:
+            upcoming = available[version]["available"]
+    out, previous = [], None
     for version in versions:
         if version in available:
-            known[version] = available[version]["uploaded"]
-        elif version in precise:
-            known[version] = precise[version][0]
-    out = []
-    for i, version in enumerate(versions):
-        if version in known:
-            lo = hi = known[version]
+            lo = hi = available[version]["available"]
+            previous = lo
         else:
-            day = dated[version]
-            lo, hi = day, day + timedelta(days=1) - timedelta(seconds=1)
-            earlier = [known[v] for v in versions[:i] if v in known]
-            later = [known[v] for v in versions[i + 1 :] if v in known]
-            if earlier:
-                lo = max(lo, max(earlier))
-            if later:
-                hi = min(hi, min(later))
+            bumped = bumps.get(version, (None, None))[0]
+            lo = max(t for t in (dated[version], previous, bumped) if t is not None)
+            hi = max(lo, following[version])
         out.append(
             {
                 "version": version,
                 "lo": lo,
                 "hi": hi,
+                "complete": available.get(version, {}).get("complete"),
                 "onPypi": version in available,
-                "commit": precise.get(version, (None, None))[1],
+                "commit": bumps.get(version, (None, None))[1],
             }
         )
     return out
 
 
-def newest_at(releases, moment, allowed=lambda version: True):
-    """The newest allowed release published by a moment, and whether that is certain.
-
-    It is uncertain when a newer allowed release may or may not have been
-    published by then (its window straddles the moment).
-    """
-    best, straddling = _newest(releases, moment, allowed)
-    return best, not straddling
-
-
 def _newest(releases, moment, allowed):
-    candidates = [r for r in releases if allowed(r["version"])]
+    candidates = [
+        r for r in releases if allowed(r["version"]) and r.get("state") != "never"
+    ]
     before = [r for r in candidates if r["hi"] <= moment]
     best = max(before, key=lambda r: version_key(r["version"])) if before else None
     floor = version_key(best["version"]) if best else None
@@ -610,26 +651,46 @@ def _newest(releases, moment, allowed):
     return best, straddling
 
 
-def newest_installed(releases, moment, allowed, never_published):
-    """newest_at, skipping releases that never reached PyPI.
+def newest_installed(releases, moment, allowed=lambda version: True, evidence=None):
+    """The newest allowed release a user could install at a moment.
 
-    never_published(release) is True only for a release whose publish job did
-    not succeed; nobody could install it, so it can't be what a user got.
-    Releases PyPI deleted after publishing stay in.
+    Returns (release, certain). A release PyPI lacks counts only as far as the
+    evidence goes: evidence(release) -> (state, started, completed), as
+    publish_evidence() returns. "never" drops it; "published" narrows its
+    window to the publish job's; "unknown" (or no evidence function) leaves it
+    possible but unproven. Each release is asked about once, and remembers.
+
+    The answer is certain when no release's window straddles the moment and
+    the newest one is known to have been published (it is on PyPI, or its
+    publish job succeeded). Evidence is sought from the newest candidate down
+    and no further than needed: once one is known to have been out, older
+    ones can't be the answer.
     """
-    dropped = set()
     while True:
-        best, straddling = _newest(
-            releases, moment, lambda v: allowed(v) and v not in dropped
+        best, straddling = _newest(releases, moment, allowed)
+        # A straddler already asked about still straddles: the answer is open.
+        if any("state" in r or r["onPypi"] for r in straddling):
+            return best, False
+        if straddling:
+            ask = max(straddling, key=lambda r: version_key(r["version"]))
+        elif best is not None and not best["onPypi"] and "state" not in best:
+            ask = best
+        else:
+            proven = best is None or best["onPypi"] or best["state"] == "published"
+            return best, proven
+        state, started, completed = (
+            evidence(ask) if evidence else ("unknown", None, None)
         )
-        unpublished = [
-            r
-            for r in ([best] if best else []) + straddling
-            if not r["onPypi"] and never_published(r)
-        ]
-        if not unpublished:
-            return best, not straddling
-        dropped.update(r["version"] for r in unpublished)
+        ask["state"] = state
+        if state == "published":
+            ask["lo"] = max(ask["lo"], started)
+            ask["hi"] = max(ask["lo"], min(ask["hi"], completed))
+            ask["publishedAt"] = completed
+
+
+def newest_at(releases, moment, allowed=lambda version: True):
+    """newest_installed() with no evidence about releases PyPI lacks."""
+    return newest_installed(releases, moment, allowed)
 
 
 def us_allowed(spec, us_available):
@@ -662,7 +723,11 @@ def taxsim_requirement(version):
 
 
 def pair(taxsim, us, trigger, reference):
-    """A pair to measure, or a not-installable row explaining why it can't be."""
+    """A pair to measure, or a not-installable row saying which release is gone.
+
+    Call it only for a counterpart newest_installed() was certain of, or when
+    the triggering release itself is not on PyPI.
+    """
     released = max(taxsim["hi"], us["hi"])
     entry = {
         "id": row_id(taxsim["version"], us["version"], reference),
@@ -687,7 +752,8 @@ def pair(taxsim, us, trigger, reference):
             + (" are" if len(missing) > 1 else " is")
             + " not on PyPI",
         }
-    entry["installAsOf"] = iso(released + INSTALL_GRACE)
+    # Resolve everything else as PyPI stood once both releases were complete.
+    entry["installAsOf"] = iso(max(taxsim["complete"], us["complete"]) + INSTALL_GRACE)
     return entry
 
 
@@ -702,45 +768,46 @@ def plan(
     max_pairs=MAX_PAIRS,
     log=print,
 ):
-    """Pairs to measure and rows that cannot be measured, minus those recorded.
+    """Pairs to measure, pairs that cannot be installed, and pairs left open.
 
-    recent: backfill, limited to releases from the last since_days days and to
-      what PyPI serves (a changelog entry PyPI lacks never published).
-    backfill: every policyengine-taxsim release with the policyengine-us release
-      that was newest when it came out (what installing it that day gave), plus,
-      for each day, the last policyengine-us release PyPI still serves with the
+    backfill: each policyengine-taxsim release with the policyengine-us release
+      that was newest when it came out (what installing it then gave), plus,
+      for each day, the last policyengine-us release PyPI serves with the
       policyengine-taxsim release that was newest then.
-    release: one policyengine-taxsim release, with the newest policyengine-us.
-    latest: the newest release of each.
+    recent: the same, for releases from the last since_days days.
+    release: one policyengine-taxsim release.
+    latest: the newest release of each on PyPI now.
+
+    Returns {"measure", "unavailable", "undetermined"}:
+    - measure: both releases are on PyPI and the pairing is certain.
+    - unavailable: rows with status not-installable; a release of the pair is
+      known to be gone from PyPI.
+    - undetermined: the counterpart can't be settled (see newest_installed).
+      These are reported, not recorded, so better evidence can settle them:
+      pass us_repo, a policyengine-us clone, to read each missing release's
+      publish job.
+    Pairs already measured, or recorded as not installable, are left out.
     """
     taxsim_available = pypi_releases("policyengine-taxsim")
     us_available = pypi_releases("policyengine-us")
     taxsim_all = timeline(
         taxsim_available, changelog_dates((ROOT / "CHANGELOG.md").read_text())
     )
+    us_dates = changelog_dates(fetch(US_CHANGELOG).decode())
     us_all = timeline(
         us_available,
-        changelog_dates(fetch(US_CHANGELOG).decode()),
+        us_dates,
         us_release_times(us_repo, us_ref) if us_repo else None,
     )
-    if mode != "backfill":
-        # Going forward PyPI is the record: a changelog entry PyPI lacks is
-        # still being published, or its publish failed.
-        us_all = [r for r in us_all if r["onPypi"]]
-    since = now() - timedelta(days=since_days) if mode == "recent" else None
-    conclusions = {}
+    started = now()
+    since = started - timedelta(days=since_days) if mode == "recent" else None
 
-    def never_published(release):
-        """True when the release's publish job did not succeed (needs us_repo)."""
+    def evidence(release):
         if not release.get("commit"):
-            return False
-        if release["version"] not in conclusions:
-            conclusions[release["version"]] = publish_conclusion(release["commit"])
-            log(
-                f"policyengine-us {release['version']}: publish job "
-                f"{conclusions[release['version']]}"
-            )
-        return conclusions[release["version"]] in ("failure", "cancelled", "skipped")
+            return ("unknown", None, None)
+        found = publish_evidence(release["commit"])
+        log(f"policyengine-us {release['version']}: publish job says {found[0]}")
+        return found
 
     requirements = {}
 
@@ -751,36 +818,67 @@ def plan(
             )
         return requirements[version]
 
-    entries = []
-    skipped = 0
+    entries, undetermined, incompatible = [], [], []
     if mode in ("backfill", "recent", "release"):
         for release in taxsim_all:
             if mode == "release" and release["version"] != taxsim_version:
                 continue
             if since and release["hi"] < since:
                 continue
-            allowed = us_allowed(requirement(release["version"]), us_available)
-            us, certain = newest_installed(
-                us_all, release["hi"], allowed, never_published
-            )
-            if us is None:
-                skipped += 1
-                continue
             trigger = {"package": "policyengine-taxsim", "version": release["version"]}
-            entry = pair(release, us, trigger, reference)
-            if not certain:
-                entry.pop("installAsOf", None)
-                entry.update(
-                    status="not-installable",
-                    reason=(
-                        "a policyengine-us release PyPI doesn't serve may have "
-                        f"come out after {us['version']} and before this release; "
-                        "which one a user got is unknown"
-                    ),
+            if not release["onPypi"]:
+                # Gone whatever it shipped against. Its own release moment is
+                # known only to the day, so name the newest policyengine-us
+                # dated on or before that day, and say so.
+                day = release["lo"]
+                dated = [v for v, d in us_dates.items() if d <= day]
+                if not dated:
+                    undetermined.append(
+                        {**trigger, "reason": "no policyengine-us release by then"}
+                    )
+                    continue
+                counterpart = max(dated, key=version_key)
+                entries.append(
+                    {
+                        "id": row_id(release["version"], counterpart, reference),
+                        "policyengineTaxsimVersion": release["version"],
+                        "policyengineUsVersion": counterpart,
+                        "releasedAt": iso(day),
+                        "triggers": [trigger],
+                        "reference": reference,
+                        "status": "not-installable",
+                        "reason": f"policyengine-taxsim {release['version']} is not "
+                        "on PyPI (policyengine-us version by changelog date)",
+                    }
                 )
-            entries.append(entry)
-        if mode == "release" and not entries:
-            raise ValueError(f"policyengine-taxsim {taxsim_version} is not on PyPI")
+                continue
+            allowed = us_allowed(requirement(release["version"]), us_available)
+            us, certain = newest_installed(us_all, release["hi"], allowed, evidence)
+            if us is None:
+                undetermined.append(
+                    {**trigger, "reason": "no policyengine-us release by then"}
+                )
+            elif not certain:
+                undetermined.append(
+                    {
+                        **trigger,
+                        "reason": "which policyengine-us release was newest then "
+                        f"can't be settled (candidate: {us['version']})",
+                    }
+                )
+            elif not us["onPypi"] and started - us["publishedAt"] < RECENT_PUBLISH:
+                # Published moments ago: PyPI's index may simply not show it yet.
+                undetermined.append(
+                    {
+                        **trigger,
+                        "reason": f"policyengine-us {us['version']} was published "
+                        "within the last day but PyPI does not list it yet",
+                    }
+                )
+            else:
+                entries.append(pair(release, us, trigger, reference))
+        if mode == "release" and not (entries or undetermined):
+            raise ValueError(f"policyengine-taxsim {taxsim_version} is not released")
     if mode in ("backfill", "recent"):
         last = {}
         for release in us_all:
@@ -791,17 +889,25 @@ def plan(
                 ):
                     last[day] = release
         for day, us in sorted(last.items()):
-            taxsim, certain = newest_at(taxsim_all, us["hi"])
+            trigger = {"package": "policyengine-us", "version": us["version"]}
+            taxsim, certain = newest_installed(taxsim_all, us["hi"])
             if taxsim is None or not certain:
-                skipped += 1
-                continue
-            if not us_allowed(requirement(taxsim["version"]), us_available)(
+                undetermined.append(
+                    {
+                        **trigger,
+                        "reason": "which policyengine-taxsim release was newest "
+                        "then can't be settled",
+                    }
+                )
+            elif not us_allowed(requirement(taxsim["version"]), us_available)(
                 us["version"]
             ):
-                skipped += 1
-                continue
-            trigger = {"package": "policyengine-us", "version": us["version"]}
-            entries.append(pair(taxsim, us, trigger, reference))
+                incompatible.append(
+                    f"policyengine-us {us['version']} with policyengine-taxsim "
+                    f"{taxsim['version']}"
+                )
+            else:
+                entries.append(pair(taxsim, us, trigger, reference))
     if mode == "latest":
         taxsim = max(
             (r for r in taxsim_all if r["onPypi"]),
@@ -809,7 +915,7 @@ def plan(
         )
         allowed = us_allowed(requirement(taxsim["version"]), us_available)
         us = max(
-            (r for r in us_all if allowed(r["version"])),
+            (r for r in us_all if r["onPypi"] and allowed(r["version"])),
             key=lambda r: version_key(r["version"]),
         )
         newer = taxsim if taxsim["hi"] > us["hi"] else us
@@ -819,8 +925,10 @@ def plan(
                 taxsim, us, {"package": package, "version": newer["version"]}, reference
             )
         )
-    if skipped:
-        log(f"{skipped} releases had no installable counterpart and were skipped")
+    for item in undetermined:
+        log(f"Undetermined: {item['package']} {item['version']}: {item['reason']}")
+    for item in incompatible:
+        log(f"Skipped (the emulator's requirement excludes it): {item}")
     merged = {}
     for entry in entries:
         if entry["id"] in merged:
@@ -830,11 +938,12 @@ def plan(
             ]
         else:
             merged[entry["id"]] = entry
-    # A pair whose earlier attempt failed is planned again while it is in scope.
+    # A pair whose earlier attempt failed, or measured only some years, is
+    # planned again while it is in scope.
     recorded = {
         row["id"]
         for row in (history or {}).get("rows", [])
-        if row.get("status") in ("measured", "partial", "not-installable")
+        if row.get("status") in ("measured", "not-installable")
     }
     todo = [e for e in merged.values() if e["id"] not in recorded]
     measure = [e for e in todo if e.get("status") != "not-installable"]
@@ -848,9 +957,14 @@ def plan(
         measure = measure[:max_pairs]
     log(
         f"{len(merged)} pairs; {len(merged) - len(todo)} already recorded; "
-        f"{len(measure)} to measure; {len(unavailable)} not installable"
+        f"{len(measure)} to measure; {len(unavailable)} not installable; "
+        f"{len(undetermined)} undetermined; {len(incompatible)} incompatible"
     )
-    return {"measure": measure, "unavailable": unavailable}
+    return {
+        "measure": measure,
+        "unavailable": unavailable,
+        "undetermined": undetermined,
+    }
 
 
 # ---------------------------------------------------------------- measure
@@ -968,8 +1082,8 @@ def run_workers(
     def stop(job):
         try:
             os.killpg(job["child"].pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        except (ProcessLookupError, PermissionError):
+            pass  # already gone
         job["child"].wait()
         job["input"].unlink(missing_ok=True)
 
@@ -1036,8 +1150,9 @@ def run_workers(
                     stop(job)
                 elif child.returncode != 0 or not job["settings"].exists():
                     reason = f"exited {child.returncode}"
+                # However it ended, leave nothing of its process group behind.
+                stop(job)
                 running.remove(job)
-                job["input"].unlink(missing_ok=True)
                 if reason is None:
                     result = json.loads(job["settings"].read_text())
                     identity = {
@@ -1098,6 +1213,7 @@ def measure(args):
     args.reference_dir = args.reference_dir.resolve()
     work.mkdir(parents=True, exist_ok=True)
     reference_meta = json.loads((args.reference_dir / "reference.json").read_text())
+    check_reference(reference_meta, args.reference_dir)
     entry = json.loads(args.pair) if args.pair else {}
     taxsim_version = args.taxsim_version or entry["policyengineTaxsimVersion"]
     us_version = args.us_version or entry["policyengineUsVersion"]
@@ -1313,6 +1429,14 @@ def validate_year(year, entry, where):
     return problems
 
 
+def measured_years(row):
+    return sum(
+        1
+        for entry in (row.get("years") or {}).values()
+        if entry["status"] == "measured"
+    )
+
+
 def validate_row(row, references=None):
     where = row.get("id", "<row without id>")
     problems = []
@@ -1321,21 +1445,40 @@ def validate_row(row, references=None):
         "policyengineTaxsimVersion",
         "policyengineUsVersion",
         "reference",
+        "releasedAt",
     ):
         if not isinstance(row.get(key), str) or not row[key]:
             problems.append(f"{where}: missing {key}")
     if problems:
         return problems
+    if row.get("limit") or row.get("taxsimSpec"):
+        return [f"{where}: smoke-test rows are not recorded"]
     expected_id = row_id(
         row["policyengineTaxsimVersion"], row["policyengineUsVersion"], row["reference"]
     )
-    if row["id"] != expected_id and not row.get("taxsimSpec"):
+    if row["id"] != expected_id:
         problems.append(f"{where}: id should be {expected_id}")
+    triggers = row.get("triggers")
+    if (
+        not isinstance(triggers, list)
+        or not triggers
+        or any(
+            not isinstance(t, dict) or not t.get("package") or not t.get("version")
+            for t in triggers
+        )
+    ):
+        problems.append(
+            f"{where}: needs the release(s) that made it the pair to install"
+        )
     if references is not None and row["reference"] not in references:
         problems.append(f"{where}: unknown reference {row['reference']}")
     status = row.get("status")
     if status not in ROW_STATUSES:
         return problems + [f"{where}: unknown status {status!r}"]
+    if status != "not-installable" and not row.get("installAsOf"):
+        # Without it the environment was resolved from today's PyPI, not from
+        # the pair's own moment: only planned pairs are recorded.
+        problems.append(f"{where}: no installAsOf (measure it from a plan)")
     years = row.get("years") or {}
     if status in ("not-installable", "install-failed"):
         if years:
@@ -1360,10 +1503,6 @@ def validate_row(row, references=None):
     )
     if status != expected:
         problems.append(f"{where}: status {status} but years say {expected}")
-    if status != "failed":
-        records = {e["records"] for e in years.values() if e["status"] == "measured"}
-        if len(records) != 1:
-            problems.append(f"{where}: measured years cover different households")
     return problems
 
 
@@ -1382,14 +1521,14 @@ def validate_history(doc):
         ids.add(row.get("id"))
         reference = references.get(row.get("reference"), {})
         for year, entry in (row.get("years") or {}).items():
-            ref_year = reference.get("years", {}).get(year)
-            if entry.get("status") != "measured" or ref_year is None:
+            if entry.get("status") != "measured":
                 continue
-            if not row.get("limit") and entry["records"] != ref_year["records"]:
-                problems.append(f"{row['id']} {year}: not the reference population")
-    order = [
-        r.get("releasedAt") or r.get("generatedAt") or "" for r in doc.get("rows", [])
-    ]
+            ref_year = reference.get("years", {}).get(year)
+            if ref_year is None:
+                problems.append(f"{row.get('id')} {year}: the reference has no {year}")
+            elif entry.get("records") != ref_year["records"]:
+                problems.append(f"{row.get('id')} {year}: not the reference population")
+    order = [r.get("releasedAt") or "" for r in doc.get("rows", [])]
     if order != sorted(order):
         problems.append("rows must be sorted by releasedAt")
     return problems
@@ -1397,15 +1536,26 @@ def validate_history(doc):
 
 def sort_key(row):
     return (
-        row.get("releasedAt") or row.get("generatedAt") or "",
-        version_key(row["policyengineTaxsimVersion"].split("+")[0]),
+        row.get("releasedAt") or "",
+        version_key(row["policyengineTaxsimVersion"]),
         version_key(row["policyengineUsVersion"]),
     )
 
 
 def merge(doc, rows, references=(), replace=False):
-    """Add rows (and their references) to a history; return (doc, added ids)."""
+    """Add rows (and their references) to a history; return (doc, changed ids).
+
+    - A row replaces the recorded one for its pair only when it measured more
+      years (so a measurement replaces a failed attempt, and a fuller one a
+      partial one), or with replace=True. Otherwise the recorded row stands
+      and only gains the new row's triggers.
+    - A not-installable row is dropped once every release that triggered it is
+      the trigger of another row: better evidence re-paired those releases.
+    """
+    # Work on copies: the caller's document and rows are left as given.
     doc = json.loads(json.dumps(doc)) if doc else skeleton()
+    rows = json.loads(json.dumps(list(rows)))
+    references = json.loads(json.dumps(list(references)))
     for meta in references:
         known = doc["references"].get(meta["release"])
         if known is None:
@@ -1415,29 +1565,48 @@ def merge(doc, rows, references=(), replace=False):
                 f"Reference {meta['release']} differs from the recorded one"
             )
     existing = {row["id"]: i for i, row in enumerate(doc["rows"])}
-    added = []
+    changed = []
     for row in rows:
         problems = validate_row(row, doc["references"])
         if problems:
             raise ValueError("; ".join(problems))
-        if row.get("limit") or row.get("taxsimSpec"):
-            raise ValueError(f"{row['id']}: smoke-test rows are not recorded")
-        if row["id"] in existing:
-            old = doc["rows"][existing[row["id"]]]
-            # A measurement replaces an earlier "not installable" or failed
-            # attempt; otherwise the first measurement stands.
-            if replace or (old["status"] != "measured" and row["status"] == "measured"):
-                doc["rows"][existing[row["id"]]] = row
-                added.append(row["id"])
+        if row["id"] not in existing:
+            existing[row["id"]] = len(doc["rows"])
+            doc["rows"].append(row)
+            changed.append(row["id"])
             continue
-        existing[row["id"]] = len(doc["rows"])
-        doc["rows"].append(row)
-        added.append(row["id"])
-    doc["rows"].sort(key=sort_key)
+        old = doc["rows"][existing[row["id"]]]
+        triggers = old["triggers"] + [
+            t for t in row["triggers"] if t not in old["triggers"]
+        ]
+        if replace or measured_years(row) > measured_years(old):
+            doc["rows"][existing[row["id"]]] = {**row, "triggers": triggers}
+            changed.append(row["id"])
+        elif triggers != old["triggers"]:
+            old["triggers"] = triggers
+            changed.append(row["id"])
+
+    def keys(row):
+        return {(row["reference"], t["package"], t["version"]) for t in row["triggers"]}
+
+    incoming = {row["id"] for row in rows}
+    claimed = set().union(*(keys(row) for row in rows)) if rows else set()
+    kept = []
+    for row in doc["rows"]:
+        superseded = (
+            row["status"] == "not-installable"
+            and row["id"] not in incoming
+            and keys(row) <= claimed
+        )
+        if superseded:
+            changed.append(row["id"])
+        else:
+            kept.append(row)
+    doc["rows"] = sorted(kept, key=sort_key)
     problems = validate_history(doc)
     if problems:
         raise ValueError("; ".join(problems[:20]))
-    return doc, added
+    return doc, changed
 
 
 def reference_identity(meta):
@@ -1562,9 +1731,12 @@ def main(argv=None):
         if args.plan:
             rows += json.loads(args.plan.read_text())["unavailable"]
         references = [json.loads(p.read_text()) for p in args.reference_meta]
-        doc, added = merge(doc, rows, references, args.replace)
+        doc, changed = merge(doc, rows, references, args.replace)
         write_history(doc, args.history)
-        print(f"{len(added)} rows added; {len(doc['rows'])} in {args.history.name}")
+        print(
+            f"{len(changed)} rows added or changed; "
+            f"{len(doc['rows'])} in {args.history.name}"
+        )
 
 
 if __name__ == "__main__":

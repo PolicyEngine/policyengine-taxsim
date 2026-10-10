@@ -69,7 +69,7 @@
      "generatedAt": "2026-09-23T18:36:35.886250+00:00",
      "publishedPolicyengineUsVersion": "2.6.17",
      "publishedEmulatorCommit": "c245a3eb92e412bc2beb5b0ffaf909ecc36d7a18",
-     "publishedScorpTreatment": null,
+     "publishedScorpTreatment": "active",
      "published": {
       "records": 111347,
       "federalMatches": 87761,
@@ -89,7 +89,7 @@
      "generatedAt": "2026-09-23T18:31:57.414281+00:00",
      "publishedPolicyengineUsVersion": "2.6.17",
      "publishedEmulatorCommit": "c245a3eb92e412bc2beb5b0ffaf909ecc36d7a18",
-     "publishedScorpTreatment": null,
+     "publishedScorpTreatment": "active",
      "published": {
       "records": 111347,
       "federalMatches": 90355,
@@ -109,7 +109,7 @@
      "generatedAt": "2026-09-23T19:34:35.335832+00:00",
      "publishedPolicyengineUsVersion": "2.6.17",
      "publishedEmulatorCommit": "c245a3eb92e412bc2beb5b0ffaf909ecc36d7a18",
-     "publishedScorpTreatment": null,
+     "publishedScorpTreatment": "active",
      "published": {
       "records": 111347,
       "federalMatches": 90311,
@@ -141,7 +141,7 @@
      "generatedAt": "2026-09-24T04:39:34.120129+00:00",
      "publishedPolicyengineUsVersion": "2.6.17",
      "publishedEmulatorCommit": "244aa52c4e6ee6804ab98430b05e2bd3e4652b04",
-     "publishedScorpTreatment": null,
+     "publishedScorpTreatment": "active",
      "published": {
       "records": 111347,
       "federalMatches": 93322,
@@ -173,7 +173,7 @@
      "generatedAt": "2026-09-24T04:28:07.208508+00:00",
      "publishedPolicyengineUsVersion": "2.6.17",
      "publishedEmulatorCommit": "244aa52c4e6ee6804ab98430b05e2bd3e4652b04",
-     "publishedScorpTreatment": null,
+     "publishedScorpTreatment": "active",
      "published": {
       "records": 111347,
       "federalMatches": 92372,
@@ -193,9 +193,7 @@
    "id": "taxsim-0.1.0+us-1.347.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "0.1.0",
    "policyengineUsVersion": "1.347.0",
-   "policyengineTaxsimReleasedAt": "2025-07-18T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-07-18T21:16:49Z",
-   "releasedAt": "2025-07-18T23:59:59Z",
+   "releasedAt": "2025-07-18T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -204,15 +202,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 0.1.0 and policyengine-us 1.347.0 are not on PyPI"
+   "reason": "policyengine-taxsim 0.1.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-0.1.1+us-1.347.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "0.1.1",
    "policyengineUsVersion": "1.347.0",
-   "policyengineTaxsimReleasedAt": "2025-07-18T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-07-18T21:16:49Z",
-   "releasedAt": "2025-07-18T23:59:59Z",
+   "releasedAt": "2025-07-18T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -221,15 +217,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 0.1.1 and policyengine-us 1.347.0 are not on PyPI"
+   "reason": "policyengine-taxsim 0.1.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-0.2.0+us-1.357.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "0.2.0",
    "policyengineUsVersion": "1.357.1",
-   "policyengineTaxsimReleasedAt": "2025-07-29T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-07-29T16:49:57Z",
-   "releasedAt": "2025-07-29T23:59:59Z",
+   "releasedAt": "2025-07-29T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -238,15 +232,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 0.2.0 and policyengine-us 1.357.1 are not on PyPI"
+   "reason": "policyengine-taxsim 0.2.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-1.0.0+us-1.379.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "1.0.0",
    "policyengineUsVersion": "1.379.0",
-   "policyengineTaxsimReleasedAt": "2025-08-26T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-08-26T19:32:47Z",
-   "releasedAt": "2025-08-26T23:59:59Z",
+   "releasedAt": "2025-08-26T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -255,15 +247,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 1.0.0 and policyengine-us 1.379.0 are not on PyPI"
+   "reason": "policyengine-taxsim 1.0.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-1.1.0+us-1.379.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "1.1.0",
    "policyengineUsVersion": "1.379.0",
-   "policyengineTaxsimReleasedAt": "2025-08-26T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-08-26T19:32:47Z",
-   "releasedAt": "2025-08-26T23:59:59Z",
+   "releasedAt": "2025-08-26T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -272,15 +262,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 1.1.0 and policyengine-us 1.379.0 are not on PyPI"
+   "reason": "policyengine-taxsim 1.1.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-1.1.1+us-1.379.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "1.1.1",
    "policyengineUsVersion": "1.379.0",
-   "policyengineTaxsimReleasedAt": "2025-08-26T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-08-26T19:32:47Z",
-   "releasedAt": "2025-08-26T23:59:59Z",
+   "releasedAt": "2025-08-26T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -289,15 +277,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 1.1.1 and policyengine-us 1.379.0 are not on PyPI"
+   "reason": "policyengine-taxsim 1.1.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-1.1.2+us-1.379.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "1.1.2",
    "policyengineUsVersion": "1.379.0",
-   "policyengineTaxsimReleasedAt": "2025-08-27T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-08-26T19:32:47Z",
-   "releasedAt": "2025-08-27T23:59:59Z",
+   "releasedAt": "2025-08-27T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -306,15 +292,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 1.1.2 and policyengine-us 1.379.0 are not on PyPI"
+   "reason": "policyengine-taxsim 1.1.2 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-1.1.3+us-1.386.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "1.1.3",
    "policyengineUsVersion": "1.386.1",
-   "policyengineTaxsimReleasedAt": "2025-09-01T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-01T22:58:37Z",
-   "releasedAt": "2025-09-01T23:59:59Z",
+   "releasedAt": "2025-09-01T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -323,15 +307,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 1.1.3 and policyengine-us 1.386.1 are not on PyPI"
+   "reason": "policyengine-taxsim 1.1.3 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.0.0+us-1.390.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.0.0",
    "policyengineUsVersion": "1.390.0",
-   "policyengineTaxsimReleasedAt": "2025-09-03T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-03T17:50:53Z",
-   "releasedAt": "2025-09-03T23:59:59Z",
+   "releasedAt": "2025-09-03T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -340,15 +322,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.0.0 and policyengine-us 1.390.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.0.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.1.0+us-1.390.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.1.0",
    "policyengineUsVersion": "1.390.0",
-   "policyengineTaxsimReleasedAt": "2025-09-03T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-03T17:50:53Z",
-   "releasedAt": "2025-09-03T23:59:59Z",
+   "releasedAt": "2025-09-03T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -357,15 +337,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.1.0 and policyengine-us 1.390.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.1.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.1.1+us-1.395.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.1.1",
    "policyengineUsVersion": "1.395.1",
-   "policyengineTaxsimReleasedAt": "2025-09-05T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-05T20:35:13Z",
-   "releasedAt": "2025-09-05T23:59:59Z",
+   "releasedAt": "2025-09-05T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -374,15 +352,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.1.1 and policyengine-us 1.395.1 are not on PyPI"
+   "reason": "policyengine-taxsim 2.1.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.1.2+us-1.395.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.1.2",
    "policyengineUsVersion": "1.395.1",
-   "policyengineTaxsimReleasedAt": "2025-09-05T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-05T20:35:13Z",
-   "releasedAt": "2025-09-05T23:59:59Z",
+   "releasedAt": "2025-09-05T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -391,15 +367,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.1.2 and policyengine-us 1.395.1 are not on PyPI"
+   "reason": "policyengine-taxsim 2.1.2 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.1.3+us-1.395.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.1.3",
    "policyengineUsVersion": "1.395.1",
-   "policyengineTaxsimReleasedAt": "2025-09-05T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-05T20:35:13Z",
-   "releasedAt": "2025-09-05T23:59:59Z",
+   "releasedAt": "2025-09-05T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -408,15 +382,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.1.3 and policyengine-us 1.395.1 are not on PyPI"
+   "reason": "policyengine-taxsim 2.1.3 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.1.4+us-1.395.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.1.4",
    "policyengineUsVersion": "1.395.1",
-   "policyengineTaxsimReleasedAt": "2025-09-08T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-05T20:35:13Z",
-   "releasedAt": "2025-09-08T23:59:59Z",
+   "releasedAt": "2025-09-08T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -425,15 +397,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.1.4 and policyengine-us 1.395.1 are not on PyPI"
+   "reason": "policyengine-taxsim 2.1.4 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.1.5+us-1.396.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.1.5",
    "policyengineUsVersion": "1.396.0",
-   "policyengineTaxsimReleasedAt": "2025-09-09T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-09T23:54:54Z",
-   "releasedAt": "2025-09-09T23:59:59Z",
+   "releasedAt": "2025-09-09T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -442,15 +412,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.1.5 and policyengine-us 1.396.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.1.5 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.2.0+us-1.396.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.2.0",
    "policyengineUsVersion": "1.396.0",
-   "policyengineTaxsimReleasedAt": "2025-09-09T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-09T23:54:54Z",
-   "releasedAt": "2025-09-09T23:59:59Z",
+   "releasedAt": "2025-09-09T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -459,15 +427,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.2.0 and policyengine-us 1.396.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.2.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.3.0+us-1.403.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.3.0",
    "policyengineUsVersion": "1.403.2",
-   "policyengineTaxsimReleasedAt": "2025-09-24T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-24T15:24:00Z",
-   "releasedAt": "2025-09-24T23:59:59Z",
+   "releasedAt": "2025-09-24T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -476,15 +442,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.3.0 and policyengine-us 1.403.2 are not on PyPI"
+   "reason": "policyengine-taxsim 2.3.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.4.0+us-1.405.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.4.0",
    "policyengineUsVersion": "1.405.0",
-   "policyengineTaxsimReleasedAt": "2025-09-25T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-09-25T20:33:38Z",
-   "releasedAt": "2025-09-25T23:59:59Z",
+   "releasedAt": "2025-09-25T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -493,15 +457,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.4.0 and policyengine-us 1.405.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.4.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.4.1+us-1.449.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.4.1",
    "policyengineUsVersion": "1.449.1",
-   "policyengineTaxsimReleasedAt": "2025-12-02T23:59:59Z",
-   "policyengineUsReleasedAt": "2025-12-02T23:28:14Z",
-   "releasedAt": "2025-12-02T23:59:59Z",
+   "releasedAt": "2025-12-02T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -510,15 +472,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.4.1 and policyengine-us 1.449.1 are not on PyPI"
+   "reason": "policyengine-taxsim 2.4.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.5.0+us-1.492.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.5.0",
    "policyengineUsVersion": "1.492.0",
-   "policyengineTaxsimReleasedAt": "2026-01-04T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-01-04T23:28:16Z",
-   "releasedAt": "2026-01-04T23:59:59Z",
+   "releasedAt": "2026-01-04T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -527,15 +487,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.5.0 and policyengine-us 1.492.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.5.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.6.0+us-1.550.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.6.0",
    "policyengineUsVersion": "1.550.2",
-   "policyengineTaxsimReleasedAt": "2026-02-06T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-05T04:45:19Z",
-   "releasedAt": "2026-02-06T23:59:59Z",
+   "releasedAt": "2026-02-06T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -544,15 +502,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.6.0 and policyengine-us 1.550.2 are not on PyPI"
+   "reason": "policyengine-taxsim 2.6.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.6.1+us-1.553.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.6.1",
    "policyengineUsVersion": "1.553.0",
-   "policyengineTaxsimReleasedAt": "2026-02-07T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-07T18:08:56Z",
-   "releasedAt": "2026-02-07T23:59:59Z",
+   "releasedAt": "2026-02-07T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -561,15 +517,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.6.1 and policyengine-us 1.553.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.6.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.7.0+us-1.553.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.7.0",
    "policyengineUsVersion": "1.553.0",
-   "policyengineTaxsimReleasedAt": "2026-02-07T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-07T18:08:56Z",
-   "releasedAt": "2026-02-07T23:59:59Z",
+   "releasedAt": "2026-02-07T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -578,15 +532,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.7.0 and policyengine-us 1.553.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.7.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.7.1+us-1.553.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.7.1",
    "policyengineUsVersion": "1.553.0",
-   "policyengineTaxsimReleasedAt": "2026-02-07T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-07T18:08:56Z",
-   "releasedAt": "2026-02-07T23:59:59Z",
+   "releasedAt": "2026-02-07T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -595,15 +547,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.7.1 and policyengine-us 1.553.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.7.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.7.2+us-1.569.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.7.2",
    "policyengineUsVersion": "1.569.0",
-   "policyengineTaxsimReleasedAt": "2026-02-18T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-18T21:12:39Z",
-   "releasedAt": "2026-02-18T23:59:59Z",
+   "releasedAt": "2026-02-18T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -612,15 +562,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.7.2 and policyengine-us 1.569.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.7.2 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.7.3+us-1.570.7@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.7.3",
    "policyengineUsVersion": "1.570.7",
-   "policyengineTaxsimReleasedAt": "2026-02-19T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-19T06:54:55Z",
-   "releasedAt": "2026-02-19T23:59:59Z",
+   "releasedAt": "2026-02-19T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -629,15 +577,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.7.3 and policyengine-us 1.570.7 are not on PyPI"
+   "reason": "policyengine-taxsim 2.7.3 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.8.0+us-1.570.7@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.8.0",
    "policyengineUsVersion": "1.570.7",
-   "policyengineTaxsimReleasedAt": "2026-02-19T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-19T06:54:55Z",
-   "releasedAt": "2026-02-19T23:59:59Z",
+   "releasedAt": "2026-02-19T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -646,15 +592,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.8.0 and policyengine-us 1.570.7 are not on PyPI"
+   "reason": "policyengine-taxsim 2.8.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.8.1+us-1.570.7@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.8.1",
    "policyengineUsVersion": "1.570.7",
-   "policyengineTaxsimReleasedAt": "2026-02-19T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-19T06:54:55Z",
-   "releasedAt": "2026-02-19T23:59:59Z",
+   "releasedAt": "2026-02-19T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -663,15 +607,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.8.1 and policyengine-us 1.570.7 are not on PyPI"
+   "reason": "policyengine-taxsim 2.8.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
-   "id": "taxsim-2.9.0+us-1.584.0@full-ecps-comparison-run-35953332152",
+   "id": "taxsim-2.9.0+us-1.586.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.9.0",
-   "policyengineUsVersion": "1.584.0",
-   "policyengineTaxsimReleasedAt": "2026-02-24T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-24T14:42:53Z",
-   "releasedAt": "2026-02-24T23:59:59Z",
+   "policyengineUsVersion": "1.586.0",
+   "releasedAt": "2026-02-24T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -680,15 +622,13 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.9.0 and policyengine-us 1.584.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.9.0 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.9.1+us-1.587.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.9.1",
    "policyengineUsVersion": "1.587.0",
-   "policyengineTaxsimReleasedAt": "2026-02-25T23:59:59Z",
-   "policyengineUsReleasedAt": "2026-02-25T23:13:02Z",
-   "releasedAt": "2026-02-25T23:59:59Z",
+   "releasedAt": "2026-02-25T00:00:00Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -697,15 +637,15 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-taxsim 2.9.1 and policyengine-us 1.587.0 are not on PyPI"
+   "reason": "policyengine-taxsim 2.9.1 is not on PyPI (policyengine-us version by changelog date)"
   },
   {
    "id": "taxsim-2.10.0+us-1.587.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.10.0",
    "policyengineUsVersion": "1.587.1",
-   "policyengineTaxsimReleasedAt": "2026-02-26T02:16:51Z",
-   "policyengineUsReleasedAt": "2026-02-26T00:18:34Z",
-   "releasedAt": "2026-02-26T02:16:51Z",
+   "policyengineTaxsimReleasedAt": "2026-02-26T02:16:49Z",
+   "policyengineUsReleasedAt": "2026-02-26T00:42:46Z",
+   "releasedAt": "2026-02-26T02:16:49Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -720,9 +660,9 @@
    "id": "taxsim-2.10.1+us-1.587.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.10.1",
    "policyengineUsVersion": "1.587.1",
-   "policyengineTaxsimReleasedAt": "2026-02-26T02:45:25Z",
-   "policyengineUsReleasedAt": "2026-02-26T00:18:34Z",
-   "releasedAt": "2026-02-26T02:45:25Z",
+   "policyengineTaxsimReleasedAt": "2026-02-26T02:45:24Z",
+   "policyengineUsReleasedAt": "2026-02-26T00:42:46Z",
+   "releasedAt": "2026-02-26T02:45:24Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -737,9 +677,9 @@
    "id": "taxsim-2.10.2+us-1.587.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.10.2",
    "policyengineUsVersion": "1.587.1",
-   "policyengineTaxsimReleasedAt": "2026-02-26T13:31:07Z",
-   "policyengineUsReleasedAt": "2026-02-26T00:18:34Z",
-   "releasedAt": "2026-02-26T13:31:07Z",
+   "policyengineTaxsimReleasedAt": "2026-02-26T13:31:06Z",
+   "policyengineUsReleasedAt": "2026-02-26T00:42:46Z",
+   "releasedAt": "2026-02-26T13:31:06Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -754,9 +694,9 @@
    "id": "taxsim-2.10.3+us-1.587.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.10.3",
    "policyengineUsVersion": "1.587.1",
-   "policyengineTaxsimReleasedAt": "2026-02-26T14:26:58Z",
-   "policyengineUsReleasedAt": "2026-02-26T00:18:34Z",
-   "releasedAt": "2026-02-26T14:26:58Z",
+   "policyengineTaxsimReleasedAt": "2026-02-26T14:26:57Z",
+   "policyengineUsReleasedAt": "2026-02-26T00:42:46Z",
+   "releasedAt": "2026-02-26T14:26:57Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -768,12 +708,12 @@
    "reason": "policyengine-us 1.587.1 is not on PyPI"
   },
   {
-   "id": "taxsim-2.11.0+us-1.588.0@full-ecps-comparison-run-35953332152",
+   "id": "taxsim-2.11.0+us-1.587.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.11.0",
-   "policyengineUsVersion": "1.588.0",
-   "policyengineTaxsimReleasedAt": "2026-02-26T19:32:28Z",
-   "policyengineUsReleasedAt": "2026-02-26T18:46:40Z",
-   "releasedAt": "2026-02-26T19:32:28Z",
+   "policyengineUsVersion": "1.587.1",
+   "policyengineTaxsimReleasedAt": "2026-02-26T19:32:26Z",
+   "policyengineUsReleasedAt": "2026-02-26T00:42:46Z",
+   "releasedAt": "2026-02-26T19:32:26Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -782,15 +722,15 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-us 1.588.0 is not on PyPI"
+   "reason": "policyengine-us 1.587.1 is not on PyPI"
   },
   {
    "id": "taxsim-2.12.0+us-1.588.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.12.0",
    "policyengineUsVersion": "1.588.0",
-   "policyengineTaxsimReleasedAt": "2026-02-26T22:56:46Z",
-   "policyengineUsReleasedAt": "2026-02-26T18:46:40Z",
-   "releasedAt": "2026-02-26T22:56:46Z",
+   "policyengineTaxsimReleasedAt": "2026-02-26T22:56:45Z",
+   "policyengineUsReleasedAt": "2026-02-26T19:46:29Z",
+   "releasedAt": "2026-02-26T22:56:45Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -805,9 +745,9 @@
    "id": "taxsim-2.13.0+us-1.590.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.13.0",
    "policyengineUsVersion": "1.590.0",
-   "policyengineTaxsimReleasedAt": "2026-03-02T16:25:41Z",
-   "policyengineUsReleasedAt": "2026-03-02T15:37:22Z",
-   "releasedAt": "2026-03-02T16:25:41Z",
+   "policyengineTaxsimReleasedAt": "2026-03-02T16:25:38Z",
+   "policyengineUsReleasedAt": "2026-03-02T15:58:36Z",
+   "releasedAt": "2026-03-02T16:25:38Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -822,9 +762,9 @@
    "id": "taxsim-2.13.1+us-1.590.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.13.1",
    "policyengineUsVersion": "1.590.2",
-   "policyengineTaxsimReleasedAt": "2026-03-04T02:40:53Z",
-   "policyengineUsReleasedAt": "2026-03-03T19:52:59Z",
-   "releasedAt": "2026-03-04T02:40:53Z",
+   "policyengineTaxsimReleasedAt": "2026-03-04T02:40:52Z",
+   "policyengineUsReleasedAt": "2026-03-03T20:17:35Z",
+   "releasedAt": "2026-03-04T02:40:52Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -839,9 +779,9 @@
    "id": "taxsim-2.13.2+us-1.590.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.13.2",
    "policyengineUsVersion": "1.590.2",
-   "policyengineTaxsimReleasedAt": "2026-03-04T03:33:33Z",
-   "policyengineUsReleasedAt": "2026-03-03T19:52:59Z",
-   "releasedAt": "2026-03-04T03:33:33Z",
+   "policyengineTaxsimReleasedAt": "2026-03-04T03:33:31Z",
+   "policyengineUsReleasedAt": "2026-03-03T20:17:35Z",
+   "releasedAt": "2026-03-04T03:33:31Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -856,9 +796,9 @@
    "id": "taxsim-2.13.3+us-1.592.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.13.3",
    "policyengineUsVersion": "1.592.3",
-   "policyengineTaxsimReleasedAt": "2026-03-06T20:26:00Z",
-   "policyengineUsReleasedAt": "2026-03-06T13:54:56Z",
-   "releasedAt": "2026-03-06T20:26:00Z",
+   "policyengineTaxsimReleasedAt": "2026-03-06T20:25:58Z",
+   "policyengineUsReleasedAt": "2026-03-06T14:19:09Z",
+   "releasedAt": "2026-03-06T20:25:58Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -873,9 +813,9 @@
    "id": "taxsim-2.14.0+us-1.592.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.14.0",
    "policyengineUsVersion": "1.592.3",
-   "policyengineTaxsimReleasedAt": "2026-03-07T14:11:36Z",
-   "policyengineUsReleasedAt": "2026-03-06T13:54:56Z",
-   "releasedAt": "2026-03-07T14:11:36Z",
+   "policyengineTaxsimReleasedAt": "2026-03-07T14:11:34Z",
+   "policyengineUsReleasedAt": "2026-03-06T14:19:09Z",
+   "releasedAt": "2026-03-07T14:11:34Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -890,9 +830,9 @@
    "id": "taxsim-2.15.0+us-1.604.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.15.0",
    "policyengineUsVersion": "1.604.2",
-   "policyengineTaxsimReleasedAt": "2026-03-20T21:46:45Z",
-   "policyengineUsReleasedAt": "2026-03-20T19:55:08Z",
-   "releasedAt": "2026-03-20T21:46:45Z",
+   "policyengineTaxsimReleasedAt": "2026-03-20T21:46:43Z",
+   "policyengineUsReleasedAt": "2026-03-20T20:19:50Z",
+   "releasedAt": "2026-03-20T21:46:43Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -907,9 +847,9 @@
    "id": "taxsim-2.15.1+us-1.604.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.15.1",
    "policyengineUsVersion": "1.604.2",
-   "policyengineTaxsimReleasedAt": "2026-03-20T22:38:23Z",
-   "policyengineUsReleasedAt": "2026-03-20T19:55:08Z",
-   "releasedAt": "2026-03-20T22:38:23Z",
+   "policyengineTaxsimReleasedAt": "2026-03-20T22:38:21Z",
+   "policyengineUsReleasedAt": "2026-03-20T20:19:50Z",
+   "releasedAt": "2026-03-20T22:38:21Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -924,9 +864,9 @@
    "id": "taxsim-2.15.2+us-1.606.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.15.2",
    "policyengineUsVersion": "1.606.0",
-   "policyengineTaxsimReleasedAt": "2026-03-23T00:08:41Z",
-   "policyengineUsReleasedAt": "2026-03-22T23:07:38Z",
-   "releasedAt": "2026-03-23T00:08:41Z",
+   "policyengineTaxsimReleasedAt": "2026-03-23T00:08:39Z",
+   "policyengineUsReleasedAt": "2026-03-22T23:29:49Z",
+   "releasedAt": "2026-03-23T00:08:39Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -941,9 +881,9 @@
    "id": "taxsim-2.16.0+us-1.609.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.16.0",
    "policyengineUsVersion": "1.609.0",
-   "policyengineTaxsimReleasedAt": "2026-03-23T23:47:14Z",
-   "policyengineUsReleasedAt": "2026-03-23T18:54:05Z",
-   "releasedAt": "2026-03-23T23:47:14Z",
+   "policyengineTaxsimReleasedAt": "2026-03-23T23:47:12Z",
+   "policyengineUsReleasedAt": "2026-03-23T19:19:33Z",
+   "releasedAt": "2026-03-23T23:47:12Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -955,12 +895,12 @@
    "reason": "policyengine-us 1.609.0 is not on PyPI"
   },
   {
-   "id": "taxsim-2.17.0+us-1.609.1@full-ecps-comparison-run-35953332152",
+   "id": "taxsim-2.17.0+us-1.609.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.17.0",
-   "policyengineUsVersion": "1.609.1",
-   "policyengineTaxsimReleasedAt": "2026-03-24T14:39:53Z",
-   "policyengineUsReleasedAt": "2026-03-24T14:25:14Z",
-   "releasedAt": "2026-03-24T14:39:53Z",
+   "policyengineUsVersion": "1.609.0",
+   "policyengineTaxsimReleasedAt": "2026-03-24T14:39:52Z",
+   "policyengineUsReleasedAt": "2026-03-23T19:19:33Z",
+   "releasedAt": "2026-03-24T14:39:52Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -969,15 +909,15 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-us 1.609.1 is not on PyPI"
+   "reason": "policyengine-us 1.609.0 is not on PyPI"
   },
   {
    "id": "taxsim-2.17.1+us-1.620.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.17.1",
    "policyengineUsVersion": "1.620.1",
-   "policyengineTaxsimReleasedAt": "2026-03-26T16:42:27Z",
-   "policyengineUsReleasedAt": "2026-03-26T13:52:17Z",
-   "releasedAt": "2026-03-26T16:42:27Z",
+   "policyengineTaxsimReleasedAt": "2026-03-26T16:42:26Z",
+   "policyengineUsReleasedAt": "2026-03-26T14:16:51Z",
+   "releasedAt": "2026-03-26T16:42:26Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -992,9 +932,9 @@
    "id": "taxsim-2.17.2+us-1.624.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.17.2",
    "policyengineUsVersion": "1.624.1",
-   "policyengineTaxsimReleasedAt": "2026-03-29T22:22:52Z",
-   "policyengineUsReleasedAt": "2026-03-29T19:31:14Z",
-   "releasedAt": "2026-03-29T22:22:52Z",
+   "policyengineTaxsimReleasedAt": "2026-03-29T22:22:51Z",
+   "policyengineUsReleasedAt": "2026-03-29T20:00:03Z",
+   "releasedAt": "2026-03-29T22:22:51Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1009,9 +949,9 @@
    "id": "taxsim-2.18.0+us-1.624.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.18.0",
    "policyengineUsVersion": "1.624.1",
-   "policyengineTaxsimReleasedAt": "2026-03-29T23:11:31Z",
-   "policyengineUsReleasedAt": "2026-03-29T19:31:14Z",
-   "releasedAt": "2026-03-29T23:11:31Z",
+   "policyengineTaxsimReleasedAt": "2026-03-29T23:11:29Z",
+   "policyengineUsReleasedAt": "2026-03-29T20:00:03Z",
+   "releasedAt": "2026-03-29T23:11:29Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1026,9 +966,9 @@
    "id": "taxsim-2.18.1+us-1.624.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.18.1",
    "policyengineUsVersion": "1.624.1",
-   "policyengineTaxsimReleasedAt": "2026-03-30T17:59:56Z",
-   "policyengineUsReleasedAt": "2026-03-29T19:31:14Z",
-   "releasedAt": "2026-03-30T17:59:56Z",
+   "policyengineTaxsimReleasedAt": "2026-03-30T17:59:54Z",
+   "policyengineUsReleasedAt": "2026-03-29T20:00:03Z",
+   "releasedAt": "2026-03-30T17:59:54Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1043,9 +983,9 @@
    "id": "taxsim-2.18.2+us-1.630.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.18.2",
    "policyengineUsVersion": "1.630.0",
-   "policyengineTaxsimReleasedAt": "2026-04-06T13:33:20Z",
-   "policyengineUsReleasedAt": "2026-04-06T12:32:46Z",
-   "releasedAt": "2026-04-06T13:33:20Z",
+   "policyengineTaxsimReleasedAt": "2026-04-06T13:33:17Z",
+   "policyengineUsReleasedAt": "2026-04-06T13:08:45Z",
+   "releasedAt": "2026-04-06T13:33:17Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1060,9 +1000,9 @@
    "id": "taxsim-2.19.0+us-1.636.4@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.19.0",
    "policyengineUsVersion": "1.636.4",
-   "policyengineTaxsimReleasedAt": "2026-04-16T21:45:41Z",
-   "policyengineUsReleasedAt": "2026-04-16T17:39:27Z",
-   "releasedAt": "2026-04-16T21:45:41Z",
+   "policyengineTaxsimReleasedAt": "2026-04-16T21:45:39Z",
+   "policyengineUsReleasedAt": "2026-04-16T18:06:43Z",
+   "releasedAt": "2026-04-16T21:45:39Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1077,9 +1017,9 @@
    "id": "taxsim-2.19.1+us-1.653.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.19.1",
    "policyengineUsVersion": "1.653.3",
-   "policyengineTaxsimReleasedAt": "2026-04-20T14:49:18Z",
-   "policyengineUsReleasedAt": "2026-04-18T11:38:23Z",
-   "releasedAt": "2026-04-20T14:49:18Z",
+   "policyengineTaxsimReleasedAt": "2026-04-20T14:49:16Z",
+   "policyengineUsReleasedAt": "2026-04-18T12:06:51Z",
+   "releasedAt": "2026-04-20T14:49:16Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1094,9 +1034,9 @@
    "id": "taxsim-2.20.0+us-1.653.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.20.0",
    "policyengineUsVersion": "1.653.3",
-   "policyengineTaxsimReleasedAt": "2026-04-21T13:57:29Z",
-   "policyengineUsReleasedAt": "2026-04-18T11:38:23Z",
-   "releasedAt": "2026-04-21T13:57:29Z",
+   "policyengineTaxsimReleasedAt": "2026-04-21T13:57:27Z",
+   "policyengineUsReleasedAt": "2026-04-18T12:06:51Z",
+   "releasedAt": "2026-04-21T13:57:27Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1111,9 +1051,9 @@
    "id": "taxsim-2.20.1+us-1.666.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.20.1",
    "policyengineUsVersion": "1.666.1",
-   "policyengineTaxsimReleasedAt": "2026-04-23T23:06:57Z",
-   "policyengineUsReleasedAt": "2026-04-23T22:15:51Z",
-   "releasedAt": "2026-04-23T23:06:57Z",
+   "policyengineTaxsimReleasedAt": "2026-04-23T23:06:55Z",
+   "policyengineUsReleasedAt": "2026-04-23T22:36:58Z",
+   "releasedAt": "2026-04-23T23:06:55Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1128,9 +1068,9 @@
    "id": "taxsim-2.21.0+us-1.666.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.0",
    "policyengineUsVersion": "1.666.1",
-   "policyengineTaxsimReleasedAt": "2026-04-23T23:49:07Z",
-   "policyengineUsReleasedAt": "2026-04-23T22:15:51Z",
-   "releasedAt": "2026-04-23T23:49:07Z",
+   "policyengineTaxsimReleasedAt": "2026-04-23T23:49:04Z",
+   "policyengineUsReleasedAt": "2026-04-23T22:36:58Z",
+   "releasedAt": "2026-04-23T23:49:04Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1145,9 +1085,9 @@
    "id": "taxsim-2.21.1+us-1.670.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.1",
    "policyengineUsVersion": "1.670.2",
-   "policyengineTaxsimReleasedAt": "2026-04-28T01:01:09Z",
-   "policyengineUsReleasedAt": "2026-04-27T20:23:57Z",
-   "releasedAt": "2026-04-28T01:01:09Z",
+   "policyengineTaxsimReleasedAt": "2026-04-28T01:01:07Z",
+   "policyengineUsReleasedAt": "2026-04-27T20:48:14Z",
+   "releasedAt": "2026-04-28T01:01:07Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1162,9 +1102,9 @@
    "id": "taxsim-2.21.2+us-1.690.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.2",
    "policyengineUsVersion": "1.690.3",
-   "policyengineTaxsimReleasedAt": "2026-05-09T14:06:52Z",
-   "policyengineUsReleasedAt": "2026-05-08T14:36:38Z",
-   "releasedAt": "2026-05-09T14:06:52Z",
+   "policyengineTaxsimReleasedAt": "2026-05-09T14:06:50Z",
+   "policyengineUsReleasedAt": "2026-05-08T15:01:53Z",
+   "releasedAt": "2026-05-09T14:06:50Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1179,9 +1119,9 @@
    "id": "taxsim-2.21.3+us-1.690.7@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.3",
    "policyengineUsVersion": "1.690.7",
-   "policyengineTaxsimReleasedAt": "2026-05-11T15:14:14Z",
-   "policyengineUsReleasedAt": "2026-05-10T22:03:48Z",
-   "releasedAt": "2026-05-11T15:14:14Z",
+   "policyengineTaxsimReleasedAt": "2026-05-11T15:14:12Z",
+   "policyengineUsReleasedAt": "2026-05-10T22:27:07Z",
+   "releasedAt": "2026-05-11T15:14:12Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1196,9 +1136,9 @@
    "id": "taxsim-2.21.4+us-1.691.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.4",
    "policyengineUsVersion": "1.691.3",
-   "policyengineTaxsimReleasedAt": "2026-05-12T22:24:12Z",
-   "policyengineUsReleasedAt": "2026-05-12T16:28:15Z",
-   "releasedAt": "2026-05-12T22:24:12Z",
+   "policyengineTaxsimReleasedAt": "2026-05-12T22:24:10Z",
+   "policyengineUsReleasedAt": "2026-05-12T16:54:16Z",
+   "releasedAt": "2026-05-12T22:24:10Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1213,9 +1153,9 @@
    "id": "taxsim-2.21.5+us-1.691.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.5",
    "policyengineUsVersion": "1.691.3",
-   "policyengineTaxsimReleasedAt": "2026-05-14T00:39:36Z",
-   "policyengineUsReleasedAt": "2026-05-12T16:28:15Z",
-   "releasedAt": "2026-05-14T00:39:36Z",
+   "policyengineTaxsimReleasedAt": "2026-05-14T00:39:34Z",
+   "policyengineUsReleasedAt": "2026-05-12T16:54:16Z",
+   "releasedAt": "2026-05-14T00:39:34Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1230,9 +1170,9 @@
    "id": "taxsim-2.21.6+us-1.691.3@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.6",
    "policyengineUsVersion": "1.691.3",
-   "policyengineTaxsimReleasedAt": "2026-05-14T03:17:49Z",
-   "policyengineUsReleasedAt": "2026-05-12T16:28:15Z",
-   "releasedAt": "2026-05-14T03:17:49Z",
+   "policyengineTaxsimReleasedAt": "2026-05-14T03:17:47Z",
+   "policyengineUsReleasedAt": "2026-05-12T16:54:16Z",
+   "releasedAt": "2026-05-14T03:17:47Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1247,9 +1187,9 @@
    "id": "taxsim-2.21.7+us-1.705.16@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.7",
    "policyengineUsVersion": "1.705.16",
-   "policyengineTaxsimReleasedAt": "2026-05-25T18:32:18Z",
-   "policyengineUsReleasedAt": "2026-05-24T02:17:20Z",
-   "releasedAt": "2026-05-25T18:32:18Z",
+   "policyengineTaxsimReleasedAt": "2026-05-25T18:32:15Z",
+   "policyengineUsReleasedAt": "2026-05-24T02:55:48Z",
+   "releasedAt": "2026-05-25T18:32:15Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1264,9 +1204,9 @@
    "id": "taxsim-2.21.8+us-1.705.16@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.8",
    "policyengineUsVersion": "1.705.16",
-   "policyengineTaxsimReleasedAt": "2026-05-25T21:40:00Z",
-   "policyengineUsReleasedAt": "2026-05-24T02:17:20Z",
-   "releasedAt": "2026-05-25T21:40:00Z",
+   "policyengineTaxsimReleasedAt": "2026-05-25T21:39:58Z",
+   "policyengineUsReleasedAt": "2026-05-24T02:55:48Z",
+   "releasedAt": "2026-05-25T21:39:58Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1281,9 +1221,9 @@
    "id": "taxsim-2.21.9+us-1.705.16@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.9",
    "policyengineUsVersion": "1.705.16",
-   "policyengineTaxsimReleasedAt": "2026-05-26T13:10:21Z",
-   "policyengineUsReleasedAt": "2026-05-24T02:17:20Z",
-   "releasedAt": "2026-05-26T13:10:21Z",
+   "policyengineTaxsimReleasedAt": "2026-05-26T13:10:19Z",
+   "policyengineUsReleasedAt": "2026-05-24T02:55:48Z",
+   "releasedAt": "2026-05-26T13:10:19Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1298,9 +1238,9 @@
    "id": "taxsim-2.21.10+us-1.705.16@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.10",
    "policyengineUsVersion": "1.705.16",
-   "policyengineTaxsimReleasedAt": "2026-05-26T16:28:48Z",
-   "policyengineUsReleasedAt": "2026-05-24T02:17:20Z",
-   "releasedAt": "2026-05-26T16:28:48Z",
+   "policyengineTaxsimReleasedAt": "2026-05-26T16:28:46Z",
+   "policyengineUsReleasedAt": "2026-05-24T02:55:48Z",
+   "releasedAt": "2026-05-26T16:28:46Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1315,9 +1255,9 @@
    "id": "taxsim-2.21.11+us-1.710.6@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.11",
    "policyengineUsVersion": "1.710.6",
-   "policyengineTaxsimReleasedAt": "2026-05-27T15:56:18Z",
-   "policyengineUsReleasedAt": "2026-05-27T14:50:37Z",
-   "releasedAt": "2026-05-27T15:56:18Z",
+   "policyengineTaxsimReleasedAt": "2026-05-27T15:56:17Z",
+   "policyengineUsReleasedAt": "2026-05-27T15:24:14Z",
+   "releasedAt": "2026-05-27T15:56:17Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1332,9 +1272,9 @@
    "id": "taxsim-2.21.12+us-1.712.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.21.12",
    "policyengineUsVersion": "1.712.1",
-   "policyengineTaxsimReleasedAt": "2026-05-28T06:16:31Z",
-   "policyengineUsReleasedAt": "2026-05-28T01:26:52Z",
-   "releasedAt": "2026-05-28T06:16:31Z",
+   "policyengineTaxsimReleasedAt": "2026-05-28T06:16:28Z",
+   "policyengineUsReleasedAt": "2026-05-28T01:59:39Z",
+   "releasedAt": "2026-05-28T06:16:28Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1349,9 +1289,9 @@
    "id": "taxsim-2.22.0+us-1.712.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.22.0",
    "policyengineUsVersion": "1.712.1",
-   "policyengineTaxsimReleasedAt": "2026-05-28T14:30:24Z",
-   "policyengineUsReleasedAt": "2026-05-28T01:26:52Z",
-   "releasedAt": "2026-05-28T14:30:24Z",
+   "policyengineTaxsimReleasedAt": "2026-05-28T14:30:22Z",
+   "policyengineUsReleasedAt": "2026-05-28T01:59:39Z",
+   "releasedAt": "2026-05-28T14:30:22Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1363,12 +1303,12 @@
    "reason": "policyengine-us 1.712.1 is not on PyPI"
   },
   {
-   "id": "taxsim-2.23.1+us-1.720.1@full-ecps-comparison-run-35953332152",
+   "id": "taxsim-2.23.1+us-1.719.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.23.1",
-   "policyengineUsVersion": "1.720.1",
-   "policyengineTaxsimReleasedAt": "2026-06-02T18:31:42Z",
-   "policyengineUsReleasedAt": "2026-06-02T17:55:27Z",
-   "releasedAt": "2026-06-02T18:31:42Z",
+   "policyengineUsVersion": "1.719.0",
+   "policyengineTaxsimReleasedAt": "2026-06-02T18:31:41Z",
+   "policyengineUsReleasedAt": "2026-06-01T15:39:46Z",
+   "releasedAt": "2026-06-02T18:31:41Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1377,15 +1317,15 @@
    ],
    "reference": "full-ecps-comparison-run-35953332152",
    "status": "not-installable",
-   "reason": "policyengine-us 1.720.1 is not on PyPI"
+   "reason": "policyengine-us 1.719.0 is not on PyPI"
   },
   {
    "id": "taxsim-2.24.0+us-1.720.1@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.24.0",
    "policyengineUsVersion": "1.720.1",
-   "policyengineTaxsimReleasedAt": "2026-06-02T19:23:37Z",
-   "policyengineUsReleasedAt": "2026-06-02T17:55:27Z",
-   "releasedAt": "2026-06-02T19:23:37Z",
+   "policyengineTaxsimReleasedAt": "2026-06-02T19:23:35Z",
+   "policyengineUsReleasedAt": "2026-06-02T18:33:08Z",
+   "releasedAt": "2026-06-02T19:23:35Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1400,9 +1340,9 @@
    "id": "taxsim-2.25.0+us-1.720.4@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.25.0",
    "policyengineUsVersion": "1.720.4",
-   "policyengineTaxsimReleasedAt": "2026-06-03T04:04:08Z",
-   "policyengineUsReleasedAt": "2026-06-02T20:07:19Z",
-   "releasedAt": "2026-06-03T04:04:08Z",
+   "policyengineTaxsimReleasedAt": "2026-06-03T04:04:07Z",
+   "policyengineUsReleasedAt": "2026-06-02T21:13:19Z",
+   "releasedAt": "2026-06-03T04:04:07Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1417,9 +1357,9 @@
    "id": "taxsim-2.25.1+us-1.720.6@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.25.1",
    "policyengineUsVersion": "1.720.6",
-   "policyengineTaxsimReleasedAt": "2026-06-04T02:07:33Z",
-   "policyengineUsReleasedAt": "2026-06-03T17:35:22Z",
-   "releasedAt": "2026-06-04T02:07:33Z",
+   "policyengineTaxsimReleasedAt": "2026-06-04T02:07:31Z",
+   "policyengineUsReleasedAt": "2026-06-03T18:13:30Z",
+   "releasedAt": "2026-06-04T02:07:31Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1434,9 +1374,9 @@
    "id": "taxsim-2.26.0+us-1.720.6@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.0",
    "policyengineUsVersion": "1.720.6",
-   "policyengineTaxsimReleasedAt": "2026-06-04T20:04:31Z",
-   "policyengineUsReleasedAt": "2026-06-03T17:35:22Z",
-   "releasedAt": "2026-06-04T20:04:31Z",
+   "policyengineTaxsimReleasedAt": "2026-06-04T20:04:29Z",
+   "policyengineUsReleasedAt": "2026-06-03T18:13:30Z",
+   "releasedAt": "2026-06-04T20:04:29Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1451,9 +1391,9 @@
    "id": "taxsim-2.26.1+us-1.720.6@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.1",
    "policyengineUsVersion": "1.720.6",
-   "policyengineTaxsimReleasedAt": "2026-06-04T22:09:36Z",
-   "policyengineUsReleasedAt": "2026-06-03T17:35:22Z",
-   "releasedAt": "2026-06-04T22:09:36Z",
+   "policyengineTaxsimReleasedAt": "2026-06-04T22:09:34Z",
+   "policyengineUsReleasedAt": "2026-06-03T18:13:30Z",
+   "releasedAt": "2026-06-04T22:09:34Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1468,9 +1408,9 @@
    "id": "taxsim-2.26.2+us-1.739.4@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.2",
    "policyengineUsVersion": "1.739.4",
-   "policyengineTaxsimReleasedAt": "2026-06-22T01:05:35Z",
-   "policyengineUsReleasedAt": "2026-06-21T23:30:51Z",
-   "releasedAt": "2026-06-22T01:05:35Z",
+   "policyengineTaxsimReleasedAt": "2026-06-22T01:05:33Z",
+   "policyengineUsReleasedAt": "2026-06-22T00:05:23Z",
+   "releasedAt": "2026-06-22T01:05:33Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1485,9 +1425,9 @@
    "id": "taxsim-2.26.3+us-1.739.4@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.3",
    "policyengineUsVersion": "1.739.4",
-   "policyengineTaxsimReleasedAt": "2026-06-22T01:49:42Z",
-   "policyengineUsReleasedAt": "2026-06-21T23:30:51Z",
-   "releasedAt": "2026-06-22T01:49:42Z",
+   "policyengineTaxsimReleasedAt": "2026-06-22T01:49:41Z",
+   "policyengineUsReleasedAt": "2026-06-22T00:05:23Z",
+   "releasedAt": "2026-06-22T01:49:41Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1502,9 +1442,9 @@
    "id": "taxsim-2.26.4+us-1.739.4@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.4",
    "policyengineUsVersion": "1.739.4",
-   "policyengineTaxsimReleasedAt": "2026-06-22T15:53:13Z",
-   "policyengineUsReleasedAt": "2026-06-21T23:30:51Z",
-   "releasedAt": "2026-06-22T15:53:13Z",
+   "policyengineTaxsimReleasedAt": "2026-06-22T15:53:11Z",
+   "policyengineUsReleasedAt": "2026-06-22T00:05:23Z",
+   "releasedAt": "2026-06-22T15:53:11Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1519,9 +1459,9 @@
    "id": "taxsim-2.26.5+us-1.739.4@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.5",
    "policyengineUsVersion": "1.739.4",
-   "policyengineTaxsimReleasedAt": "2026-06-22T23:55:56Z",
-   "policyengineUsReleasedAt": "2026-06-21T23:30:51Z",
-   "releasedAt": "2026-06-22T23:55:56Z",
+   "policyengineTaxsimReleasedAt": "2026-06-22T23:55:54Z",
+   "policyengineUsReleasedAt": "2026-06-22T00:05:23Z",
+   "releasedAt": "2026-06-22T23:55:54Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1536,9 +1476,9 @@
    "id": "taxsim-2.26.6+us-1.740.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.6",
    "policyengineUsVersion": "1.740.0",
-   "policyengineTaxsimReleasedAt": "2026-06-23T06:01:47Z",
-   "policyengineUsReleasedAt": "2026-06-23T00:30:36Z",
-   "releasedAt": "2026-06-23T06:01:47Z",
+   "policyengineTaxsimReleasedAt": "2026-06-23T06:01:45Z",
+   "policyengineUsReleasedAt": "2026-06-23T01:03:48Z",
+   "releasedAt": "2026-06-23T06:01:45Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1553,9 +1493,9 @@
    "id": "taxsim-2.26.7+us-1.740.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.7",
    "policyengineUsVersion": "1.740.0",
-   "policyengineTaxsimReleasedAt": "2026-06-23T18:07:21Z",
-   "policyengineUsReleasedAt": "2026-06-23T00:30:36Z",
-   "releasedAt": "2026-06-23T18:07:21Z",
+   "policyengineTaxsimReleasedAt": "2026-06-23T18:07:19Z",
+   "policyengineUsReleasedAt": "2026-06-23T01:03:48Z",
+   "releasedAt": "2026-06-23T18:07:19Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1570,9 +1510,9 @@
    "id": "taxsim-2.26.8+us-1.741.2@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.8",
    "policyengineUsVersion": "1.741.2",
-   "policyengineTaxsimReleasedAt": "2026-06-23T20:23:47Z",
-   "policyengineUsReleasedAt": "2026-06-23T18:58:03Z",
-   "releasedAt": "2026-06-23T20:23:47Z",
+   "policyengineTaxsimReleasedAt": "2026-06-23T20:23:45Z",
+   "policyengineUsReleasedAt": "2026-06-23T19:31:46Z",
+   "releasedAt": "2026-06-23T20:23:45Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",
@@ -1587,9 +1527,9 @@
    "id": "taxsim-2.26.9+us-1.742.0@full-ecps-comparison-run-35953332152",
    "policyengineTaxsimVersion": "2.26.9",
    "policyengineUsVersion": "1.742.0",
-   "policyengineTaxsimReleasedAt": "2026-06-24T11:41:47Z",
-   "policyengineUsReleasedAt": "2026-06-23T20:25:42Z",
-   "releasedAt": "2026-06-24T11:41:47Z",
+   "policyengineTaxsimReleasedAt": "2026-06-24T11:41:45Z",
+   "policyengineUsReleasedAt": "2026-06-23T21:00:14Z",
+   "releasedAt": "2026-06-24T11:41:45Z",
    "triggers": [
     {
      "package": "policyengine-taxsim",

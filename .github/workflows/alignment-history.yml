@@ -140,9 +140,16 @@ jobs:
             sleep 30
           done
           echo "policyengine-taxsim $VERSION is not on PyPI yet; a later run will pick it up"
-      - name: Clone policyengine-us for exact release times (backfill)
-        if: inputs.mode == 'backfill'
-        run: git clone --quiet --shallow-since=2025-07-01 --single-branch https://github.com/PolicyEngine/policyengine-us us-repo
+      # The planner reads each policyengine-us release PyPI lacks from its
+      # version-bump commit and that commit's Publish job: published and since
+      # deleted, or never published.
+      - name: Clone policyengine-us release history
+        env:
+          MODE: ${{ inputs.mode || 'recent' }}
+        run: |
+          if [ "$MODE" = backfill ]; then SINCE=2025-07-01; else SINCE=$(date -u -d '45 days ago' +%F); fi
+          git clone --quiet --no-checkout --single-branch --shallow-since="$SINCE" \
+            https://github.com/PolicyEngine/policyengine-us us-repo
       - name: Plan
         id: plan
         env:
@@ -150,9 +157,9 @@ jobs:
           MODE: ${{ inputs.mode || 'recent' }}
           TAXSIM_VERSION: ${{ inputs.taxsim_version }}
         run: |
-          ARGS=(--mode "$MODE" --output plan.json)
+          set -o pipefail
+          ARGS=(--mode "$MODE" --us-repo us-repo --output plan.json)
           if [ "$MODE" = release ]; then ARGS+=(--taxsim-version "$TAXSIM_VERSION"); fi
-          if [ "$MODE" = backfill ]; then ARGS+=(--us-repo us-repo); fi
           if [ "$MODE" = recent ]; then ARGS+=(--since-days 7); fi
           python scripts/alignment_history.py plan "${ARGS[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
@@ -229,7 +236,7 @@ jobs:
       always() && needs.plan.result == 'success' && needs.reference.result == 'success' &&
       (needs.plan.outputs.count != '0' || needs.plan.outputs.unavailable != '0')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 150
     permissions:
       contents: write
       actions: read
@@ -264,23 +271,28 @@ jobs:
           mkdir -p artifacts/rows
           ROWS=$(find artifacts/rows -name row.json | wc -l)
 
-          # CI's versioning job pushes "Update package version" without
-          # pulling, so a commit that lands on main between its checkout and
-          # its push fails that release (the next merge's CI then releases
-          # both). Push only while no versioning job is running.
+          # CI's versioning job checks out the commit that triggered it and
+          # pushes "Update package version" without pulling. It fast-forwards
+          # over commits that touch only this file (see ci.yml), so a row
+          # recorded while CI runs is safe; what must not happen is a push
+          # landing between that fast-forward and its push. So push only while
+          # no versioning job is running, and treat an API error as "running".
           versioning_running() {
             [ "$BRANCH" = main ] || return 1
-            for RUN in $(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
-                --limit 50 --json databaseId,status \
-                --jq '.[] | select(.status != "completed") | .databaseId'); do
-              gh run view "$RUN" -R "$GITHUB_REPOSITORY" --json jobs --jq \
-                '.jobs[] | select(.name == "versioning" and .status == "in_progress") | .name' \
-                | grep -q . && return 0
+            local RUNS RUN BUSY
+            RUNS=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+              --limit 50 --json databaseId,status \
+              --jq '.[] | select(.status != "completed") | .databaseId') || return 0
+            for RUN in $RUNS; do
+              BUSY=$(gh run view "$RUN" -R "$GITHUB_REPOSITORY" --json jobs --jq \
+                '.jobs[] | select(.name == "versioning" and .status == "in_progress") | .name') \
+                || return 0
+              [ -z "$BUSY" ] || return 0
             done
             return 1
           }
 
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 240); do
             git fetch --quiet origin "$BRANCH"
             git reset --quiet --hard "origin/$BRANCH"
             python scripts/alignment_history.py merge artifacts/rows \
@@ -301,5 +313,5 @@ jobs:
             fi
             sleep 10
           done
-          echo "Could not record after 60 attempts" >&2
+          echo "Could not record after 240 attempts; the rows stay in this run's row-* artifacts" >&2
           exit 1

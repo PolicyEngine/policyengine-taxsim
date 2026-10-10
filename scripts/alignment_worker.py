@@ -71,7 +71,11 @@ def main(input_path, output_path, settings_path, years):
                 raise ValueError(f"PolicyEngine output lacks {', '.join(missing)}")
             if result[list(OUTPUTS)].isna().any().any():
                 raise ValueError("PolicyEngine returned missing tax outputs")
-        except Exception as error:  # Record the failure; score the other years.
+        except (MemoryError, OSError):
+            # The machine's trouble (memory, disk, network), not the release's:
+            # crash, so the coordinator retries instead of recording a result.
+            raise
+        except Exception as error:  # The release can't compute this year.
             errors[str(year)] = "".join(
                 traceback.format_exception_only(type(error), error)
             ).strip()[-2000:]

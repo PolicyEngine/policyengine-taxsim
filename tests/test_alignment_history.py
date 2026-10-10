@@ -86,6 +86,8 @@ def measured_row(reference, outputs, taxsim="3.1.1", us="2.36.0", ref="rel", yea
         "policyengineUsVersion": us,
         "reference": ref,
         "releasedAt": "2026-10-09T12:13:00Z",
+        "installAsOf": "2026-10-09T12:14:00Z",
+        "triggers": [{"package": "policyengine-taxsim", "version": taxsim}],
         "status": "measured",
         "years": {str(year): {"status": "measured", **tally, "outputSha256": "x"}},
     }
@@ -206,6 +208,7 @@ def test_merge_is_idempotent_and_order_free(a, b, rng):
             "policyengineUsVersion": "1.587.1",
             "reference": "rel",
             "releasedAt": "2026-02-26T02:16:00Z",
+            "triggers": [{"package": "policyengine-taxsim", "version": "2.10.0"}],
             "status": "not-installable",
             "reason": "policyengine-us 1.587.1 is not on PyPI",
         },
@@ -226,62 +229,180 @@ def test_merge_is_idempotent_and_order_free(a, b, rng):
             history.merge(once, [measured_row(*b, taxsim="3.2.0", us="2.40.0")], refs)
 
 
-def test_a_measurement_replaces_an_unavailable_row_but_not_another_measurement(
-    tmp_path,
-):
-    reference = [
-        {
-            "taxsimid": "1",
-            "state_code": "IL",
-            "pwages": 1000,
-            "fiitax": 0,
-            "siitax": 0,
-            "srebate": 0,
-        }
-    ]
-    good = measured_row(reference, {"1": {"fiitax": 0, "siitax": 0, "srebate": 0}})
-    worse = measured_row(reference, {"1": {"fiitax": 99, "siitax": 0, "srebate": 0}})
-    unavailable = {
-        k: good[k]
-        for k in (
-            "id",
-            "policyengineTaxsimVersion",
-            "policyengineUsVersion",
-            "reference",
-            "releasedAt",
-        )
+ONE = [
+    {"taxsimid": "1", "state_code": "IL", "pwages": 1000, "fiitax": 0, "siitax": 0,
+     "srebate": 0}
+]  # fmt: skip
+AGREE = {"1": {"fiitax": 0, "siitax": 0, "srebate": 0}}
+DIFFER = {"1": {"fiitax": 99, "siitax": 0, "srebate": 0}}
+
+
+def with_years(row, **statuses):
+    """The row with one year per keyword: y2023="measured" or "failed"."""
+    measured = row["years"]["2023"]
+    years = {
+        name[1:]: measured
+        if status == "measured"
+        else {"status": "failed", "reason": "x"}
+        for name, status in statuses.items()
     }
-    unavailable.update(status="install-failed", reason="resolution failed")
+    found = set(statuses.values())
+    status = (
+        "measured"
+        if found == {"measured"}
+        else "partial"
+        if "measured" in found
+        else "failed"
+    )
+    return {**row, "years": years, "status": status}
+
+
+def references_for(*years):
+    meta = reference_meta("rel", 1)
+    meta["years"] = {str(y): dict(meta["years"]["2023"]) for y in years}
+    return [meta]
+
+
+def test_a_row_is_replaced_only_by_one_that_measured_more_years():
+    refs = references_for(2023, 2024)
+    good = measured_row(ONE, AGREE)
+    worse = measured_row(ONE, DIFFER)
+    failed_install = {k: v for k, v in good.items() if k not in ("years", "status")} | {
+        "status": "install-failed",
+        "reason": "resolution failed",
+    }
+    doc, _ = history.merge(None, [failed_install], refs)
+    # A retry that measures one year of two replaces the failed attempt...
+    partial = with_years(good, y2023="measured", y2024="failed")
+    doc, changed = history.merge(doc, [partial], refs)
+    assert changed == [good["id"]] and doc["rows"][0]["status"] == "partial"
+    # ...a failed retry does not replace the partial row...
+    doc2, changed = history.merge(
+        doc, [with_years(good, y2023="failed", y2024="failed")], refs
+    )
+    assert changed == [] and doc2 == doc
+    # ...a full measurement does...
+    full = with_years(good, y2023="measured", y2024="measured")
+    doc, changed = history.merge(doc, [full], refs)
+    assert changed == [good["id"]] and doc["rows"][0]["status"] == "measured"
+    # ...and a later, different measurement of the same pair does not.
+    doc3, changed = history.merge(
+        doc, [with_years(worse, y2023="measured", y2024="measured")], refs
+    )
+    assert changed == [] and doc3 == doc
+    doc4, _ = history.merge(doc, [worse], refs, replace=True)
+    assert doc4["rows"][0]["years"]["2023"]["federalMatchesRel"] == 0
+
+
+def test_a_recorded_pair_gains_the_triggers_of_a_later_plan():
     refs = [reference_meta("rel", 1)]
-    doc, _ = history.merge(None, [unavailable], refs)
-    doc, added = history.merge(doc, [good], refs)
-    assert added == [good["id"]] and doc["rows"][0]["status"] == "measured"
-    doc2, added = history.merge(doc, [worse], refs)
-    assert added == [] and doc2 == doc
-    doc3, _ = history.merge(doc, [worse], refs, replace=True)
-    assert doc3["rows"][0] == worse
-
-
-def test_smoke_rows_and_changed_references_are_refused():
-    reference = [
-        {
-            "taxsimid": "1",
-            "state_code": "IL",
-            "pwages": 1000,
-            "fiitax": 0,
-            "siitax": 0,
-            "srebate": 0,
-        }
+    row = measured_row(ONE, AGREE)
+    doc, _ = history.merge(None, [row], refs)
+    again = {**row, "triggers": [{"package": "policyengine-us", "version": "2.36.0"}]}
+    doc, changed = history.merge(doc, [again], refs)
+    assert changed == [row["id"]]
+    assert [t["package"] for t in doc["rows"][0]["triggers"]] == [
+        "policyengine-taxsim",
+        "policyengine-us",
     ]
-    row = measured_row(reference, {"1": {"fiitax": 0, "siitax": 0, "srebate": 0}})
+
+
+def test_better_evidence_re_pairs_a_release_recorded_as_not_installable():
     refs = [reference_meta("rel", 1)]
+    trigger = [{"package": "policyengine-taxsim", "version": "3.1.1"}]
+    gone = {
+        "id": history.row_id("3.1.1", "2.36.1", "rel"),
+        "policyengineTaxsimVersion": "3.1.1",
+        "policyengineUsVersion": "2.36.1",
+        "reference": "rel",
+        "releasedAt": "2026-10-09T12:13:00Z",
+        "triggers": trigger,
+        "status": "not-installable",
+        "reason": "policyengine-us 2.36.1 is not on PyPI",
+    }
+    doc, _ = history.merge(None, [gone], refs)
+    measured = measured_row(ONE, AGREE)  # taxsim 3.1.1 with policyengine-us 2.36.0
+    doc, changed = history.merge(doc, [measured], refs)
+    assert [r["id"] for r in doc["rows"]] == [measured["id"]]
+    assert set(changed) == {measured["id"], gone["id"]}
+    # A not-installable row whose release nothing else claims stays.
+    other = {
+        **gone,
+        "triggers": [{"package": "policyengine-taxsim", "version": "2.10.0"}],
+    }
+    doc, _ = history.merge(None, [other], refs)
+    doc, _ = history.merge(doc, [measured], refs)
+    assert len(doc["rows"]) == 2
+
+
+def test_only_planned_full_population_rows_for_known_years_are_recorded():
+    refs = [reference_meta("rel", 1)]
+    row = measured_row(ONE, AGREE)
     with pytest.raises(ValueError, match="smoke"):
         history.merge(None, [{**row, "limit": 100}], refs)
+    with pytest.raises(ValueError, match="smoke"):
+        history.merge(None, [{**row, "taxsimSpec": "."}], refs)
+    with pytest.raises(ValueError, match="installAsOf"):
+        history.merge(
+            None, [{k: v for k, v in row.items() if k != "installAsOf"}], refs
+        )
+    with pytest.raises(ValueError, match="needs the release"):
+        history.merge(None, [{**row, "triggers": []}], refs)
+    with pytest.raises(ValueError, match="the reference has no 2024"):
+        history.merge(None, [with_years(row, y2024="measured")], refs)
+    # The committed file is held to the same rules as an incoming row.
     doc, _ = history.merge(None, [row], refs)
+    doc["rows"][0]["limit"] = 1
+    assert any("smoke" in p for p in history.validate_history(doc))
     changed = reference_meta("rel", 1)
     changed["years"]["2023"]["comparisonSha256"] = "other"
     with pytest.raises(ValueError, match="differs"):
-        history.merge(doc, [], [changed])
+        history.merge(history.merge(None, [row], refs)[0], [], [changed])
+
+
+SOURCE_ROW = {name: "0" for name in refresh.INPUT_COLUMNS} | {
+    "taxsimid": "7", "year": "2021", "state": "14", "mstat": "1", "depx": "0",
+    "pwages": "41904.76190476191", "age1": "", "age2": "",
+}  # fmt: skip
+
+
+def test_the_reference_must_be_the_source_household_in_the_requested_year():
+    published = {**SOURCE_ROW, "year": "2023", "state_code": "IL", "taxsimid": "7.0",
+                 "pwages": "41904.7619047619", "age1": "nan"}  # fmt: skip
+    history.check_published_household(published, SOURCE_ROW, 2023)
+    for change, message in [
+        ({"year": "2022"}, "was run for 2022"),
+        ({"mstat": "2"}, "mstat"),
+        ({"depx": "10"}, "depx"),
+        ({"pwages": "41905.76"}, "pwages"),
+        ({"age1": "12"}, "age1"),
+        ({"state_code": "TX"}, "state differs"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            history.check_published_household({**published, **change}, SOURCE_ROW, 2023)
+
+
+def test_measure_refuses_a_reference_that_was_not_the_one_verified(tmp_path):
+    rows = [{name: "0" for name in history.REFERENCE_FIELDS}]
+    history.write_gzip_csv(
+        tmp_path / "reference_2023.csv.gz", history.REFERENCE_FIELDS, rows
+    )
+    meta = {
+        "sourceSha256": refresh.digest(refresh.SOURCE),
+        "years": {
+            "2023": {
+                "referenceSha256": refresh.digest(tmp_path / "reference_2023.csv.gz")
+            }
+        },
+    }
+    history.check_reference(meta, tmp_path)
+    with pytest.raises(ValueError, match="not the source"):
+        history.check_reference({**meta, "sourceSha256": "other"}, tmp_path)
+    history.write_gzip_csv(
+        tmp_path / "reference_2023.csv.gz", history.REFERENCE_FIELDS, rows * 2
+    )
+    with pytest.raises(ValueError, match="not the verified 2023 reference"):
+        history.check_reference(meta, tmp_path)
 
 
 CORRUPTIONS = [
@@ -310,17 +431,8 @@ def test_validation_catches_counts_that_do_not_reconcile(data, which):
 
 
 def test_validation_checks_ids_statuses_and_order():
-    reference = [
-        {
-            "taxsimid": "1",
-            "state_code": "IL",
-            "pwages": 1000,
-            "fiitax": 0,
-            "siitax": 0,
-            "srebate": 0,
-        }
-    ]
-    row = measured_row(reference, {"1": {"fiitax": 0, "siitax": 0, "srebate": 0}})
+    row = measured_row(ONE, AGREE)
+    assert history.validate_row(row) == []
     assert any("id should be" in p for p in history.validate_row({**row, "id": "x"}))
     assert history.validate_row({**row, "status": "partial"}) != []
     doc = history.skeleton()
@@ -334,6 +446,8 @@ def test_validation_checks_ids_statuses_and_order():
     }
     doc["rows"] = [late, row]
     assert "rows must be sorted by releasedAt" in history.validate_history(doc)
+    doc["rows"] = [row, late]
+    assert history.validate_history(doc) == []
 
 
 def test_committed_history_is_valid():
@@ -350,104 +464,182 @@ T0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
 
 @st.composite
 def release_history(draw):
-    """True publish times, increasing with version; some releases later lost."""
-    n = draw(st.integers(min_value=1, max_value=30))
-    gaps = draw(
-        st.lists(st.integers(min_value=1, max_value=60 * 30), min_size=n, max_size=n)
-    )
-    times, moment = [], T0
-    for gap in gaps:
-        moment += timedelta(minutes=gap)
-        times.append(moment)
-    versions = [f"2.{i}.0" for i in range(n)]
-    lost = draw(st.lists(st.booleans(), min_size=n, max_size=n))
-    exact = draw(st.lists(st.booleans(), min_size=n, max_size=n))
-    return versions, times, lost, exact
+    """A true release history, and what can be observed of it afterwards.
+
+    Versions are bumped in order. Each bump either publishes some minutes
+    later (uploads keep version order) or never publishes. Published releases
+    may since have been deleted from PyPI. For a release PyPI lacks, the
+    publish job is on record (and tells the truth) or it is not.
+    """
+    n = draw(st.integers(min_value=1, max_value=25))
+    moment, last_upload, releases = T0, T0, []
+    for i in range(n):
+        # Bumps come in version order; a bump may precede the previous upload.
+        moment += timedelta(minutes=draw(st.integers(min_value=1, max_value=60 * 30)))
+        bumped = moment
+        published = draw(st.booleans()) or i == 0
+        upload = job = None
+        if published:
+            start = bumped + timedelta(minutes=draw(st.integers(0, 20)))
+            # Uploads keep version order: the one assumption the windows rest on.
+            upload = max(
+                start + timedelta(minutes=draw(st.integers(0, 90))),
+                last_upload + timedelta(minutes=1),
+            )
+            job = (start, upload + timedelta(minutes=draw(st.integers(0, 10))))
+            last_upload = upload
+        releases.append(
+            dict(
+                version=f"2.{i}.0",
+                bumped=bumped,
+                upload=upload,
+                job=job,
+                deleted=published and draw(st.booleans()),
+                on_record=draw(st.booleans()),
+                has_commit=draw(st.booleans()),
+            )
+        )
+    return releases
 
 
-def build(versions, times, lost, exact):
+def observe(truth):
     available = {
-        v: {"uploaded": t, "requiresPython": None}
-        for v, t, gone in zip(versions, times, lost)
-        if not gone
+        r["version"]: {
+            "available": r["upload"],
+            "complete": r["upload"],
+            "requiresPython": None,
+        }
+        for r in truth
+        if r["upload"] and not r["deleted"]
     }
     dated = {
-        v: datetime(t.year, t.month, t.day, tzinfo=timezone.utc)
-        for v, t in zip(versions, times)
-    }
-    precise = {
-        v: t for v, t, gone, ex in zip(versions, times, lost, exact) if gone and ex
-    }
-    return history.timeline(available, dated, precise)
-
-
-@settings(max_examples=300, deadline=None)
-@given(release_history(), st.integers(min_value=-60, max_value=60 * 24 * 40))
-def test_publish_windows_hold_the_true_time_and_certain_answers_are_right(data, offset):
-    versions, times, lost, exact = data
-    releases = build(versions, times, lost, exact)
-    truth = dict(zip(versions, times))
-    if not all(lost):
-        newest_listed = max(
-            (v for v, g in zip(versions, lost) if not g), key=history.version_key
+        r["version"]: datetime(
+            r["bumped"].year, r["bumped"].month, r["bumped"].day, tzinfo=timezone.utc
         )
+        for r in truth
+    }
+    bumps = {
+        r["version"]: (r["bumped"], r["version"]) for r in truth if r["has_commit"]
+    }
+    by_version = {r["version"]: r for r in truth}
+
+    def evidence(release):
+        r = by_version[release["version"]]
+        if not release["commit"] or not r["on_record"]:
+            return ("unknown", None, None)
+        return ("published", *r["job"]) if r["upload"] else ("never", None, None)
+
+    end = max(r["upload"] or r["bumped"] for r in truth) + timedelta(days=2)
+    return history.timeline(available, dated, bumps, end), evidence
+
+
+@settings(max_examples=400, deadline=None)
+@given(release_history(), st.integers(min_value=0, max_value=60 * 24 * 40))
+def test_publish_windows_hold_the_true_time_and_certain_answers_are_right(
+    truth, offset
+):
+    releases, evidence = observe(truth)
+    uploads = {r["version"]: r["upload"] for r in truth if r["upload"]}
     for release in releases:
-        assert release["lo"] <= truth[release["version"]] <= release["hi"]
-    # Unpublished entries newer than everything on PyPI are left out.
-    if not all(lost):
-        assert {r["version"] for r in releases} == {
-            v
-            for v in versions
-            if history.version_key(v) <= history.version_key(newest_listed)
-        }
+        if release["version"] in uploads:
+            assert release["lo"] <= uploads[release["version"]] <= release["hi"]
     moment = T0 + timedelta(minutes=offset)
-    best, certain = history.newest_at(releases, moment)
-    candidates = [r["version"] for r in releases if truth[r["version"]] <= moment]
-    true_newest = max(candidates, key=history.version_key) if candidates else None
+    best, certain = history.newest_installed(releases, moment, evidence=evidence)
+    # Evidence only ever narrows a window around the truth.
+    for release in releases:
+        if release["version"] in uploads and release.get("state") != "never":
+            assert release["lo"] <= uploads[release["version"]] <= release["hi"]
+        assert not (release.get("state") == "never" and release["version"] in uploads)
+    out = [v for v, t in uploads.items() if t <= moment]
+    true_newest = max(out, key=history.version_key) if out else None
+    if certain:
+        assert (best or {}).get("version") == true_newest
+    # With no evidence at all, a certain answer is still never wrong.
+    plain, _ = observe(truth)
+    best, certain = history.newest_at(plain, moment)
     if certain:
         assert (best or {}).get("version") == true_newest
 
 
-def test_newest_installed_skips_releases_that_never_published():
+def test_a_release_that_never_published_is_not_what_a_user_got():
     t = T0
     releases = [
         {"version": "2.6.17", "lo": t, "hi": t, "onPypi": True, "commit": None},
-        {
-            "version": "2.6.20",
-            "lo": t + timedelta(hours=1),
-            "hi": t + timedelta(hours=1),
-            "onPypi": False,
-            "commit": "abc",
-        },
-    ]
+        {"version": "2.6.20", "lo": t + timedelta(hours=1), "hi": t + timedelta(days=1),
+         "onPypi": False, "commit": "abc"},
+    ]  # fmt: skip
     later = t + timedelta(hours=2)
+    never = lambda r: ("never", None, None)  # noqa: E731
     best, certain = history.newest_installed(
-        releases, later, lambda v: True, lambda r: True
+        [dict(r) for r in releases], later, evidence=never
     )
     assert (best["version"], certain) == ("2.6.17", True)
-    best, _ = history.newest_installed(releases, later, lambda v: True, lambda r: False)
-    assert best["version"] == "2.6.20"
+    # No evidence: it may or may not have been out, so the answer is open.
+    best, certain = history.newest_installed([dict(r) for r in releases], later)
+    assert (best["version"], certain) == ("2.6.17", False)
+    # Published 01:20-01:30, then deleted: it is what a user got, for certain.
+    job = (t + timedelta(minutes=80), t + timedelta(minutes=90))
+    best, certain = history.newest_installed(
+        [dict(r) for r in releases], later, evidence=lambda r: ("published", *job)
+    )
+    assert (best["version"], certain) == ("2.6.20", True)
+
+
+def test_a_bump_commit_is_not_the_moment_of_publication():
+    """Bumped 00:10, uploaded 00:20: at 00:15 the older release was newest."""
+    t = T0
+    available = {
+        "2.0.0": {"available": t, "complete": t, "requiresPython": None},
+        "2.0.2": {"available": t + timedelta(hours=5), "complete": t, "requiresPython": None},
+    }  # fmt: skip
+    dated = {"2.0.0": T0, "2.0.1": T0, "2.0.2": T0}
+    bumps = {"2.0.1": (t + timedelta(minutes=10), "sha")}
+    releases = history.timeline(available, dated, bumps)
+    best, certain = history.newest_at(releases, t + timedelta(minutes=15))
+    assert (best["version"], certain) == ("2.0.0", False)
+    job = (t + timedelta(minutes=12), t + timedelta(minutes=21))
+    best, certain = history.newest_installed(
+        history.timeline(available, dated, bumps),
+        t + timedelta(minutes=30),
+        evidence=lambda r: ("published", *job),
+    )
+    assert (best["version"], certain) == ("2.0.1", True)
+
+
+def test_a_release_is_available_from_its_first_file(monkeypatch):
+    listing = {
+        "releases": {
+            "2.0.1": [
+                {"upload_time": "2026-09-01T01:00:00", "requires_python": ">=3.11"},
+                {"upload_time": "2026-09-01T03:00:00", "requires_python": ">=3.11"},
+            ],
+            "2.0.2": [{"upload_time": "2026-09-02T00:00:00", "yanked": True}],
+        }
+    }
+    monkeypatch.setattr(history, "fetch", lambda url: json.dumps(listing).encode())
+    releases = history.pypi_releases("policyengine-us")
+    assert list(releases) == ["2.0.1"]
+    assert releases["2.0.1"]["available"].hour == 1
+    assert releases["2.0.1"]["complete"].hour == 3
 
 
 def test_pair_reasons_and_install_moment():
     t = T0
-    taxsim = {"version": "3.1.1", "lo": t, "hi": t, "onPypi": True}
-    us = {
-        "version": "2.36.0",
-        "lo": t - timedelta(hours=1),
-        "hi": t - timedelta(hours=1),
-        "onPypi": True,
-    }
-    entry = history.pair(
-        taxsim, us, {"package": "policyengine-taxsim", "version": "3.1.1"}, "rel"
+    taxsim = {"version": "3.1.1", "lo": t, "hi": t, "onPypi": True,
+              "complete": t + timedelta(minutes=3)}  # fmt: skip
+    earlier = t - timedelta(hours=1)
+    us = {"version": "2.36.0", "lo": earlier, "hi": earlier, "onPypi": True,
+          "complete": earlier}  # fmt: skip
+    trigger = {"package": "policyengine-taxsim", "version": "3.1.1"}
+    entry = history.pair(taxsim, us, trigger, "rel")
+    assert entry["releasedAt"] == history.iso(t)
+    assert entry["installAsOf"] == history.iso(
+        t + timedelta(minutes=3) + history.INSTALL_GRACE
     )
-    assert entry["installAsOf"] == history.iso(t + history.INSTALL_GRACE)
     assert "status" not in entry
-    gone = history.pair({**taxsim, "onPypi": False}, {**us, "onPypi": False}, {}, "rel")
-    assert gone["status"] == "not-installable"
-    assert gone["reason"] == (
-        "policyengine-taxsim 3.1.1 and policyengine-us 2.36.0 are not on PyPI"
-    )
+    gone = history.pair(taxsim, {**us, "onPypi": False}, trigger, "rel")
+    assert gone["status"] == "not-installable" and "installAsOf" not in gone
+    assert gone["reason"] == "policyengine-us 2.36.0 is not on PyPI"
 
 
 def test_changelog_dates_and_reference_tag():
@@ -623,3 +815,56 @@ def test_a_stopped_batch_is_retried_in_halves_without_losing_households(stub_wor
 def test_a_worker_that_keeps_crashing_fails_the_measurement(stub_worker):
     with pytest.raises(history.WorkerFailure, match="worker exited 3"):
         stub_worker(range(96, 104), [2021])
+
+
+def test_a_crashed_worker_leaves_no_child_process_behind(tmp_path, monkeypatch):
+    if os.name == "nt":
+        pytest.skip("workers use POSIX process groups")
+    psutil = pytest.importorskip("psutil")
+    script = tmp_path / "leaky_worker.py"
+    script.write_text(
+        textwrap.dedent(
+            """
+            import subprocess, sys
+            child = subprocess.Popen(["sleep", "60"])
+            open(sys.argv[-2] + ".child", "w").write(str(child.pid))
+            sys.exit(3)
+            """
+        )
+    )
+    monkeypatch.setattr(history, "WORKER", script)
+    monkeypatch.setattr(history, "POLL_SECONDS", 0.05)
+    work = tmp_path / "work"
+    work.mkdir()
+    with pytest.raises(history.WorkerFailure):
+        history.run_workers(
+            sys.executable,
+            [[{"taxsimid": "1", "state": 14}]],
+            [2021],
+            work,
+            1,
+            6,
+            60,
+            log=lambda *_: None,
+        )
+    (pid_file,) = work.glob("*.child")
+    pid = int(pid_file.read_text())
+    gone = not psutil.pid_exists(pid) or psutil.Process(pid).status() == "zombie"
+    assert gone, "the crashed worker's child is still running"
+
+
+def test_workers_over_the_total_memory_budget_are_requeued_not_failed(
+    stub_worker, monkeypatch
+):
+    # Every worker reports 2 GiB; with a 3 GiB total budget only one can run.
+    messages = []
+    monkeypatch.setattr(history, "rss", lambda process, psutil: 2 * 1024**3)
+    households = [{"taxsimid": str(i), "state": 14} for i in range(1, 13)]
+    batches = [households[i : i + 2] for i in range(0, 12, 2)]
+    work = next(iter(history.WORKER.parent.glob("work")))
+    done, errors, _, peak = history.run_workers(
+        sys.executable, batches, [2021], work, 3, 6, 60, 3, log=messages.append
+    )
+    assert errors == {} and peak == 2 * 1024**3
+    assert sorted(scored_ids(done[2021]), key=int) == [str(i) for i in range(1, 13)]
+    assert any("continuing with 1 at a time" in m for m in messages)
