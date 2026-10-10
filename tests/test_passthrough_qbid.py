@@ -33,6 +33,10 @@ income_tax 8,499); the defect was purely in this emulator's mapping layer.
 
 Fixes taxsim #384 (FICA and QBI income), #943 (scorp QBID), #1004 (scorp QBID),
 #762 (QBID across pass-through inputs); addresses #1018 and #1003.
+
+The TAXSIM-35 figures below are from that June 2026 comparison. The bundled
+taxsimtest build (cd2026081819) no longer applies SECA to pbusinc (taxsim
+#1254); tests/test_pbusinc_self_employment_tax.py pins that difference.
 """
 
 import numpy as np

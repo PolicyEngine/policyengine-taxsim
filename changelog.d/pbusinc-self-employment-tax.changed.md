@@ -1,0 +1,1 @@
+Document and test the difference between the emulator and the bundled TAXSIM-35 build in how they tax `pbusinc` and `sbusinc`: the emulator applies self-employment tax, as NBER's input documentation describes, and the build does not (#1254).
