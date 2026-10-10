@@ -1,0 +1,4 @@
+# Verbatim TAXSIM stdout captures: keep their bytes (LF, trailing spaces)
+# identical on every platform, including Windows checkouts.
+tests/fixtures/taxsim_stdout/*.txt text eol=lf
+tests/fixtures/taxsim_stdout/*.csv text eol=lf
