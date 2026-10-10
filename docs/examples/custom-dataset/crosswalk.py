@@ -12,12 +12,12 @@ survey = pd.read_csv("survey_extract.csv")
 
 # 1. Blank amounts mean "none". TAXSIM input has no missing values, so make
 #    them zeros.
-amounts = [
+survey_amounts = [
     "wages_head", "wages_spouse", "self_emp_head", "interest", "dividends",
     "pension", "social_security", "unemployment", "rent_paid",
     "property_tax", "mortgage_interest", "charity", "childcare_cost",
 ]  # fmt: skip
-survey[amounts] = survey[amounts].fillna(0)
+survey[survey_amounts] = survey[survey_amounts].fillna(0)
 
 # 2. Map each survey concept to a TAXSIM column. This survey codes married
 #    as 1; everyone else files as unmarried (head of household with a child).
@@ -67,9 +67,10 @@ taxsim.to_csv("taxsim_input.csv", index=False)
 results = StitchedRunner(taxsim).run()
 
 # 6. Merge back on taxsimid. Amounts are computed in 32-bit floating point,
-#    so round them to cents.
-keep = ["taxsimid", "fiitax", "siitax", "fica", "v10"]
-taxes = results[keep].astype(float).round(2)
+#    so round them to cents. Leave taxsimid alone: it is an identifier.
+amounts = ["fiitax", "siitax", "fica", "v10"]
+taxes = results[["taxsimid", *amounts]].copy()
+taxes[amounts] = taxes[amounts].astype(float).round(2)
 merged = survey.merge(taxes, left_on="hh_id", right_on="taxsimid", how="left")
 merged.drop(columns="taxsimid").to_csv("survey_with_taxes.csv", index=False)
 print(merged[["hh_id", "tax_year", "fiitax", "siitax", "fica", "v10"]])

@@ -2,7 +2,7 @@
 
 This guide is for analysts who want to compute taxes for their own records, such as a survey extract, with policyengine-taxsim. It covers every input column the emulator reads, what it does with blanks and unexpected values, and a complete example that goes from a survey file to taxes merged back onto it, in Python, Stata and R.
 
-The tables marked as generated are produced from the emulator's code by `scripts/generate_docs_reference.py`. `tests/test_docs_reference.py` fails whenever the code and these tables disagree, so they describe the code in this commit.
+The tables marked as generated are produced by `scripts/generate_docs_reference.py`, which runs the emulator's input code on test records and reads its mapping files. `tests/test_docs_reference.py` regenerates them and fails when the committed tables differ, so they show what the code in this commit does for the cases the generator tries.
 
 Contents:
 
@@ -72,9 +72,9 @@ What each column means. The descriptions come from [`docs/reference/input_variab
 
 | Column | Meaning | Type | Valid values |
 |---|---|---|---|
-| `taxsimid` | Record identifier, returned unchanged in the output so you can merge results back onto your data. | Number | Any non-negative number. Give every record its own value; if the column is left out, records are numbered 1, 2, 3, ... in file order. |
+| `taxsimid` | Record identifier, returned unchanged in the output so you can merge results back onto your data. | Number | Any non-negative number. Give every record its own value; if the column is left out, records are numbered 1, 2, 3, ... in file order. In Stata, store it as `double`. |
 | `year` | Tax year. Required. | Four-digit year | A whole number. 2021 and later are computed by PolicyEngine; earlier years by the bundled TAXSIM-35 executable, which covers 1960 onward (state must be 0 before 1977, per TAXSIM-35). |
-| `state` | State of residence, as a TAXSIM SOI code. | Code | 1 (Alabama) to 51 (Wyoming), in alphabetical order with DC as 9; 0 for no state tax. -1 (TAXSIM's every-state option) is rejected. Use `state` or `statefip`, not both. |
+| `state` | State of residence, as a TAXSIM SOI code. | Code | 1 (Alabama) to 51 (Wyoming), in alphabetical order with DC as 9; 0 for no state tax. Never -1 (TAXSIM's every-state option), which records from 2021 on reject and earlier records answer wrongly. Use `state` or `statefip`, not both. |
 | `statefip` | State of residence, as a FIPS code. An alternative to `state`. | Code | 1 (Alabama) to 56 (Wyoming), including 11 for DC; 0 or blank to use `state` instead. Codes that are not a state or DC (3, 7, 14, 43, 52) are rejected, as is a record with both `state` and `statefip` nonzero. |
 | `mstat` | Filing status. | Code | 1 unmarried (filed as head of household when a dependent qualifies), 2 married filing jointly, 6 married filing separately. TAXSIM-35 also defines 8 (dependent taxpayer); see "Values the emulator does not check". |
 | `page` | Age of the primary taxpayer on December 31 of the tax year. | Years | A whole number of years. |
@@ -145,7 +145,7 @@ What each column means. The descriptions come from [`docs/reference/input_variab
 
 | Column | Meaning | Type | Valid values |
 |---|---|---|---|
-| `idtl` | How much output to return for the record. | Code | 0 standard output, 2 full output, 5 full output plus a text report. Any other value returns no tax amounts for the record on PolicyEngine rows. |
+| `idtl` | How much output to return for the record. | Code | 0 standard output, 2 full output, 5 a text report (stdin command, records from 2021 on). Use 2 for full output as a table. Any other value returns no tax amounts for the record on PolicyEngine rows. |
 | `opt1` | A TAXSIM-35 option number, passed to the TAXSIM-35 executable for pre-2021 rows (for example 30, its PSL-conformance mode). | Code | See https://taxsim.nber.org/taxsimtest/options.html. PolicyEngine rows ignore it. |
 | `opt1v` | The value for the option in `opt1`. | Number | See `opt1`. |
 <!-- END GENERATED: input-columns -->
@@ -238,7 +238,7 @@ Recode missing values yourself before running, so every 0 is a choice. The [work
 
 ## What the emulator rejects
 
-These stop the whole run with an error naming the problem. Each one was checked against the code and is covered by a test.
+These stop the whole run with an error naming the problem. Each one is covered by a test. The `state` checks apply to records from 2021 on; see below for earlier records.
 
 | Input | Error |
 |---|---|
@@ -252,6 +252,11 @@ These stop the whole run with an error naming the problem. Each one was checked 
 | Text in a numeric column, including `.` | `could not convert string to float: '.'` |
 
 The R package is the exception for state codes: it converts two-letter abbreviations such as `"CA"` to SOI codes before calling the emulator.
+
+Records before 2021 go to TAXSIM-35 without the `state` checks:
+
+- A code TAXSIM-35 does not know, such as 52, stops the run with an error from TAXSIM-35.
+- **`state` -1 is not rejected and gives a wrong answer.** TAXSIM-35 returns one row for every state, and the emulator keeps only the first, so the record comes back with Alabama's tax and `state` 1. Never use -1.
 
 ## Values the emulator does not check
 
@@ -281,7 +286,7 @@ The emulator computes these without complaint. Check for them yourself.
 
 ## Reading the output
 
-Choose the output with `idtl`: 0 for the standard columns, 2 for full detail, 5 for full detail plus a text report. Only the stdin command writes the text report; other interfaces return the same results as a table. The [design document](design.md#where-each-output-comes-from) lists every output column and how it is computed. The main ones:
+Choose the output with `idtl`: 0 for the standard columns, 2 for full detail, 5 for a text report. Use 2 when you want a table. `idtl` 5 gives the text report only from the stdin command and only for records from 2021 on; other interfaces return those records as a table. For records before 2021, `idtl` 5 does not work: one such record returns only the standard columns, and two or more stop the run with `positional indexers are out-of-bounds`. The [design document](design.md#where-each-output-comes-from) lists every output column and how it is computed. The main ones:
 
 | Column | Meaning |
 |---|---|
@@ -289,8 +294,8 @@ Choose the output with `idtl`: 0 for the standard columns, 2 for full detail, 5 
 | `fiitax` | Federal income tax, after credits; refundable credits make it negative |
 | `siitax` | State income tax, after credits |
 | `fica` | Social Security and Medicare taxes, employee and employer shares |
-| `tfica` | The taxpayer's share of `fica` |
-| `frate`, `srate` | Federal and state marginal rates on wages, in percent |
+| `tfica` | The taxpayer's own payroll taxes: the employee share of Social Security and Medicare, and self-employment tax. On PolicyEngine rows it also includes employee state payroll taxes and contributions, which TAXSIM-35 leaves out |
+| `frate`, `srate` | Federal and state marginal rates on wages, in percent. The bundled TAXSIM-35 build returns 0 for both, so ignore them on records before 2021 |
 | `v10` | Federal adjusted gross income (with `idtl` 2 or 5) |
 
 Things to know when you use the results:
@@ -346,12 +351,12 @@ survey = pd.read_csv("survey_extract.csv")
 
 # 1. Blank amounts mean "none". TAXSIM input has no missing values, so make
 #    them zeros.
-amounts = [
+survey_amounts = [
     "wages_head", "wages_spouse", "self_emp_head", "interest", "dividends",
     "pension", "social_security", "unemployment", "rent_paid",
     "property_tax", "mortgage_interest", "charity", "childcare_cost",
 ]  # fmt: skip
-survey[amounts] = survey[amounts].fillna(0)
+survey[survey_amounts] = survey[survey_amounts].fillna(0)
 
 # 2. Map each survey concept to a TAXSIM column. This survey codes married
 #    as 1; everyone else files as unmarried (head of household with a child).
@@ -401,9 +406,10 @@ taxsim.to_csv("taxsim_input.csv", index=False)
 results = StitchedRunner(taxsim).run()
 
 # 6. Merge back on taxsimid. Amounts are computed in 32-bit floating point,
-#    so round them to cents.
-keep = ["taxsimid", "fiitax", "siitax", "fica", "v10"]
-taxes = results[keep].astype(float).round(2)
+#    so round them to cents. Leave taxsimid alone: it is an identifier.
+amounts = ["fiitax", "siitax", "fica", "v10"]
+taxes = results[["taxsimid", *amounts]].copy()
+taxes[amounts] = taxes[amounts].astype(float).round(2)
 merged = survey.merge(taxes, left_on="hh_id", right_on="taxsimid", how="left")
 merged.drop(columns="taxsimid").to_csv("survey_with_taxes.csv", index=False)
 print(merged[["hh_id", "tax_year", "fiitax", "siitax", "fica", "v10"]])
@@ -412,7 +418,7 @@ print(merged[["hh_id", "tax_year", "fiitax", "siitax", "fica", "v10"]])
 
 ### Stata
 
-Writes the TAXSIM input as a Stata file and calls the `policyengine` subcommand, which reads and writes `.dta` directly, so no CSV parsing is involved. Stata's shell must be able to find `policyengine-taxsim`. If it can't, give the full path, for example `! /home/me/taxsim-env/bin/policyengine-taxsim` on Linux or macOS, or `! C:\taxsim-env\Scripts\policyengine-taxsim.exe` on Windows.
+Writes the TAXSIM input as a Stata file and calls the `policyengine` subcommand, which reads and writes `.dta` directly, so no CSV parsing is involved. It stores the record ID and the amounts as `double`: Stata's default `float` type cannot hold every whole number above 16,777,216, so long survey IDs would collide. Stata's shell must be able to find `policyengine-taxsim`. If it can't, give the full path, for example `! /home/me/taxsim-env/bin/policyengine-taxsim` on Linux or macOS, or `! C:\taxsim-env\Scripts\policyengine-taxsim.exe` on Windows.
 
 <!-- BEGIN GENERATED: example-stata -->
 ```stata
@@ -432,8 +438,9 @@ foreach v of varlist wages_head wages_spouse self_emp_head interest dividends //
 
 * 2. Map each survey concept to a TAXSIM variable. This survey codes married
 *    as 1; everyone else files as unmarried. (dividends already has its
-*    TAXSIM name.)
-generate taxsimid = hh_id
+*    TAXSIM name.) Store identifiers and amounts as double: Stata's default
+*    float type cannot hold every whole number above 16,777,216.
+generate double taxsimid = hh_id
 generate year = tax_year
 generate statefip = state_fips
 generate mstat = cond(marital_status == 1, 2, 1)
@@ -441,18 +448,18 @@ generate page = age_head
 generate sage = cond(mstat == 2, age_spouse, 0)
 replace sage = 0 if missing(sage)
 generate depx = cond(missing(num_children), 0, num_children)
-generate pwages = wages_head
-generate swages = cond(mstat == 2, wages_spouse, 0)
-generate psemp = self_emp_head
-generate intrec = interest
-generate pensions = pension
-generate gssi = social_security
-generate pui = unemployment
-generate rentpaid = rent_paid
-generate proptax = property_tax
+generate double pwages = wages_head
+generate double swages = cond(mstat == 2, wages_spouse, 0)
+generate double psemp = self_emp_head
+generate double intrec = interest
+generate double pensions = pension
+generate double gssi = social_security
+generate double pui = unemployment
+generate double rentpaid = rent_paid
+generate double proptax = property_tax
 * Mortgage interest and charity are both non-AMT-preference itemized deductions.
-generate mortgage = mortgage_interest + charity
-generate childcare = childcare_cost
+generate double mortgage = mortgage_interest + charity
+generate double childcare = childcare_cost
 generate idtl = 2
 
 * 3. Dependent ages: 0 reads as "not given" (age 10), so code infants as 1.
@@ -462,17 +469,25 @@ forvalues i = 1/3 {
     replace age`i' = 0 if missing(age`i')
 }
 
-* 4. Write the TAXSIM input and run the emulator on it. The policyengine
+* 4. Check before running: the emulator does not reject most bad values.
+local taxsimvars taxsimid year statefip mstat page sage depx age1 age2 age3 ///
+    pwages swages psemp intrec dividends pensions gssi pui rentpaid proptax ///
+    mortgage childcare idtl
+foreach v of local taxsimvars {
+    assert !missing(`v')
+}
+assert inlist(mstat, 1, 2, 6)
+isid taxsimid
+
+* 5. Write the TAXSIM input and run the emulator on it. The policyengine
 *    subcommand reads and writes Stata files directly.
 preserve
-keep taxsimid year statefip mstat page sage depx age1 age2 age3 pwages ///
-    swages psemp intrec dividends pensions gssi pui rentpaid proptax ///
-    mortgage childcare idtl
+keep `taxsimvars'
 save "taxsim_input.dta", replace
 ! policyengine-taxsim policyengine taxsim_input.dta -o taxsim_results.dta
 restore
 
-* 5. Merge the results back on taxsimid and round amounts to cents.
+* 6. Merge the results back on taxsimid and round amounts to cents.
 merge 1:1 taxsimid using "taxsim_results.dta", ///
     keepusing(fiitax siitax fica v10) nogenerate
 foreach v of varlist fiitax siitax fica v10 {
@@ -555,8 +570,11 @@ status <- system2(
 stopifnot(status == 0)
 results <- read.csv("taxsim_results.csv")
 
-# 6. Merge back on taxsimid and round amounts to cents.
-taxes <- round(results[c("taxsimid", "fiitax", "siitax", "fica", "v10")], 2)
+# 6. Merge back on taxsimid and round amounts to cents. Leave taxsimid alone:
+#    it is an identifier.
+tax_columns <- c("fiitax", "siitax", "fica", "v10")
+taxes <- results[c("taxsimid", tax_columns)]
+taxes[tax_columns] <- round(taxes[tax_columns], 2)
 merged <- merge(survey, taxes, by.x = "hh_id", by.y = "taxsimid", all.x = TRUE)
 write.csv(merged, "survey_with_taxes.csv", row.names = FALSE)
 print(merged[c("hh_id", "tax_year", "fiitax", "siitax", "fica", "v10")])

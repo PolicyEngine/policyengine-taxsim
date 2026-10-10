@@ -62,8 +62,11 @@ status <- system2(
 stopifnot(status == 0)
 results <- read.csv("taxsim_results.csv")
 
-# 6. Merge back on taxsimid and round amounts to cents.
-taxes <- round(results[c("taxsimid", "fiitax", "siitax", "fica", "v10")], 2)
+# 6. Merge back on taxsimid and round amounts to cents. Leave taxsimid alone:
+#    it is an identifier.
+tax_columns <- c("fiitax", "siitax", "fica", "v10")
+taxes <- results[c("taxsimid", tax_columns)]
+taxes[tax_columns] <- round(taxes[tax_columns], 2)
 merged <- merge(survey, taxes, by.x = "hh_id", by.y = "taxsimid", all.x = TRUE)
 write.csv(merged, "survey_with_taxes.csv", row.names = FALSE)
 print(merged[c("hh_id", "tax_year", "fiitax", "siitax", "fica", "v10")])

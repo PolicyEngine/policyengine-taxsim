@@ -17,10 +17,11 @@ Contents:
 
 ## Summary
 
-- **A local run makes no network connections.** Installed with pip and run from the command line, Python or R, the emulator computes everything on the machine. Nothing is sent to PolicyEngine or anyone else. A test in CI fails if a run tries to open a connection.
+- **A local run makes no network connections.** Installed with pip and run from the command line, Python or R, the emulator computes everything on the machine. Nothing is sent to PolicyEngine or anyone else. A test in CI runs the command line and fails if Python tries to open a connection.
 - **The hosted web runner is different.** The upload page at policyengine.org/us/taxsim/run sends your CSV to PolicyEngine's server. Do not use it for confidential data.
 - **Installing needs the network** (PyPI, or your internal mirror), unless you install from downloaded files as described below.
-- **It runs a bundled third-party executable** for tax years before 2021: NBER's TAXSIM-35, unsigned, x86-64 only.
+- **It runs a bundled third-party executable** for tax years before 2021: NBER's TAXSIM-35, unsigned, x86-64 only. On Linux it needs glibc 2.34 or newer, so it does not run on Red Hat Enterprise Linux 8.
+- **It writes your input records to temporary files** while it runs. It tries to delete them, but that is not guaranteed.
 - **It installs dozens of Python packages**, including networking and developer libraries that a run never calls. The [full list](#dependencies) has versions and licenses. Two of them, policyengine-us and policyengine-core, are licensed under the GNU Affero General Public License v3; policyengine-taxsim itself is MIT-licensed.
 - **It needs Python 3.10 or later**; use 3.11 or later to get current tax rules.
 
@@ -69,7 +70,13 @@ On 2026-10-09, with policyengine-taxsim at this commit, policyengine-us 2.38.0 (
 4. **Inspecting the executables'** imported libraries and symbols (below).
 5. **Installing offline.** The install step of the [offline installation](#installing-without-internet-access) was carried out on macOS with Python 3.11 inside the same no-network sandbox, using uv's equivalents of the pip commands (`uv pip install --no-index --find-links ... --require-hashes`), and the check command printed the expected result. The `pip download` commands themselves were not run. Their `--platform` flags were checked by computing the tags pip accepts with the `packaging` library: in each of the five snapshots, every package has a file with a listed hash that those flags accept.
 
-`tests/test_no_network.py` repeats step 2 in CI on Linux, macOS and Windows with Python 3.10 and 3.11: it runs the command line with an audit hook that refuses any connection leaving the machine, DNS lookup or HTTP request made through Python, so a change that adds one fails the build. The hook does not see inside the TAXSIM-35 executable, which is why step 4 inspects its imports. To check an installation yourself, run the same command with your firewall blocking the Python process; the [worked example](input-guide.md#worked-example-from-a-survey-file-to-taxes) is a suitable input.
+`tests/test_no_network.py` repeats step 2 in CI on Linux, macOS and Windows with Python 3.10 and 3.11. It runs the `policyengine` subcommand on four records (one from 2019, one with no state, `idtl` 0 and 2) with an audit hook that refuses any connection leaving the machine, DNS lookup or HTTP request made through Python. A change that adds one on that path fails the build. What it does not cover:
+
+- Other paths: the stdin command, `compare`, `--logs`, `idtl` 5, the R package, and states and inputs outside those four records. Steps 1 to 3 above covered the stdin command.
+- Connections to the loopback address, which stay on the machine and are allowed.
+- Anything Python's audit hooks cannot see: the TAXSIM-35 executable, a separate process (step 4 inspects its imports instead), and compiled extensions that open sockets without Python's `socket` module.
+
+To check an installation yourself, run your own input with your firewall blocking the Python process, as in step 3; the [worked example](input-guide.md#worked-example-from-a-survey-file-to-taxes) is a suitable input.
 
 ## Files and processes
 
@@ -77,12 +84,19 @@ What a run writes:
 
 | What | Where | When | Removed |
 |---|---|---|---|
-| Your input records, as PolicyEngine variables, in an HDF5 file | Python's temporary directory (`TMPDIR` on macOS and Linux, `TEMP` on Windows) | Each chunk of up to 10,000 records from 2021 on | When the chunk finishes |
-| Records before 2021 as CSV, and TAXSIM-35's output | The same temporary directory | Each batch of records before 2021 | When TAXSIM-35 finishes |
+| Your input records, as PolicyEngine variables, in an HDF5 file | Python's temporary directory (`TMPDIR` on macOS and Linux, `TEMP` on Windows) | Each chunk of up to 10,000 records from 2021 on | Deletion is attempted when the chunk finishes |
+| Records before 2021 as CSV, and TAXSIM-35's output | The same temporary directory | Each batch of records before 2021 | Deletion is attempted when TAXSIM-35 finishes |
 | Results | The output file you name, or stdout | Every run | No |
 | PolicyEngine test files (YAML) holding each record's inputs | The working directory | Only with `--logs` | No |
 
-The temporary files are deleted in `finally` blocks, so errors do not leave them behind, but a process killed outright (for example by `kill -9` or a power loss) can. If your input is confidential, point `TMPDIR` or `TEMP` at an approved location before running.
+Treat the temporary directory as holding your data. The emulator tries to delete its temporary files when each chunk or batch ends, including after an error, but deletion is not guaranteed:
+
+- A failed deletion is ignored without a message (`TaxsimMicrosimDataset.cleanup`, `TaxsimRunner.run`).
+- If writing the TAXSIM-35 input file fails partway, for example on a full disk, the partial file is left behind.
+- A process killed outright, for example by `kill -9` or a power loss, leaves whatever it had written.
+- On Windows the emulator tries to delete the HDF5 file while it still holds it open, which Windows normally refuses. This has not been checked on a Windows machine.
+
+`tests/test_no_network.py` gives its run a private temporary directory and checks that nothing is left in it after a normal run. On Linux and macOS a leftover file fails the test; on Windows it is reported as an expected failure until the behavior there is confirmed. If your input is confidential, point `TMPDIR` or `TEMP` at an approved location before running, and clear it afterward.
 
 Processes started:
 
@@ -104,12 +118,16 @@ The package includes NBER's TAXSIM-35 executables, installed to `share/policyeng
 | `resources/taxsimtest/taxsimtest-linux.exe` | Linux ELF, x86-64 | cd2026081819 | 2,129,624 | `00a321d2467ba011992f8b83c6e485a9b710c48fca4262a23fec1de26942a89b` | Yes, on Linux |
 | `resources/taxsimtest/taxsimtest-osx.exe` | macOS Mach-O, x86-64 | cd2026081819 | 2,070,264 | `4a17af9c2adbea27b1e6cce240610aede264e008bcdf64b131e0c81220f62b8c` | Yes, on macOS |
 | `resources/taxsimtest/taxsimtest-windows.exe` | Windows PE, x86-64 | cd2026081318 | 3,035,784 | `a8207e7cf207ee9ce066eedc51cc5dd531c956de0a8b567fca1933ca0fa0e9c3` | Yes, on Windows |
+
+- `resources/taxsim35/taxsim35-unix.exe` needs no shared libraries (statically linked).
+- `resources/taxsimtest/taxsimtest-linux.exe` needs glibc 2.34 or newer, and `libc.so.6`, `libgcc_s.so.1`, `libgfortran.so.5`, `libm.so.6`, `libquadmath.so.0`.
 <!-- END GENERATED: taxsim-binaries -->
 
 - **Source.** NBER distributes these as compiled programs; their source is not in this repository. `resources/taxsimtest/README.md` records where each is downloaded from and how a new build is checked before it is committed.
 - **Signatures.** None is code-signed: the macOS build is unsigned (`codesign` reports "not signed at all") and the Windows build has no Authenticode certificate. Check the hashes above instead (`shasum -a 256 <file>` on macOS and Linux, `Get-FileHash <file>` in PowerShell).
-- **Platforms.** All three are x86-64. On Apple silicon Macs the macOS build runs under Rosetta 2, which must be installed. The Linux build needs the GNU Fortran runtime (`libgfortran.so.5` and `libquadmath.so.0`: the `libgfortran5` and `libquadmath0` packages on Debian and Ubuntu, `libgfortran` and `libquadmath` on Red Hat systems); without it, records before 2021 fail with "error while loading shared libraries". There is no build for ARM Linux.
-- **Libraries.** The macOS build links only the system library (`libSystem`). The Linux build links `libgfortran.so.5`, `libm.so.6`, `libgcc_s.so.1`, `libquadmath.so.0` and `libc.so.6`. The Windows build imports only from `KERNEL32.dll` and `msvcrt.dll`. None of the three imports a socket, DNS or HTTP function.
+- **Platforms.** All three are x86-64. On Apple silicon Macs the macOS build runs under Rosetta 2, which must be installed. There is no build for ARM Linux.
+- **Linux requirements.** The Linux build needs glibc 2.34 or newer and the GNU Fortran runtime, as listed under the table. glibc 2.34 rules out Red Hat Enterprise Linux 8 (glibc 2.28) and Ubuntu 20.04 (glibc 2.31); it is met by Red Hat Enterprise Linux 9 and Ubuntu 22.04. This is separate from the Python packages, which install on older systems. The Fortran runtime is the `libgfortran5` and `libquadmath0` packages on Debian and Ubuntu, `libgfortran` and `libquadmath` on Red Hat systems; without it, records before 2021 fail with "error while loading shared libraries". On a system that cannot meet these, compute only 2021 and later.
+- **Libraries.** The macOS build links only the system library (`libSystem`). The Linux build links the libraries listed under the table. The Windows build imports only from `KERNEL32.dll` and `msvcrt.dll`. None of the three imports a socket, DNS or HTTP function.
 
 ## Python versions
 

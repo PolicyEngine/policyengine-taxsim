@@ -11,6 +11,9 @@ executable and by PolicyEngine, including a record with no state tax.
 Sockets that stay on the machine are allowed: connections to the loopback
 address, and urllib3's bind to it on import to test for IPv6.
 
+The run also gets a private temporary directory, and the test checks that no
+file is left in it afterward (reported as an expected failure on Windows).
+
 The hook sees Python's own network calls. It does not see inside the
 TAXSIM-35 executable, a separate process whose imports contain no networking
 functions (docs/security-and-deployment.md), or inside compiled extensions
@@ -22,6 +25,7 @@ import subprocess
 import sys
 
 import pandas as pd
+import pytest
 
 GUARDED_RUN = r"""
 import sys
@@ -81,6 +85,11 @@ def test_command_line_run_opens_no_connection(tmp_path):
     # Empty download caches, so nothing can be satisfied from an earlier run.
     environment["HF_HOME"] = str(tmp_path / "hf")
     environment["XDG_CACHE_HOME"] = str(tmp_path / "cache")
+    # A private temporary directory, to see what the run leaves behind.
+    scratch = tmp_path / "tmp"
+    scratch.mkdir()
+    for name in ("TMPDIR", "TEMP", "TMP"):
+        environment[name] = str(scratch)
     result = subprocess.run(
         [sys.executable, "-c", GUARDED_RUN, str(attempts), str(source), str(output)],
         cwd=tmp_path,
@@ -95,3 +104,12 @@ def test_command_line_run_opens_no_connection(tmp_path):
     results = pd.read_csv(output)
     assert results["taxsimid"].tolist() == [1, 2, 3, 4]
     assert results["fiitax"].notna().all()
+
+    # The run's temporary files hold the input records. After a normal run
+    # none should remain. Windows cannot delete a file that is still open, and
+    # the emulator's cleanup ignores that failure, so a leftover there is
+    # reported as an expected failure rather than hidden.
+    leftovers = sorted(path.name for path in scratch.rglob("*") if path.is_file())
+    if leftovers and os.name == "nt":
+        pytest.xfail(f"temporary files left behind on Windows: {leftovers}")
+    assert not leftovers, f"temporary files left behind: {leftovers}"

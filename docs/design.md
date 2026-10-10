@@ -106,7 +106,7 @@ After building the `Microsimulation`, `PolicyEngineRunner._build_configured_sim`
 | `rental_income_would_be_qualified` | Any `otherprop` | TAXSIM-35 gives no QBI deduction on `otherprop`; PolicyEngine would otherwise treat rental income as qualified |
 | `mn_renters_credit_qualifying_crp` | Minnesota renters | Assumes the Certificate of Rent Paid that Minnesota's renter's credit requires and TAXSIM-35 inputs can't record |
 | `ssi`, `snap`, `tanf`, `wic`, and the state SSI supplements `ca_state_supplement`, `co_state_supplement`, `ma_state_supplement`, `nm_ssi_state_supplement`, `sc_ssi_state_supplement` and `tx_ssi_state_supplement` | Always | Benefits PolicyEngine would otherwise compute; TAXSIM-35 has none, and some count as income in state credits |
-| `md_local_income_tax_before_refundable_credits` | Maryland | TAXSIM-35's Maryland `siitax` excludes county income tax |
+| `md_local_income_tax_before_refundable_credits` | Maryland | Makes Maryland `siitax` state-only, with no county income tax. TAXSIM-35 builds differ on this: see Known differences |
 | `utilities_included_in_rent` | Maine renters | Maine's property tax fairness credit excludes utilities from rent; TAXSIM-35's `rentpaid` is gross rent |
 | `ny_additional_ctc`, `ny_inflation_refund_credit`, `ny_supplemental_eitc` | New York | Payments made outside Form IT-201, which TAXSIM-35's `siitax` excludes |
 
@@ -197,6 +197,12 @@ Every output (generated from `variable_mappings.yaml`):
 
 The executables are NBER's `taxsimtest` builds of TAXSIM-35. `resources/taxsimtest/README.md` describes how they are updated and checked; the [security notes](security-and-deployment.md#bundled-taxsim-35-executables) list their hashes and platforms.
 
+Limits of this path, each checked against the bundled macOS build on 2026-10-09:
+
+- **No state check.** `PolicyEngineRunner` validates `state`; `TaxsimRunner` passes it through. An unknown code stops the run. `state` -1 makes TAXSIM-35 return a row for every state, and `StitchedRunner` keeps only the first, so the record comes back as Alabama.
+- **`idtl` 5 does not work.** TAXSIM-35 answers `idtl` 5 with a text report. The fallback parser (`_parse_verbose_taxsim_output`) reads only the standard columns from it and returns one record however many were sent, so `StitchedRunner` returns the standard columns for one record and fails with an index error for two or more. Use `idtl` 2.
+- **Marginal rates are 0.** The build returns `frate` and `srate` of 0.
+
 ## Versions and pinning
 
 Three things determine a result: the policyengine-taxsim version (input and output mapping), the policyengine-us version (tax rules), and, for years before 2021, the bundled TAXSIM-35 build.
@@ -238,18 +244,19 @@ Calculations:
 - **Additional Medicare Tax.** `fiitax` excludes it and `tfica`, `fica` and `addmed` include it, following TAXSIM's author on [#416](https://github.com/PolicyEngine/policyengine-taxsim/issues/416) and [#1225](https://github.com/PolicyEngine/policyengine-taxsim/issues/1225). The bundled TAXSIM-35 build (cd2026081819) still adds it to `fiitax` for 2013 to 2023, so pre-2021 rows owing it carry it in `fiitax`. See the README.
 - **State income tax as a federal deduction.** By default PolicyEngine deducts the state income tax it computes, as the law allows. The `PolicyEngineRunner.run` docstring records that the bundled TAXSIM-35 build deducted mortgage interest and property tax but not state income tax in the states and years checked; `--disable-salt` removes the state income tax deduction to match.
 - **One-time state rebates.** PolicyEngine counts them in the tax year they are based on. TAXSIM-35 by default counts them in the year they are paid; its option 30 (`--taxsim-opt30` in `compare`) uses PolicyEngine's convention. `srebate` reports the amount either way.
-- **Maryland.** `siitax` excludes county income tax, as TAXSIM-35's does.
+- **Maryland.** The emulator's `siitax` excludes county income tax. TAXSIM-35 builds differ: the comments in `_build_configured_sim` record builds that return state-only tax, but the bundled August 2026 builds add a flat 3.2% county tax. For a single filer with $100,000 of wages in 2024, the bundled macOS build returns `siitax` 7,428.45 against a tax before credits (`staxbc`) of 4,417.25. `tests/test_md_local_tax_parity.py` pins the state-only values and marks the affected builds.
 - **New York.** `siitax` excludes the payments made outside Form IT-201.
 - **Itemized deductions.** `mortgage` and `otheritem` are treated alike; in some states and years TAXSIM-35 leaves `otheritem` out of the state itemized deduction. See the README.
 - **Active business income (`pbusinc`, `sbusinc`).** The emulator treats it like `psemp`: subject to self-employment tax and eligible for the QBI deduction, as NBER's input documentation describes. The bundled TAXSIM-35 build (cd2026081819) applies no self-employment tax to it. For a single filer with $100,000 of `pbusinc` in 2023, the emulator reports `fiitax` 9,226.50 and `fica` 14,129.55; the build reports 10,469.90 and 0 (checked 2026-10-09). `tests/test_passthrough_qbid.py` pins the emulator's treatment, which its docstring traces to a June 2026 comparison by TAXSIM's author.
 - **S corporation income and the net investment income tax.** Passive by default with policyengine-us 2.10.1 or later; see `--scorp-treatment` in the README.
 - **Married filing separately.** `tests/test_married_filing_separately.py` documents the separate-return cases where the bundled TAXSIM-35 build and the emulator differ and the emulator deliberately does not copy TAXSIM-35.
-- **Marginal rates.** A $100 wage change instead of one cent; see above.
+- **Marginal rates.** PolicyEngine rows use a $100 wage change instead of one cent; see above. The bundled TAXSIM-35 build returns `frate` and `srate` of 0 on the records checked, so pre-2021 rows carry no usable marginal rates.
+- **Payroll taxes.** On PolicyEngine rows `tfica` includes employee state payroll taxes and contributions (policyengine-us's `employee_state_payroll_tax`, which covers 14 states in policyengine-us 2.38); `fica` does not, and the bundled TAXSIM-35 build's `tfica` had none on the California record checked. In New York in 2023, $52,000 of wages gives `tfica` 4,009.20, which is half of `fica` (3,978.00) plus 31.20.
 - **Outputs not produced.** Outputs marked "Not produced" in the table above are absent on PolicyEngine rows, and `v42` and `v43` are always 0.
 
 ## Testing
 
 - `tests/` runs on every pull request on Linux, macOS and Windows with Python 3.10 and 3.11 (`.github/workflows/ci.yml`).
 - `tests/test_public_contract.py` and `tests/test_cli_entry_point.py` pin the public surfaces: the `policyengine-taxsim` command, the `policyengine_taxsim.runners` import path, and `PolicyEngineRunner(df).run()`.
-- `tests/test_docs_reference.py` regenerates every generated block in these documents and fails if one is out of date. `tests/test_input_guide_claims.py` checks the input guide's lists of rejected and unchecked values, and checks with random records that every amount column reaches PolicyEngine exactly once, however it is split between spouses. `tests/test_worked_example.py` runs the worked example. `tests/test_no_network.py` runs the emulator with every network connection refused.
+- `tests/test_docs_reference.py` regenerates every generated block in these documents and fails if one is out of date. That catches a change in what the generator observes; text the generator adds itself, such as the $100 step in the marginal-rate rows, is tied to the code only by a marker check. `tests/test_input_guide_claims.py` checks the input guide's lists of rejected and unchecked values, and checks with random records that every amount column reaches PolicyEngine exactly once, however it is split between spouses. `tests/test_worked_example.py` runs the worked example. `tests/test_no_network.py` runs the `policyengine` subcommand on four records with an audit hook that refuses connections leaving the machine; the security notes say what that does and does not cover.
 - Many tests check the emulator against output from the bundled TAXSIM-35 executable; the [comparison dashboard](https://policyengine.org/us/taxsim) runs the full comparison for each year from 2021.

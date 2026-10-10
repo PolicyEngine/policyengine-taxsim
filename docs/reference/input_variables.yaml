@@ -22,7 +22,7 @@ taxsimid:
   group: Record and filing unit
   meaning: Record identifier, returned unchanged in the output so you can merge results back onto your data.
   type: Number
-  valid: Any non-negative number. Give every record its own value; if the column is left out, records are numbered 1, 2, 3, ... in file order.
+  valid: Any non-negative number. Give every record its own value; if the column is left out, records are numbered 1, 2, 3, ... in file order. In Stata, store it as `double`.
 year:
   group: Record and filing unit
   meaning: Tax year. Required.
@@ -32,7 +32,7 @@ state:
   group: Record and filing unit
   meaning: State of residence, as a TAXSIM SOI code.
   type: Code
-  valid: 1 (Alabama) to 51 (Wyoming), in alphabetical order with DC as 9; 0 for no state tax. -1 (TAXSIM's every-state option) is rejected. Use `state` or `statefip`, not both.
+  valid: 1 (Alabama) to 51 (Wyoming), in alphabetical order with DC as 9; 0 for no state tax. Never -1 (TAXSIM's every-state option), which records from 2021 on reject and earlier records answer wrongly. Use `state` or `statefip`, not both.
 statefip:
   group: Record and filing unit
   meaning: State of residence, as a FIPS code. An alternative to `state`.
@@ -226,7 +226,7 @@ idtl:
   group: Output and options
   meaning: How much output to return for the record.
   type: Code
-  valid: 0 standard output, 2 full output, 5 full output plus a text report. Any other value returns no tax amounts for the record on PolicyEngine rows.
+  valid: 0 standard output, 2 full output, 5 a text report (stdin command, records from 2021 on). Use 2 for full output as a table. Any other value returns no tax amounts for the record on PolicyEngine rows.
 opt1:
   group: Output and options
   meaning: A TAXSIM-35 option number, passed to the TAXSIM-35 executable for pre-2021 rows (for example 30, its PSL-conformance mode).

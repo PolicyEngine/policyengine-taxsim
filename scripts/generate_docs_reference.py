@@ -866,21 +866,56 @@ def run_time_binaries() -> dict:
     return picked
 
 
+def _elf_is_dynamic(data: bytes) -> bool:
+    """Whether a 64-bit little-endian ELF file has a PT_DYNAMIC segment."""
+    offset = int.from_bytes(data[0x20:0x28], "little")
+    size = int.from_bytes(data[0x36:0x38], "little")
+    count = int.from_bytes(data[0x38:0x3A], "little")
+    return any(
+        int.from_bytes(data[offset + i * size : offset + i * size + 4], "little") == 2
+        for i in range(count)
+    )
+
+
+def _elf_requirements(data: bytes) -> str:
+    """Shared libraries and minimum glibc a Linux executable names, read from
+    the strings in its dynamic section."""
+    if not _elf_is_dynamic(data):
+        return "no shared libraries (statically linked)"
+    tokens = {token.decode("ascii", "ignore") for token in data.split(b"\0")}
+    libraries = sorted(
+        token for token in tokens if re.fullmatch(r"lib[\w+-]+\.so(\.\d+)*", token)
+    )
+    versions = sorted(
+        tuple(int(part) for part in token.split("_")[1].split("."))
+        for token in tokens
+        if re.fullmatch(r"GLIBC_\d+(\.\d+)+", token)
+    )
+    glibc = ".".join(str(part) for part in versions[-1])
+    return f"glibc {glibc} or newer, and " + ", ".join(
+        f"`{name}`" for name in libraries
+    )
+
+
 def block_taxsim_binaries() -> str:
     picked = run_time_binaries()
     lines = [
         "| File | Format | Build stamp | Bytes | SHA-256 | Run by the emulator |",
         "|---|---|---|---|---|---|",
     ]
+    needs = []
     for path in sorted((REPO / "resources").glob("*/*.exe")):
         data = path.read_bytes()
         used = picked.get(path.name)
+        name = path.relative_to(REPO).as_posix()
         lines.append(
-            f"| `{path.relative_to(REPO).as_posix()}` | {_binary_kind(data)} | "
+            f"| `{name}` | {_binary_kind(data)} | "
             f"{_build_stamp(data)} | {len(data):,} | `{hashlib.sha256(data).hexdigest()}` | "
             f"{'Yes, on ' + {'Darwin': 'macOS'}.get(used, used) if used else 'No (tests only)'} |"
         )
-    return "\n".join(lines) + "\n"
+        if data[:4] == b"\x7fELF":
+            needs.append(f"- `{name}` needs {_elf_requirements(data)}.")
+    return "\n".join(lines + ["", *needs]) + "\n"
 
 
 # ---------------------------------------------------------------------------

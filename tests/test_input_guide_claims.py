@@ -102,6 +102,40 @@ def test_emulator_rejects_the_input(case):
     assert message in str(error.value)
 
 
+PRE_2021 = "taxsimid,year,state,mstat,page,pwages,idtl\n"
+
+
+def test_records_before_2021_skip_the_state_checks():
+    """The guide warns that pre-2021 records reach TAXSIM-35 unchecked: an
+    unknown state stops the run there, and state -1 comes back as a single
+    record for the first state. A fix that rejects -1 for these records should
+    fail here, as a prompt to update the guide."""
+    assert "**`state` -1 is not rejected and gives a wrong answer.**" in GUIDE
+    with pytest.raises(Exception):
+        StitchedRunner(_frame(PRE_2021 + "1,2019,52,1,40,50000,0\n")).run(
+            show_progress=False
+        )
+    results = StitchedRunner(_frame(PRE_2021 + "7,2019,-1,1,40,50000,0\n")).run(
+        show_progress=False
+    )
+    assert len(results) == 1
+    assert results["state"].iloc[0] == 1
+
+
+def test_idtl_5_does_not_work_before_2021():
+    """One pre-2021 idtl 5 record returns only the standard columns; two stop
+    the run. The guide says to use idtl 2."""
+    assert "For records before 2021, `idtl` 5 does not work" in GUIDE
+    one = StitchedRunner(_frame(PRE_2021 + "1,2019,5,1,40,50000,5\n")).run(
+        show_progress=False
+    )
+    assert len(one) == 1 and "v10" not in one.columns
+    with pytest.raises(IndexError):
+        StitchedRunner(
+            _frame(PRE_2021 + "1,2019,5,1,40,50000,5\n2,2019,33,1,40,80000,5\n")
+        ).run(show_progress=False)
+
+
 def _inputs(**record) -> dict:
     """The PolicyEngine inputs the emulator builds for one 2023 California
     record."""
