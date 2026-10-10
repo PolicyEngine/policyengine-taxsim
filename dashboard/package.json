@@ -28,6 +28,7 @@
     "@tailwindcss/postcss": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "fast-check": "4.10.2",
     "jsdom": "^26.0.0",
     "tailwindcss": "^4.2.1",
     "vitest": "^4.0.18"
