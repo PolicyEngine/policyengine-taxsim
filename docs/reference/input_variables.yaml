@@ -119,7 +119,7 @@ ssemp:
   valid: Any amount.
 pbusinc:
   group: Business income (QBI)
-  meaning: Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out. The emulator also applies self-employment tax to it; the bundled TAXSIM-35 build does not (see the design document's known differences).
+  meaning: Primary taxpayer's active business income eligible for the qualified business income deduction without the specified-service phase-out. The emulator applies self-employment tax to it, as NBER's page describes; the bundled TAXSIM-35 build applies the net investment income tax instead (see the design document's known differences). Neither applies self-employment tax to `scorp`.
   type: Dollars per year
   valid: Any amount.
 sbusinc:
