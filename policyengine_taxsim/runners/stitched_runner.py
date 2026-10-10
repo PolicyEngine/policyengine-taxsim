@@ -3,6 +3,7 @@
 import logging
 import pandas as pd
 
+from ..core.output_dtypes import identifiers_as_integers
 from .base_runner import BaseTaxRunner
 from .policyengine_runner import PolicyEngineRunner
 
@@ -113,4 +114,6 @@ class StitchedRunner(BaseTaxRunner):
         result = result.iloc[np.argsort(positions, kind="mergesort")].reset_index(
             drop=True
         )
-        return result
+        # The TAXSIM binary prints taxsimid as "1.", which parses as a float
+        # and turns the whole column into floats once the frames are joined.
+        return identifiers_as_integers(result)
