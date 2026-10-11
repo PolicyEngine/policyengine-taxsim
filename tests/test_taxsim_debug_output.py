@@ -14,8 +14,9 @@ Invariants of TaxsimRunner._parse_taxsim_output on CSV output:
   (attribution).
 - A line after the header is returned as a row exactly when the pre-change
   parser (pandas.read_csv, then to_numeric) reads it, under that header, as
-  one row with a finite id, and it has at least two fields (classification).
-  A bare number is not a row.
+  one row with a finite id, it has at least two fields, and it holds no NUL
+  byte (classification). A bare number is not a row. pandas drops NUL bytes
+  without a trace; here the line is kept as written instead.
 - The rows equal what the pre-change parser returns for the stream with the
   non-record lines removed (differential). One intended difference: a
   lower-detail row's trailing build-stamp field stays under the stamp column
@@ -358,6 +359,16 @@ def test_diagnostic_keys_are_ids_from_the_returned_frame(tmp_path):
     assert list(runner.stdout_diagnostics) == result.taxsimid.tolist()
 
 
+@pytest.mark.parametrize("line", ["5,1\x00,2", "5\x00,1,2", "x\x00", '5,"1\x00",2'])
+def test_line_with_a_nul_byte_is_kept_as_written_not_parsed(tmp_path, line):
+    """pandas would drop the NUL and read "5,1\\x00,2" as the row 5, 1, 2."""
+    runner, result = _parse_text(
+        tmp_path, f"taxsimid,fiitax,siitax\n{line}\n3,300,60\n"
+    )
+    assert result.taxsimid.tolist() == [3]
+    assert runner.stdout_diagnostics == {3: [line]}
+
+
 def test_blank_lines_are_not_diagnostics(tmp_path):
     runner, result = _parse_text(tmp_path, "\ntaxsimid,fiitax\n\n1,100\n   \n2,200\n\n")
     assert result.taxsimid.tolist() == [1, 2]
@@ -531,8 +542,12 @@ def _key(taxsimid):
 
 
 def _old_parser_reads_a_row(header_line, line, width):
-    """Whether the pre-change parser reads ``line`` as one finite-id row."""
-    if len(next(csv.reader([line]))) < min(2, width):
+    """Whether the pre-change parser reads ``line`` as one finite-id row.
+
+    Two rules of the new parser are applied on top: a row has at least two
+    fields (when the header does), and no NUL byte.
+    """
+    if "\x00" in line or len(next(csv.reader([line]))) < min(2, width):
         return False
     try:
         frame = _old_parse(f"{header_line}\n{line}")
