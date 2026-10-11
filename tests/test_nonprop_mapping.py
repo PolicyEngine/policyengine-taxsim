@@ -396,11 +396,13 @@ def test_batch_builder_skips_nonprop_accessors_when_unused(monkeypatch):
     allocates every record, including the zero ones."""
     from policyengine_taxsim.runners import policyengine_runner
 
-    # Five people: California MFJ, Alabama single, Mississippi MFJ.
+    # Six people: California MFJ, Alabama single, Mississippi MFJ, Georgia
+    # single.
     rows = [
         _input_row(1, 5, 2024, MFJ, 0),
         _input_row(2, 1, 2024, SINGLE, 0),
         _input_row(3, 25, 2024, MFJ, 0),
+        _input_row(4, 11, 2024, SINGLE, 0),
     ]
 
     def accessor_ran(*args, **kwargs):
@@ -410,17 +412,19 @@ def test_batch_builder_skips_nonprop_accessors_when_unused(monkeypatch):
         patch.setattr(policyengine_runner, "nonprop_parts", accessor_ran)
         people = _batch_people(rows)
     for var in NONPROP_VARIABLES:
-        np.testing.assert_array_equal(people[var], np.zeros(5), err_msg=var)
+        np.testing.assert_array_equal(people[var], np.zeros(6), err_msg=var)
 
+    # The Georgia record keeps nonprop 0 in a batch that uses nonprop.
     used = [
         dict(rows[0], nonprop=600),
         dict(rows[1], nonprop=-40),
         dict(rows[2], nonprop=200),
+        rows[3],
     ]
     people = _batch_people(used)
-    np.testing.assert_allclose(people["miscellaneous_income"], [300, 300, 0, 0, 0])
-    np.testing.assert_allclose(people["alimony_income"], [0, 0, 0, 100, 100])
-    np.testing.assert_allclose(people["alimony_expense"], [0, 0, 40, 0, 0])
+    np.testing.assert_allclose(people["miscellaneous_income"], [300, 300, 0, 0, 0, 0])
+    np.testing.assert_allclose(people["alimony_income"], [0, 0, 0, 100, 100, 0])
+    np.testing.assert_allclose(people["alimony_expense"], [0, 0, 40, 0, 0, 0])
 
 
 # ---------------------------------------------------------------------------
