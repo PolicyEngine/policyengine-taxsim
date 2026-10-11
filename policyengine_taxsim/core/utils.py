@@ -24,19 +24,49 @@ def load_variable_mappings():
 # Jersey's. PE-US's irs_gross_income counts only the positive part of each
 # income source, so a negative value in an income variable would be dropped.
 # Each sign therefore feeds its own PolicyEngine variable, holding that sign's
-# magnitude: the positive part as alimony received and the negative part as
-# alimony paid. (Both are gated on divorce_year, whose PE-US default of 2010
-# predates the TCJA's 2019 cutoff, so both reach federal AGI.)
-# Maps PolicyEngine variable -> (TAXSIM source column, sign it receives).
-SIGNED_INPUT_SPLITS = {
-    "alimony_income": ("nonprop", 1),
-    "alimony_expense": ("nonprop", -1),
-}
+# magnitude:
+#   - positive -> miscellaneous_income: gross income with no treatment of its
+#     own, outside the net-investment-income base, earned income and SECA;
+#   - negative -> alimony_expense: an above-the-line deduction with no cap
+#     (gated on divorce_year, whose PE-US default of 2010 predates the TCJA's
+#     2019 cutoff, so it reaches federal AGI).
+# TAXSIM column that feeds NONPROP_VARIABLES.
+NONPROP_SOURCE = "nonprop"
+
+# States where the positive part goes to alimony_income instead. Their PE-US
+# gross-income source lists name alimony_income but not miscellaneous_income,
+# so miscellaneous_income would go untaxed there while taxsimtest taxes
+# nonprop. alimony_income is not used elsewhere because PE-US gives alimony
+# treatment taxsimtest does not give nonprop: Georgia's retirement-income
+# exclusion (age 62+), and the Pennsylvania tax-forgiveness and Rhode Island
+# property-tax-relief income tests, which add alimony on top of income that
+# already holds it. Drop a state once PE-US adds miscellaneous_income to its
+# list (taxsim #1424).
+NONPROP_ALIMONY_STATES = frozenset({"AL", "AR", "MS"})
+
+# PolicyEngine variables fed by nonprop; see nonprop_parts.
+NONPROP_VARIABLES = ("miscellaneous_income", "alimony_income", "alimony_expense")
 
 
 def signed_part(value, sign):
-    """Magnitude of the ``sign`` (+1 or -1) part of ``value``; 0 otherwise."""
-    return max(sign * float(value or 0), 0.0)
+    """Magnitude of the ``sign`` (+1 or -1) part of ``value``; 0 otherwise
+    (including for a missing or NaN value)."""
+    value = float(value or 0)
+    if value != value:  # NaN
+        return 0.0
+    return max(sign * value, 0.0) + 0.0  # + 0.0 turns -0.0 into 0.0
+
+
+def nonprop_parts(value, state_code):
+    """Household amount of each NONPROP_VARIABLES entry for a TAXSIM
+    ``nonprop`` of ``value`` in the state with postal code ``state_code``."""
+    positive = signed_part(value, 1)
+    as_alimony = str(state_code).upper() in NONPROP_ALIMONY_STATES
+    return {
+        "miscellaneous_income": 0.0 if as_alimony else positive,
+        "alimony_income": positive if as_alimony else 0.0,
+        "alimony_expense": signed_part(value, -1),
+    }
 
 
 STATE_MAPPING = {

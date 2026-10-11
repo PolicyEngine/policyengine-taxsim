@@ -6,8 +6,9 @@ from .utils import (
     convert_taxsim32_dependents,
     NO_STATE,
     validate_state_number,
-    SIGNED_INPUT_SPLITS,
-    signed_part,
+    NONPROP_SOURCE,
+    NONPROP_VARIABLES,
+    nonprop_parts,
 )
 from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
@@ -132,15 +133,13 @@ def add_additional_units(state, year, situation, taxsim_vars):
                         str(year): taxsim_vars.get("sprofinc", 0)
                     }
 
-            elif field in SIGNED_INPUT_SPLITS:
-                # One sign of a signed household column (TAXSIM nonprop:
-                # income when positive, an adjustment when negative), split
-                # evenly between spouses for MFJ like the other household
-                # aggregates.
-                source_field, sign = SIGNED_INPUT_SPLITS[field]
-                if source_field not in taxsim_vars:
+            elif field in NONPROP_VARIABLES:
+                # One part of signed TAXSIM nonprop (income when positive,
+                # an adjustment when negative), split evenly between spouses
+                # for MFJ like the other household aggregates.
+                if NONPROP_SOURCE not in taxsim_vars:
                     continue
-                amount = signed_part(taxsim_vars[source_field], sign)
+                amount = nonprop_parts(taxsim_vars[NONPROP_SOURCE], state)[field]
                 if is_married_filing_jointly and "your partner" in people_unit:
                     people_unit["you"][field] = {str(year): amount / 2}
                     people_unit["your partner"][field] = {str(year): amount / 2}

@@ -193,8 +193,8 @@ class PETestsYAMLGenerator:
                 "long_term_capital_gains",
                 "short_term_capital_gains",
                 "rental_income",
-                # nonprop: positive part -> alimony_income, negative part ->
-                # alimony_expense (SIGNED_INPUT_SPLITS in core/utils.py).
+                # nonprop (see nonprop_parts in core/utils.py).
+                "miscellaneous_income",
                 "alimony_income",
                 "alimony_expense",
                 # scorp -> partnership_s_corp_income (QBID-bearing aggregate);

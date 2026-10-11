@@ -40,7 +40,7 @@ function generatePolicyEngineGitHubLink(variableName) {
     'unemployment_compensation': 'gov/states/unemployment_compensation.py',
     'partnership_s_corp_income': 'household/income/person/self_employment/partnership_s_corp_income.py',
     'qualified_business_income': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
-    'alimony_income': 'household/income/person/misc/alimony_income.py',
+    'miscellaneous_income': 'household/income/person/misc/miscellaneous_income.py',
     
     // Expense/Deduction variables
     'rent': 'household/expense/housing/rent.py',
@@ -81,8 +81,9 @@ function extractTaxsimToPolicyEngineMappings(config) {
         
         // Find corresponding PolicyEngine variables from additional_income_units
         // and additional_tax_units. A TAXSIM input can feed more than one
-        // (signed nonprop: alimony_income when positive, alimony_expense when
-        // negative); list them all, in mapping order.
+        // (signed nonprop: miscellaneous_income or alimony_income when
+        // positive, alimony_expense when negative); list them all, in mapping
+        // order.
         const peVars = [];
         [...additionalIncomeUnits, ...additionalTaxUnits].forEach(unit => {
           Object.entries(unit).forEach(([peVar, taxsimVars]) => {
@@ -248,6 +249,7 @@ function extractIncomeSplittingRules() {
     'taxable_private_pension_income',
     'short_term_capital_gains',
     'social_security_retirement',
+    'miscellaneous_income',
     'alimony_income',
     'alimony_expense'
   ];

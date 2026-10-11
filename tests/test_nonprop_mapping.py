@@ -9,10 +9,20 @@ TAXSIM documentation (https://taxsim.nber.org/taxsimtest/, input 15):
     IRA contributions, foreign income exclusion, NOLs can be entered here as
     negative income.(+/-)
 
-The emulator routes the positive part of nonprop to `alimony_income` and the
-magnitude of the negative part to `alimony_expense` (SIGNED_INPUT_SPLITS in
-core/utils.py), split 50/50 between spouses for MFJ. Before this, a nonzero
-nonprop was ignored (taxsim #1424).
+The emulator routes the positive part of nonprop to `miscellaneous_income`
+(`alimony_income` in AL, AR and MS, whose PE-US gross-income lists name
+alimony but not miscellaneous income) and the magnitude of the negative part
+to `alimony_expense` (nonprop_parts in core/utils.py), split 50/50 between
+spouses for MFJ. Before this, a nonzero nonprop was ignored (taxsim #1424).
+
+`alimony_income` is not used in the other states because PE-US gives alimony
+treatment taxsimtest does not give nonprop. Two such cases are pinned below:
+Georgia's retirement-income exclusion for filers aged 62 and over
+(test_georgia_senior_nonprop_is_not_retirement_income), and Pennsylvania tax
+forgiveness, whose eligibility income adds alimony on top of taxable income
+that already holds it (pa_forgiveness_counts_nonprop_once_2023). Rhode
+Island's property-tax relief for elderly renters has the same double count;
+it is not pinned because PE's credit already differs from taxsimtest's there.
 
 Every expected tax value below is taxsimtest output: the bundled
 resources/taxsimtest/taxsimtest-osx.exe (build cd2026081819), idtl=2, run on
@@ -47,8 +57,12 @@ from hypothesis import strategies as st
 
 from policyengine_taxsim import export_household, generate_household
 from policyengine_taxsim.core.utils import (
-    SIGNED_INPUT_SPLITS,
+    NONPROP_ALIMONY_STATES,
+    NONPROP_SOURCE,
+    NONPROP_VARIABLES,
+    get_calculation_state_code,
     load_variable_mappings,
+    nonprop_parts,
     signed_part,
 )
 from policyengine_taxsim.runners.policyengine_runner import (
@@ -138,6 +152,8 @@ def test_runner_matches_taxsim(runner_results, rec):
     row = runner_results.loc[taxsimid]
     assert row["v10"] == pytest.approx(agi, abs=0.01), "federal AGI"
     assert row["fiitax"] == pytest.approx(fiitax, abs=1), "federal income tax"
+    # PE rounds a few state computations to the dollar where taxsimtest
+    # keeps cents (largest gap in this grid: $1.03, Iowa 2021).
     assert row["siitax"] == pytest.approx(siitax, abs=1.5), "state income tax"
 
 
@@ -224,15 +240,17 @@ def test_nonprop_is_not_eitc_earned_income():
 # ---------------------------------------------------------------------------
 
 
-def test_yaml_lists_each_signed_split_variable_under_its_source():
+def test_yaml_lists_each_nonprop_variable_under_nonprop():
     units = load_variable_mappings()["taxsim_to_policyengine"]["household_situation"][
         "additional_income_units"
     ]
     sources = {var: vals for item in units for var, vals in item.items()}
-    for pe_var, (source, _sign) in SIGNED_INPUT_SPLITS.items():
-        assert sources.get(pe_var) == [source], pe_var
-    assert {s for _, (s, _) in SIGNED_INPUT_SPLITS.items()} == {"nonprop"}
-    assert sorted(sign for _, sign in SIGNED_INPUT_SPLITS.values()) == [-1, 1]
+    reading_nonprop = {
+        var for var, vals in sources.items() if NONPROP_SOURCE in (vals or [])
+    }
+    assert reading_nonprop == set(NONPROP_VARIABLES)
+    for pe_var in NONPROP_VARIABLES:
+        assert sources[pe_var] == [NONPROP_SOURCE], pe_var
 
 
 @pytest.fixture(scope="module")
@@ -248,7 +266,7 @@ def _runner_allocation(mapping, row):
     """{pe_var: (primary, spouse)} from the Microsimulation runner accessors."""
     return {
         var: (mapping[var]["primary"](row), mapping[var]["spouse"](row))
-        for var in SIGNED_INPUT_SPLITS
+        for var in NONPROP_VARIABLES
     }
 
 
@@ -262,22 +280,27 @@ def _mapper_allocation(row):
         return people.get(person, {}).get(var, {}).get(year, 0.0)
 
     return {
-        var: (get("you", var), get("your partner", var)) for var in SIGNED_INPUT_SPLITS
+        var: (get("you", var), get("your partner", var)) for var in NONPROP_VARIABLES
     }
 
 
-def _check_allocation(runner_mapping, nonprop, mstat):
+def _check_allocation(runner_mapping, nonprop, mstat, state=5):
     filer = MFJ if mstat == 2 else SINGLE
-    row = pd.Series(_input_row(1, 5, 2024, {**filer, "mstat": mstat}, nonprop))
+    row = pd.Series(_input_row(1, state, 2024, {**filer, "mstat": mstat}, nonprop))
     runner = _runner_allocation(runner_mapping, row)
     mapper = _mapper_allocation(row.to_dict())
-    income = sum(runner["alimony_income"])
-    expense = sum(runner["alimony_expense"])
+    totals = {var: sum(pair) for var, pair in runner.items()}
+    income = totals["miscellaneous_income"] + totals["alimony_income"]
+    expense = totals["alimony_expense"]
     # Conservation: income minus adjustment reproduces nonprop exactly.
     assert income - expense == pytest.approx(nonprop, abs=1e-6)
     # Sign exclusivity and non-negativity.
     assert min(income, expense) == 0
     assert all(v >= 0 for pair in runner.values() for v in pair)
+    # One income variable per state: alimony_income only where listed.
+    as_alimony = get_calculation_state_code(state) in NONPROP_ALIMONY_STATES
+    unused = "miscellaneous_income" if as_alimony else "alimony_income"
+    assert totals[unused] == 0
     # MFJ halves; anyone else keeps it all on the primary filer.
     for primary, spouse in runner.values():
         if mstat == 2:
@@ -285,51 +308,58 @@ def _check_allocation(runner_mapping, nonprop, mstat):
         else:
             assert spouse == 0
     # Both execution paths allocate identically.
-    for var in SIGNED_INPUT_SPLITS:
+    for var in NONPROP_VARIABLES:
         assert mapper[var] == pytest.approx(runner[var]), var
 
 
-@pytest.mark.parametrize("mstat", [1, 2])
+# SOI codes: 0 no state, 1 AL, 4 AR, 5 CA, 11 GA, 25 MS, 39 PA.
+@pytest.mark.parametrize("state", [0, 1, 4, 5, 11, 25, 39])
+@pytest.mark.parametrize("mstat", [1, 2, 6])
 @pytest.mark.parametrize("nonprop", [0, 10_000, -5_000, 0.5, -1e7])
-def test_allocation_examples(runner_mapping, nonprop, mstat):
-    _check_allocation(runner_mapping, nonprop, mstat)
+def test_allocation_examples(runner_mapping, nonprop, mstat, state):
+    _check_allocation(runner_mapping, nonprop, mstat, state)
 
 
-def test_allocation_properties(runner_mapping):
-    hypothesis = pytest.importorskip("hypothesis")
-    st = hypothesis.strategies
-
-    @hypothesis.settings(max_examples=200, deadline=None)
-    @hypothesis.given(
-        nonprop=st.floats(min_value=-1e8, max_value=1e8, allow_nan=False),
-        mstat=st.sampled_from([1, 2]),
-    )
-    def check(nonprop, mstat):
-        _check_allocation(runner_mapping, nonprop, mstat)
-
-    check()
+@settings(max_examples=200, deadline=None)
+@given(
+    nonprop=st.floats(min_value=-1e8, max_value=1e8, allow_nan=False),
+    mstat=st.sampled_from([1, 2, 6]),
+    state=st.integers(min_value=0, max_value=51),
+)
+def test_allocation_properties(runner_mapping, nonprop, mstat, state):
+    _check_allocation(runner_mapping, nonprop, mstat, state)
 
 
-def test_signed_part_properties():
-    hypothesis = pytest.importorskip("hypothesis")
-    st = hypothesis.strategies
+@given(st.floats(allow_nan=False, allow_infinity=False))
+def test_signed_part_properties(x):
+    pos, neg = signed_part(x, 1), signed_part(x, -1)
+    assert pos >= 0 and neg >= 0
+    assert min(pos, neg) == 0
+    assert pos - neg == x
 
-    @hypothesis.given(st.floats(allow_nan=False, allow_infinity=False))
-    def check(x):
-        pos, neg = signed_part(x, 1), signed_part(x, -1)
-        assert pos >= 0 and neg >= 0
-        assert min(pos, neg) == 0
-        assert pos - neg == x
 
-    check()
-    assert signed_part(None, 1) == 0
+def test_missing_nonprop_is_zero():
+    """A blank cell (None or NaN) is no nonprop, not NaN income."""
+    for missing in (None, float("nan")):
+        assert signed_part(missing, 1) == 0
+        assert signed_part(missing, -1) == 0
+        assert set(nonprop_parts(missing, "CA").values()) == {0.0}
+
+
+def test_alimony_states_are_the_ones_pe_us_needs():
+    """The alimony route exists only for states whose PE-US gross-income
+    lists omit miscellaneous_income; drop a state here once PE-US adds it."""
+    assert NONPROP_ALIMONY_STATES == {"AL", "AR", "MS"}
+    assert nonprop_parts(100, "al")["alimony_income"] == 100
+    assert nonprop_parts(100, "GA")["miscellaneous_income"] == 100
 
 
 # ---------------------------------------------------------------------------
 # More taxsimtest-pinned records (taxsim #1424). Same bundled binary and
 # idtl=2; run without disable_salt. These cover what the grid above does
 # not: the NIIT exclusion, no FICA/SECA, AGI below zero, TY2018, the EITC
-# AGI phase-out, and the KY, IL and NY state bases.
+# AGI phase-out, the KY, IL and NY state bases, and Pennsylvania tax
+# forgiveness.
 # ---------------------------------------------------------------------------
 
 # (case id, record inputs, taxsimtest output). State 0 = federal only.
@@ -411,6 +441,16 @@ EXTRA_CASES = [
         {"v10": 90_000.0, "fiitax": 6832.0, "siitax": 3347.2},
     ),
     (
+        # Pennsylvania tax forgiveness: eligibility income is 6,000, under the
+        # 6,500 limit for a single claimant, so the tax is fully forgiven.
+        # With alimony_income PE-US counts the 2,000 twice and siitax is
+        # 110.52. (fiitax is not compared: taxsimtest's EITC counts nonprop
+        # as earned income.)
+        "pa_forgiveness_counts_nonprop_once_2023",
+        dict(year=2023, state=39, mstat=1, page=40, pwages=4000, nonprop=2000),
+        {"v10": 6000.0, "siitax": 0.0},
+    ),
+    (
         # Illinois exempts the pension and Social Security, not nonprop.
         "il_joint_retired_2024",
         dict(
@@ -482,6 +522,28 @@ DELTA_LEVELS = {
 # taxsimtest EITC (v25), TX 2023, head of household, one child aged 5,
 # pwages 8,000, at nonprop 0 / +4,000 / -2,000.
 EITC_TAXSIM = (2720.0, 3995.0, 2040.0)
+# taxsimtest siitax, Georgia 2024, single, age 65, no other income, at
+# nonprop 30,000 / 60,000. Both levels net a $250 one-time rebate (srebate)
+# that PolicyEngine does not report, so the test pins their difference.
+GA_SENIOR_NONPROP = (30_000, 60_000)
+GA_SENIOR_TAXSIM = (720.20, 2337.20)
+
+
+def _ga_senior_row(taxsimid, nonprop):
+    return dict(_input_row(taxsimid, 11, 2024, SINGLE, nonprop), page=65, pwages=0)
+
+
+def test_georgia_senior_nonprop_is_not_retirement_income():
+    """taxsimtest taxes a 65-year-old Georgian's nonprop in full: the second
+    30,000 adds 1,617.00 (5.39%). Georgia's retirement-income exclusion (up
+    to $65,000 at 65) names alimony, so routing nonprop to alimony_income
+    would exclude both amounts and add nothing."""
+    rows = [_ga_senior_row(i + 1, np_) for i, np_ in enumerate(GA_SENIOR_NONPROP)]
+    out = PolicyEngineRunner(pd.DataFrame(rows), logs=False).run(show_progress=False)
+    siitax = out.set_index(out["taxsimid"].astype(float).astype(int))["siitax"]
+    assert float(siitax[2]) - float(siitax[1]) == pytest.approx(
+        GA_SENIOR_TAXSIM[1] - GA_SENIOR_TAXSIM[0], abs=1
+    )
 
 
 def test_bundled_taxsimtest_still_produces_expected_values():
@@ -509,6 +571,9 @@ def test_bundled_taxsimtest_still_produces_expected_values():
     for i, (_, inputs, expected) in enumerate(EXTRA_CASES):
         rows.append(_extra_record(7000 + i, inputs))
         checks.append((7000 + i, expected))
+    for j, (nonprop, siitax) in enumerate(zip(GA_SENIOR_NONPROP, GA_SENIOR_TAXSIM)):
+        rows.append(_ga_senior_row(8000 + j, nonprop))
+        checks.append((8000 + j, {"siitax": siitax}))
     output = TaxsimRunner(pd.DataFrame(rows).fillna(0)).run(show_progress=False)
     output["taxsimid"] = output["taxsimid"].astype(float).astype(int)
     output = output.set_index("taxsimid")

@@ -11,10 +11,11 @@ from .base_runner import BaseTaxRunner
 # Import core functions needed for microsimulation
 from policyengine_taxsim.core.utils import (
     load_variable_mappings,
-    SIGNED_INPUT_SPLITS,
+    NONPROP_SOURCE,
+    NONPROP_VARIABLES,
     get_calculation_fips,
     get_calculation_state_code,
-    signed_part,
+    nonprop_parts,
     to_roundedup_number,
     convert_taxsim32_dependents,
     validate_state_number,
@@ -315,34 +316,44 @@ class TaxsimMicrosimDataset(Dataset):
         )
 
     @staticmethod
-    def _make_primary_split(source_field, sign=None):
+    def _make_primary_split(source_field, amount=None):
         """Return a callable yielding the primary share of a household input.
 
-        With ``sign`` (+1 or -1), only that sign's magnitude of the input is
-        allocated (see SIGNED_INPUT_SPLITS)."""
+        ``amount`` (row -> float), when given, supplies the household amount
+        in place of the ``source_field`` column."""
 
         def accessor(row):
-            value = float(row.get(source_field, 0))
-            if sign is not None:
-                value = signed_part(value, sign)
+            value = amount(row) if amount else float(row.get(source_field, 0))
             return value / 2 if int(row.get("mstat", 1)) == 2 else value
 
         return accessor
 
     @staticmethod
-    def _make_spouse_split(source_field, sign=None):
+    def _make_spouse_split(source_field, amount=None):
         """Return a callable yielding the spouse share of a household input.
 
-        With ``sign`` (+1 or -1), only that sign's magnitude of the input is
-        allocated (see SIGNED_INPUT_SPLITS)."""
+        ``amount`` (row -> float), when given, supplies the household amount
+        in place of the ``source_field`` column."""
 
         def accessor(row):
-            value = float(row.get(source_field, 0))
-            if sign is not None:
-                value = signed_part(value, sign)
+            value = amount(row) if amount else float(row.get(source_field, 0))
             return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
 
         return accessor
+
+    @staticmethod
+    def _make_nonprop_amount(pe_var):
+        """Return a callable yielding the household amount of ``pe_var``, one
+        of the variables TAXSIM nonprop feeds (see ``nonprop_parts``)."""
+
+        def amount(row):
+            try:
+                state = get_calculation_state_code(row.get("state"))
+            except ValueError:
+                state = None
+            return nonprop_parts(row.get(NONPROP_SOURCE, 0), state)[pe_var]
+
+        return amount
 
     @staticmethod
     def _make_sum(*source_fields):
@@ -466,15 +477,15 @@ class TaxsimMicrosimDataset(Dataset):
                         }
                         continue
 
-                    if pe_var in SIGNED_INPUT_SPLITS:
-                        # One sign of a signed household column (TAXSIM
-                        # nonprop: income when positive, an adjustment when
-                        # negative), allocated evenly between spouses for MFJ
-                        # like the other household aggregates.
-                        source_field, sign = SIGNED_INPUT_SPLITS[pe_var]
+                    if pe_var in NONPROP_VARIABLES:
+                        # One part of signed TAXSIM nonprop (income when
+                        # positive, an adjustment when negative), allocated
+                        # evenly between spouses for MFJ like the other
+                        # household aggregates.
+                        amount = self._make_nonprop_amount(pe_var)
                         variable_mapping[pe_var] = {
-                            "primary": self._make_primary_split(source_field, sign),
-                            "spouse": self._make_spouse_split(source_field, sign),
+                            "primary": self._make_primary_split(NONPROP_SOURCE, amount),
+                            "spouse": self._make_spouse_split(NONPROP_SOURCE, amount),
                             "dependent": 0.0,
                             "default": 0.0,
                         }

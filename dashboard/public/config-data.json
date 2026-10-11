@@ -198,10 +198,10 @@
     },
     {
       "taxsim": "nonprop",
-      "policyengine": "alimony_income / alimony_expense",
+      "policyengine": "miscellaneous_income / alimony_income / alimony_expense",
       "description": "Other Non-Property",
       "implemented": true,
-      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/misc/alimony_income.py"
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/misc/miscellaneous_income.py"
     },
     {
       "taxsim": "transfers",
@@ -227,6 +227,7 @@
       "taxable_private_pension_income",
       "short_term_capital_gains",
       "social_security_retirement",
+      "miscellaneous_income",
       "alimony_income",
       "alimony_expense"
     ],
@@ -283,5 +284,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-10-10T23:15:26.538Z"
+  "lastUpdated": "2026-10-10T23:55:17.708Z"
 }

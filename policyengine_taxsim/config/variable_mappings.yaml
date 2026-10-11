@@ -869,18 +869,20 @@ taxsim_to_policyengine:
       - rental_income:
           - otherprop
       # nonprop (other non-property income, +/-) is signed: positive amounts
-      # are income, negative amounts are adjustments. Each sign feeds its own
-      # variable (see SIGNED_INPUT_SPLITS in core/utils.py): positive ->
-      # alimony_income (federal gross income via taxable_alimony_income, and
-      # the AL/AR/MS/NJ state gross-income lists), negative ->
-      # alimony_expense (federal ALD via alimony_expense_ald, and the AL/MS/IA
-      # adjustment lists). Like the other household-level columns it is split
-      # 50/50 between spouses for MFJ.
+      # are income, negative amounts are adjustments. Each part feeds its own
+      # variable (see nonprop_parts in core/utils.py): positive ->
+      # miscellaneous_income (federal gross income, outside the NIIT base and
+      # earned income), or alimony_income in AL, AR and MS, whose state
+      # gross-income lists name alimony but not miscellaneous income;
+      # negative -> alimony_expense (federal ALD via alimony_expense_ald, and
+      # the state adjustment lists that take it). Like the other
+      # household-level columns it is split 50/50 between spouses for MFJ.
+      - miscellaneous_income:
+          - nonprop
       - alimony_income:
           - nonprop
       - alimony_expense:
           - nonprop
-      - miscellaneous_income:
       - w2_wages_from_qualified_business:
       - business_is_sstb:
       - business_is_qualified:
