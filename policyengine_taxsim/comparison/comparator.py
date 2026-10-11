@@ -329,8 +329,9 @@ class ComparisonResults:
         # Create consolidated dataframe with 2 rows per record
         consolidated_rows = []
 
-        # Get all taxsimids that we compared, in ID order
-        taxsim_ids = sorted(set(self.taxsim_results[self.config.id_col]))
+        # Get all taxsimids that we compared, in the order of taxsim_results
+        # (TaxComparator sorts it by ID). A set would iterate in hash order.
+        taxsim_ids = list(dict.fromkeys(self.taxsim_results[self.config.id_col]))
 
         # Create mismatch lookup sets for quick checking
         federal_mismatch_ids = {m.taxsimid for m in self.federal_mismatches}

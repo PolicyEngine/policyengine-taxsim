@@ -8,11 +8,12 @@ process (PYTHONHASHSEED), so the last two columns came out as either
 ``[..., "srate", "frate"]`` or ``[..., "frate", "srate"]`` depending on the
 process. ``pytest tests/`` rewrote the committed
 ``output/policyengine_taxsim_*_output.csv`` files with a flipped header on some
-runs, and a CSV consumer indexing by position would read the federal rate
-where it expected the state rate. #1239 replaced the set with an ordered
-tuple. No single-process test can catch a regression to a set, because the
-order is stable within a process; the runner test here runs the same records
-in two processes whose seeds iterate that set in opposite orders.
+runs, and anything reading the last two columns by position got the two rates
+swapped from one run to the next. #1239 replaced the set with an ordered
+tuple. A single-process test cannot reliably catch a regression to a set,
+because the order is stable within a process and right in about half of them;
+the runner test here runs the same records in two processes whose seeds
+iterate that set in opposite orders.
 
 The other tests cover three places where a set's iteration order reached
 user-visible output: the API's non-numeric-column error,
@@ -27,14 +28,16 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+import policyengine_taxsim
 from policyengine_taxsim.comparison.comparator import (
     ComparisonConfig,
     TaxComparator,
@@ -52,9 +55,15 @@ RECORDS = textwrap.dedent(
     """
 )
 
-# TAXSIM's header order for these columns (NBER taxsimtest, idtl=2):
+# TAXSIM's header order for these columns. The TAXSIM-35 binary's own output,
+# committed as output/taxsim35_joint_household_output.csv, begins
 # taxsimid,year,state,fiitax,siitax,fica,frate,srate,ficar,tfica,...
 TAXSIM_MARGINAL_RATE_ORDER = ["frate", "srate"]
+
+# The child processes must import the same package this process is testing,
+# whether or not it is installed.
+PACKAGE_ROOT = str(Path(policyengine_taxsim.__file__).resolve().parents[1])
+RUNNER_TIMEOUT_SECONDS = 1800
 
 RUN_RUNNER = textwrap.dedent(
     """\
@@ -75,12 +84,26 @@ RUN_RUNNER = textwrap.dedent(
 )
 
 
-def _set_order(seed: int) -> list:
-    """How a fresh process with this hash seed iterates the old set."""
-    code = "import json; print(json.dumps(list({'frate', 'srate'})))"
+def _child_env(seed: int) -> dict:
+    python_path = [PACKAGE_ROOT, os.environ.get("PYTHONPATH", "")]
+    return {
+        **os.environ,
+        "PYTHONHASHSEED": str(seed),
+        "PYTHONPATH": os.pathsep.join(path for path in python_path if path),
+    }
+
+
+def _set_orders(seed: int) -> list:
+    """How a fresh process with this hash seed iterates the old set, written
+    both ways round. When two strings hash to the same slot, the one inserted
+    first comes out first, so the two spellings can iterate differently."""
+    code = (
+        "import json; print(json.dumps("
+        "[list({'frate', 'srate'}), list({'srate', 'frate'})]))"
+    )
     out = subprocess.run(
         [sys.executable, "-c", code],
-        env={**os.environ, "PYTHONHASHSEED": str(seed)},
+        env=_child_env(seed),
         capture_output=True,
         text=True,
         check=True,
@@ -90,14 +113,15 @@ def _set_order(seed: int) -> list:
 
 def _seeds_with_opposite_set_order():
     """Two hash seeds under which ``{"frate", "srate"}`` iterates in
-    different orders on this interpreter. Searching (rather than hardcoding
-    seeds) keeps the test meaningful across Python versions, whose string
-    hash functions differ."""
-    first_order = _set_order(0)
+    opposite orders on this interpreter, whichever way round it is written.
+    Searching (rather than hardcoding seeds) keeps the test meaningful across
+    Python versions, whose string hash functions differ."""
+    first_orders = _set_orders(0)
     for seed in range(1, 64):
-        if _set_order(seed) != first_order:
+        orders = _set_orders(seed)
+        if all(order != first for order, first in zip(orders, first_orders)):
             return 0, seed
-    raise AssertionError("No hash seed in 1..63 changed the set's order")
+    raise AssertionError("No hash seed in 1..63 reversed the set's order")
 
 
 def test_runner_output_is_independent_of_hash_seed(tmp_path):
@@ -108,28 +132,38 @@ def test_runner_output_is_independent_of_hash_seed(tmp_path):
     script_path.write_text(RUN_RUNNER)
 
     # Launch both runs before waiting on either; each spends most of its
-    # time importing PolicyEngine-US.
+    # time importing PolicyEngine-US. Their output goes to files so neither
+    # can stall on a full pipe while the other is being waited on.
     processes = {}
-    for seed in seeds:
-        out_path = tmp_path / f"seed_{seed}.json"
-        processes[seed] = (
-            out_path,
-            subprocess.Popen(
-                [sys.executable, str(script_path), str(input_path), str(out_path)],
-                env={**os.environ, "PYTHONHASHSEED": str(seed)},
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            ),
-        )
-
     results = {}
-    for seed, (out_path, process) in processes.items():
-        _, stderr = process.communicate(timeout=1800)
-        assert process.returncode == 0, (
-            f"PolicyEngineRunner failed with PYTHONHASHSEED={seed}:\n{stderr}"
-        )
-        results[seed] = pd.read_json(out_path, orient="split")
+    try:
+        for seed in seeds:
+            with open(tmp_path / f"seed_{seed}.log", "w") as log:
+                processes[seed] = subprocess.Popen(
+                    [
+                        sys.executable,
+                        str(script_path),
+                        str(input_path),
+                        str(tmp_path / f"seed_{seed}.json"),
+                    ],
+                    env=_child_env(seed),
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                )
+
+        deadline = time.monotonic() + RUNNER_TIMEOUT_SECONDS
+        for seed, process in processes.items():
+            process.wait(timeout=max(deadline - time.monotonic(), 1))
+            log_text = (tmp_path / f"seed_{seed}.log").read_text()
+            assert process.returncode == 0, (
+                f"PolicyEngineRunner failed with PYTHONHASHSEED={seed}:\n{log_text}"
+            )
+            results[seed] = pd.read_json(tmp_path / f"seed_{seed}.json", orient="split")
+    finally:
+        for process in processes.values():
+            if process.poll() is None:
+                process.kill()
+                process.wait()
 
     first, second = (results[seed] for seed in seeds)
     assert list(first.columns) == list(second.columns), (
@@ -151,11 +185,21 @@ def test_runner_output_is_independent_of_hash_seed(tmp_path):
 def api():
     """policyengine_taxsim.api, imported without Modal installed. The module
     builds its Modal image and app at import time; a stub stands in for
-    Modal, and the module is kept out of sys.modules."""
-    with patch.dict(sys.modules, {"modal": MagicMock()}):
+    Modal, and the module is kept out of sys.modules. Only the ``modal``
+    entry is put back afterwards, so anything else the import loaded stays
+    loaded once."""
+    missing = object()
+    original = sys.modules.get("modal", missing)
+    sys.modules["modal"] = MagicMock()
+    try:
         spec = importlib.util.find_spec("policyengine_taxsim.api")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+    finally:
+        if original is missing:
+            del sys.modules["modal"]
+        else:
+            sys.modules["modal"] = original
     return module
 
 
@@ -222,6 +266,14 @@ def test_validate_required_columns_keeps_order(required, input_columns, missing,
     assert _Runner(df).validate_required_columns(required) == (missing, extra)
 
 
+def test_validate_required_columns_lists_a_repeated_column_once():
+    """A frame built in code can repeat a column name; the set-based version
+    reported it once, and so does this one."""
+    df = pd.DataFrame([[1, 2, 2024, 7]], columns=["wages", "wages", "year", "taxsimid"])
+    missing, extra = _Runner(df).validate_required_columns(["year", "year", "zeta"])
+    assert (missing, extra) == (["zeta"], ["wages", "taxsimid"])
+
+
 COLUMN_NAMES = ["taxsimid", "state", "mstat", "pwages", "swages", "zeta", "alpha"]
 
 
@@ -233,14 +285,15 @@ def _in_order_of(items, reference):
 
 @given(
     required=st.lists(st.sampled_from(["year", *COLUMN_NAMES])),
-    other_columns=st.lists(st.sampled_from(COLUMN_NAMES), unique=True),
-    year_position=st.integers(min_value=0, max_value=len(COLUMN_NAMES)),
+    other_columns=st.lists(st.sampled_from(COLUMN_NAMES), max_size=10),
+    year_position=st.integers(min_value=0, max_value=10),
 )
 @settings(deadline=None)
 def test_validate_required_columns_properties(required, other_columns, year_position):
+    # other_columns may repeat a name, as a frame built in code can.
     input_columns = list(other_columns)
     input_columns.insert(min(year_position, len(input_columns)), "year")
-    runner = _Runner(pd.DataFrame({col: [1] for col in input_columns}))
+    runner = _Runner(pd.DataFrame([[1] * len(input_columns)], columns=input_columns))
     actual_columns = runner.get_columns()
 
     missing, extra = runner.validate_required_columns(required)
@@ -265,8 +318,9 @@ def _consolidated_rows(ids):
 
 
 def test_consolidated_results_rows_follow_taxsimid():
-    """compare's consolidated CSV lists records in taxsimid order. A set of
-    these four IDs iterates as 1000, 5, 30, 7."""
+    """compare's consolidated CSV lists records in taxsimid order, the order
+    TaxComparator sorts its frames into. A set of these four IDs iterates as
+    1000, 5, 30, 7."""
     written = _consolidated_rows([30, 5, 1000, 7])
     assert written["taxsimid"].tolist() == [5, 5, 7, 7, 30, 30, 1000, 1000]
 

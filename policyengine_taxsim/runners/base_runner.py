@@ -164,7 +164,9 @@ class BaseTaxRunner(ABC):
             col for col in dict.fromkeys(required_columns) if col not in input_cols
         ]
         extra_columns = [
-            col for col in self.input_df.columns if col not in required_cols
+            col
+            for col in dict.fromkeys(self.input_df.columns)
+            if col not in required_cols
         ]
 
         return missing_columns, extra_columns
