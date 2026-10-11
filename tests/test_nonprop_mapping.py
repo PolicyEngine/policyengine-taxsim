@@ -342,18 +342,20 @@ def test_signed_part_properties(x):
 
 
 def test_missing_nonprop_is_zero():
-    """A blank cell (None, "", NaN or pd.NA) is no nonprop, not NaN income."""
-    for missing in (None, "", float("nan"), np.nan, pd.NA):
+    """A blank cell (None, "", whitespace, NaN or pd.NA) is no nonprop, not
+    NaN income."""
+    for missing in (None, "", "   ", float("nan"), np.nan, pd.NA):
         assert signed_part(missing, 1) == 0
         assert signed_part(missing, -1) == 0
         assert set(nonprop_parts(missing, "CA").values()) == {0.0}
 
 
 def test_alimony_states_are_the_ones_pe_us_needs():
-    """NONPROP_ALIMONY_STATES holds exactly the states whose PE-US
-    gross-income lists name alimony_income but not miscellaneous_income.
-    When PE-US adds miscellaneous_income to one of these lists this test
-    fails: drop that state from NONPROP_ALIMONY_STATES."""
+    """Each state in NONPROP_ALIMONY_STATES has a PE-US gross-income list
+    that names alimony_income but not miscellaneous_income. When PE-US adds
+    miscellaneous_income to one of these lists this test fails: drop that
+    state from NONPROP_ALIMONY_STATES. (It does not search the other states
+    for a list that would need the same exception.)"""
     from policyengine_us import CountryTaxBenefitSystem
 
     states = CountryTaxBenefitSystem().parameters.gov.states
@@ -379,35 +381,46 @@ def test_alimony_states_are_the_ones_pe_us_needs():
     assert nonprop_parts(100, "GA")["miscellaneous_income"] == 100
 
 
-def test_batch_builder_skips_nonprop_accessors_when_unused():
+def _batch_people(records):
+    frame = pd.DataFrame(records)
+    dataset = TaxsimMicrosimDataset(frame)
+    try:
+        return dataset._process_person_data_for_year(frame, 2024)
+    finally:
+        dataset.cleanup()
+
+
+def test_batch_builder_skips_nonprop_accessors_when_unused(monkeypatch):
     """With no nonprop in the batch the dataset builder writes the three
-    variables as zeros without running their row-by-row accessors; with any
-    nonprop it allocates every record, including the zero ones."""
+    variables as zeros without calling nonprop_parts; with any nonprop it
+    allocates every record, including the zero ones."""
+    from policyengine_taxsim.runners import policyengine_runner
+
+    # Five people: California MFJ, Alabama single, Mississippi MFJ.
     rows = [
         _input_row(1, 5, 2024, MFJ, 0),
         _input_row(2, 1, 2024, SINGLE, 0),
         _input_row(3, 25, 2024, MFJ, 0),
     ]
-    used = [dict(rows[0], nonprop=600), dict(rows[1], nonprop=-40), rows[2]]
-    for records, expected in (
-        (rows, {var: [0, 0, 0, 0, 0] for var in NONPROP_VARIABLES}),
-        (
-            used,
-            {
-                "miscellaneous_income": [300, 300, 0, 0, 0],
-                "alimony_income": [0, 0, 0, 0, 0],
-                "alimony_expense": [0, 0, 40, 0, 0],
-            },
-        ),
-    ):
-        frame = pd.DataFrame(records)
-        dataset = TaxsimMicrosimDataset(frame)
-        try:
-            people = dataset._process_person_data_for_year(frame, 2024)
-        finally:
-            dataset.cleanup()
-        for var, values in expected.items():
-            np.testing.assert_allclose(people[var], values, err_msg=var)
+
+    def accessor_ran(*args, **kwargs):
+        raise AssertionError("nonprop accessor ran for a batch without nonprop")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(policyengine_runner, "nonprop_parts", accessor_ran)
+        people = _batch_people(rows)
+    for var in NONPROP_VARIABLES:
+        np.testing.assert_array_equal(people[var], np.zeros(5), err_msg=var)
+
+    used = [
+        dict(rows[0], nonprop=600),
+        dict(rows[1], nonprop=-40),
+        dict(rows[2], nonprop=200),
+    ]
+    people = _batch_people(used)
+    np.testing.assert_allclose(people["miscellaneous_income"], [300, 300, 0, 0, 0])
+    np.testing.assert_allclose(people["alimony_income"], [0, 0, 0, 100, 100])
+    np.testing.assert_allclose(people["alimony_expense"], [0, 0, 40, 0, 0])
 
 
 # ---------------------------------------------------------------------------

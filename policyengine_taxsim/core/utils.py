@@ -50,7 +50,9 @@ NONPROP_VARIABLES = ("miscellaneous_income", "alimony_income", "alimony_expense"
 
 def signed_part(value, sign):
     """Magnitude of the ``sign`` (+1 or -1) part of ``value``; 0 otherwise
-    (including for a missing value: None, blank, NaN or pd.NA)."""
+    (including for a missing value: None, a blank string, NaN or pd.NA)."""
+    if isinstance(value, str):
+        value = value.strip()
     if value is None or (np.ndim(value) == 0 and pd.isna(value)):
         return 0.0
     number = float(value or 0)
