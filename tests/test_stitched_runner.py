@@ -222,6 +222,22 @@ class TestEdgeCases:
         assert result["taxsimid"].tolist() == [1, 1, 1]
         assert result["year"].tolist() == [2023, 2024, 2024]
 
+    @pytest.mark.parametrize("returned", [[(1, 1990)], [(1, 1990), (2, 2000), (9, 0)]])
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
+    def test_taxsim_row_count_mismatch_raises(self, MockPE, MockTaxsim, returned):
+        """Rows go back in input order by position, so a short or long
+        TAXSIM result cannot be placed; fail instead of misplacing rows."""
+        df = _make_input([(1, 1990), (2, 2000), (3, 2024)])
+        MockPE.return_value.run.return_value = _make_result([(3, 2024)])
+        MockTaxsim.return_value.run.return_value = _make_result(returned)
+
+        runner = StitchedRunner(df)
+        with pytest.raises(
+            ValueError, match=rf"TAXSIM returned {len(returned)} row\(s\) for 2"
+        ):
+            runner.run(show_progress=False)
+
 
 # ---------------------------------------------------------------------------
 # Kwargs forwarding

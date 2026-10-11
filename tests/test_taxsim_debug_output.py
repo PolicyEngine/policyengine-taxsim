@@ -6,30 +6,40 @@ rows. tests/fixtures/taxsim_stdout holds verbatim captures from real binaries
 
 Invariants of TaxsimRunner._parse_taxsim_output on CSV output:
 
-- One row per record line, in stream order, and no row has a NaN taxsimid.
+- One row per record line, in stream order, and every taxsimid is finite.
 - Every non-blank stdout line is exactly one of: the header, a returned row,
   or a line in stdout_diagnostics (conservation).
-- Each non-record line is filed under the taxsimid of the next record row,
-  or under None when no row follows (attribution).
-- The rows equal what the pre-change parser (pandas.read_csv, then
-  to_numeric) returns for the same stream with the non-record lines removed
-  (differential).
+- Each non-record line is filed under the taxsimid of the next record row, as
+  that id reads in the returned frame, or under None when no row follows
+  (attribution).
+- A line after the header is returned as a row exactly when the pre-change
+  parser (pandas.read_csv, then to_numeric) reads it, under that header, as
+  one row with a finite id, and it has at least two fields (classification).
+  A bare number is not a row.
+- The rows equal what the pre-change parser returns for the stream with the
+  non-record lines removed (differential). One intended difference: a
+  lower-detail row's trailing build-stamp field stays under the stamp column
+  instead of the next detail column.
 """
 
+import csv
 import hashlib
 import io
 import logging
+import math
 import platform
 import shutil
 import subprocess
+from collections import Counter
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from policyengine_taxsim.runners.taxsim_runner import _RECORD_ID, TaxsimRunner
 
 FIXTURES = Path(__file__).parent / "fixtures" / "taxsim_stdout"
 REPO = Path(__file__).resolve().parents[1]
@@ -160,6 +170,55 @@ def test_august_build_counters_are_kept_for_the_west_virginia_record():
     assert runner.binary_build_date == "cd2026081819"
 
 
+def test_lower_detail_rows_after_a_full_header_are_records():
+    """Records 2 and 3 ask for idtl 0 after record 1's idtl 2 header.
+
+    Their rows have 11 fields under a 54-column header. The eleventh is the
+    build-stamp value, which belongs under the stamp column, not under v10.
+    """
+    runner, result = _parse(FIXTURES / "mixed_idtl_full_first.stdout.txt")
+
+    assert result.taxsimid.tolist() == [1, 2, 3]
+    assert result.state.tolist() == [5, 49, 5]
+    assert result.siitax.tolist() == [980.70, 1502.38, 980.70]
+    assert result.tfica.tolist() == [3825.00, 3825.00, 3825.00]
+    assert result.v10.iloc[0] == 50000.00
+    assert result.v10.iloc[1:].isna().all()
+    assert result.actc.iloc[1:].isna().all()
+    assert result["cd2026081819"].tolist() == [0, 0, 0]
+    assert runner.stdout_diagnostics == {2: [D3_WEST_VIRGINIA, D4_WEST_VIRGINIA] * 12}
+
+
+def test_lower_detail_row_reads_as_it_does_under_its_own_header():
+    """Ground truth for the stamp column: the binary's own idtl 0 header.
+
+    Record 2 is the same West Virginia profile in both captures and the
+    binary writes the same row for it. Alone, its header names all 11 fields.
+    """
+    _, alone = _parse(FIXTURES / "west_virginia_idtl0.stdout.txt")
+    _, mixed = _parse(FIXTURES / "mixed_idtl_full_first.stdout.txt")
+
+    def row_text(name):
+        text = (FIXTURES / f"{name}.stdout.txt").read_text()
+        return [line for line in text.split("\n") if line.startswith("2.,")]
+
+    assert row_text("mixed_idtl_full_first") == row_text("west_virginia_idtl0")
+    pd.testing.assert_series_equal(
+        mixed.loc[mixed.taxsimid == 2, alone.columns].iloc[0],
+        alone.loc[alone.taxsimid == 2].iloc[0],
+        check_names=False,
+        check_dtype=False,
+    )
+
+
+def test_full_detail_row_after_a_basic_header_raises():
+    """The header names 11 columns; record 2's idtl 2 row has 54 fields."""
+    with pytest.raises(Exception, match="54 fields but the header names 11") as error:
+        _parse(FIXTURES / "mixed_idtl_basic_first.stdout.txt")
+    assert "taxsimid 2 " in str(error.value)
+    assert "highest idtl first" in str(error.value)
+
+
 # Invariants on every CSV capture --------------------------------------------
 
 
@@ -227,14 +286,14 @@ def test_malformed_record_is_reported_not_returned_as_a_nan_row(tmp_path, caplog
         "nan,200,40",
         "inf,200,40",
         "-inf,200,40",
-        "1e400,200,40",
+        "1e400,200,40",  # pandas reads infinity
+        "17976931348623158e292,200,40",  # float() finite; pandas infinity
         "1_000,200,40",  # float() accepts it; pandas does not
         "١,200,40",  # Arabic-Indic one: float() accepts it; pandas does not
         "0x10,200,40",
         ",200,40",
         '"",200,40',
-        "2,200",
-        "2,200,40,0",
+        "12345",  # a bare number is not a row
         "taxsimid,fiitax,siitax",
         " d2       29126       25000         103         346",
     ],
@@ -265,6 +324,38 @@ def test_numeric_id_spellings_are_records(tmp_path, spelling, taxsimid):
     )
     assert result.taxsimid.tolist() == [taxsimid]
     assert runner.stdout_diagnostics == {taxsimid: [" d2 1 2"]}
+
+
+def test_short_row_is_a_record_with_missing_trailing_columns(tmp_path):
+    runner, result = _parse_text(tmp_path, "taxsimid,fiitax,siitax\n2,200\n")
+    assert result.taxsimid.tolist() == [2]
+    assert result.fiitax.tolist() == [200]
+    assert result.siitax.isna().all()
+    assert runner.stdout_diagnostics == {}
+
+
+def test_short_row_keeps_its_stamp_under_the_stamp_column(tmp_path):
+    runner, result = _parse_text(
+        tmp_path, 'taxsimid,fiitax,v10,"cd2026081819"\n1,100,5,0\n2,200,0\n'
+    )
+    assert result.taxsimid.tolist() == [1, 2]
+    assert result.fiitax.tolist() == [100, 200]
+    assert result.v10.iloc[0] == 5
+    assert np.isnan(result.v10.iloc[1])
+    assert result["cd2026081819"].tolist() == [0, 0]
+
+
+def test_row_wider_than_the_header_raises(tmp_path):
+    with pytest.raises(Exception, match="3 fields but the header names 2"):
+        _parse_text(tmp_path, "taxsimid,fiitax\n1,100\n2,200,40\n")
+
+
+def test_diagnostic_keys_are_ids_from_the_returned_frame(tmp_path):
+    """float() reads .9999999999999999 as itself; pandas reads 1.0."""
+    runner, result = _parse_text(
+        tmp_path, "taxsimid,fiitax\n d2\n.9999999999999999,100\n"
+    )
+    assert list(runner.stdout_diagnostics) == result.taxsimid.tolist()
 
 
 def test_blank_lines_are_not_diagnostics(tmp_path):
@@ -353,16 +444,16 @@ _TEXT = st.text(
 
 
 def _non_record_lines(width):
-    """Lines that cannot be a record of a header ``width`` fields wide."""
+    """Lines that are not a record under a header ``width`` fields wide."""
     fortran = st.tuples(
         st.integers(0, 9), st.lists(st.integers(-(10**7), 10**7), max_size=4)
     ).map(lambda t: f" d{t[0]}" + "".join(f"{n:12d}" for n in t[1]))
     # A first field starting with a letter is never numeric (or "taxsimid").
     lettered = _TEXT.map(lambda text: "x" + text)
-    wrong_width = st.tuples(
-        st.integers(0, 10**6), st.integers(0, 8).filter(lambda n: n + 1 != width)
-    ).map(lambda t: f"{t[0]}." + ",0" * t[1])
-    return st.one_of(fortran, lettered, wrong_width)
+    if width == 1:
+        return st.one_of(fortran, lettered)
+    bare_number = st.integers(0, 10**6).map(lambda n: f"{n:12d}")
+    return st.one_of(fortran, lettered, bare_number)
 
 
 @st.composite
@@ -372,9 +463,11 @@ def _taxsim_streams(draw):
     noise = _non_record_lines(width)
     records = []
     for _ in range(draw(st.integers(0, 8))):
-        taxsimid = draw(st.integers(0, 10**6))
+        taxsimid = draw(st.integers(0, 10**15))
         spelling = draw(st.sampled_from(["{}.", "{}"])).format(taxsimid)
-        row = ",".join([spelling, *(draw(_VALUE) for _ in header[1:])])
+        # A lower-detail row has fewer fields than the header, at least two.
+        fields = draw(st.integers(2, width)) if width > 2 else width
+        row = ",".join([spelling, *(draw(_VALUE) for _ in range(fields - 1))])
         records.append((taxsimid, row, draw(st.lists(noise, max_size=4))))
     trailing = draw(st.lists(noise, max_size=3))
 
@@ -427,6 +520,91 @@ def test_parser_invariants_hold_for_any_interleaving(stream):
     pd.testing.assert_frame_equal(result, _old_parse(clean))
 
 
+# Property-based: adversarial id spellings, judged by the old parser ----------
+
+
+def _key(taxsimid):
+    """A frame id as stdout_diagnostics keys it: int if whole, else float."""
+    if isinstance(taxsimid, int):
+        return taxsimid
+    return int(taxsimid) if float(taxsimid).is_integer() else float(taxsimid)
+
+
+def _old_parser_reads_a_row(header_line, line, width):
+    """Whether the pre-change parser reads ``line`` as one finite-id row."""
+    if len(next(csv.reader([line]))) < min(2, width):
+        return False
+    try:
+        frame = _old_parse(f"{header_line}\n{line}")
+    except Exception:
+        return False
+    return len(frame) == 1 and bool(np.isfinite(frame.iloc[:, 0].astype(float)).all())
+
+
+@st.composite
+def _adversarial_streams(draw):
+    header = ["taxsimid", *draw(st.lists(_COLUMN, unique=True, max_size=4))]
+    width = len(header)
+    # Any spelling the parser's id pattern accepts: huge exponents, long
+    # digit runs, signs, and (in the first form) exotic whitespace. pandas
+    # reads some as infinite or as text; float() may not agree.
+    spelling = st.one_of(
+        st.from_regex(_RECORD_ID, fullmatch=True),
+        st.from_regex(_RECORD_ID.pattern.replace(r"\s*", " ?"), fullmatch=True),
+    ).filter(lambda text: "\n" not in text and "\r" not in text)
+    numeric_row = st.tuples(
+        spelling, st.lists(_VALUE, min_size=0, max_size=width - 1)
+    ).map(lambda t: ",".join([t[0], *t[1]]))
+    fortran = st.integers(0, 9).map(lambda n: f" d{n}       48543")
+    line = st.one_of(numeric_row, fortran, _TEXT.map(lambda text: "x" + text))
+    before = draw(st.lists(line, max_size=2))
+    after = draw(st.lists(line, max_size=8))
+    return ",".join(header), before, after
+
+
+@settings(max_examples=300, deadline=None)
+@given(_adversarial_streams())
+def test_rows_are_exactly_the_lines_the_old_parser_reads_as_finite_rows(stream):
+    header_line, before, after = stream
+    width = len(header_line.split(","))
+    text = "\n".join([*before, header_line, *after]) + "\n"
+    runner = TaxsimRunner.__new__(TaxsimRunner)
+    result = runner._parse_csv_taxsim_output(text)
+    ids = result.iloc[:, 0].tolist()
+
+    # No NaN or infinite id.
+    assert all(math.isfinite(taxsimid) for taxsimid in ids)
+
+    # Classification, by an independent judge: the old parser, line by line.
+    before = [line for line in before if line.strip()]
+    after = [line for line in after if line.strip()]
+    is_row = [_old_parser_reads_a_row(header_line, line, width) for line in after]
+    rows = [line for line, row in zip(after, is_row) if row]
+    assert len(ids) == len(rows)
+
+    # Attribution, keyed by the ids the frame holds; and conservation.
+    expected = {}
+    pending = list(before)
+    remaining = iter(ids)
+    for line, row in zip(after, is_row):
+        if not row:
+            pending.append(line)
+            continue
+        taxsimid = _key(next(remaining))
+        if pending:
+            expected.setdefault(taxsimid, []).extend(pending)
+            pending = []
+    if pending:
+        expected.setdefault(None, []).extend(pending)
+    assert runner.stdout_diagnostics == expected
+    assert Counter(
+        line for group in runner.stdout_diagnostics.values() for line in group
+    ) == Counter(before) + Counter(line for line, row in zip(after, is_row) if not row)
+
+    # Differential: the frame is the old parser's reading of the kept rows.
+    pd.testing.assert_frame_equal(result, _old_parse("\n".join([header_line, *rows])))
+
+
 # Through TaxsimRunner.run ----------------------------------------------------
 
 
@@ -454,7 +632,7 @@ def test_run_returns_clean_ids_and_keeps_diagnostics(tmp_path):
 @needs_posix
 def test_run_names_submitted_records_left_without_a_row(tmp_path, caplog):
     stdout = tmp_path / "stdout.txt"
-    stdout.write_text("taxsimid,fiitax\n1.,100.00\n2.,200.00,extra\n")
+    stdout.write_text("taxsimid,fiitax\n1.,100.00\ntwo,200.00\n")
     df = pd.DataFrame({"taxsimid": [1, 2], "year": [2026, 2026], "idtl": [2, 2]})
     runner = TaxsimRunner(df, taxsim_path=str(_fake_binary(tmp_path, stdout)))
 
@@ -462,8 +640,22 @@ def test_run_names_submitted_records_left_without_a_row(tmp_path, caplog):
         result = runner.run(show_progress=False)
 
     assert result.taxsimid.tolist() == [1]
-    assert runner.stdout_diagnostics == {None: ["2.,200.00,extra"]}
+    assert runner.stdout_diagnostics == {None: ["two,200.00"]}
     assert "no result row for 1 submitted record(s): taxsimid 2." in caplog.text
+
+
+@needs_posix
+def test_run_counts_missing_rows_per_repeated_taxsimid(tmp_path, caplog):
+    """Panel inputs repeat ids, so one returned row does not cover three."""
+    stdout = tmp_path / "stdout.txt"
+    stdout.write_text("taxsimid,fiitax\n1.,100.00\n")
+    df = pd.DataFrame({"taxsimid": [1, 1, 1], "year": [2024, 2025, 2026]})
+    runner = TaxsimRunner(df, taxsim_path=str(_fake_binary(tmp_path, stdout)))
+
+    with caplog.at_level(logging.WARNING, logger=LOGGER):
+        runner.run(show_progress=False)
+
+    assert "no result row for 2 submitted record(s): taxsimid 1 (x2)." in caplog.text
 
 
 @needs_posix
@@ -490,6 +682,31 @@ def test_cli_taxsim_path_option_runs_a_custom_binary(tmp_path):
     assert pd.read_csv(output).taxsimid.tolist() == [1, 2, 3]
 
 
+@needs_posix
+def test_cli_taxsim_path_option_accepts_a_current_directory_path(tmp_path, monkeypatch):
+    """Path("./x") drops the "./"; the shell would then search PATH for x."""
+    from click.testing import CliRunner
+
+    from policyengine_taxsim.cli import cli
+
+    binary = _fake_binary(tmp_path, FIXTURES / "utah_elderly_idtl2.stdout.txt")
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "taxsim",
+            str(FIXTURES / "utah_elderly_idtl2.input.csv"),
+            "--output",
+            "out.csv",
+            "--taxsim-path",
+            f"./{binary.name}",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert pd.read_csv(tmp_path / "out.csv").taxsimid.tolist() == [1, 2, 3]
+
+
 def test_bundled_binary_returns_exactly_the_submitted_records():
     """Whatever the bundled build writes to stdout, ids come back clean.
 
@@ -505,6 +722,19 @@ def test_bundled_binary_returns_exactly_the_submitted_records():
 
     assert result.taxsimid.tolist() == [1, 2, 3, 4]
     assert set(runner.stdout_diagnostics) <= {1, 2, 3, 4}
+
+
+def test_bundled_binary_returns_every_record_of_a_mixed_idtl_run():
+    """idtl 0 records after an idtl 2 record come back as shorter rows."""
+    df = pd.read_csv(FIXTURES / "mixed_idtl_full_first.input.csv")
+    runner = TaxsimRunner(df)
+
+    result = runner.run(show_progress=False)
+
+    assert result.taxsimid.tolist() == [1, 2, 3]
+    assert result.fiitax.notna().all()
+    assert result.tfica.notna().all()
+    assert result.v10.notna().tolist() == [True, False, False]
 
 
 # The captures are verbatim: re-run the real binaries where available ---------
@@ -583,7 +813,11 @@ def test_runner_on_the_20260521_build_returns_no_nan_ids(binary_20260521):
     assert runner.stdout_diagnostics == {2: [D2_UTAH_SINGLE] * 6}
 
 
-def test_west_virginia_capture_matches_the_bundled_august_build():
+@pytest.mark.parametrize(
+    "name",
+    ["west_virginia_idtl0", "mixed_idtl_full_first", "mixed_idtl_basic_first"],
+)
+def test_capture_matches_the_bundled_august_build(name):
     entry = _BUNDLED_AUGUST_SHA256.get(platform.system())
     if entry is None:
         pytest.skip("no August build capture for this platform")
@@ -592,8 +826,8 @@ def test_west_virginia_capture_matches_the_bundled_august_build():
         pytest.skip("the bundled binary is no longer the August 2026 build")
     binary.chmod(0o755)
 
-    run = _run_binary(binary, FIXTURES / "west_virginia_idtl0.input.csv")
+    run = _run_binary(binary, FIXTURES / f"{name}.input.csv")
 
     assert run.returncode == 0
     assert run.stderr == b""
-    assert run.stdout == (FIXTURES / "west_virginia_idtl0.stdout.txt").read_bytes()
+    assert run.stdout == (FIXTURES / f"{name}.stdout.txt").read_bytes()

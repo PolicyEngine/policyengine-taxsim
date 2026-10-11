@@ -19,13 +19,40 @@ available. `.gitattributes` keeps them LF on every platform.
 | `utah_elderly_first_idtl0` | 20260521 macOS | The same records with record 2 first: its six lines come before the header. |
 | `utah_elderly_consecutive_idtl2` | 20260521 macOS | Three consecutive Utah records (single 74, single 80, joint 74/74 with Social Security), each preceded by its own six lines. |
 | `utah_elderly_idtl5` | 20260521 macOS | Verbose output (`idtl=5`) for record 2. The six lines sit before `Basic Output:`. |
-| `west_virginia_idtl0` | August 2026 macOS | Twelve `d3`/`d4` pairs before the West Virginia row. The bundled Linux build of the same date writes identical bytes. |
+| `west_virginia_idtl0` | August 2026 macOS | Twelve `d3`/`d4` pairs before the West Virginia row. |
+| `mixed_idtl_full_first` | August 2026 macOS | `idtl` 2, 0, 0. The header and row 1 have 54 fields; rows 2 and 3 have 11 (ten basic values and the build-stamp value). Row 2 is the West Virginia profile, so its `d3`/`d4` lines precede a short row. |
+| `mixed_idtl_basic_first` | August 2026 macOS | `idtl` 0, 2. The header and row 1 have 11 fields; row 2 has 54, so 43 of its fields have no column name. |
 
-These are the triggers observed for these profiles, not a mechanism. On a
-510-record grid (51 states, 2024 and 2026, five filer profiles), the 20260521
-build wrote `d2` lines only before Utah rows with a filer aged 73 or older, and
-the August builds wrote `d3`/`d4` lines before every West Virginia row. The
-September 2026 macOS build (`02286eda…`, from the unmerged #1206) wrote none.
+The bundled Linux build of the same date writes identical bytes for all three
+August captures.
+
+These are the triggers observed for these profiles, not a mechanism. On the
+510-record grid below (51 states, 2024 and 2026, five filer profiles), the
+20260521 build wrote 36 `d2` lines, six before each Utah row with a filer aged
+73 or older, and the August macOS and Linux builds wrote 240 `d3`/`d4` lines,
+24 before each West Virginia row. The September 2026 macOS build
+(`02286eda…`, from the unmerged #1206) wrote none.
+
+```python
+rows = ["taxsimid,year,state,mstat,page,sage,depx,pwages,gssi,pensions,idtl"]
+profiles = [  # mstat, page, sage, pwages, gssi, pensions
+    (1, 40, 0, 50000, 0, 0),
+    (1, 73, 0, 30000, 0, 0),
+    (2, 75, 74, 30000, 20000, 10000),
+    (1, 80, 0, 0, 25000, 40000),
+    (2, 45, 44, 150000, 0, 0),
+]
+taxsimid = 0
+for state in range(1, 52):
+    for year in (2024, 2026):
+        for mstat, page, sage, pwages, gssi, pensions in profiles:
+            taxsimid += 1
+            rows.append(
+                f"{taxsimid},{year},{state},{mstat},{page},{sage},0,"
+                f"{pwages},{gssi},{pensions},2"
+            )
+open("grid.csv", "w").write("\n".join(rows) + "\n")
+```
 
 ## Binaries
 
