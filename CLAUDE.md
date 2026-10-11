@@ -111,6 +111,9 @@ and taxsim #1424, not emulated):
   qualifying income; taxsimtest does not.
 - PE-US's household-income credits in MI, WI and AZ move with nonprop as they
   do with interest; taxsimtest's move with interest but not with nonprop.
+- Arkansas: PE-US applies no adjustments to Arkansas income (`ar_agi_indiv` is
+  gross income minus exemptions), so negative nonprop does not lower Arkansas
+  tax; taxsimtest's does.
 
 ## Married filing separately (mstat 6)
 

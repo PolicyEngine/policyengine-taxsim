@@ -50,11 +50,13 @@ NONPROP_VARIABLES = ("miscellaneous_income", "alimony_income", "alimony_expense"
 
 def signed_part(value, sign):
     """Magnitude of the ``sign`` (+1 or -1) part of ``value``; 0 otherwise
-    (including for a missing or NaN value)."""
-    value = float(value or 0)
-    if value != value:  # NaN
+    (including for a missing value: None, blank, NaN or pd.NA)."""
+    if value is None or (np.ndim(value) == 0 and pd.isna(value)):
         return 0.0
-    return max(sign * value, 0.0) + 0.0  # + 0.0 turns -0.0 into 0.0
+    number = float(value or 0)
+    if number != number:  # NaN from a string such as "nan"
+        return 0.0
+    return max(sign * number, 0.0) + 0.0  # + 0.0 turns -0.0 into 0.0
 
 
 def nonprop_parts(value, state_code):

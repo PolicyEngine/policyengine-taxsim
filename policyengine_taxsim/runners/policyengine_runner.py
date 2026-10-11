@@ -712,9 +712,21 @@ class TaxsimMicrosimDataset(Dataset):
             "person_weight": np.ones(total_people),
         }
 
+        # nonprop is rarely supplied. Its accessors run row by row, so when
+        # no record carries it the variables it feeds are written as zeros
+        # directly.
+        has_nonprop = (
+            NONPROP_SOURCE in year_data.columns
+            and (year_data[NONPROP_SOURCE].fillna(0) != 0).any()
+        )
+
         # Process each variable
         for pe_var, mapping in filtered_mapping.items():
             values = np.zeros(total_people, dtype=float)
+
+            if pe_var in NONPROP_VARIABLES and not has_nonprop:
+                result[pe_var] = values
+                continue
 
             if pe_var == "age":
                 # Primary ages

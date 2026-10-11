@@ -25,8 +25,10 @@ Island's property-tax relief for elderly renters has the same double count;
 it is not pinned because PE's credit already differs from taxsimtest's there.
 
 Every expected tax value below is taxsimtest output: the bundled
-resources/taxsimtest/taxsimtest-osx.exe (build cd2026081819), idtl=2, run on
-the record shown. Single filers are age 40 with $50,000 of pwages. MFJ
+resources/taxsimtest/taxsimtest-osx.exe (build cd2026081819; the bundled
+Linux binary is the same build and the Windows one is cd2026081318), idtl=2,
+run on the record shown. test_bundled_taxsimtest_still_produces_expected_values
+re-runs each platform's binary on every one of them. Single filers are age 40 with $50,000 of pwages. MFJ
 filers are both age 40 with pwages $30,000 and swages $20,000. No
 dependents. TAXSIM behaviors these pin, observed on that binary for every
 jurisdiction in 2021-2025:
@@ -157,30 +159,31 @@ def test_runner_matches_taxsim(runner_results, rec):
     assert row["siitax"] == pytest.approx(siitax, abs=1.5), "state income tax"
 
 
-@pytest.mark.parametrize(
-    "base_id,state,year,filer,taxsim_deltas",
-    [
-        # State tax at zero nonprop already differs from TAXSIM here: taxsimtest
-        # nets a $500 one-time rebate (srebate) into siitax that PolicyEngine
-        # does not report, so pin the change that nonprop causes instead. taxsimtest siitax at nonprop 0 / +10,000 /
-        # -5,000: VA 2022 MFJ 847.00 / 1408.05 / 597.00;
-        # GA 2024 MFJ 901.40 / 1440.40 / 631.90.
-        (586, 47, 2022, MFJ, {10_000: 561.05, -5_000: -250.00}),
-        (982, 11, 2024, MFJ, {10_000: 539.00, -5_000: -269.50}),
-    ],
-)
-def test_runner_state_delta_matches_taxsim(base_id, state, year, filer, taxsim_deltas):
-    rows = [_input_row(base_id, state, year, filer, 0)] + [
-        _input_row(base_id + i + 1, state, year, filer, np_)
-        for i, np_ in enumerate(taxsim_deltas)
+# taxsimtest siitax for MFJ filers at nonprop 0 / +10,000 / -5,000, keyed by
+# (SOI state, year): VA 2022 and GA 2024. State tax at zero nonprop already
+# differs from TAXSIM here: taxsimtest nets a $500 one-time rebate (srebate)
+# into siitax that PolicyEngine does not report, so the test pins the change
+# that nonprop causes instead of the level.
+DELTA_NONPROP = (0, 10_000, -5_000)
+DELTA_LEVELS = {
+    (47, 2022): (847.00, 1408.05, 597.00),
+    (11, 2024): (901.40, 1440.40, 631.90),
+}
+
+
+@pytest.mark.parametrize("state,year", list(DELTA_LEVELS))
+def test_runner_state_delta_matches_taxsim(state, year):
+    levels = DELTA_LEVELS[(state, year)]
+    rows = [
+        _input_row(i + 1, state, year, MFJ, np_) for i, np_ in enumerate(DELTA_NONPROP)
     ]
     out = PolicyEngineRunner(pd.DataFrame(rows), logs=False, disable_salt=True).run(
         show_progress=False
     )
     siitax = out.set_index(out["taxsimid"].astype(int))["siitax"]
-    for i, (np_, expected) in enumerate(taxsim_deltas.items()):
-        delta = siitax[base_id + i + 1] - siitax[base_id]
-        assert delta == pytest.approx(expected, abs=1), f"nonprop={np_}"
+    for i, np_ in enumerate(DELTA_NONPROP[1:], start=1):
+        delta = siitax[i + 1] - siitax[1]
+        assert delta == pytest.approx(levels[i] - levels[0], abs=1), f"nonprop={np_}"
 
 
 def test_single_household_path_matches_runner(runner_results):
@@ -339,19 +342,72 @@ def test_signed_part_properties(x):
 
 
 def test_missing_nonprop_is_zero():
-    """A blank cell (None or NaN) is no nonprop, not NaN income."""
-    for missing in (None, float("nan")):
+    """A blank cell (None, "", NaN or pd.NA) is no nonprop, not NaN income."""
+    for missing in (None, "", float("nan"), np.nan, pd.NA):
         assert signed_part(missing, 1) == 0
         assert signed_part(missing, -1) == 0
         assert set(nonprop_parts(missing, "CA").values()) == {0.0}
 
 
 def test_alimony_states_are_the_ones_pe_us_needs():
-    """The alimony route exists only for states whose PE-US gross-income
-    lists omit miscellaneous_income; drop a state here once PE-US adds it."""
-    assert NONPROP_ALIMONY_STATES == {"AL", "AR", "MS"}
+    """NONPROP_ALIMONY_STATES holds exactly the states whose PE-US
+    gross-income lists name alimony_income but not miscellaneous_income.
+    When PE-US adds miscellaneous_income to one of these lists this test
+    fails: drop that state from NONPROP_ALIMONY_STATES."""
+    from policyengine_us import CountryTaxBenefitSystem
+
+    states = CountryTaxBenefitSystem().parameters.gov.states
+    lists = {
+        "AL": [states.al.tax.income.agi.gross_income_sources],
+        "AR": [
+            states.ar.tax.income.gross_income.sources.individual,
+            states.ar.tax.income.gross_income.sources.joint,
+        ],
+        "MS": [states.ms.tax.income.income_sources],
+    }
+    assert NONPROP_ALIMONY_STATES == set(lists)
+    for state, parameters in lists.items():
+        for parameter in parameters:
+            for year in range(2021, 2026):
+                sources = parameter(f"{year}-01-01")
+                assert "alimony_income" in sources, (state, parameter.name, year)
+                assert "miscellaneous_income" not in sources, (
+                    f"PE-US now lists miscellaneous_income in {parameter.name} "
+                    f"({year}): drop {state} from NONPROP_ALIMONY_STATES"
+                )
     assert nonprop_parts(100, "al")["alimony_income"] == 100
     assert nonprop_parts(100, "GA")["miscellaneous_income"] == 100
+
+
+def test_batch_builder_skips_nonprop_accessors_when_unused():
+    """With no nonprop in the batch the dataset builder writes the three
+    variables as zeros without running their row-by-row accessors; with any
+    nonprop it allocates every record, including the zero ones."""
+    rows = [
+        _input_row(1, 5, 2024, MFJ, 0),
+        _input_row(2, 1, 2024, SINGLE, 0),
+        _input_row(3, 25, 2024, MFJ, 0),
+    ]
+    used = [dict(rows[0], nonprop=600), dict(rows[1], nonprop=-40), rows[2]]
+    for records, expected in (
+        (rows, {var: [0, 0, 0, 0, 0] for var in NONPROP_VARIABLES}),
+        (
+            used,
+            {
+                "miscellaneous_income": [300, 300, 0, 0, 0],
+                "alimony_income": [0, 0, 0, 0, 0],
+                "alimony_expense": [0, 0, 40, 0, 0],
+            },
+        ),
+    ):
+        frame = pd.DataFrame(records)
+        dataset = TaxsimMicrosimDataset(frame)
+        try:
+            people = dataset._process_person_data_for_year(frame, 2024)
+        finally:
+            dataset.cleanup()
+        for var, values in expected.items():
+            np.testing.assert_allclose(people[var], values, err_msg=var)
 
 
 # ---------------------------------------------------------------------------
@@ -365,9 +421,10 @@ def test_alimony_states_are_the_ones_pe_us_needs():
 # (case id, record inputs, taxsimtest output). State 0 = federal only.
 EXTRA_CASES = [
     (
-        # Not in the NIIT base: the same record with otherprop gives niit
-        # 3,800. fiitax is not compared because taxsimtest includes the
-        # Additional Medicare Tax in it and the emulator does not (#1239).
+        # Not in the NIIT base: the same record with otherprop in place of
+        # nonprop owes NIIT (OTHERPROP_NIIT_TAXSIM). fiitax is not compared
+        # because taxsimtest includes the Additional Medicare Tax in it and
+        # the emulator does not (#1239).
         "not_in_niit_base_2023",
         dict(year=2023, state=0, mstat=1, page=40, pwages=300_000, nonprop=100_000),
         {"v10": 400_000.0, "v18": 386_150.0, "v28": 107_047.0, "niit": 0.0},
@@ -427,7 +484,8 @@ EXTRA_CASES = [
         {"v10": 68_000.0, "fiitax": 4192.0, "siitax": 2524.75},
     ),
     (
-        # One earner: with nonprop all on the primary filer, siitax is 3,473.60.
+        # One earner. PolicyEngine with nonprop all on the primary filer
+        # gives siitax 3,473.60; the 50/50 split gives taxsimtest's value.
         "ky_joint_split_2024",
         dict(
             year=2024,
@@ -443,12 +501,29 @@ EXTRA_CASES = [
     (
         # Pennsylvania tax forgiveness: eligibility income is 6,000, under the
         # 6,500 limit for a single claimant, so the tax is fully forgiven.
-        # With alimony_income PE-US counts the 2,000 twice and siitax is
-        # 110.52. (fiitax is not compared: taxsimtest's EITC counts nonprop
-        # as earned income.)
+        # With alimony_income PolicyEngine counts the 2,000 twice and gives
+        # siitax 110.52. (fiitax is not compared: taxsimtest's EITC counts
+        # nonprop as earned income.)
         "pa_forgiveness_counts_nonprop_once_2023",
         dict(year=2023, state=39, mstat=1, page=40, pwages=4000, nonprop=2000),
         {"v10": 6000.0, "siitax": 0.0},
+    ),
+    (
+        # Arkansas, the third NONPROP_ALIMONY_STATES member (AL and MS are in
+        # the grid above): with miscellaneous_income PolicyEngine adds no
+        # Arkansas tax and siitax is 0.
+        "ar_joint_retired_2024",
+        dict(
+            year=2024,
+            state=4,
+            mstat=2,
+            page=70,
+            sage=68,
+            pensions=30_000,
+            gssi=20_000,
+            nonprop=10_000,
+        ),
+        {"v10": 51_100.0, "fiitax": 1880.0, "siitax": 21.46},
     ),
     (
         # Illinois exempts the pension and Social Security, not nonprop.
@@ -514,11 +589,6 @@ def test_extra_cases_single_household_path_matches_taxsim(case):
 # leaving stale expectations and a stale divergence note.
 # ---------------------------------------------------------------------------
 
-# taxsimtest siitax at nonprop 0 / +10,000 / -5,000 (see the delta test).
-DELTA_LEVELS = {
-    (47, 2022): (847.00, 1408.05, 597.00),
-    (11, 2024): (901.40, 1440.40, 631.90),
-}
 # taxsimtest EITC (v25), TX 2023, head of household, one child aged 5,
 # pwages 8,000, at nonprop 0 / +4,000 / -2,000.
 EITC_TAXSIM = (2720.0, 3995.0, 2040.0)
@@ -527,6 +597,9 @@ EITC_TAXSIM = (2720.0, 3995.0, 2040.0)
 # that PolicyEngine does not report, so the test pins their difference.
 GA_SENIOR_NONPROP = (30_000, 60_000)
 GA_SENIOR_TAXSIM = (720.20, 2337.20)
+# taxsimtest niit for the not_in_niit_base_2023 record with the 100,000 as
+# otherprop instead of nonprop: 3.8% of it.
+OTHERPROP_NIIT_TAXSIM = 3800.0
 
 
 def _ga_senior_row(taxsimid, nonprop):
@@ -553,7 +626,7 @@ def test_bundled_taxsimtest_still_produces_expected_values():
         rows.append(_input_row(taxsimid, state, year, filer, nonprop))
         checks.append((taxsimid, {"v10": agi, "fiitax": fiitax, "siitax": siitax}))
     for k, ((state, year), levels) in enumerate(DELTA_LEVELS.items()):
-        for j, (nonprop, siitax) in enumerate(zip((0, 10_000, -5_000), levels)):
+        for j, (nonprop, siitax) in enumerate(zip(DELTA_NONPROP, levels)):
             taxsimid = 5000 + 10 * k + j
             rows.append(_input_row(taxsimid, state, year, MFJ, nonprop))
             checks.append((taxsimid, {"siitax": siitax}))
@@ -574,6 +647,10 @@ def test_bundled_taxsimtest_still_produces_expected_values():
     for j, (nonprop, siitax) in enumerate(zip(GA_SENIOR_NONPROP, GA_SENIOR_TAXSIM)):
         rows.append(_ga_senior_row(8000 + j, nonprop))
         checks.append((8000 + j, {"siitax": siitax}))
+    niit_inputs = dict(EXTRA_CASES[EXTRA_IDS.index("not_in_niit_base_2023")][1])
+    niit_inputs["otherprop"] = niit_inputs.pop("nonprop")
+    rows.append(_extra_record(9000, niit_inputs))
+    checks.append((9000, {"niit": OTHERPROP_NIIT_TAXSIM}))
     output = TaxsimRunner(pd.DataFrame(rows).fillna(0)).run(show_progress=False)
     output["taxsimid"] = output["taxsimid"].astype(float).astype(int)
     output = output.set_index("taxsimid")
