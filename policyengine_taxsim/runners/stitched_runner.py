@@ -102,7 +102,16 @@ class StitchedRunner(BaseTaxRunner):
 
         if not taxsim_subset.empty:
             taxsim_runner = self._make_taxsim_runner(taxsim_subset)
-            frames.append(taxsim_runner.run(show_progress=show_progress))
+            taxsim_frame = taxsim_runner.run(show_progress=show_progress)
+            # Rows are put back in input order by position, so a result that
+            # is short or long by even one row would misplace the rest.
+            if len(taxsim_frame) != len(taxsim_subset):
+                raise ValueError(
+                    f"TAXSIM returned {len(taxsim_frame)} row(s) for "
+                    f"{len(taxsim_subset)} record(s), so its results cannot be "
+                    "matched back to the input order."
+                )
+            frames.append(taxsim_frame)
             frame_positions.append(taxsim_subset.index.to_numpy())
 
         if not frames:

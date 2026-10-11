@@ -1,12 +1,68 @@
+import csv
+import io
+import logging
 import os
 import platform
 import re
 import subprocess
 import tempfile
+from collections import Counter
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from .base_runner import BaseTaxRunner
 from ..core.utils import convert_taxsim32_dependents
+
+logger = logging.getLogger(__name__)
+
+# The spelling of a numeric record id: ASCII digits with an optional sign,
+# decimal point and exponent ("2.", "2", "+2", ".5", "1e3"). It screens out
+# text that pandas would read as a NaN id ("", "broken", "nan", and "1_000"
+# or "١", which float() accepts). pandas has the last word on the value: an
+# id it reads as infinite ("1e400") is set aside after parsing.
+_RECORD_ID = re.compile(r"\s*[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\s*")
+
+
+def _csv_fields(line: str):
+    """Split one stdout line as a CSV row; None if it does not parse as one."""
+    if "\x00" in line:
+        return None
+    if '"' not in line:
+        return line.split(",")
+    try:
+        rows = list(csv.reader([line]))
+    except csv.Error:
+        return None
+    return rows[0] if len(rows) == 1 else None
+
+
+def _csv_line(fields) -> str:
+    """Join fields back into one CSV line."""
+    buffer = io.StringIO()
+    csv.writer(buffer, lineterminator="").writerow(fields)
+    return buffer.getvalue()
+
+
+def _build_stamp(column: str):
+    """The build date in a header column, or None if it is not the stamp.
+
+    The binary stamps its build date into the last header column:
+    "cdate-2025Dec24" through build 20260521, "cd2026081819" in later builds.
+    """
+    column = column.strip()
+    if column.startswith("cdate-"):
+        return column[len("cdate-") :]
+    if re.fullmatch(r"cd\d{10}", column):
+        return column
+    return None
+
+
+def _id_key(value):
+    """A taxsimid as a plain int (if whole) or float, usable as a dict key."""
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    value = float(value)
+    return int(value) if value.is_integer() else value
 
 
 class TaxsimRunner(BaseTaxRunner):
@@ -96,8 +152,18 @@ class TaxsimRunner(BaseTaxRunner):
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
         super().__init__(input_df)
-        self.taxsim_path = taxsim_path or self._detect_taxsim_executable()
+        # Absolute, so the shell runs this file ("./taxsim" as a Path loses
+        # its "./" and would be looked up on PATH).
+        self.taxsim_path = (
+            Path(taxsim_path).resolve()
+            if taxsim_path
+            else self._detect_taxsim_executable()
+        )
         self._validate_executable()
+        # Non-record lines from the last run's stdout, keyed by the taxsimid
+        # of the row that follows them (None: after the last row). See
+        # _parse_csv_taxsim_output.
+        self.stdout_diagnostics = {}
 
     def _detect_taxsim_executable(self) -> Path:
         """Detect correct TAXSIM executable based on OS"""
@@ -308,55 +374,169 @@ class TaxsimRunner(BaseTaxRunner):
 
     def _parse_taxsim_output(self, output_file: str) -> pd.DataFrame:
         """Parse TAXSIM output file into DataFrame"""
+        self.stdout_diagnostics = {}
+        if not os.path.exists(output_file):
+            raise Exception(f"TAXSIM output file not found: {output_file}")
+        # utf-8-sig drops a leading byte-order mark, as pandas.read_csv did.
+        # Undecodable bytes become \xNN escapes, so they stay visible in a
+        # diagnostic line instead of aborting the parse.
+        with open(output_file, encoding="utf-8-sig", errors="backslashreplace") as f:
+            raw_output = f.read()
+
         try:
-            # First, try to read as CSV (for idtl values like 2)
-            # The August 2026 binary prints d3/d4 debug counters to stdout.
-            # Skip only those exact non-CSV diagnostics, not malformed records.
-            debug_line = re.compile(r"^\s*d(?:3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$")
-            with open(output_file) as stream:
-                skip_rows = [
-                    i for i, line in enumerate(stream) if debug_line.fullmatch(line)
-                ]
-            output_df = pd.read_csv(output_file, skiprows=skip_rows)
+            # First, try to read as CSV (idtl 0 or 2)
+            return self._parse_csv_taxsim_output(raw_output)
+        except Exception as e:
+            # If CSV parsing fails, check if it's verbose output (idtl=5)
+            try:
+                return self._parse_verbose_taxsim_output(raw_output)
+            except Exception as verbose_error:
+                raise Exception(
+                    f"Failed to parse TAXSIM output as both CSV and verbose format.\n"
+                    f"CSV error: {e}\n"
+                    f"Verbose parsing error: {verbose_error}\n"
+                    f"Raw output:\n{raw_output}"
+                )
 
-            # The binary stamps its build date into the last header column
-            # ("cdate-2025Dec24" through build 20260521, "cd2026081819" in
-            # later builds). Stash it so run() can report which build
-            # produced the results — a stale bundled binary looks exactly
-            # like an upstream behavior change otherwise (see #1089).
-            for col in output_df.columns:
-                if col.startswith("cdate-"):
-                    self.binary_build_date = col[len("cdate-") :]
-                    break
-                if re.fullmatch(r"cd\d{10}", col):
-                    self.binary_build_date = col
-                    break
+    def _parse_csv_taxsim_output(self, raw_output: str) -> pd.DataFrame:
+        """Parse CSV output (idtl 0 or 2), setting non-record lines aside.
 
+        taxsimtest builds write diagnostic lines to stdout between their CSV
+        rows. In the captures in tests/fixtures/taxsim_stdout, the 20260521
+        macOS build writes six "d2" lines before the row of each elderly Utah
+        record probed, and the August 2026 builds write "d3"/"d4" counters
+        before each West Virginia row. The header comes out with the first
+        row, so a first record's lines precede the header. Read as CSV, each
+        such line became a row with a NaN taxsimid, or, ahead of the header,
+        became the header itself.
+
+        The header is the first line whose first field is "taxsimid". After
+        it, a line is a record when its first field is a finite number and it
+        has the header's field count, or fewer but at least two: the header
+        is sized for the first record's idtl, and an idtl 0 row after an
+        idtl 2 header is shorter. Every other non-blank line is kept,
+        verbatim, in ``self.stdout_diagnostics`` under the taxsimid of the
+        next record row (the row the binary wrote it before), or under None
+        when no row follows. One warning summarizes them.
+
+        A numeric row with more fields than the header (an idtl 2 row after
+        an idtl 0 header) has no column names for its extra fields, so it
+        raises.
+        """
+        lines = raw_output.split("\n")
+        header_index = next(
+            (
+                i
+                for i, line in enumerate(lines)
+                if (_csv_fields(line) or [""])[0].strip() == "taxsimid"
+            ),
+            None,
+        )
+        if header_index is None:
+            raise ValueError("no CSV header line starting with taxsimid")
+        header = lines[header_index]
+        header_fields = _csv_fields(header)
+        width = len(header_fields)
+        stamp_is_last = _build_stamp(header_fields[-1]) is not None
+
+        # Each non-blank line other than the header, in stream order:
+        # [line as written, line to parse, or None for a non-record line].
+        entries = []
+        for index, line in enumerate(lines):
+            if index == header_index or not line.strip():
+                continue
+            fields = _csv_fields(line) if index > header_index else None
+            if fields is None or not _RECORD_ID.fullmatch(fields[0]):
+                entries.append([line, None])
+            elif len(fields) == width:
+                entries.append([line, line])
+            elif len(fields) > width:
+                raise ValueError(
+                    f"the row for taxsimid {_id_key(float(fields[0]))} has "
+                    f"{len(fields)} fields but the header names {width}. The "
+                    "header is sized for the first record's idtl: put a "
+                    "record with the highest idtl first, or use one idtl."
+                )
+            elif len(fields) == 1:
+                # A bare number is not a row of a multi-column table.
+                entries.append([line, None])
+            elif stamp_is_last:
+                # A lower-detail row still ends with the build-stamp field;
+                # keep that under the stamp column, not the next detail one.
+                padding = [""] * (width - len(fields))
+                entries.append([line, _csv_line(fields[:-1] + padding + fields[-1:])])
+            else:
+                entries.append([line, line])
+
+        # pandas decides each id's value. Set aside any row whose id it does
+        # not read as finite, then parse again without it.
+        while True:
+            rows = [entry for entry in entries if entry[1] is not None]
+            output_df = pd.read_csv(
+                io.StringIO("\n".join([header, *(parsed for _, parsed in rows)]))
+            )
             # Convert numeric columns
             for col in output_df.columns:
                 if col != "state_name":  # Keep state name as string
                     output_df[col] = pd.to_numeric(output_df[col], errors="coerce")
+            if len(output_df) != len(rows):
+                raise ValueError("TAXSIM record rows did not parse one per line")
+            finite = np.isfinite(output_df.iloc[:, 0].to_numpy(dtype=float))
+            if finite.all():
+                break
+            for entry, keep in zip(rows, finite):
+                if not keep:
+                    entry[1] = None
 
-            return output_df
+        diagnostics = {}
+        pending = []
+        taxsimids = iter(output_df.iloc[:, 0].tolist())
+        for line, parsed in entries:
+            if parsed is None:
+                pending.append(line)
+                continue
+            taxsimid = _id_key(next(taxsimids))
+            if pending:
+                diagnostics.setdefault(taxsimid, []).extend(pending)
+                pending = []
+        if pending:
+            diagnostics.setdefault(None, []).extend(pending)
 
-        except Exception as e:
-            # If CSV parsing fails, check if it's verbose output (idtl=5)
-            if os.path.exists(output_file):
-                with open(output_file, "r") as f:
-                    raw_output = f.read()
+        # Stash the build date so run() can report which build produced the
+        # results — a stale bundled binary looks exactly like an upstream
+        # behavior change otherwise (see #1089).
+        for col in output_df.columns:
+            stamp = _build_stamp(col)
+            if stamp is not None:
+                self.binary_build_date = stamp
+                break
 
-                # Try to parse verbose output format
-                try:
-                    return self._parse_verbose_taxsim_output(raw_output)
-                except Exception as verbose_error:
-                    raise Exception(
-                        f"Failed to parse TAXSIM output as both CSV and verbose format.\n"
-                        f"CSV error: {e}\n"
-                        f"Verbose parsing error: {verbose_error}\n"
-                        f"Raw output:\n{raw_output}"
-                    )
-            else:
-                raise Exception(f"TAXSIM output file not found: {output_file}")
+        self.stdout_diagnostics = diagnostics
+        if diagnostics:
+            self._log_stdout_diagnostics(diagnostics)
+        return output_df
+
+    @staticmethod
+    def _log_stdout_diagnostics(diagnostics: dict):
+        """Log one warning summarizing the non-record stdout lines."""
+        total = sum(len(lines) for lines in diagnostics.values())
+        owners = [taxsimid for taxsimid in diagnostics if taxsimid is not None]
+        where = []
+        if owners:
+            shown = ", ".join(str(taxsimid) for taxsimid in owners[:10])
+            more = f" and {len(owners) - 10} more" if len(owners) > 10 else ""
+            where.append(f"before the rows of taxsimid {shown}{more}")
+        if None in diagnostics:
+            where.append(f"{len(diagnostics[None])} after the last row")
+        example = next(iter(diagnostics.values()))[0]
+        logger.warning(
+            "TAXSIM wrote %d stdout line(s) that are not result records (%s), "
+            "e.g. %r. They were not parsed as results; the full text is in "
+            "TaxsimRunner.stdout_diagnostics.",
+            total,
+            "; ".join(where),
+            example,
+        )
 
     def _parse_verbose_taxsim_output(self, raw_output: str) -> pd.DataFrame:
         """Parse verbose TAXSIM output (idtl=5) into DataFrame"""
@@ -489,6 +669,7 @@ class TaxsimRunner(BaseTaxRunner):
 
             # Parse results
             results_df = self._parse_taxsim_output(output_file)
+            self._warn_missing_records(results_df)
 
             if show_progress:
                 build = getattr(self, "binary_build_date", "unknown")
@@ -504,6 +685,33 @@ class TaxsimRunner(BaseTaxRunner):
                         os.unlink(temp_file)
                     except OSError:
                         pass  # Ignore cleanup errors
+
+    def _warn_missing_records(self, results_df: pd.DataFrame):
+        """Log submitted taxsimids that came back with too few result rows.
+
+        A record line too malformed to parse is kept in stdout_diagnostics
+        rather than returned, so name the records it leaves out. Counts are
+        compared per id, because panel inputs repeat taxsimids.
+        """
+        if "taxsimid" not in self.input_df or "taxsimid" not in results_df:
+            return
+        submitted = pd.to_numeric(self.input_df["taxsimid"], errors="coerce")
+        missing = Counter(map(_id_key, submitted.dropna())) - Counter(
+            map(_id_key, results_df["taxsimid"])
+        )
+        if missing:
+            shown = ", ".join(
+                f"{taxsimid} (x{count})" if count > 1 else str(taxsimid)
+                for taxsimid, count in sorted(missing.items())[:10]
+            )
+            more = f" and {len(missing) - 10} more" if len(missing) > 10 else ""
+            logger.warning(
+                "TAXSIM returned no result row for %d submitted record(s): "
+                "taxsimid %s%s.",
+                sum(missing.values()),
+                shown,
+                more,
+            )
 
     def save_results(self, output_path: str, results_df: pd.DataFrame = None):
         """Save TAXSIM results to file"""
