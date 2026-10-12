@@ -162,13 +162,22 @@ def roles(inputs: dict) -> dict:
 def changed_inputs(with_value: dict, without: dict) -> dict:
     """PolicyEngine inputs that differ between two probes of one structure."""
     changed = {}
-    for name, array in with_value["inputs"].items():
-        if array.dtype.kind not in "fiub":
-            continue
+    first, second = with_value["inputs"], without["inputs"]
+    for name in sorted(set(first) | set(second)):
         # The dataset builder leaves out variables no record uses; PolicyEngine
         # then takes their default of zero.
-        other = without["inputs"].get(name, np.zeros_like(array))
-        if array.shape == other.shape and not np.array_equal(array, other):
+        array = first.get(name)
+        other = second.get(name)
+        array = np.zeros_like(other) if array is None else array
+        other = np.zeros_like(array) if other is None else other
+        if array.dtype.kind not in "fiub" or other.dtype.kind not in "fiub":
+            continue
+        if array.shape != other.shape:
+            raise ValueError(
+                f"{name}: probes of one structure gave shapes "
+                f"{array.shape} and {other.shape}"
+            )
+        if not np.array_equal(array, other):
             changed[name] = array.astype(float) - other.astype(float)
     return changed
 
@@ -358,12 +367,15 @@ def amount_parts(column: str, amount: float, state: int = PROBE_STATE) -> list:
     who = roles(joint["inputs"])
     parts = []
     for variable, delta in sorted(changed.items()):
-        # A column can arrive with its sign flipped (a negative income entered
-        # as a positive deduction); describe it by the amount that arrives.
+        # A negative amount can arrive as a positive one (a negative income
+        # entered as a deduction); describe it by the amount that arrives.
         arrives = float(delta.sum())
-        if not math.isclose(abs(arrives), abs(amount)):
+        if math.isclose(arrives, amount):
+            flipped = ""
+        elif amount < 0 and math.isclose(arrives, -amount):
+            flipped = " (as a positive amount)"
+        else:
             raise ValueError(f"{column}: {variable} receives {arrives}, not {amount}")
-        flipped = " (as a positive amount)" if arrives == -amount else ""
         if delta.shape[0] != n_people:
             parts.append(f"`{variable}` of the tax unit{flipped}")
             continue
@@ -420,20 +432,20 @@ def amount_target(column: str) -> str:
     a positive and a negative amount, and any states the code singles out."""
     positive = amount_parts(column, PROBE_AMOUNT)
     negative = amount_parts(column, -PROBE_AMOUNT)
-    if not positive and not negative:
-        return "Not used: no effect on PolicyEngine rows"
     variants = defaultdict(list)
     for state, number in state_variants(column).items():
         there = amount_parts(column, PROBE_AMOUNT, number)
         if there != positive:
-            variants["; ".join(there)].append(state)
+            variants["; ".join(there) or "not used"].append(state)
         if amount_parts(column, -PROBE_AMOUNT, number) != negative:
             raise ValueError(f"{column}: negative amounts differ in {state}")
+    if not positive and not negative and not variants:
+        return "Not used: no effect on PolicyEngine rows"
     exceptions = "".join(
         f". In {_codes(states)}: {text}" for text, states in variants.items()
     )
     if positive == negative:
-        return "; ".join(positive) + exceptions
+        return ("; ".join(positive) or "Not used") + exceptions
     return (
         "Positive amounts: "
         + ("; ".join(positive) or "not used")

@@ -265,7 +265,7 @@ The emulator computes these without complaint. Check for them yourself.
 - **Filing status codes other than 1, 2 and 6.** On PolicyEngine rows they are computed as an unmarried filer; the table above shows which codes were tested. TAXSIM-35's code 8, a dependent filing their own return, therefore gets a full standard deduction instead of a dependent's. [#1218](https://github.com/PolicyEngine/policyengine-taxsim/pull/1218) proposes support for code 8.
 - **Spouse columns on non-joint returns.** `sage`, `swages`, `ssemp`, `sbusinc`, `sprofinc` and `sui` are ignored unless `mstat` is 2. TAXSIM-35 treats a nonzero value as an error. Survey data that pair this year's marital status with last year's income can hit this.
 - **`idtl` values other than 0, 2 and 5.** The record is computed but its output cells are blank.
-- **Negative amounts.** They are passed to the engines as given.
+- **Negative amounts.** They are accepted without a check. Most reach the engines as given; a negative `nonprop` becomes a positive `alimony_expense`, as the table above shows.
 - **Duplicate `taxsimid` values.** Both records are computed. Merging results back on `taxsimid` then fails or doubles up, so keep IDs unique.
 - **Fractions in codes and counts.** On PolicyEngine rows, `year`, `mstat`, `page`, `sage`, `depx` and the dependent ages are cut to whole numbers: an age of 40.7 becomes 40.
 - **Ages given for more dependents than `depx`.** Only the first `depx` ages are read.
