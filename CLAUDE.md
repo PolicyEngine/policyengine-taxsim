@@ -149,3 +149,16 @@ record without dependents (records with dependents are computed normally).
 ```bash
 pytest tests/
 ```
+
+Tests marked `slow` are wall-clock benchmarks with absolute time limits
+(`TestBenchmark` in `tests/test_performance.py`). `tests/conftest.py` skips
+them unless a `-m` expression is given, so they stay out of CI, where runner
+speed decided whether they passed (#1429). Run them on request:
+
+```bash
+pytest tests/ -m slow
+```
+
+Do not add a test that compares elapsed time with a fixed number of seconds to
+the default run. Check structure instead (count calls, as
+`test_extract_builds_dataframe_without_row_loop` does).

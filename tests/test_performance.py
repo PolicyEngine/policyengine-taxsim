@@ -4,8 +4,12 @@ Performance and correctness regression tests for PolicyEngineRunner vectorizatio
 Tests verify that:
 1. Output is identical before and after vectorization
 2. Generate phase does not use iterrows (verified by timing scaling)
-3. Extract phase builds DataFrame from arrays, not row-by-row dicts
-4. 500 records completes within a reasonable time budget
+3. Extract phase calls calculate per output variable, not per record
+   (verified by counting calls, so it does not depend on machine speed)
+4. Extract phase uses unified state variables, not per-state iteration
+
+The wall-clock benchmarks (TestBenchmark) are marked ``slow`` and skipped
+unless asked for with ``pytest -m slow``.
 """
 
 import time
@@ -15,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from policyengine_taxsim.runners.policyengine_runner import (
+    Microsimulation,
     PolicyEngineRunner,
     TaxsimMicrosimDataset,
 )
@@ -51,6 +56,103 @@ def _make_synthetic_records(n: int, seed: int = 42) -> pd.DataFrame:
             records.loc[idx, f"age{i}"] = rng.randint(1, 17)
 
     return records
+
+
+def _make_cps_like_records(n: int, seed: int = 123) -> pd.DataFrame:
+    """
+    Create n CPS-like TAXSIM input records: all 51 states, mixed filing
+    statuses, dependents, several income types, full output (idtl=2).
+    Mimics BEA distributional accounts use case.
+    """
+    rng = np.random.RandomState(seed)
+    all_states = list(range(1, 52))  # all 51 FIPS state codes
+
+    mstat = rng.choice([1, 2], size=n, p=[0.55, 0.45])
+    depx = rng.choice([0, 1, 2, 3, 4], size=n, p=[0.35, 0.25, 0.2, 0.15, 0.05])
+
+    records = pd.DataFrame(
+        {
+            "taxsimid": np.arange(1, n + 1),
+            "year": 2023,
+            "state": rng.choice(all_states, size=n),
+            "mstat": mstat,
+            "depx": depx,
+            "page": rng.randint(20, 75, size=n),
+            "sage": np.where(mstat == 2, rng.randint(20, 75, size=n), 0),
+            "pwages": rng.lognormal(10.5, 1.0, size=n).round(2),
+            "swages": np.where(
+                mstat == 2, rng.lognormal(10.0, 1.2, size=n).round(2), 0
+            ),
+            "dividends": np.where(
+                rng.random(n) < 0.15, rng.lognormal(8, 2, size=n).round(2), 0
+            ),
+            "intrec": np.where(
+                rng.random(n) < 0.25, rng.lognormal(7, 1.5, size=n).round(2), 0
+            ),
+            "pensions": np.where(
+                rng.random(n) < 0.20, rng.lognormal(9.5, 1.0, size=n).round(2), 0
+            ),
+            "idtl": 2,
+        }
+    )
+
+    # Add dependent ages
+    for i in range(1, 5):
+        records[f"age{i}"] = 0
+    for idx in records.index:
+        for i in range(1, int(records.loc[idx, "depx"]) + 1):
+            if i <= 4:
+                records.loc[idx, f"age{i}"] = rng.randint(1, 18)
+
+    return records
+
+
+def _tile_records(records: pd.DataFrame, copies: int) -> pd.DataFrame:
+    """Repeat the records ``copies`` times, each row with its own taxsimid."""
+    tiled = pd.concat([records] * copies, ignore_index=True)
+    tiled["taxsimid"] = np.arange(1, len(tiled) + 1)
+    return tiled
+
+
+def _count_extract_calculate_calls(records: pd.DataFrame, monkeypatch) -> int:
+    """
+    Run PolicyEngineRunner on ``records`` and return how many ``calculate``
+    calls ``_extract_vectorized_results`` made on its simulations (the main
+    one, the rebate-free twin and the marginal-rate branch).
+
+    Only the runner's own calls count. A PolicyEngine formula reads its
+    dependencies through ``calculate`` too; those nested calls depend on the
+    households (which formulas apply to anyone), so they are left out.
+    """
+    state = {"extracting": False, "depth": 0, "calls": 0}
+    orig_calculate = Microsimulation.calculate
+
+    def counted_calculate(sim, *args, **kwargs):
+        if state["extracting"] and state["depth"] == 0:
+            state["calls"] += 1
+        state["depth"] += 1
+        try:
+            return orig_calculate(sim, *args, **kwargs)
+        finally:
+            state["depth"] -= 1
+
+    runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
+    orig_extract = runner._extract_vectorized_results.__func__
+
+    def tracked_extract(self_runner, *args, **kwargs):
+        state["extracting"] = True
+        try:
+            return orig_extract(self_runner, *args, **kwargs)
+        finally:
+            state["extracting"] = False
+
+    runner._extract_vectorized_results = types.MethodType(tracked_extract, runner)
+    with monkeypatch.context() as patch:
+        patch.setattr(Microsimulation, "calculate", counted_calculate)
+        result = runner.run(show_progress=False)
+
+    assert len(result) == len(records)
+    return state["calls"]
 
 
 # Golden output for correctness regression
@@ -203,37 +305,50 @@ class TestGeneratePhaseEfficiency:
 class TestExtractResultsStructure:
     """Verify extract phase uses vectorized operations."""
 
-    def test_extract_builds_dataframe_without_row_loop(self):
+    def test_extract_builds_dataframe_without_row_loop(self, monkeypatch):
         """
-        Extraction for 200 records should complete in < 20s.
-        With row-by-row dict building and redundant calculate calls,
-        this would be slow at higher record counts.
+        Extraction calls ``calculate`` once per output variable, however many
+        records there are. Before it was vectorized (#692) it looped over the
+        rows and called ``sim.calculate`` for every output variable of every
+        row, which made runtime grow with the record count.
+
+        The two inputs hold the same households in every state at full output
+        (idtl=2), so every extraction branch runs and only the number of
+        records differs. Counting calls, instead of timing the phase, gives
+        the same answer on any machine: a 60-second limit here failed on slow
+        macOS CI runners with no row loop to find (#1429).
         """
-        records = _make_synthetic_records(200, seed=55)
-        runner = PolicyEngineRunner(records.copy(), logs=False, disable_salt=True)
+        base = _make_cps_like_records(51, seed=55)
+        base["state"] = np.arange(1, 52)  # one household in each state
+        more = _tile_records(base, 4)
 
-        orig_extract = runner._extract_vectorized_results.__func__
-        extract_time = {}
+        base_calls = _count_extract_calculate_calls(base, monkeypatch)
+        more_calls = _count_extract_calculate_calls(more, monkeypatch)
 
-        def timed_extract(self_runner, sim, input_df, *args, **kwargs):
-            t0 = time.time()
-            result = orig_extract(self_runner, sim, input_df, *args, **kwargs)
-            extract_time["t"] = time.time() - t0
-            return result
-
-        runner._extract_vectorized_results = types.MethodType(timed_extract, runner)
-        result = runner.run(show_progress=False)
-
-        assert len(result) == 200
-        assert extract_time["t"] < 60.0, (
-            f"Extract phase took {extract_time['t']:.1f}s for 200 records, "
-            f"expected < 60s"
+        assert base_calls > 0, (
+            "No calculate call was counted during extraction, so this test "
+            "is no longer measuring anything."
+        )
+        assert more_calls == base_calls, (
+            f"Extract phase made {more_calls} calculate calls for "
+            f"{len(more)} records but {base_calls} for {len(base)} records "
+            f"in the same states. The count must not depend on the number of "
+            f"records; a difference points to a per-record loop."
         )
 
 
 @pytest.mark.slow
 class TestBenchmark:
-    """Performance benchmarks. Run with: pytest -m slow"""
+    """
+    Wall-clock benchmarks. Run with: pytest -m slow
+
+    Skipped by default (tests/conftest.py): a limit in seconds only means
+    something on a machine of known speed. On a shared macOS CI runner
+    test_benchmark_cps_like took 266.3s against its 240s limit with no code
+    change behind it, and the failed job skipped a release (#1429).
+    TestExtractResultsStructure guards the same kind of workload against
+    per-record work without a clock.
+    """
 
     def test_benchmark_500_records(self):
         """500 records should complete in under 2 minutes with the
@@ -255,46 +370,8 @@ class TestBenchmark:
         statuses, dependents, multiple income types, full output (idtl=2).
         Mimics BEA distributional accounts use case.
         """
-        rng = np.random.RandomState(123)
         n = 2000
-        all_states = list(range(1, 52))  # all 51 FIPS state codes
-
-        mstat = rng.choice([1, 2], size=n, p=[0.55, 0.45])
-        depx = rng.choice([0, 1, 2, 3, 4], size=n, p=[0.35, 0.25, 0.2, 0.15, 0.05])
-
-        records = pd.DataFrame(
-            {
-                "taxsimid": np.arange(1, n + 1),
-                "year": 2023,
-                "state": rng.choice(all_states, size=n),
-                "mstat": mstat,
-                "depx": depx,
-                "page": rng.randint(20, 75, size=n),
-                "sage": np.where(mstat == 2, rng.randint(20, 75, size=n), 0),
-                "pwages": rng.lognormal(10.5, 1.0, size=n).round(2),
-                "swages": np.where(
-                    mstat == 2, rng.lognormal(10.0, 1.2, size=n).round(2), 0
-                ),
-                "dividends": np.where(
-                    rng.random(n) < 0.15, rng.lognormal(8, 2, size=n).round(2), 0
-                ),
-                "intrec": np.where(
-                    rng.random(n) < 0.25, rng.lognormal(7, 1.5, size=n).round(2), 0
-                ),
-                "pensions": np.where(
-                    rng.random(n) < 0.20, rng.lognormal(9.5, 1.0, size=n).round(2), 0
-                ),
-                "idtl": 2,
-            }
-        )
-
-        # Add dependent ages
-        for i in range(1, 5):
-            records[f"age{i}"] = 0
-        for idx in records.index:
-            for i in range(1, int(records.loc[idx, "depx"]) + 1):
-                if i <= 4:
-                    records.loc[idx, f"age{i}"] = rng.randint(1, 18)
+        records = _make_cps_like_records(n)
 
         runner = PolicyEngineRunner(records, logs=False, disable_salt=True)
 
