@@ -96,7 +96,13 @@ class TaxsimRunner(BaseTaxRunner):
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
         super().__init__(input_df)
-        self.taxsim_path = taxsim_path or self._detect_taxsim_executable()
+        # An absolute path, so the shell runs "./taxsim35" from here rather
+        # than searching PATH for "taxsim35".
+        self.taxsim_path = (
+            Path(taxsim_path).absolute()
+            if taxsim_path
+            else self._detect_taxsim_executable()
+        )
         self._validate_executable()
 
     def _detect_taxsim_executable(self) -> Path:
