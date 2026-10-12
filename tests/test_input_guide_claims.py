@@ -110,7 +110,7 @@ def test_records_before_2021_skip_the_state_checks():
     unknown state stops the run there, and state -1 comes back as a single
     record for the first state. A fix that rejects -1 for these records should
     fail here, as a prompt to update the guide."""
-    assert "**`state` -1 is not rejected and gives a wrong answer.**" in GUIDE
+    assert "**`state` -1 is not rejected and gives wrong answers.**" in GUIDE
     with pytest.raises(Exception):
         StitchedRunner(_frame(PRE_2021 + "1,2019,52,1,40,50000,0\n")).run(
             show_progress=False
@@ -120,6 +120,12 @@ def test_records_before_2021_skip_the_state_checks():
     )
     assert len(results) == 1
     assert results["state"].iloc[0] == 1
+    # A record after it is replaced by the -1 record's row for the next state.
+    results = StitchedRunner(
+        _frame(PRE_2021 + "7,2019,-1,1,40,50000,0\n8,2019,5,1,40,60000,0\n")
+    ).run(show_progress=False)
+    assert results["taxsimid"].tolist() == [7, 7]
+    assert results["state"].tolist() == [1, 2]
 
 
 def test_idtl_5_does_not_work_before_2021():
@@ -163,12 +169,19 @@ def test_spouse_columns_are_ignored_unless_joint(column):
         assert _same(with_value, _inputs(mstat=mstat, pwages=50000)), (column, mstat)
 
 
-def test_nonprop_has_no_effect_on_policyengine_rows():
-    for mstat in (1, 2):
-        assert _same(
-            _inputs(mstat=mstat, pwages=50000, nonprop=10000),
-            _inputs(mstat=mstat, pwages=50000),
-        )
+def _head(inputs: dict, name: str) -> list:
+    return inputs[name][inputs["is_tax_unit_head"]].tolist()
+
+
+def test_nonprop_is_split_by_sign():
+    """The generated table says positive nonprop is miscellaneous income
+    (alimony income in AL, AR and MS) and negative nonprop a deduction."""
+    assert _head(_inputs(mstat=1, nonprop=10000), "miscellaneous_income") == [10000]
+    assert _head(_inputs(mstat=1, nonprop=-10000), "alimony_expense") == [10000]
+    alabama = generator.read_inputs(
+        {"year": 2023, "state": 1, "mstat": 1, "nonprop": 10000}
+    )["inputs"]
+    assert _head(alabama, "alimony_income") == [10000]
 
 
 def test_negative_amounts_are_passed_through():
@@ -235,9 +248,9 @@ def test_output_level_claims():
 
 # Columns that go to the spouse, so they count only on joint returns.
 SPOUSE_COLUMNS = {"swages", "ssemp", "sbusinc", "sprofinc", "sui"}
-# Read on pre-2021 rows only: PolicyEngine rows ignore it (the guide says so,
-# and #1245 proposes mapping it). An intended exception to conservation.
-UNMAPPED_COLUMNS = {"nonprop"}
+# Signed columns whose negative part arrives as a positive deduction: nonprop
+# below zero becomes alimony_expense of the same size. Conserved in magnitude.
+MAGNITUDE_COLUMNS = {"nonprop"}
 AMOUNT_COLUMNS = sorted(
     name
     for name, entry in generator.load_input_metadata().items()
@@ -261,8 +274,9 @@ def test_every_dollar_reaches_policyengine_exactly_once(
     """Conservation: whatever the filing status, ages and state, an amount
     column adds exactly its value to the PolicyEngine inputs, summed over
     people and variables. Splitting between spouses and the pension age rule
-    move money between people but never create or lose it. Spouse columns add
-    nothing off joint returns, and nonprop adds nothing at all."""
+    move money between people but never create or lose it. Two intended
+    exceptions: spouse columns add nothing off joint returns, and nonprop adds
+    its magnitude, because a negative nonprop is entered as a deduction."""
     record = {
         "year": 2023,
         "state": state,
@@ -277,7 +291,6 @@ def test_every_dollar_reaches_policyengine_exactly_once(
         float(delta.sum())
         for delta in generator.changed_inputs(with_amount, without).values()
     )
-    counts = column not in UNMAPPED_COLUMNS and (
-        column not in SPOUSE_COLUMNS or mstat == 2
-    )
-    assert added == (amount if counts else 0)
+    counts = column not in SPOUSE_COLUMNS or mstat == 2
+    expected = abs(amount) if column in MAGNITUDE_COLUMNS else amount
+    assert added == (expected if counts else 0)

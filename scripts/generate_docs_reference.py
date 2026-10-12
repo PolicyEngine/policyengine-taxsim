@@ -163,10 +163,12 @@ def changed_inputs(with_value: dict, without: dict) -> dict:
     """PolicyEngine inputs that differ between two probes of one structure."""
     changed = {}
     for name, array in with_value["inputs"].items():
-        other = without["inputs"].get(name)
-        if other is None or array.shape != other.shape:
+        if array.dtype.kind not in "fiub":
             continue
-        if array.dtype.kind in "fiub" and not np.array_equal(array, other):
+        # The dataset builder leaves out variables no record uses; PolicyEngine
+        # then takes their default of zero.
+        other = without["inputs"].get(name, np.zeros_like(array))
+        if array.shape == other.shape and not np.array_equal(array, other):
             changed[name] = array.astype(float) - other.astype(float)
     return changed
 
@@ -338,42 +340,54 @@ def blank_handling(column: str, used: bool) -> tuple[str, str]:
     return blank, absent
 
 
-def _single_share(column: str, variable: str) -> float:
+def _single_share(column: str, variable: str, amount: float, state: int) -> float:
     """What the primary taxpayer of a one-adult return gets from ``column``."""
-    with_value = read_inputs({**SINGLE, column: PROBE_AMOUNT})
-    without = read_inputs({**SINGLE, column: 0})
-    delta = changed_inputs(with_value, without).get(variable)
+    base = {**SINGLE, "state": state}
+    with_value = read_inputs({**base, column: amount})
+    delta = changed_inputs(with_value, read_inputs({**base, column: 0})).get(variable)
     return 0.0 if delta is None else float(delta.sum())
 
 
-def amount_target(column: str) -> str:
-    """Which PolicyEngine input an amount column feeds, and who gets it, read
-    from probes of a joint and a one-adult return."""
-    amount = PROBE_AMOUNT
-    joint = read_inputs({**JOINT, column: amount})
-    changed = changed_inputs(joint, read_inputs({**JOINT, column: 0}))
-    if not changed:
-        return "Not used: no effect on PolicyEngine rows"
+def amount_parts(column: str, amount: float, state: int = PROBE_STATE) -> list:
+    """The PolicyEngine inputs an amount of ``column`` sets, as sentences, read
+    from probes of a joint and a one-adult return in ``state``."""
+    base = {**JOINT, "state": state}
+    joint = read_inputs({**base, column: amount})
+    changed = changed_inputs(joint, read_inputs({**base, column: 0}))
     n_people = len(joint["inputs"]["is_tax_unit_head"])
     who = roles(joint["inputs"])
     parts = []
     for variable, delta in sorted(changed.items()):
+        # A column can arrive with its sign flipped (a negative income entered
+        # as a positive deduction); describe it by the amount that arrives.
+        arrives = float(delta.sum())
+        if not math.isclose(abs(arrives), abs(amount)):
+            raise ValueError(f"{column}: {variable} receives {arrives}, not {amount}")
+        flipped = " (as a positive amount)" if arrives == -amount else ""
         if delta.shape[0] != n_people:
-            parts.append(f"`{variable}` of the tax unit")
+            parts.append(f"`{variable}` of the tax unit{flipped}")
             continue
         head = float(delta[who["head"]].sum())
         spouse = float(delta[who["spouse"]].sum())
-        single = _single_share(column, variable)
-        if math.isclose(head, amount) and spouse == 0 and math.isclose(single, amount):
-            parts.append(f"`{variable}` of the primary taxpayer")
-        elif head == 0 and math.isclose(spouse, amount) and single == 0:
-            parts.append(f"`{variable}` of the spouse; ignored unless `mstat` is 2")
-        elif (
-            math.isclose(head, amount / 2)
-            and math.isclose(spouse, amount / 2)
-            and math.isclose(single, amount)
+        single = _single_share(column, variable, amount, state)
+        if (
+            math.isclose(head, arrives)
+            and spouse == 0
+            and math.isclose(single, arrives)
         ):
-            text = f"`{variable}`, split evenly between spouses on joint returns"
+            parts.append(f"`{variable}` of the primary taxpayer{flipped}")
+        elif head == 0 and math.isclose(spouse, arrives) and single == 0:
+            parts.append(
+                f"`{variable}` of the spouse{flipped}; ignored unless `mstat` is 2"
+            )
+        elif (
+            math.isclose(head, arrives / 2)
+            and math.isclose(spouse, arrives / 2)
+            and math.isclose(single, arrives)
+        ):
+            text = (
+                f"`{variable}`{flipped}, split evenly between spouses on joint returns"
+            )
             if _older_spouse_takes_all(column, variable):
                 text += (
                     ", or all to the older spouse when only one has reached "
@@ -386,7 +400,47 @@ def amount_target(column: str) -> str:
                 f"(joint {head}/{spouse}, single {single}). Extend "
                 "scripts/generate_docs_reference.py to describe it."
             )
-    return "; ".join(parts)
+    return parts
+
+
+def state_variants(column: str) -> dict:
+    """States the code names as treating ``column`` differently, to probe."""
+    from policyengine_taxsim.core import utils
+
+    if column == getattr(utils, "NONPROP_SOURCE", None):
+        return {
+            state: utils.STATE_NUMBERS[state]
+            for state in sorted(utils.NONPROP_ALIMONY_STATES)
+        }
+    return {}
+
+
+def amount_target(column: str) -> str:
+    """Which PolicyEngine input an amount column feeds, and who gets it. Probes
+    a positive and a negative amount, and any states the code singles out."""
+    positive = amount_parts(column, PROBE_AMOUNT)
+    negative = amount_parts(column, -PROBE_AMOUNT)
+    if not positive and not negative:
+        return "Not used: no effect on PolicyEngine rows"
+    variants = defaultdict(list)
+    for state, number in state_variants(column).items():
+        there = amount_parts(column, PROBE_AMOUNT, number)
+        if there != positive:
+            variants["; ".join(there)].append(state)
+        if amount_parts(column, -PROBE_AMOUNT, number) != negative:
+            raise ValueError(f"{column}: negative amounts differ in {state}")
+    exceptions = "".join(
+        f". In {_codes(states)}: {text}" for text, states in variants.items()
+    )
+    if positive == negative:
+        return "; ".join(positive) + exceptions
+    return (
+        "Positive amounts: "
+        + ("; ".join(positive) or "not used")
+        + exceptions
+        + ". Negative amounts: "
+        + ("; ".join(negative) or "not used")
+    )
 
 
 def policyengine_targets(columns) -> dict:

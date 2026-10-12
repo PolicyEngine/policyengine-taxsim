@@ -100,7 +100,7 @@ After building the `Microsimulation`, `PolicyEngineRunner._build_configured_sim`
 
 | Variables | When | Why |
 |---|---|---|
-| `passive_partnership_s_corp_income` | Always | Classifies `scorp` income for the net investment income tax: passive by default (TAXSIM-35's convention) when policyengine-us is 2.10.1 or later, active otherwise or with `--scorp-treatment active` |
+| `passive_partnership_s_corp_income` | Always | Classifies `scorp` income for the net investment income tax: passive by default (TAXSIM-35's convention), active with `--scorp-treatment active` |
 | `state_and_local_sales_or_income_tax` | `state` 0, or `--disable-salt` | TAXSIM-35 deducts no state income or sales tax without a state return. `--disable-salt` removes it for every record, to match TAXSIM-35's federal treatment of state tax |
 | `w2_wages_from_qualified_business` | `--assume-w2-wages` | Assumes enough W-2 wages that the QBI deduction's wage limit never binds, as TAXSIM-35 does for `pbusinc` |
 | `rental_income_would_be_qualified` | Any `otherprop` | TAXSIM-35 gives no QBI deduction on `otherprop`; PolicyEngine would otherwise treat rental income as qualified |
@@ -199,7 +199,7 @@ The executables are NBER's `taxsimtest` builds of TAXSIM-35. `resources/taxsimte
 
 Limits of this path, each checked against the bundled macOS build on 2026-10-09:
 
-- **No state check.** `PolicyEngineRunner` validates `state`; `TaxsimRunner` passes it through. An unknown code stops the run. `state` -1 makes TAXSIM-35 return a row for every state, and `StitchedRunner` keeps only the first, so the record comes back as Alabama.
+- **No state check.** `PolicyEngineRunner` validates `state`; `TaxsimRunner` passes it through. An unknown code stops the run. `state` -1 makes TAXSIM-35 return a row for every state, and `StitchedRunner` keeps only as many rows as it sent: the -1 record comes back as Alabama, and the pre-2021 records after it are replaced by its rows for other states.
 - **`idtl` 5 does not work.** TAXSIM-35 answers `idtl` 5 with a text report. The fallback parser (`_parse_verbose_taxsim_output`) reads only the standard columns from it and returns one record however many were sent, so `StitchedRunner` returns the standard columns for one record and fails with an index error for two or more. Use `idtl` 2.
 - **Marginal rates are 0.** The build returns `frate` and `srate` of 0.
 
@@ -232,7 +232,7 @@ Where the emulator knowingly differs from TAXSIM-35, as documented in this repos
 
 Inputs:
 
-- `nonprop` is ignored on PolicyEngine rows ([#1245](https://github.com/PolicyEngine/policyengine-taxsim/pull/1245) proposes mapping it).
+- `nonprop` is split by sign: a positive amount becomes miscellaneous income (alimony income in Alabama, Arkansas and Mississippi), and a negative amount becomes an above-the-line deduction (`alimony_expense`). The bundled TAXSIM-35 build counts `nonprop` as earned income for the EITC; the emulator does not (`tests/test_nonprop_mapping.py`).
 - `mstat` 8, a dependent filing their own return, is computed as an ordinary unmarried filer ([#1218](https://github.com/PolicyEngine/policyengine-taxsim/pull/1218) proposes support).
 - Spouse columns on a non-joint return are ignored; TAXSIM-35 rejects them.
 - `state` -1 (compute every state) is not supported.
@@ -248,10 +248,10 @@ Calculations:
 - **New York.** `siitax` excludes the payments made outside Form IT-201.
 - **Itemized deductions.** `mortgage` and `otheritem` are treated alike; in some states and years TAXSIM-35 leaves `otheritem` out of the state itemized deduction. See the README.
 - **Active business income (`pbusinc`, `sbusinc`).** The emulator treats it like `psemp`: subject to self-employment tax and eligible for the QBI deduction, as NBER's input documentation describes. The bundled TAXSIM-35 build (cd2026081819) applies no self-employment tax to it. For a single filer with $100,000 of `pbusinc` in 2023, the emulator reports `fiitax` 9,226.50 and `fica` 14,129.55; the build reports 10,469.90 and 0 (checked 2026-10-09). `tests/test_passthrough_qbid.py` pins the emulator's treatment, which its docstring traces to a June 2026 comparison by TAXSIM's author.
-- **S corporation income and the net investment income tax.** Passive by default with policyengine-us 2.10.1 or later; see `--scorp-treatment` in the README.
+- **S corporation income and the net investment income tax.** Passive by default; see `--scorp-treatment` in the README.
 - **Married filing separately.** `tests/test_married_filing_separately.py` documents the separate-return cases where the bundled TAXSIM-35 build and the emulator differ and the emulator deliberately does not copy TAXSIM-35.
 - **Marginal rates.** PolicyEngine rows use a $100 wage change instead of one cent; see above. The bundled TAXSIM-35 build returns `frate` and `srate` of 0 on the records checked, so pre-2021 rows carry no usable marginal rates.
-- **Payroll taxes.** On PolicyEngine rows `tfica` includes employee state payroll taxes and contributions (policyengine-us's `employee_state_payroll_tax`, which covers 14 states in policyengine-us 2.38); `fica` does not, and the bundled TAXSIM-35 build's `tfica` had none on the California record checked. In New York in 2023, $52,000 of wages gives `tfica` 4,009.20, which is half of `fica` (3,978.00) plus 31.20.
+- **Payroll taxes.** On PolicyEngine rows `tfica` includes employee state payroll taxes and contributions (policyengine-us's `employee_state_payroll_tax`, which covers 14 states in policyengine-us 2.38); `fica` does not, and the bundled TAXSIM-35 build's `tfica` had none on the California record checked. In New York in 2023, $52,000 of wages gives `fica` 7,956.00 and `tfica` 4,009.20: half of `fica` (3,978.00) plus 31.20.
 - **Outputs not produced.** Outputs marked "Not produced" in the table above are absent on PolicyEngine rows, and `v42` and `v43` are always 0.
 
 ## Testing
