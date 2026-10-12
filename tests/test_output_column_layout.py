@@ -1,16 +1,22 @@
 """
-The position of an output column must not depend on what else is in the batch.
+The relative order of output columns must not depend on what else is in the
+batch. Which columns appear still does: a batch that asks only for the
+standard columns has fewer of them.
 
 PolicyEngineRunner simulates one tax year at a time. Each chunk's frame carries
-only the columns its rows' idtl levels ask for, and the chunks are joined with
-pd.concat, which keeps columns in order of first appearance. So the same two
-records put frate in column 8 when the 2021 record had idtl=0 and the 2022
-record idtl=2, and in column 40 the other way round (taxsim #1426).
+only the columns its rows' idtl levels ask for, and drops any column that is
+empty for all its rows; the chunks are joined with pd.concat, which keeps
+columns in order of first appearance. So the same two records put frate in
+column 8 when the 2021 record had idtl=0 and the 2022 record idtl=2, and in
+column 40 the other way round (taxsim #1426).
 
 run() now puts the joined frame in one canonical order: the identifiers, the
 implemented columns in the order of the policyengine_to_taxsim mapping, then
-the marginal rates. That is the order a batch with a single idtl level already
-had, so those batches keep their layout.
+the marginal rates. That is the order a batch already had when all its chunks
+carried the same columns, so batches with a single idtl level normally keep
+their layout. One exception changes for the better: a year whose taxsimid
+values are all blank dropped that column, which then came last; it now comes
+first.
 
 The real-run tests take the frame before reordering from ``_run_once`` and
 compare it with the reordered frame, so "unchanged" is checked against what
@@ -138,6 +144,40 @@ def test_run_returns_the_canonical_order(canonical):
     assert result.iloc[0].tolist() == [1, 2022, 5, 4.0, 2.0, 3.0]
 
 
+def test_blank_ids_in_one_year_no_longer_move_taxsimid_last(runner):
+    """A chunk whose taxsimid values are all blank drops the column, and
+    pd.concat then appended it after the others. The layout below is what
+    ``_run_once`` returned for a 2021 record with a blank taxsimid followed
+    by a 2022 record with one, both idtl=0 (found in review of #1438)."""
+    joined = pd.DataFrame(
+        [[2021, 5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, np.nan], [2022, 5] + [0.0] * 6 + [2]],
+        columns=[
+            "year",
+            "state",
+            "fiitax",
+            "siitax",
+            "fica",
+            "tfica",
+            "frate",
+            "srate",
+            "taxsimid",
+        ],
+    )
+
+    ordered = runner._order_columns(joined)
+
+    assert list(ordered.columns) == [
+        *IDENTIFIERS,
+        "fiitax",
+        "siitax",
+        "fica",
+        "tfica",
+        "frate",
+        "srate",
+    ]
+    assert ordered["fiitax"].tolist() == [1.0, 0.0]
+
+
 # --- Real runs ---------------------------------------------------------------
 
 BATCHES = {
@@ -165,6 +205,8 @@ def frames():
 
 @pytest.mark.parametrize("batch", ["idtl2", "idtl0", "idtl5"])
 def test_single_idtl_batch_keeps_its_layout(frames, batch):
+    """Every chunk of these batches carries the same columns, so ordering
+    them changes nothing."""
     before, after = frames[batch]
     assert list(after.columns) == list(before.columns)
 

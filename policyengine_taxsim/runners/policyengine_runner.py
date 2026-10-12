@@ -1601,10 +1601,11 @@ class PolicyEngineRunner(BaseTaxRunner):
     def _canonical_output_columns(self) -> list:
         """Every output column, in the one order the runner emits them.
 
-        This is the layout of a batch whose rows all ask for the same level
-        of detail: the three identifiers, then the implemented columns in the
-        order of the ``policyengine_to_taxsim`` mapping, then the marginal
-        rates, which are computed after everything else.
+        A batch's output holds the columns its rows need, in this relative
+        order. It is the layout a batch already had when all its chunks
+        carried the same columns: the three identifiers, then the implemented
+        columns in the order of the ``policyengine_to_taxsim`` mapping, then
+        the marginal rates, which are computed after everything else.
         """
         identifiers = ["taxsimid", "year", "state"]
         mapped = []
@@ -1622,10 +1623,12 @@ class PolicyEngineRunner(BaseTaxRunner):
         """Put the output columns in canonical order.
 
         Each chunk carries only the columns its rows' idtl levels ask for,
-        and pd.concat keeps columns in order of first appearance. Left
-        alone, a column's position depends on which chunk first carried it:
-        a 2021 idtl=0 record followed by a 2022 idtl=2 record put frate in
-        column 8, and the reverse put it in column 40 (taxsim #1426).
+        and drops any column that is empty for all its rows; pd.concat keeps
+        columns in order of first appearance. Left alone, the order depended
+        on which chunk first carried a column: a 2021 idtl=0 record followed
+        by a 2022 idtl=2 record put frate in column 8, and the reverse put it
+        in column 40 (taxsim #1426). Which columns appear still depends on
+        what the batch asks for; their relative order no longer does.
         """
         canonical = self._canonical_output_columns()
         present = set(results_df.columns)
