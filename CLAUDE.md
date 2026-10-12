@@ -59,7 +59,8 @@ per-spouse split. For married-filing-jointly records, the emulator allocates
 them between spouses by this rule (evidence-backed against the NBER
 `taxsimtest` binary; see taxsim issues #774, #924, #965, #966):
 
-- **Interest, dividends, capital gains, S-corp income → always split 50/50.**
+- **Interest, dividends, capital gains, S-corp income, nonprop → always split
+  50/50.** (nonprop is signed; see "TAXSIM nonprop" below.)
 - **Pensions and Social Security → age-aware:**
   - Both spouses on the **same side** of the elderly-eligibility line (both
     qualify, or both do not) → **split 50/50**.
@@ -76,6 +77,43 @@ state threshold). Note the single-household path in `core/input_mapper.py`
 (`income_types_to_split`) currently splits these types 50/50 *unconditionally*
 — correct for same-age couples but not yet age-aware for mixed-age pensions/SS;
 align it with the runner if that path is used for mixed-age elderly records.
+
+## TAXSIM nonprop (signed other income)
+
+TAXSIM `nonprop` is "Other non-property income in AGI not subject to Medicare
+NIIT" (alimony, nonwage fellowships, itemizers' state refunds), and
+adjustments (alimony paid, IRA contributions, NOLs) "can be entered here as
+negative income". `nonprop_parts` in `core/utils.py` routes it, and both
+emulator paths use it (taxsim #1424, #1245):
+
+- **Positive → `miscellaneous_income`**, except **`alimony_income` in AL, AR
+  and MS** (`NONPROP_ALIMONY_STATES`). PE-US's gross-income lists for those
+  three states name alimony but not miscellaneous income, so
+  `miscellaneous_income` would go untaxed there while taxsimtest taxes
+  nonprop. Drop a state from the set once PE-US adds `miscellaneous_income`
+  to its list.
+- **Negative → `alimony_expense`** (magnitude), an uncapped above-the-line
+  deduction. PE-US floors each gross-income source at zero, so a negative
+  income variable would be lost.
+- Do **not** route positive nonprop to `alimony_income` elsewhere: PE-US gives
+  alimony treatment taxsimtest does not give nonprop. Georgia excludes it as
+  retirement income at 62+, and Pennsylvania tax forgiveness and Rhode Island
+  property-tax relief add alimony on top of income that already holds it.
+
+Known taxsimtest divergences (documented in `tests/test_nonprop_mapping.py`
+and taxsim #1424, not emulated):
+
+- taxsimtest counts nonprop as earned income for the EITC and the refundable
+  CTC; IRC 32(c)(2)(A) covers only employee compensation and self-employment
+  earnings. The same treatment moves state EITCs and the WI married-couple
+  credit.
+- PE-US counts a spouse's half of nonprop toward the OH joint filing credit's
+  qualifying income; taxsimtest does not.
+- PE-US's household-income credits in MI, WI and AZ move with nonprop as they
+  do with interest; taxsimtest's move with interest but not with nonprop.
+- Arkansas: PE-US applies no adjustments to Arkansas income (`ar_agi_indiv` is
+  gross income minus exemptions), so negative nonprop does not lower Arkansas
+  tax; taxsimtest's does.
 
 ## Married filing separately (mstat 6)
 
