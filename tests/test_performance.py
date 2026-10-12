@@ -312,14 +312,21 @@ class TestExtractResultsStructure:
         rows and called ``sim.calculate`` for every output variable of every
         row, which made runtime grow with the record count.
 
-        The two inputs hold the same households in every state at full output
-        (idtl=2), so every extraction branch runs and only the number of
-        records differs. Counting calls, instead of timing the phase, gives
-        the same answer on any machine: a 60-second limit here failed on slow
-        macOS CI runners with no row loop to find (#1429).
+        Both inputs hold the same 51 households, one in each state, so the
+        state-specific paths run for every state and only the number of
+        records differs. The households alternate idtl 2 and 5: idtl 2 alone
+        leaves out staxbc and sctc (and with them the Delaware staxbc path),
+        idtl 5 alone leaves out addmed and v44, and the two together request
+        every implemented output. Requiring equal counts catches a loop over
+        only some records too, such as one extra call per Delaware record.
+
+        Counting calls, instead of timing the phase, gives the same answer on
+        any machine: a 60-second limit here failed on slow macOS CI runners
+        with no row loop to find (#1429).
         """
         base = _make_cps_like_records(51, seed=55)
         base["state"] = np.arange(1, 52)  # one household in each state
+        base["idtl"] = np.resize([2, 5], len(base))
         more = _tile_records(base, 4)
 
         base_calls = _count_extract_calculate_calls(base, monkeypatch)
