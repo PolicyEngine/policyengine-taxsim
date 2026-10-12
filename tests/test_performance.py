@@ -4,12 +4,14 @@ Performance and correctness regression tests for PolicyEngineRunner vectorizatio
 Tests verify that:
 1. Output is identical before and after vectorization
 2. Generate phase does not use iterrows (verified by timing scaling)
-3. Extract phase calls calculate per output variable, not per record
-   (verified by counting calls, so it does not depend on machine speed)
+3. Extract phase makes the same number of top-level calculate calls however
+   many records there are (verified by counting calls, so it does not depend
+   on machine speed)
 4. Extract phase uses unified state variables, not per-state iteration
 
-The wall-clock benchmarks (TestBenchmark) are marked ``slow`` and skipped
-unless asked for with ``pytest -m slow``.
+The wall-clock benchmarks (TestBenchmark) are marked ``slow``.
+tests/conftest.py skips them unless a ``-m`` expression is given;
+``pytest -m slow`` runs them.
 """
 
 import time
@@ -65,7 +67,7 @@ def _make_cps_like_records(n: int, seed: int = 123) -> pd.DataFrame:
     Mimics BEA distributional accounts use case.
     """
     rng = np.random.RandomState(seed)
-    all_states = list(range(1, 52))  # all 51 FIPS state codes
+    all_states = list(range(1, 52))  # all 51 TAXSIM (SOI) state numbers
 
     mstat = rng.choice([1, 2], size=n, p=[0.55, 0.45])
     depx = rng.choice([0, 1, 2, 3, 4], size=n, p=[0.35, 0.25, 0.2, 0.15, 0.05])
@@ -305,20 +307,32 @@ class TestGeneratePhaseEfficiency:
 class TestExtractResultsStructure:
     """Verify extract phase uses vectorized operations."""
 
-    def test_extract_builds_dataframe_without_row_loop(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "idtl_cycle",
+        [(0,), (2, 5)],
+        ids=["standard-output", "full-output"],
+    )
+    def test_extract_builds_dataframe_without_row_loop(self, idtl_cycle, monkeypatch):
         """
-        Extraction calls ``calculate`` once per output variable, however many
-        records there are. Before it was vectorized (#692) it looped over the
-        rows and called ``sim.calculate`` for every output variable of every
-        row, which made runtime grow with the record count.
+        Extraction makes the same number of top-level ``calculate`` calls
+        however many records there are. Before it was vectorized (#692) it
+        looped over the rows and called ``sim.calculate`` for every output
+        variable of every row, which made runtime grow with the record count.
 
         Both inputs hold the same 51 households, one in each state, so the
         state-specific paths run for every state and only the number of
-        records differs. The households alternate idtl 2 and 5: idtl 2 alone
-        leaves out staxbc and sctc (and with them the Delaware staxbc path),
-        idtl 5 alone leaves out addmed and v44, and the two together request
-        every implemented output. Requiring equal counts catches a loop over
-        only some records too, such as one extra call per Delaware record.
+        records differs. Requiring equal counts catches a loop over only some
+        records too, such as one extra call per Delaware record.
+
+        Extraction chooses its outputs from the idtl values in the input, so
+        each output mode is checked on its own:
+
+        - standard-output: every record at idtl 0, the default and the
+          workload the old timed version of this test ran;
+        - full-output: records alternating idtl 2 and 5. idtl 2 alone leaves
+          out staxbc and sctc (and with them the Delaware staxbc path), idtl 5
+          alone leaves out addmed and v44, and the two together request every
+          implemented output.
 
         Counting calls, instead of timing the phase, gives the same answer on
         any machine: a 60-second limit here failed on slow macOS CI runners
@@ -326,7 +340,7 @@ class TestExtractResultsStructure:
         """
         base = _make_cps_like_records(51, seed=55)
         base["state"] = np.arange(1, 52)  # one household in each state
-        base["idtl"] = np.resize([2, 5], len(base))
+        base["idtl"] = np.resize(idtl_cycle, len(base))
         more = _tile_records(base, 4)
 
         base_calls = _count_extract_calculate_calls(base, monkeypatch)
