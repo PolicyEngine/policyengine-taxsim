@@ -1,3 +1,20 @@
+## [3.2.0] - 2026-10-12
+
+### Added
+
+- Route TAXSIM `nonprop` (other non-property income, +/-) into PolicyEngine: positive amounts become miscellaneous income (alimony received in AL, AR and MS, whose PolicyEngine-US income lists omit miscellaneous income) and negative amounts alimony paid (an above-the-line adjustment), split 50/50 between spouses for joint filers, in both the batch and single-household paths. Previously a nonzero `nonprop` was ignored. (#1424)
+
+### Changed
+
+- Remove the stale `uv.lock` and git-ignore it. No workflow, script or documented install step read it, and it pinned policyengine-us 1.550.2, below the `>=1.711.0` minimum in `pyproject.toml`.
+
+### Fixed
+
+- Stop set iteration order from leaking into user-visible output: the API's non-numeric-column error names the first bad column in input order, `validate_required_columns` returns columns in declared and input order, and `compare`'s consolidated CSV lists records in taxsimid order.
+- Backport the EITC investment-income fix from policyengine-us 2.10.1 (pe-us#9572) to older releases, so S-corp income defaults to passive on every supported policyengine-us.
+- Compare `tfica` and `v10` in the single-household end-to-end test. A missing comma had joined the two names into `"tficav10"`, a column that does not exist, so neither was checked.
+
+
 ## [3.1.1] - 2026-10-09
 
 ### Changed
