@@ -45,7 +45,7 @@ $6,000, in 2025) checks the backport end to end. TAXSIM gives no EITC, and
 neither does PE on either release. Without the backport, PE on the pin nets the
 loss against the interest, which brings investment income under the $11,950
 limit, and gives a $352.18 EITC: the $649 maximum less 7.65% of the $3,880 of
-AGI above $10,620 (26 USC 32(a)(2); Rev. Proc. 2024-40, section 3.06). The
+AGI above $10,620 (26 USC 32(a)(2); Rev. Proc. 2024-40, section 2.06). The
 three passive-mode interface tests then fail.
 
 Releases that Python 3.10 resolves (policyengine-us 1.x, which also lack the

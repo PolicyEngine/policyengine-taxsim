@@ -44,12 +44,19 @@ def test_pins_read_markers_hashes_and_comments():
         "numpy==2.4.6 ; python_version >= '3'\n"
         "spm-calculator==1.0.0.post1  # inline comment\n"
         "requests[socks]==2.32.5\n"
+        "-i https://pypi.org/simple\n"
+        "pandas==3.0.6\t# tab-separated comment\n"
+        "h5py==3.16.0 --hash=sha256:abc --hash=sha256:def\n"
+        "    tables==3.10.2\n"
     )
     assert check.pins(text) == {
         "policyengine-us": "2.6.17",
         "numpy": "2.4.6",
         "spm-calculator": "1.0.0.post1",
         "requests": "2.32.5",
+        "pandas": "3.0.6",
+        "h5py": "3.16.0",
+        "tables": "3.10.2",
     }
 
 
@@ -61,7 +68,10 @@ def test_pins_read_markers_hashes_and_comments():
         "numpy == 2.*",
         "numpy @ https://example.com/numpy.whl",
         "-e .",
+        "--editable .",
         "-r other.txt",
+        "--requirement other.txt",
+        "    -c constraints.txt",
         "numpy==",
     ],
 )

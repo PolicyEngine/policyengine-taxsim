@@ -7,25 +7,51 @@ environment.
 
 import argparse
 from importlib.metadata import PackageNotFoundError, version
+import re
 import sys
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.version import InvalidVersion, Version
 
 
+# Options that only choose where pip finds packages, not which it installs.
+SOURCE_OPTIONS = {
+    "-i",
+    "--index-url",
+    "--extra-index-url",
+    "--no-index",
+    "-f",
+    "--find-links",
+    "--trusted-host",
+    "--pre",
+    "--prefer-binary",
+    "--only-binary",
+    "--no-binary",
+    "--use-feature",
+}
+COMMENT = re.compile(r"(^|\s)#.*$")
+HASH = re.compile(r"\s*--hash[=\s]\S+")
+
+
 def pins(requirements_text):
     """Return {name: version} for every pin that applies to this interpreter.
 
-    Reads the format uv pip compile writes: one "name==version" per line,
-    optionally with an environment marker, a trailing hash continuation,
-    indented "# via" comments and indented "--hash" lines. Any other
-    requirement line raises, so no package goes unchecked.
+    Reads a pip requirements file such as uv pip compile writes. Comments,
+    hash options, line continuations and options that only choose a package
+    source are skipped. Every other line must be an exact "name==version" pin,
+    optionally with an environment marker; anything else (another included
+    file, an editable or URL requirement, a version range) raises, so no
+    package goes unchecked.
     """
     found = {}
     for number, line in enumerate(requirements_text.splitlines(), 1):
-        if not line.strip() or line[0].isspace() or line.startswith(("#", "--")):
+        text = HASH.sub("", COMMENT.sub("", line)).strip().removesuffix("\\").strip()
+        if not text:
             continue
-        text = line.split(" #", 1)[0].rstrip().removesuffix("\\").rstrip()
+        if text.startswith("-"):
+            if re.split(r"[=\s]", text, maxsplit=1)[0] in SOURCE_OPTIONS:
+                continue
+            raise ValueError(f"Line {number} has an unsupported option: {line}")
         try:
             requirement = Requirement(text)
         except InvalidRequirement as error:
