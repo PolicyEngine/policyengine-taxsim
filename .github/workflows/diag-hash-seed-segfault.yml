@@ -1,0 +1,75 @@
+# DIAGNOSTIC ONLY (branch diag/hash-seed-segfault, never merged): repeat the
+# hash-seed test's concurrent PolicyEngineRunner children on macOS 3.11 to
+# catch the SIGSEGV from CI run 38193095063, with faulthandler, phase
+# markers, memory/swap sampling and macOS crash reports.
+name: Diagnose hash-seed segfault
+
+on:
+  push:
+    branches: [diag/hash-seed-segfault]
+
+jobs:
+  repro:
+    runs-on: macos-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - variant: suite-prefix
+            replica: 1
+          - variant: suite-prefix
+            replica: 2
+          - variant: isolated
+            replica: 1
+    env:
+      DIAG_OUT: ${{ github.workspace }}/diag_out
+      DIAG_REPEATS: "8"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies (same as CI)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest hypothesis
+          pip freeze > installed.txt
+      - name: Make TAXSIM executables executable
+        run: chmod +x resources/taxsim35/taxsim35-*.exe
+      - name: Start memory sampler
+        run: |
+          mkdir -p "$DIAG_OUT"
+          sysctl hw.ncpu hw.memsize > "$DIAG_OUT/machine.txt"
+          nohup bash -c 'while true; do
+            echo "== $(date -u +%H:%M:%S) $(sysctl -n vm.swapusage) | $(memory_pressure -Q 2>/dev/null | tail -1)";
+            ps -axo pid,ppid,rss,etime,command | grep -E "python|pytest" | grep -v grep | cut -c1-160;
+            sleep 10; done' > "$DIAG_OUT/memory.log" 2>&1 &
+      - name: Run (suite prefix, then repeats)
+        if: matrix.variant == 'suite-prefix'
+        # The test files that sort before test_deterministic_ordering.py, so
+        # the pytest parent holds what it holds in CI when the test runs.
+        run: |
+          pytest tests/test_[a-c]*.py tests/test_dashboard_refresh.py \
+            tests/test_de_staxbc_elected_path.py \
+            tests/test_zz_diag_hash_seed_repeat.py -v -p no:cacheprovider
+      - name: Run (repeats only)
+        if: matrix.variant == 'isolated'
+        run: pytest tests/test_zz_diag_hash_seed_repeat.py -v -p no:cacheprovider
+      - name: Collect crash reports
+        if: always()
+        run: |
+          mkdir -p "$DIAG_OUT/crash"
+          cp ~/Library/Logs/DiagnosticReports/*.ips "$DIAG_OUT/crash/" 2>/dev/null || true
+          sudo cp /Library/Logs/DiagnosticReports/*.ips "$DIAG_OUT/crash/" 2>/dev/null || true
+          sudo chmod -R a+r "$DIAG_OUT/crash" || true
+          ls -la "$DIAG_OUT/crash"
+          cat "$DIAG_OUT/summary.jsonl" || true
+          cp installed.txt "$DIAG_OUT/"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diag-${{ matrix.variant }}-${{ matrix.replica }}
+          path: diag_out
