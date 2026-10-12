@@ -9,12 +9,13 @@ It runs on manual dispatch and on pull requests that change the workflow, the
 alignment script, the interface tests, the S-corp classification
 (`policyengine_taxsim/core/scorp.py` and `scorp_reform.py`), the refresh code
 the alignment script reuses (`scripts/refresh_dashboard.py`), the environment
-check (`scripts/check_pinned_environment.py`) or the pinned dashboard
-requirements. Other code on the S-corp path (the runners, CLI, API and variable
-mappings) does not trigger it; the `scorp-validation` job in the main CI
-workflow runs the S-corp unit tests for every pull request, including on the
-dashboard pin. Dispatch this workflow manually to check such a change end to
-end.
+check (`scripts/check_pinned_environment.py`), the pinned dashboard
+requirements or the variable mappings
+(`policyengine_taxsim/config/variable_mappings.yaml`). Other code on the S-corp
+path (the runners, CLI and API) does not trigger it; the `scorp-validation` job
+in the main CI workflow runs the S-corp unit tests for every pull request,
+including on the dashboard pin. Dispatch this workflow manually to check such a
+change end to end.
 
 ## policyengine-us versions covered
 
@@ -24,15 +25,20 @@ Every job runs on two policyengine-us releases:
   `scripts/dashboard-refresh-requirements.txt`, which pins policyengine-us
   2.6.17. That release predates the EITC investment-income fix in 2.10.1
   (pe-us#9572), so these jobs run with the emulator's backport of it
-  (`policyengine_taxsim/core/scorp_reform.py`). Python, requirements, install
-  steps and refresh flags match the dashboard refresh. After installing
-  (including the interface job's test-only packages: pytest, modal, fastapi
-  and httpx), the job runs `pip check` and fails if any installed package
-  differs from its pin.
+  (`policyengine_taxsim/core/scorp_reform.py`). The Python version, locked
+  requirements, install steps and model-relevant refresh settings (the
+  passive default, the W-2 assumption and the 5 GiB worker memory limit) match
+  the dashboard refresh; the alignment uses 500-row batches where the refresh
+  uses 5,000. The interface job's test-only packages (pytest, modal, fastapi
+  and httpx) are installed under the locked versions as constraints. The job
+  then fails if any installed package differs from its pin, and runs
+  `pip check`.
 - **`latest`**: the same requirements with policyengine-us upgraded to the
   newest release (2.10.1 or later, along with whatever dependencies it
   requires), where the native formula runs unchanged. It runs `pip check` and
-  reports the installed policyengine-us and policyengine-core versions.
+  reports the installed policyengine-us and policyengine-core versions. Its
+  alignment workers get an 8 GiB memory limit: on policyengine-us 2.39.1 the
+  first 500 sample households of 2021 exceeded 5 GiB.
 
 One interface case (wages $8,000, interest $12,500 and an S-corp loss of
 $6,000, in 2025) checks the backport end to end. TAXSIM gives no EITC, and
@@ -50,13 +56,16 @@ S-corp unit tests on them.
 
 Each year job recomputes the same 3,000 dashboard sample households in active
 and passive modes, keeping the W-2 assumption enabled in both. Fresh workers
-process 500 rows at a time under the existing 5 GiB RSS / 4 GiB disk guards.
-There are ten sample jobs, five years on each release, and at most four run
-concurrently. Seven-day JSON artifacts (`scorp-alignment-<year>-<release>`)
-contain the policyengine-us and policyengine-core versions, match counts,
-resource use, gains/losses in federal matches and the largest remaining
-residuals. These are sample results, not full-population estimates.
-The workflow does not publish or modify the dashboard.
+process 500 rows at a time under a worker memory limit (5 GiB on the pin, 8 GiB
+on the latest release) and the refresh's 4 GiB free-disk guard. On the pin, the
+2021 workers come closest to the limit: 4,765 MiB on the hosted runner on
+October 12, 2026. There are ten sample jobs, five years on each release, and at
+most four run concurrently. Seven-day JSON artifacts
+(`scorp-alignment-<year>-<release>`) contain the policyengine-us and
+policyengine-core versions, the memory limit, match counts, resource use,
+gains/losses in federal matches and the largest remaining residuals. These are
+sample results, not full-population estimates. The workflow does not publish or
+modify the dashboard.
 
 ## Separate payroll discrepancy
 

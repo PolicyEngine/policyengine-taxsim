@@ -7,19 +7,49 @@ environment.
 
 import argparse
 from importlib.metadata import PackageNotFoundError, version
-import re
 import sys
 
-# "name==version", optionally followed by an environment marker or a hash
-# continuation, as written by uv pip compile.
-PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)", re.MULTILINE)
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.version import InvalidVersion, Version
 
 
 def pins(requirements_text):
-    found = dict(PIN.findall(requirements_text))
+    """Return {name: version} for every pin that applies to this interpreter.
+
+    Reads the format uv pip compile writes: one "name==version" per line,
+    optionally with an environment marker, a trailing hash continuation,
+    indented "# via" comments and indented "--hash" lines. Any other
+    requirement line raises, so no package goes unchecked.
+    """
+    found = {}
+    for number, line in enumerate(requirements_text.splitlines(), 1):
+        if not line.strip() or line[0].isspace() or line.startswith(("#", "--")):
+            continue
+        text = line.split(" #", 1)[0].rstrip().removesuffix("\\").rstrip()
+        try:
+            requirement = Requirement(text)
+        except InvalidRequirement as error:
+            raise ValueError(f"Line {number} is not a requirement: {line}") from error
+        specifiers = list(requirement.specifier)
+        if (
+            requirement.url
+            or len(specifiers) != 1
+            or specifiers[0].operator != "=="
+            or "*" in specifiers[0].version
+        ):
+            raise ValueError(f"Line {number} is not an exact pin: {line}")
+        if requirement.marker is None or requirement.marker.evaluate():
+            found[requirement.name] = specifiers[0].version
     if "policyengine-us" not in found:
         raise ValueError("The requirements pin no policyengine-us release")
     return found
+
+
+def same_version(installed, pinned):
+    try:
+        return Version(installed) == Version(pinned)
+    except InvalidVersion:
+        return installed == pinned
 
 
 def mismatches(pinned, installed_version=version):
@@ -30,7 +60,7 @@ def mismatches(pinned, installed_version=version):
             actual = installed_version(name)
         except PackageNotFoundError:
             actual = None
-        if actual != expected:
+        if actual is None or not same_version(actual, expected):
             wrong[name] = (expected, actual)
     return wrong
 

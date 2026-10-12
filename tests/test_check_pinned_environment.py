@@ -33,20 +33,41 @@ def test_dashboard_requirements_match_their_source_pin():
     assert len(compiled) > len(source)
 
 
-def test_pins_skip_comments_and_keep_markers_and_hashes():
+def test_pins_read_markers_hashes_and_comments():
     text = (
         "# header\n"
+        "--index-url https://pypi.org/simple\n"
         "policyengine-us==2.6.17 \\\n"
         "    --hash=sha256:abc\n"
-        "tomli==2.0.1 ; python_version < '3.11'\n"
-        "    # via policyengine-core\n"
-        "spm-calculator==1.0.0.post1\n"
+        "    # via policyengine-taxsim (pyproject.toml)\n"
+        "tomli==2.0.1 ; python_version < '3'\n"
+        "numpy==2.4.6 ; python_version >= '3'\n"
+        "spm-calculator==1.0.0.post1  # inline comment\n"
+        "requests[socks]==2.32.5\n"
     )
     assert check.pins(text) == {
         "policyengine-us": "2.6.17",
-        "tomli": "2.0.1",
+        "numpy": "2.4.6",
         "spm-calculator": "1.0.0.post1",
+        "requests": "2.32.5",
     }
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "numpy>=2",
+        "numpy",
+        "numpy == 2.*",
+        "numpy @ https://example.com/numpy.whl",
+        "-e .",
+        "-r other.txt",
+        "numpy==",
+    ],
+)
+def test_pins_reject_lines_that_are_not_exact_pins(line):
+    with pytest.raises(ValueError):
+        check.pins(f"policyengine-us==2.6.17\n{line}\n")
 
 
 def test_requirements_without_policyengine_us_are_rejected():
@@ -63,11 +84,39 @@ def test_mismatches_report_wrong_and_missing_packages():
     }
 
 
-names = st.from_regex(r"[a-z][a-z0-9-]{0,10}", fullmatch=True)
+def test_mismatches_compare_versions_not_spellings():
+    pinned = {"tzdata": "2024.1", "foo": "1.0"}
+    installed = {"tzdata": "2024.01", "foo": "1.0.0"}
+    assert check.mismatches(pinned, lookup(installed)) == {}
+
+
+names = st.from_regex(r"[a-z][a-z0-9]{0,4}(-[a-z0-9]{1,4}){0,2}", fullmatch=True)
 versions = st.from_regex(r"[0-9]{1,3}(\.[0-9]{1,3}){0,3}", fullmatch=True)
+pinsets = st.dictionaries(names, versions, min_size=1).map(
+    lambda pinned: {"policyengine-us": "2.6.17", **pinned}
+)
 
 
-@given(st.dictionaries(names, versions, min_size=1), st.data())
+@given(pinsets, st.data())
+def test_pins_recover_every_pin_however_it_is_written(pinned, data):
+    lines = ["# header"]
+    for name, value in pinned.items():
+        line = f"{name}=={value}"
+        if data.draw(st.booleans()):
+            line += " ; python_version >= '3'"
+        if data.draw(st.booleans()):
+            lines += [line + " \\", "    --hash=sha256:0123"]
+        else:
+            lines.append(line)
+        if data.draw(st.booleans()):
+            lines.append("    # via something")
+        if data.draw(st.booleans()):
+            # A pin for another interpreter must not be enforced here.
+            lines.append(f"{name}==999 ; python_version < '3'")
+    assert check.pins("\n".join(lines) + "\n") == pinned
+
+
+@given(pinsets, st.data())
 def test_mismatches_flag_exactly_the_changed_pins(pinned, data):
     # An exact install passes; changing or removing some packages flags exactly those.
     assert check.mismatches(pinned, lookup(pinned)) == {}

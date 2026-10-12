@@ -13,6 +13,8 @@ on:
       - 'scripts/refresh_dashboard.py'
       - 'scripts/check_pinned_environment.py'
       - 'scripts/dashboard-refresh-requirements.txt'
+      # Which PE variable each compared TAXSIM column reads.
+      - 'policyengine_taxsim/config/variable_mappings.yaml'
 permissions:
   contents: read
 concurrency:
@@ -42,6 +44,15 @@ jobs:
       matrix:
         year: [2021, 2022, 2023, 2024, 2025]
         policyengine-us: [dashboard-pin, latest]
+        # Worker RSS limit. The pin keeps the dashboard refresh's 5 GiB. The
+        # first 500 households of 2021 peaked at 4,280 MiB on policyengine-us
+        # 2.17.0 and exceeded 5 GiB on 2.39.1 (5,599 MiB on 2.40.1, measured
+        # on macOS). Hosted Linux runners have 16 GB.
+        include:
+          - policyengine-us: dashboard-pin
+            max-memory-gb: 5
+          - policyengine-us: latest
+            max-memory-gb: 8
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -51,13 +62,16 @@ jobs:
       - if: matrix.policyengine-us == 'latest'
         run: pip install -U 'policyengine-us>=2.10.1'
       - run: pip install --no-deps -e .
-      - name: Check the installed environment
-        run: |
-          pip check
-          python -c "from importlib.metadata import version as v; print('policyengine-us', v('policyengine-us'), 'policyengine-core', v('policyengine-core'))"
+      # The per-package pin check runs first, so its list of moved packages is
+      # reported even when pip check then fails.
       - if: matrix.policyengine-us == 'dashboard-pin'
         run: python scripts/check_pinned_environment.py scripts/dashboard-refresh-requirements.txt
-      - run: python scripts/validate_scorp_alignment.py --year ${{ matrix.year }}
+      - name: Check the installed environment
+        if: ${{ !cancelled() }}
+        run: |
+          python -c "from importlib.metadata import version as v; print('policyengine-us', v('policyengine-us'), 'policyengine-core', v('policyengine-core'))"
+          pip check
+      - run: python scripts/validate_scorp_alignment.py --year ${{ matrix.year }} --max-memory-gb ${{ matrix.max-memory-gb }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -79,11 +93,19 @@ jobs:
       - run: pip install -r scripts/dashboard-refresh-requirements.txt
       - if: matrix.policyengine-us == 'latest'
         run: pip install -U 'policyengine-us>=2.10.1'
-      - run: pip install --no-deps -e . && pip install pytest modal fastapi httpx
-      - name: Check the installed environment
-        run: |
-          pip check
-          python -c "from importlib.metadata import version as v; print('policyengine-us', v('policyengine-us'), 'policyengine-core', v('policyengine-core'))"
+      - run: pip install --no-deps -e .
+      # On the pin, test-only packages must fit the locked versions.
+      - if: matrix.policyengine-us == 'dashboard-pin'
+        run: pip install -c scripts/dashboard-refresh-requirements.txt pytest modal fastapi httpx
+      - if: matrix.policyengine-us == 'latest'
+        run: pip install pytest modal fastapi httpx
+      # The per-package pin check runs first, so its list of moved packages is
+      # reported even when pip check then fails.
       - if: matrix.policyengine-us == 'dashboard-pin'
         run: python scripts/check_pinned_environment.py scripts/dashboard-refresh-requirements.txt
+      - name: Check the installed environment
+        if: ${{ !cancelled() }}
+        run: |
+          python -c "from importlib.metadata import version as v; print('policyengine-us', v('policyengine-us'), 'policyengine-core', v('policyengine-core'))"
+          pip check
       - run: SCORP_E2E=1 pytest tests/test_scorp_e2e.py -v

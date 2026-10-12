@@ -1,7 +1,8 @@
 """Re-run the fixed 3,000-household dashboard sample in both NIIT modes.
 
-Use hosted runners. Model workers inherit refresh RSS/disk/time limits; only
-small summaries and the largest residuals are retained, never new dashboard data.
+Use hosted runners. Model workers inherit the refresh's disk and time limits and,
+by default, its 5 GiB RSS limit; only small summaries and the largest residuals
+are retained, never new dashboard data.
 """
 
 import argparse
@@ -25,6 +26,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int, required=True)
     parser.add_argument("--output", type=Path, default=Path("validation"))
+    parser.add_argument(
+        "--max-memory-gb",
+        type=float,
+        default=5,
+        help="Worker RSS limit; the dashboard refresh default is 5",
+    )
     args = parser.parse_args()
     args.output.mkdir(exist_ok=True)
     work = args.output / str(args.year)
@@ -51,7 +58,7 @@ def main():
                     for r in inputs[start : start + 500]
                 )
             path = work / f"{mode}-{start}.csv.gz"
-            usage = run_bounded(input_file, path, 5, 4, mode)
+            usage = run_bounded(input_file, path, args.max_memory_gb, 4, mode)
             batch = pairs(path)
             assert len(batch) == 500
             assert not output[mode].keys() & batch.keys()
@@ -134,6 +141,7 @@ def main():
         "policyengineUsVersion": importlib.metadata.version("policyengine-us"),
         "policyengineCoreVersion": importlib.metadata.version("policyengine-core"),
         "sampleHouseholds": 3000,
+        "maxWorkerMemoryGb": args.max_memory_gb,
         "assumeW2Wages": True,
         "metrics": metrics,
         "invarianceViolations": violations,
