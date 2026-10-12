@@ -46,8 +46,10 @@ def test_pins_read_markers_hashes_and_comments():
         "requests[socks]==2.32.5\n"
         "-i https://pypi.org/simple\n"
         "pandas==3.0.6\t# tab-separated comment\n"
-        "h5py==3.16.0 --hash=sha256:abc --hash=sha256:def\n"
+        "h5py==3.16.0 --hash=sha256:abc --hash sha256:def\n"
         "    tables==3.10.2\n"
+        "acme--hash==1.0\n"
+        'scipy==1.16.0 ; os_name in "--hash=posix nt java"\n'
     )
     assert check.pins(text) == {
         "policyengine-us": "2.6.17",
@@ -57,6 +59,8 @@ def test_pins_read_markers_hashes_and_comments():
         "pandas": "3.0.6",
         "h5py": "3.16.0",
         "tables": "3.10.2",
+        "acme--hash": "1.0",
+        "scipy": "1.16.0",
     }
 
 
@@ -72,6 +76,10 @@ def test_pins_read_markers_hashes_and_comments():
         "-r other.txt",
         "--requirement other.txt",
         "    -c constraints.txt",
+        "--no-index -r hidden.txt",
+        "-i https://pypi.org/simple --editable .",
+        "numpy==2.4.6 -e .",
+        "numpy==2.4.6 --global-option=x",
         "numpy==",
     ],
 )

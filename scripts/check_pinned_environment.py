@@ -14,7 +14,8 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.version import InvalidVersion, Version
 
 
-# Options that only choose where pip finds packages, not which it installs.
+# Options allowed on a line of their own: they only choose where pip finds
+# packages, not which packages it installs.
 SOURCE_OPTIONS = {
     "-i",
     "--index-url",
@@ -29,33 +30,57 @@ SOURCE_OPTIONS = {
     "--no-binary",
     "--use-feature",
 }
+# The only option allowed after a requirement.
+REQUIREMENT_OPTIONS = {"--hash"}
+# pip's comment rule: "#" at the start of a line or after whitespace.
 COMMENT = re.compile(r"(^|\s)#.*$")
-HASH = re.compile(r"\s*--hash[=\s]\S+")
+
+
+def logical_lines(requirements_text):
+    """Yield (first line number, text) with comments removed and "\\" lines joined."""
+    pending, start = [], None
+    for number, line in enumerate(requirements_text.splitlines(), 1):
+        text = COMMENT.sub("", line).strip()
+        start = start or number
+        if text.endswith("\\"):
+            pending.append(text[:-1])
+            continue
+        yield start, " ".join(pending + [text])
+        pending, start = [], None
+    if pending:
+        yield start, " ".join(pending)
 
 
 def pins(requirements_text):
     """Return {name: version} for every pin that applies to this interpreter.
 
-    Reads a pip requirements file such as uv pip compile writes. Comments,
-    hash options, line continuations and options that only choose a package
-    source are skipped. Every other line must be an exact "name==version" pin,
-    optionally with an environment marker; anything else (another included
-    file, an editable or URL requirement, a version range) raises, so no
-    package goes unchecked.
+    Reads a pip requirements file such as uv pip compile writes. As pip does,
+    a line's requirement runs up to its first token that starts with "-", and
+    the rest are options. A requirement must be an exact "name==version" pin,
+    optionally with an environment marker, and may carry only --hash options.
+    A line with no requirement may carry only options that choose a package
+    source. Anything else (an included file, constraints, an editable or URL
+    requirement, a version range) raises, so no package goes unchecked.
     """
     found = {}
-    for number, line in enumerate(requirements_text.splitlines(), 1):
-        text = HASH.sub("", COMMENT.sub("", line)).strip().removesuffix("\\").strip()
-        if not text:
+    for number, text in logical_lines(requirements_text):
+        tokens = text.split()
+        split = next(
+            (i for i, token in enumerate(tokens) if token.startswith("-")),
+            len(tokens),
+        )
+        args, options = tokens[:split], tokens[split:]
+        allowed = REQUIREMENT_OPTIONS if args else SOURCE_OPTIONS
+        for token in options:
+            # Tokens that do not start with "-" are values of the option before.
+            if token.startswith("-") and token.split("=", 1)[0] not in allowed:
+                raise ValueError(f"Line {number} has an unsupported option: {token}")
+        if not args:
             continue
-        if text.startswith("-"):
-            if re.split(r"[=\s]", text, maxsplit=1)[0] in SOURCE_OPTIONS:
-                continue
-            raise ValueError(f"Line {number} has an unsupported option: {line}")
         try:
-            requirement = Requirement(text)
+            requirement = Requirement(" ".join(args))
         except InvalidRequirement as error:
-            raise ValueError(f"Line {number} is not a requirement: {line}") from error
+            raise ValueError(f"Line {number} is not a requirement: {text}") from error
         specifiers = list(requirement.specifier)
         if (
             requirement.url
@@ -63,7 +88,7 @@ def pins(requirements_text):
             or specifiers[0].operator != "=="
             or "*" in specifiers[0].version
         ):
-            raise ValueError(f"Line {number} is not an exact pin: {line}")
+            raise ValueError(f"Line {number} is not an exact pin: {text}")
         if requirement.marker is None or requirement.marker.evaluate():
             found[requirement.name] = specifiers[0].version
     if "policyengine-us" not in found:
