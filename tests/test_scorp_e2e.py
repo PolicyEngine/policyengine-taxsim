@@ -18,7 +18,13 @@ INPUT = """taxsimid,year,state,mstat,page,sage,depx,pwages,intrec,scorp,idtl
 3,2025,0,2,45,45,0,0,0,300000,2
 4,2025,0,1,45,0,0,300000,150000,-100000,2
 5,2025,0,1,45,0,0,100000,0,0,2
+6,2025,0,1,45,0,0,8000,12500,-6000,2
 """
+# Case 6 checks the EITC investment-income test end to end. TAXSIM gives no
+# EITC. PE-US releases before 2.10.1 net the passive S-corp loss against the
+# interest there and, without the emulator's backport of pe-us#9572, give a
+# $352.18 EITC, so this case fails on the dashboard pin if the backport is
+# not applied.
 
 
 def parse(text):
@@ -50,7 +56,7 @@ def verify(text, expected, mode):
         assert float(row["fiitax"]) == pytest.approx(
             float(expected[key]["fiitax"]) + delta, abs=1
         )
-        for field in ("qbid", "v10"):
+        for field in ("qbid", "v10", "v25"):
             assert float(row[field]) == pytest.approx(
                 float(expected[key][field]), abs=1
             )
@@ -122,7 +128,7 @@ def test_real_http(stream, mode, comparator):
             result = next(e for e in events if e["type"] == "result")
         else:
             result = response.json()
-        assert result["rows_processed"] == 5
+        assert result["rows_processed"] == 6
         verify(result["csv"], comparator, mode)
         assert (
             client.post("/run", json={**payload, "scorp_treatment": "typo"}).status_code

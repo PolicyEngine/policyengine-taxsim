@@ -20,7 +20,10 @@ Every job runs on two policyengine-us releases:
   (pe-us#9572), so these jobs run with the emulator's backport of it
   (`policyengine_taxsim/core/scorp_reform.py`). This is the configuration the
   dashboard refresh uses. The job fails if the installed policyengine-us is
-  not the pinned release.
+  not the pinned release. One interface case (wages, interest and an S-corp
+  loss, where TAXSIM gives no EITC) fails in passive mode on this release if
+  the backport is not applied: PE then nets the loss against the interest and
+  gives a $352.18 EITC.
 - **`latest`**: the same environment with policyengine-us upgraded to the
   newest release (2.10.1 or later), where the native formula runs unchanged.
 

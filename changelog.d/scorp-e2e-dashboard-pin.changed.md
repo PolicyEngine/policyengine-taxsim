@@ -1,1 +1,1 @@
-Run the S-corp end-to-end alignment workflow on the dashboard's pinned policyengine-us (2.6.17, with the EITC investment-income backport) as well as the latest release, and record the policyengine-us version in each alignment report.
+Run the S-corp end-to-end alignment workflow on the dashboard's pinned policyengine-us (2.6.17, with the EITC investment-income backport) as well as the latest release, record the policyengine-us version in each alignment report, and add an end-to-end case that fails on the pin if the backport is not applied.
