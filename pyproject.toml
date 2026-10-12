@@ -131,3 +131,6 @@ addopts = "-ra -q"
 testpaths = [
     "tests",
 ]
+markers = [
+    "slow: wall-clock benchmark, skipped by default; run with `pytest -m slow`",
+]
