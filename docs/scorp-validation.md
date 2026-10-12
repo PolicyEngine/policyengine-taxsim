@@ -1,17 +1,43 @@
 # S-corp end-to-end validation
 
-The `S-corp end-to-end alignment` workflow uses the pinned dashboard model
-environment and the bundled TAXSIM executable. It exercises the installed CLI,
-stdin mode and local FastAPI `/run` and `/run/stream` endpoints with real model
-calculations. API tests do not deploy an endpoint, call the pre-2021 remote
-fallback, send email or subscribe anyone.
+The `S-corp end-to-end alignment` workflow uses the bundled TAXSIM executable.
+It exercises the installed CLI, stdin mode and local FastAPI `/run` and
+`/run/stream` endpoints with real model calculations. API tests do not deploy
+an endpoint, call the pre-2021 remote fallback, send email or subscribe anyone.
+
+It runs on manual dispatch and on pull requests that change the workflow, the
+alignment script, the interface tests, the S-corp classification
+(`policyengine_taxsim/core/scorp.py` and `scorp_reform.py`) or the pinned
+dashboard requirements.
+
+## policyengine-us versions covered
+
+Every job runs on two policyengine-us releases:
+
+- **`dashboard-pin`**: the dashboard refresh environment exactly as pinned in
+  `scripts/dashboard-refresh-requirements.txt`, which is policyengine-us
+  2.6.17. That release predates the EITC investment-income fix in 2.10.1
+  (pe-us#9572), so these jobs run with the emulator's backport of it
+  (`policyengine_taxsim/core/scorp_reform.py`). This is the configuration the
+  dashboard refresh uses. The job fails if the installed policyengine-us is
+  not the pinned release.
+- **`latest`**: the same environment with policyengine-us upgraded to the
+  newest release (2.10.1 or later), where the native formula runs unchanged.
+
+Releases that Python 3.10 resolves (policyengine-us 1.x, which also lack the
+passive input) are not run end to end here. The `scorp-validation` job in the
+main CI workflow runs the S-corp unit tests on them.
+
+## Sample alignment
 
 Each year job recomputes the same 3,000 dashboard sample households in active
 and passive modes, keeping the W-2 assumption enabled in both. Fresh workers
 process 500 rows at a time under the existing 5 GiB RSS / 4 GiB disk guards.
-At most two sample jobs run concurrently. Seven-day JSON artifacts contain
-match counts, resource use, gains/losses in federal matches and the largest
-remaining residuals. These are sample results, not full-population estimates.
+There are ten sample jobs, five years on each release, and at most four run
+concurrently. Seven-day JSON artifacts (`scorp-alignment-<year>-<release>`)
+contain the policyengine-us and policyengine-core versions, match counts,
+resource use, gains/losses in federal matches and the largest remaining
+residuals. These are sample results, not full-population estimates.
 The workflow does not publish or modify the dashboard.
 
 ## Separate payroll discrepancy

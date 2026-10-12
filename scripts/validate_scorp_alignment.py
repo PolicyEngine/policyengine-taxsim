@@ -7,6 +7,7 @@ small summaries and the largest residuals are retained, never new dashboard data
 import argparse
 import csv
 import gzip
+import importlib.metadata
 import json
 from pathlib import Path
 import shutil
@@ -130,6 +131,8 @@ def main():
         )
     report = {
         "year": args.year,
+        "policyengineUsVersion": importlib.metadata.version("policyengine-us"),
+        "policyengineCoreVersion": importlib.metadata.version("policyengine-core"),
         "sampleHouseholds": 3000,
         "assumeW2Wages": True,
         "metrics": metrics,
