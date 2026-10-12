@@ -40,7 +40,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"]
+        include:
+          - python-version: "3.10"
+          - python-version: "3.11"
+          # Dashboard refresh environment (policyengine-us 2.6.17): has the
+          # passive input but predates the EITC investment-income fix
+          # (pe-us#9572), so it gets the backport.
+          - python-version: "3.11"
+            dashboard-pin: true
     env:
       OPENBLAS_NUM_THREADS: '1'
       OMP_NUM_THREADS: '1'
@@ -50,8 +57,11 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e . pytest
-      - run: pytest tests/test_scorp_treatment.py -v
+      - if: ${{ !matrix.dashboard-pin }}
+        run: pip install -e . pytest hypothesis
+      - if: matrix.dashboard-pin
+        run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e . && pip install pytest hypothesis
+      - run: pytest tests/test_scorp_treatment.py tests/test_eitc_investment_income_baskets.py -v
 
   test:
     if: github.event.head_commit.message != 'Update package version'

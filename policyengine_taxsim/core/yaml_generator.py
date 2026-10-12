@@ -193,6 +193,10 @@ class PETestsYAMLGenerator:
                 "long_term_capital_gains",
                 "short_term_capital_gains",
                 "rental_income",
+                # nonprop (see nonprop_parts in core/utils.py).
+                "miscellaneous_income",
+                "alimony_income",
+                "alimony_expense",
                 # scorp -> partnership_s_corp_income (QBID-bearing aggregate);
                 # pprofinc/sprofinc -> sstb_self_employment_income (QBID with
                 # SSTB phaseout). pbusinc now folds into self_employment_income,

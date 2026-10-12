@@ -154,13 +154,20 @@ class BaseTaxRunner(ABC):
             required_columns: List of column names that must be present
 
         Returns:
-            Tuple of (missing_columns, extra_columns)
+            Tuple of (missing_columns, extra_columns), in the order of
+            required_columns and of the input columns respectively
         """
         input_cols = set(self.input_df.columns)
         required_cols = set(required_columns)
 
-        missing_columns = list(required_cols - input_cols)
-        extra_columns = list(input_cols - required_cols)
+        missing_columns = [
+            col for col in dict.fromkeys(required_columns) if col not in input_cols
+        ]
+        extra_columns = [
+            col
+            for col in dict.fromkeys(self.input_df.columns)
+            if col not in required_cols
+        ]
 
         return missing_columns, extra_columns
 
