@@ -1,0 +1,1 @@
+Emit `PolicyEngineRunner` output columns in one fixed order whatever the batch contains. A batch that mixed `idtl` levels across tax years put `frate`, `srate` and the full-detail columns in different positions depending on which year carried which level. Batches with a single `idtl` level keep the layout they had.
