@@ -7,29 +7,44 @@ an endpoint, call the pre-2021 remote fallback, send email or subscribe anyone.
 
 It runs on manual dispatch and on pull requests that change the workflow, the
 alignment script, the interface tests, the S-corp classification
-(`policyengine_taxsim/core/scorp.py` and `scorp_reform.py`) or the pinned
-dashboard requirements.
+(`policyengine_taxsim/core/scorp.py` and `scorp_reform.py`), the refresh code
+the alignment script reuses (`scripts/refresh_dashboard.py`), the environment
+check (`scripts/check_pinned_environment.py`) or the pinned dashboard
+requirements. Other code on the S-corp path (the runners, CLI, API and variable
+mappings) does not trigger it; the `scorp-validation` job in the main CI
+workflow runs the S-corp unit tests for every pull request, including on the
+dashboard pin. Dispatch this workflow manually to check such a change end to
+end.
 
 ## policyengine-us versions covered
 
 Every job runs on two policyengine-us releases:
 
-- **`dashboard-pin`**: the dashboard refresh environment exactly as pinned in
-  `scripts/dashboard-refresh-requirements.txt`, which is policyengine-us
+- **`dashboard-pin`**: the locked dashboard refresh environment in
+  `scripts/dashboard-refresh-requirements.txt`, which pins policyengine-us
   2.6.17. That release predates the EITC investment-income fix in 2.10.1
   (pe-us#9572), so these jobs run with the emulator's backport of it
-  (`policyengine_taxsim/core/scorp_reform.py`). This is the configuration the
-  dashboard refresh uses. The job fails if the installed policyengine-us is
-  not the pinned release. One interface case (wages, interest and an S-corp
-  loss, where TAXSIM gives no EITC) fails in passive mode on this release if
-  the backport is not applied: PE then nets the loss against the interest and
-  gives a $352.18 EITC.
-- **`latest`**: the same environment with policyengine-us upgraded to the
-  newest release (2.10.1 or later), where the native formula runs unchanged.
+  (`policyengine_taxsim/core/scorp_reform.py`). Python, requirements, install
+  steps and refresh flags match the dashboard refresh. After installing
+  (including the interface job's test-only packages: pytest, modal, fastapi
+  and httpx), the job runs `pip check` and fails if any installed package
+  differs from its pin.
+- **`latest`**: the same requirements with policyengine-us upgraded to the
+  newest release (2.10.1 or later, along with whatever dependencies it
+  requires), where the native formula runs unchanged. It runs `pip check` and
+  reports the installed policyengine-us and policyengine-core versions.
+
+One interface case (wages $8,000, interest $12,500 and an S-corp loss of
+$6,000, in 2025) checks the backport end to end. TAXSIM gives no EITC, and
+neither does PE on either release. Without the backport, PE on the pin nets the
+loss against the interest, which brings investment income under the $11,950
+limit, and gives a $352.18 EITC: the $649 maximum less 7.65% of the $3,880 of
+AGI above $10,620 (26 USC 32(a)(2); Rev. Proc. 2024-40, section 3.06). The
+three passive-mode interface tests then fail.
 
 Releases that Python 3.10 resolves (policyengine-us 1.x, which also lack the
-passive input) are not run end to end here. The `scorp-validation` job in the
-main CI workflow runs the S-corp unit tests on them.
+passive input) are not run end to end here. The `scorp-validation` job runs the
+S-corp unit tests on them.
 
 ## Sample alignment
 
@@ -50,7 +65,7 @@ wages. PE reports $31,436.40 in both S-corp modes. The $7,681.80 difference is
 exactly 6.2% of wages above the $176,100 Social Security wage base, consistent
 with an uncapped employer component in this TAXSIM output. This is independent
 of the NIIT classification switch and is explicitly accounted for in the
-interface assertions; NIIT, federal income tax, QBI and AGI still require
+interface assertions; NIIT, federal income tax, QBI, AGI and the EITC still require
 agreement with TAXSIM (or the expected active-mode NIIT difference).
 
 PE's figure follows two capped 6.2% Social Security contributions, two uncapped

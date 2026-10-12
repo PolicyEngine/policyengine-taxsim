@@ -6,10 +6,12 @@ on:
       - 'scripts/validate_scorp_alignment.py'
       - 'tests/test_scorp_e2e.py'
       - '.github/workflows/scorp-e2e.yml'
-      # The S-corp classification, its compatibility reform and the pinned
-      # dashboard environment are what this workflow validates.
+      # The S-corp classification and its compatibility reform, the refresh
+      # code the alignment reuses, and the pinned dashboard environment.
       - 'policyengine_taxsim/core/scorp.py'
       - 'policyengine_taxsim/core/scorp_reform.py'
+      - 'scripts/refresh_dashboard.py'
+      - 'scripts/check_pinned_environment.py'
       - 'scripts/dashboard-refresh-requirements.txt'
 permissions:
   contents: read
@@ -24,9 +26,10 @@ env:
   PIP_NO_CACHE_DIR: '1'
   PYTHONUNBUFFERED: '1'
 # Both jobs run on two policyengine-us releases:
-# - dashboard-pin: the dashboard refresh environment exactly as pinned
-#   (policyengine-us 2.6.17), which predates the EITC investment-income fix
-#   (pe-us#9572, first released in 2.10.1) and so gets the emulator's backport.
+# - dashboard-pin: the locked dashboard refresh environment (policyengine-us
+#   2.6.17), checked package by package after any test-only installs. It
+#   predates the EITC investment-income fix (pe-us#9572, first released in
+#   2.10.1), so it gets the emulator's backport.
 # - latest: the newest release, where the native formula runs unchanged.
 jobs:
   alignment:
@@ -34,7 +37,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      # Two year jobs at a time for each policyengine-us release.
+      # Ten jobs, five years on each release; at most four run at a time.
       max-parallel: 4
       matrix:
         year: [2021, 2022, 2023, 2024, 2025]
@@ -48,13 +51,12 @@ jobs:
       - if: matrix.policyengine-us == 'latest'
         run: pip install -U 'policyengine-us>=2.10.1'
       - run: pip install --no-deps -e .
-      - name: Check the policyengine-us release under test
+      - name: Check the installed environment
         run: |
-          installed=$(python -c "from importlib.metadata import version; print(version('policyengine-us'))")
-          echo "policyengine-us $installed"
-          if [ "${{ matrix.policyengine-us }}" = dashboard-pin ]; then
-            grep -qxF "policyengine-us==$installed" scripts/dashboard-refresh-requirements.txt
-          fi
+          pip check
+          python -c "from importlib.metadata import version as v; print('policyengine-us', v('policyengine-us'), 'policyengine-core', v('policyengine-core'))"
+      - if: matrix.policyengine-us == 'dashboard-pin'
+        run: python scripts/check_pinned_environment.py scripts/dashboard-refresh-requirements.txt
       - run: python scripts/validate_scorp_alignment.py --year ${{ matrix.year }}
       - uses: actions/upload-artifact@v4
         if: always()
@@ -78,11 +80,10 @@ jobs:
       - if: matrix.policyengine-us == 'latest'
         run: pip install -U 'policyengine-us>=2.10.1'
       - run: pip install --no-deps -e . && pip install pytest modal fastapi httpx
-      - name: Check the policyengine-us release under test
+      - name: Check the installed environment
         run: |
-          installed=$(python -c "from importlib.metadata import version; print(version('policyengine-us'))")
-          echo "policyengine-us $installed"
-          if [ "${{ matrix.policyengine-us }}" = dashboard-pin ]; then
-            grep -qxF "policyengine-us==$installed" scripts/dashboard-refresh-requirements.txt
-          fi
+          pip check
+          python -c "from importlib.metadata import version as v; print('policyengine-us', v('policyengine-us'), 'policyengine-core', v('policyengine-core'))"
+      - if: matrix.policyengine-us == 'dashboard-pin'
+        run: python scripts/check_pinned_environment.py scripts/dashboard-refresh-requirements.txt
       - run: SCORP_E2E=1 pytest tests/test_scorp_e2e.py -v
