@@ -13,16 +13,16 @@ Basis:
   (AddMed itself starts in 2013), said he believed he had corrected it,
   and restated the rule: "The .009 tax on excess earnings income is in
   fica and tfica".
-- The bundled taxsimtest (build cd2026081819) keeps AddMed out of
-  fiitax for tax years 2024 and later and counts it in tfica in every
-  year.
+- The bundled taxsimtest (build cd2026100817, October 2026) keeps
+  AddMed out of fiitax in every year (2013-2024 checked: fiitax = v28)
+  and counts it in tfica.
 
-Bundled-binary difference: the bundled cd2026081819 predates that
-correction, so for 2013-2023 it still adds AddMed to fiitax as well as
-to tfica.
-(NBER's taxsimtest page, "Output Results", also still lists "Additional
-Medicare Tax" in the fiitax definition.) taxsimtest output, single, TX,
-$400K wages, idtl=2:
+The build bundled before it, cd2026081819, predated that correction:
+for 2013-2023 it added AddMed to fiitax as well as to tfica, and the
+pinned values below are its output.
+(NBER's taxsimtest page, "Output Results", still lists "Additional
+Medicare Tax" in the fiitax definition.) cd2026081819 output, single,
+TX, $400K wages, idtl=2:
 
     year  fiitax      v28         addmed   tfica
     2023  108847.00   107047.00   1800.00  17532.40
@@ -215,18 +215,9 @@ def test_taxsimtest_keeps_addmed_out_of_2024_plus_fiitax():
         )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "Bundled taxsimtest cd2026081819 predates the correction reported on "
-        "taxsim #1225 and still adds AddMed to 2013-2023 fiitax as well as "
-        "tfica. Once a refreshed binary passes, remove this marker and the "
-        "bundled-binary notes in this module, tests/test_performance.py, the "
-        "README and PolicyEngineRunner."
-    ),
-)
 def test_taxsimtest_keeps_addmed_out_of_2013_2023_fiitax():
+    """The correction reported on taxsim #1225 is in the bundled build:
+    2013-2023 fiitax excludes AddMed too (cd2026081819 still added it)."""
     out = _run_taxsimtest([2021, 2023])
     for year in (2021, 2023):
         row = out.loc[year]

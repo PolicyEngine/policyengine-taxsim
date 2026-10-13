@@ -27,6 +27,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from taxsim_known_regressions import TAXSIM_1416
 
 PA, CA, NY, TX = 39, 5, 33, 44
 
@@ -103,7 +104,25 @@ def emulator():
     return _by_id(PolicyEngineRunner(_frame(), logs=False).run(show_progress=False))
 
 
-@pytest.mark.parametrize("taxsimid", _IDS)
+# taxsim #1416 in cd2026100817: only v25 changes on these records, and fiitax
+# moves by the same amount (record 5: v25 2822.07 in cd2026081819, 0.00 now).
+_TAXSIM_1416_IDS = {5, 6, 9}
+
+
+@pytest.mark.parametrize(
+    "taxsimid",
+    [
+        pytest.param(
+            i,
+            marks=pytest.mark.xfail(
+                strict=True, raises=AssertionError, reason=TAXSIM_1416
+            ),
+        )
+        if i in _TAXSIM_1416_IDS
+        else i
+        for i in _IDS
+    ],
+)
 def test_emulator_matches_binary_on_dependent_counts(taxsim, emulator, taxsimid):
     for col in _OUTPUTS:
         assert emulator.loc[taxsimid, col] == pytest.approx(

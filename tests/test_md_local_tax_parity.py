@@ -38,6 +38,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from taxsim_known_regressions import TAXSIM_1416
 
 _COLUMNS = [
     "taxsimid",
@@ -186,6 +187,11 @@ def test_single_household_path_md_state_income_tax_has_no_local_component():
     assert total == pytest.approx(state_only, abs=0.01)
 
 
+# taxsim #1416 in cd2026100817: record 7 gets v25 0.00 instead of 2267.83, so
+# its MD EIC (v39 1133.92) is lost and siitax is 1370.13, not 236.21.
+_TAXSIM_1416_IDS = [7]
+
+
 def test_bundled_taxsim_md_siitax_is_state_only():
     """The bundled binary still reports state-only MD siitax, the premise of
     the emulator's county-tax zeroing."""
@@ -196,8 +202,16 @@ def test_bundled_taxsim_md_siitax_is_state_only():
 
     expected = _expected()
     siitax = out["siitax"].reindex(expected.index).astype(float)
-    if np.allclose(siitax, expected, rtol=0, atol=0.02):
-        return
+    known = expected.index.isin(_TAXSIM_1416_IDS)
+    if np.allclose(siitax[~known], expected[~known], rtol=0, atol=0.02):
+        if np.allclose(siitax[known], expected[known], rtol=0, atol=0.02):
+            if _TAXSIM_1416_IDS:
+                pytest.fail(
+                    f"Records {_TAXSIM_1416_IDS} match again in build {build}; "
+                    f"remove them from _TAXSIM_1416_IDS ({TAXSIM_1416})"
+                )
+            return
+        pytest.xfail(TAXSIM_1416)
 
     # The county block's signature: 3.2% of MD taxable income (v36) less
     # 3.2% of the federal EITC (v25), for 2022+ records only.
