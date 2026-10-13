@@ -3,18 +3,18 @@
 These are NBER's `taxsimtest` binaries, bundled per platform and used by
 `TaxsimRunner` (and CI) instead of downloading at run time.
 
-## Pinned builds (verified September 23, 2026)
+## Pinned builds (verified October 13, 2026)
 
 | Platform | Build stamp | NBER download |
 | --- | --- | --- |
-| macOS | `cd2026090910` | https://taxsim.nber.org/out2psl/osx |
-| Linux | `cd2026090910` | https://taxsim.nber.org/out2psl/linux |
-| Windows | `cd2026090110` | https://taxsim.nber.org/taxsimtest/taxsimtest.exe |
+| macOS | `cd2026100817` | https://taxsim.nber.org/out2psl/osx |
+| Linux | `cd2026100817` | https://taxsim.nber.org/out2psl/linux |
+| Windows | `cd2026100817` | https://taxsim.nber.org/taxsimtest/taxsimtest.exe |
 
 `manifest.json` records the source URLs, build stamps, download date, sizes,
-and SHA-256 checksums. Windows is the newest available Windows build found;
-its date differs from macOS/Linux, so do not assume cross-platform parity.
-The hosted test matrix exercises each platform's bundled executable.
+and SHA-256 checksums. All three platforms carry the same October 8 build
+stamp; the hosted test matrix still exercises each platform's bundled
+executable, so do not assume cross-platform parity without it.
 
 In July 2026, stale Linux/Windows binaries caused the opt(30) regression in
 #1089. Compare all platforms when updating, and record upstream differences.
