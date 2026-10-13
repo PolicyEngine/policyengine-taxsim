@@ -10,8 +10,8 @@ from typing import Mapping
 
 from .utils import (
     load_variable_mappings,
-    get_state_code,
-    get_state_number,
+    get_state_label,
+    validate_state_number,
 )
 
 
@@ -38,7 +38,7 @@ def _format_label_line(desc: str, formatted_value: str) -> str:
     return f"{' ' * indent}{desc:<{_LABEL_WIDTH}}{formatted_value:>{_VALUE_WIDTH}}"
 
 
-def _input_data_section(input_row: Mapping, state_name: str) -> list:
+def _input_data_section(input_row: Mapping, state_label: str) -> list:
     """Render the 'Input Data:' section from the original TAXSIM input."""
     mappings = load_variable_mappings()["taxsim_input_definition"]
     lines = ["", "   Input Data:"]
@@ -65,7 +65,7 @@ def _input_data_section(input_row: Mapping, state_name: str) -> list:
         elif field == "state":
             lines.append(
                 f"{' ' * indent}{name:<{_LABEL_WIDTH}}"
-                f"{float(value):>{_VALUE_WIDTH}.2f} {state_name}"
+                f"{float(value):>{_VALUE_WIDTH}.2f} {state_label}"
             )
         else:
             try:
@@ -80,7 +80,7 @@ def _input_data_section(input_row: Mapping, state_name: str) -> list:
     return lines
 
 
-def _grouped_output_sections(result_row: Mapping, year, state_name: str) -> list:
+def _grouped_output_sections(result_row: Mapping, year, state: int) -> list:
     """Render the post-Input sections (Basic Output, Marginal Rates,
     Federal/State Tax Calc, etc.) by reading variable values straight
     from the Microsim result row using the same YAML metadata the
@@ -115,9 +115,7 @@ def _grouped_output_sections(result_row: Mapping, year, state_name: str) -> list
             elif var_name == "year":
                 value = year
             elif var_name == "state":
-                value = (
-                    f"{get_state_number(state_name)}{' ' * _LEFT_MARGIN}{state_name}"
-                )
+                value = f"{state}{' ' * _LEFT_MARGIN}{get_state_label(state)}"
             else:
                 # Result DataFrame already has all v-columns from the
                 # output_mapper. NaN → 0.0.
@@ -137,10 +135,9 @@ def _grouped_output_sections(result_row: Mapping, year, state_name: str) -> list
 def format_row(input_row: Mapping, result_row: Mapping) -> str:
     """Format a single record's full TAXSIM idtl=5 output."""
     year = int(float(input_row.get("year", result_row.get("year", 0))))
-    state_code = int(float(input_row.get("state", result_row.get("state", 0))))
-    state_name = get_state_code(state_code)
+    state = validate_state_number(input_row.get("state", result_row.get("state")))
 
-    lines = _input_data_section(input_row, state_name)
+    lines = _input_data_section(input_row, get_state_label(state))
     lines.append("")
-    lines.extend(_grouped_output_sections(result_row, year, state_name))
+    lines.extend(_grouped_output_sections(result_row, year, state))
     return "\n".join(lines)

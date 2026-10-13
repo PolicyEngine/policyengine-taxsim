@@ -1,3 +1,123 @@
+## [3.2.0] - 2026-10-12
+
+### Added
+
+- Route TAXSIM `nonprop` (other non-property income, +/-) into PolicyEngine: positive amounts become miscellaneous income (alimony received in AL, AR and MS, whose PolicyEngine-US income lists omit miscellaneous income) and negative amounts alimony paid (an above-the-line adjustment), split 50/50 between spouses for joint filers, in both the batch and single-household paths. Previously a nonzero `nonprop` was ignored. (#1424)
+
+### Changed
+
+- Remove the stale `uv.lock` and git-ignore it. No workflow, script or documented install step read it, and it pinned policyengine-us 1.550.2, below the `>=1.711.0` minimum in `pyproject.toml`.
+
+### Fixed
+
+- Stop set iteration order from leaking into user-visible output: the API's non-numeric-column error names the first bad column in input order, `validate_required_columns` returns columns in declared and input order, and `compare`'s consolidated CSV lists records in taxsimid order.
+- Backport the EITC investment-income fix from policyengine-us 2.10.1 (pe-us#9572) to older releases, so S-corp income defaults to passive on every supported policyengine-us.
+- Compare `tfica` and `v10` in the single-household end-to-end test. A missing comma had joined the two names into `"tficav10"`, a column that does not exist, so neither was checked.
+
+
+## [3.1.1] - 2026-10-09
+
+### Changed
+
+- Cancel superseded pull request CI runs and give CI jobs timeouts, so outdated or hung jobs free shared GitHub Actions runners.
+
+### Fixed
+
+- Version-pinning examples on the documentation page now use releases that exist on PyPI (policyengine-taxsim 3.0.1 with policyengine-us 2.25.2 on Python 3.11+).
+
+
+## [3.1.0] - 2026-10-09
+
+### Added
+
+- Add Future Plans & Maintenance docs (site + README) and contract tests pinning the CLI's stdin/stdout TAXSIM CSV contract, the PolicyEngineRunner import path, and the run() DataFrame contract.
+
+### Fixed
+
+- Dashboard GitHub issues panel reads every page of open issues (it stopped at the first 100), skips pull requests, and takes only real state codes from labels and titles.
+
+
+## [3.0.1] - 2026-09-30
+
+### Fixed
+
+- Report Minnesota's Child and Working Family Credit in v39 (not split into sctc) and the 2024+ renter's credit in v37, and apply the renter's-credit Certificate of Rent Paid assumption in single-household runs, matching the batch runner.
+
+
+## [3.0.0] - 2026-09-29
+
+### Breaking changes
+
+- Default emulator S-corp NIIT classification to passive, matching TAXSIM, when policyengine-us 2.10.1+ is installed (older releases, including Python 3.10 installs, default to active with a warning), and add scorp_treatment/--scorp-treatment to choose either. Preserve QBI eligibility and expose the assumption in refresh provenance and dashboard metadata.
+
+
+## [2.33.1] - 2026-09-29
+
+### Fixed
+
+- Report Oregon's kicker in srebate and exclude it from v40, so rebate-neutral comparisons remove its timing difference. In single-household output, compute srebate correctly for households with more than one person (it was 0 in every state) and exclude every one-time rebate from v40, matching the batch runner.
+
+
+## [2.33.0] - 2026-09-29
+
+### Added
+
+- Accept TAXSIM-35's statefip input (state FIPS code) in batch, single-household and web API runs, converting it to the SOI state and rejecting records that give both state and statefip, as TAXSIM does.
+
+
+## [2.32.2] - 2026-09-28
+
+### Fixed
+
+- Keep every emulator override (QBID W-2 wages, the rental QBID gate, MN CRP, state SSI-supplement zeroing, MD local-tax zeroing, ME rent utilities, NY separate payments) in the wage-perturbation branch that computes `frate`/`srate`. The branch had dropped them, so Maryland `srate` included the county tax the emulator zeroes (2253.01 instead of 4.75 for $80k single in 2024) and rental-income `frate` went far negative (-858 instead of 22). The `--disable-salt` SALT zeroing, which the branch already kept, is now held the same way as the others.
+- Give a zero-wage filer with no spouse the whole wage perturbation when computing `frate`/`srate`, in both the batch runner and the single-household path. It had received half, which halved the reported marginal rates (Ohio single with $50k interest in 2024: `frate` 6 instead of TAXSIM's 12).
+- Treat TAXSIM mstat 6 (married filing separately) as a separate return in both emulator paths. The batch/CLI path used to add a spouse, so PolicyEngine taxed mstat 6 as a joint return, and the single-household path taxed it as single. Both now build a one-person tax unit flagged `is_separated` and `cohabitating_spouses`, so PolicyEngine applies married-filing-separately brackets, standard deduction, SALT cap, capital-loss limit and NIIT threshold, the zero Social Security base amount, and head-of-household status when a qualifying child is present — matching taxsimtest.
+
+
+## [2.32.1] - 2026-09-27
+
+### Fixed
+
+- Fix `resources/taxsimtest/taxsim-docker-wrapper.sh`, which bind-mounted a hard-coded path from one developer's machine (to a binary deleted in #1150), so Docker mounted an empty directory and the run failed with exit 126. It now runs the `taxsimtest-linux.exe` next to it (or `$TAXSIM_LINUX_BINARY`) in an image built from the new `taxsimtest-linux.Dockerfile`, which adds the `libgfortran5`/`libquadmath0` runtime the Linux build links against. The README's Docker example, which also failed (`libgfortran.so.5` missing from `debian:stable-slim`), now uses the wrapper and documents keeping bind-mounted files under `$HOME`.
+
+
+## [2.32.0] - 2026-09-26
+
+### Added
+
+- Add the `addmed` output column (Additional Medicare Tax, Form 8959) to full (idtl=2) output, matching the column taxsimtest prints.
+
+### Fixed
+
+- Stop adding the Additional Medicare Tax to `frate` on the single-household (`export_household`) path, so it matches that path's own `fiitax` and the Microsimulation runner. Document that PolicyEngine-computed `fiitax` excludes the tax in every year (taxsim #416, #1225); the bundled taxsimtest build predates the correction reported on #1225 and still adds it for 2013-2023.
+- Code the 1,155 Alabama households in the eCPS comparison inputs as TAXSIM state 1 instead of 0 ("no state tax"), which had scored them without state income tax and reported them under Texas. Report TAXSIM state 0 as "State not specified" rather than TX, echo it back as 0 as TAXSIM does, and reject invalid state codes instead of silently simulating California (batch path) or Texas (single-household path).
+- Match TAXSIM's federal result for state-0 ("no state tax") records by deducting no state or local income or sales tax, instead of the Texas sales-tax deduction PolicyEngine took by simulating them in Texas. Keep that deduction zeroed in the marginal-rate perturbation too, which previously dropped it and produced nonsense `frate` values for itemizers (for example −825 under `--disable-salt`).
+
+
+## [2.31.7] - 2026-09-25
+
+### Fixed
+
+- Fix the dashboard vitest suite (test imports referenced components renamed to DocumentationContent/LandingContent, stale assertions, missing jsdom vitest config) and run it in CI via a new dashboard-test job.
+- Keep Maryland `siitax` state-only in every case, as TAXSIM reports it: the emulator now zeroes the net county tax, so a negative local poverty credit (negative earnings) no longer adds county tax, and the single-household path used for `--logs` YAML tests does the same. A new test flags any bundled TAXSIM binary that runs TAXSIM's Maryland county-tax block (the August 2026 builds do), and runs now report 2026 build stamps such as `cd2026081819`.
+- Route TAXSIM `otheritem` (other itemized deductions) into PolicyEngine itemized deductions alongside `mortgage`; it was previously ignored. Both aggregates now feed `deductible_mortgage_interest`, matching the taxsimtest binary, which deducts both in full outside the SALT cap with no AGI floor and adds neither back to AMT income.
+- Honor TAXSIM-32 dependent counts (`dep13`, `dep17`, `dep18`) in the PolicyEngine microsimulation runner. The input was padded with zero-filled `age1..age10` before conversion, so the counts were ignored and every dependent became age 10; adult dependents (`depx` above `dep18`) received the EITC and refundable CTC that taxsimtest denies them.
+
+
+## [2.31.6] - 2026-09-24
+
+### Fixed
+
+- Exclude New York's supplemental earned income payment (a fall-2022 separate check) from siitax and v39, alongside the Additional Empire State child credit payment and inflation refund (taxsim #1154, #1185).
+
+
+## [2.31.5] - 2026-09-24
+
+### Changed
+
+- Refresh the 2021–2025 validation dashboard, with explicit Georgia and Maryland reference-binary exceptions for 2024–2025.
+
+
 ## [2.31.4] - 2026-09-23
 
 ### Fixed

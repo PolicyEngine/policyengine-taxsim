@@ -141,7 +141,14 @@ def test_import_single_household_without_state(sample_taxsim_input_without_state
                 "reduced_price_school_meals": {"2021": 0},
             }
         },
-        "tax_units": {"your tax unit": {"members": ["you"]}},
+        # State 0 files no state return, so it deducts no state or local
+        # income or sales tax federally (tests/test_state_zero_salt.py).
+        "tax_units": {
+            "your tax unit": {
+                "members": ["you"],
+                "state_and_local_sales_or_income_tax": {"2021": 0},
+            }
+        },
     }
 
     result = generate_household(sample_taxsim_input_without_state)
@@ -176,7 +183,14 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
                 "reduced_price_school_meals": {"2021": 0},
             }
         },
-        "tax_units": {"your tax unit": {"members": ["you"]}},
+        # State 0 files no state return, so it deducts no state or local
+        # income or sales tax federally (tests/test_state_zero_salt.py).
+        "tax_units": {
+            "your tax unit": {
+                "members": ["you"],
+                "state_and_local_sales_or_income_tax": {"2021": 0},
+            }
+        },
     }
 
     result = generate_household(sample_taxsim_input_with_state_eq_0)
@@ -304,6 +318,8 @@ def test_joint_household(sample_taxsim_input_for_joint):
                 "reduced_price_school_meals": {"2023": 0},
             }
         },
+        # State 0 files no state return, so it deducts no state or local
+        # income or sales tax federally (tests/test_state_zero_salt.py).
         "tax_units": {
             "your tax unit": {
                 "members": [
@@ -311,7 +327,8 @@ def test_joint_household(sample_taxsim_input_for_joint):
                     "your partner",
                     "your first dependent",
                     "your second dependent",
-                ]
+                ],
+                "state_and_local_sales_or_income_tax": {"2023": 0},
             }
         },
     }

@@ -72,6 +72,17 @@ export default function DashboardContent() {
               Data updated {currentYearData.summary.metadata.generatedAt.slice(0, 10)}
               {' · '}PolicyEngine US {currentYearData.summary.metadata.policyengineUsVersion}
               {' · '}{currentYearData.summary.totalRecords.toLocaleString()} households
+              {currentYearData.summary.metadata.scorpTreatment && (
+                <>{' · '}S-corp NIIT: {currentYearData.summary.metadata.scorpTreatment}</>
+              )}
+            </p>
+          )}
+          {currentYearData.summary?.metadata?.taxsimFallback?.appliesToThisYear && (
+            <p className="mt-2 text-sm text-primary-200">
+              TAXSIM reference uses the previous build for{' '}
+              {(currentYearData.summary.metadata.taxsimFallback.states ||
+                [currentYearData.summary.metadata.taxsimFallback.state]).join(' and ')}.
+              {' '}Other states use the updated build.
             </p>
           )}
         </div>

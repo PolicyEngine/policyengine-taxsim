@@ -329,8 +329,9 @@ class ComparisonResults:
         # Create consolidated dataframe with 2 rows per record
         consolidated_rows = []
 
-        # Get all taxsimids that we compared
-        taxsim_ids = set(self.taxsim_results[self.config.id_col])
+        # Get all taxsimids that we compared, in the order of taxsim_results
+        # (TaxComparator sorts it by ID). A set would iterate in hash order.
+        taxsim_ids = list(dict.fromkeys(self.taxsim_results[self.config.id_col]))
 
         # Create mismatch lookup sets for quick checking
         federal_mismatch_ids = {m.taxsimid for m in self.federal_mismatches}
@@ -393,17 +394,12 @@ class ComparisonResults:
             for col in input_record.index:
                 row[col] = input_record[col]
 
-        # Add state code column based on numeric state value
+        # Add state code column based on numeric state value; blank for state 0
+        # (no state tax), which must not be counted under any real state.
         if "state" in row:
-            row["state_code"] = get_state_code(
-                int(float(row["state"])) if pd.notna(row["state"]) else 0
-            )
+            row["state_code"] = get_state_code(row["state"])
         elif "state" in result_record.index:
-            row["state_code"] = get_state_code(
-                int(float(result_record["state"]))
-                if pd.notna(result_record["state"])
-                else 0
-            )
+            row["state_code"] = get_state_code(result_record["state"])
 
         # Add source identifier and match status
         row["source"] = source

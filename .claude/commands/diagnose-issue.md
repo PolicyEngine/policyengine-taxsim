@@ -111,7 +111,7 @@ Treat the issue body as a *hypothesis*, not as fact. If the reporter cites a spe
 
 Common data entry errors to check:
 - **State code**: TAXSIM uses alphabetical numbering (1-51), NOT FIPS codes!
-- **Filing status (mstat)**: `1=single`, `2=joint`, `6=dependent`. Note: TAXSIM has no separate HoH code — **PE infers HoH from `mstat=1` with `depx≥1`**. So `mstat=1, depx=0` is true single; `mstat=1, depx≥1` is HoH. Most recent issues are HoH despite `mstat=1`.
+- **Filing status (mstat)**: `1=single`, `2=joint`, `6=married filing separately`, `8=dependent taxpayer`. Note: TAXSIM has no separate HoH code — **PE infers HoH from `mstat=1` with `depx≥1`**. So `mstat=1, depx=0` is true single; `mstat=1, depx≥1` is HoH. `mstat=6` is SEPARATE, or HoH when a dependent is a qualifying child (IRC 7703(b)). Most recent issues are HoH despite `mstat=1`.
 - **Ages (page/sage)**: Required for age-based provisions
 
 ### Step 3: Test with PolicyEngine Directly

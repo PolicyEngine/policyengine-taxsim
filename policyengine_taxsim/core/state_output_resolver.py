@@ -13,13 +13,19 @@ DIRECT_STATE_MAPPING_ADAPTERS = {
     "taxsim_v36_taxable_income",
     "taxsim_v37_property_tax_credit",
 }
-# PE-US one-time state rebate variables (tax_unit level). TAXSIM reports
-# these in `srebate` (payout-year convention, included in siitax); PE books
-# them to the liability year inside state_income_tax. The emulator's srebate
-# is computed as a difference — state_income_tax with these zeroed minus
-# actual state_income_tax — so it equals exactly the amount PE netted into
-# siitax (wiring, non-refundable caps, and floors are handled automatically).
-# Only one-time rebates belong here; recurring annual rebates (e.g.
+# PE-US state rebate variables that TAXSIM reports in `srebate` (included in
+# siitax) in a different year than PE, which books them inside
+# state_income_tax. Mostly tax_unit level; mt_income_tax_rebate is
+# person-level. The emulator's srebate is computed as a difference —
+# state_income_tax with these zeroed minus actual state_income_tax — so it
+# equals exactly the amount PE netted into siitax (wiring, non-refundable
+# caps, and floors are handled automatically), and v40 is summed with these
+# zeroed. The list is one-time rebates plus Oregon's kicker, which recurs
+# only when revenue exceeds forecast: PE credits it on the return year, while
+# taxsimtest builds since cd2026081819 with option 27 or 30 set to 1 report
+# it in `srebate` for the base year (e.g. 2024; taxsim #1241). Builds that do
+# not model it (such as TAXSIM-35 2025Aug23) report no kicker, which the
+# rebate-neutral comparison also matches. Recurring annual rebates (e.g.
 # nm_low_income_comprehensive_tax_rebate, nm_property_tax_rebate,
 # pa_property_tax_or_rent_rebate, mt_property_tax_rebate) are excluded.
 # See taxsim #1068 / convention #716.
@@ -41,9 +47,23 @@ ONE_TIME_REBATE_VARIABLES = (
     "nm_2021_income_rebate",
     "nm_additional_2021_income_rebate",
     "nm_supplemental_2021_income_rebate",
+    "or_kicker",
     "ri_child_tax_rebate",
     "sc_2022_rebate",
     "va_rebate",
+)
+# New York payments PE books to the return year but that are not lines on Form
+# IT-201: the Additional Empire State child credit payment and the supplemental
+# earned income payment (both separate checks, tax.ny.gov/pit/child-earned-
+# payments) and the inflation refund (checks mailed later, based on the return-
+# year filing). TAXSIM's siitax excludes all three. They are forced to zero in
+# BOTH emulator execution paths so the exclusion is consistent: the batch
+# PolicyEngineRunner zeroes them on its Microsimulation, and the single-household
+# path zeroes them in the situation (input_mapper) — see taxsim #1154 / #1185.
+NY_SEPARATE_PAYMENT_VARIABLES = (
+    "ny_additional_ctc",
+    "ny_inflation_refund_credit",
+    "ny_supplemental_eitc",
 )
 OUTPUT_ADAPTER_OVERRIDES = {
     # MT: state_agi reads `gov.states.household.state_agis` which lists
@@ -52,14 +72,18 @@ OUTPUT_ADAPTER_OVERRIDES = {
     # `mt_agi_joint` instead (PE-US naming, but applies to joint, single, HoH).
     "taxsim_v32_state_agi": {"MT": ["mt_agi_joint"]},
     "taxsim_v38_cdcc": {"OK": ["adapter:ok_child_care_credit_component"]},
-    "taxsim_v39_eitc": {"MN": ["mn_wfc"]},
+    # MN: TAXSIM (every taxsimtest build since cd2026081819) reports the whole
+    # Child and Working Family Credit in v39 and nothing in sctc; before 2023
+    # Minnesota had only the Working Family Credit.
+    "taxsim_v39_eitc": {"MN": ["adapter:mn_working_family_credit_component"]},
     "taxsim_sctc": {
-        "MN": ["adapter:mn_child_tax_credit_component"],
+        "MN": [],
         "OK": ["adapter:ok_child_tax_credit_component"],
     },
 }
 COMPONENT_ADAPTERS = {
-    "adapter:mn_child_tax_credit_component",
+    "adapter:mn_renters_credit_component",
+    "adapter:mn_working_family_credit_component",
     "adapter:mt_income_tax_before_non_refundable_credits",
     "adapter:ok_child_care_credit_component",
     "adapter:ok_child_tax_credit_component",
@@ -264,20 +288,25 @@ def _calculate_component_adapter(
         )
         return np.where(indiv_after < joint_after, indiv_before, joint_before)
 
-    if variable == "adapter:mn_child_tax_credit_component":
-        combined_credit = calculate_named_output(
-            "mn_child_and_working_families_credits",
-            state_codes,
-            calculate,
-            parameter_values,
-        )
-        working_family_credit = calculate_named_output(
-            "mn_wfc",
-            state_codes,
-            calculate,
-            parameter_values,
-        )
-        return np.maximum(0, combined_credit - working_family_credit)
+    if variable in {
+        "adapter:mn_renters_credit_component",
+        "adapter:mn_working_family_credit_component",
+    }:
+        # PE-US computes these credits in years they did not exist (its
+        # parameters are backdated), so report only the ones on Minnesota's
+        # refundable credit list for the year: the Working Family Credit
+        # (mn_wfc) before 2023, the combined Child and Working Family Credit
+        # from 2023, and the renter's credit from 2024 (Schedule M1REF).
+        refundable = parameter_values.gov.states.mn.tax.income.credits.refundable
+        if variable == "adapter:mn_renters_credit_component":
+            source = "mn_renters_credit" if "mn_renters_credit" in refundable else None
+        elif "mn_child_and_working_families_credits" in refundable:
+            source = "mn_child_and_working_families_credits"
+        else:
+            source = "mn_wfc"
+        if source is None:
+            return np.zeros(len(state_codes), dtype=float)
+        return calculate_named_output(source, state_codes, calculate, parameter_values)
 
     raise KeyError(f"Unsupported component adapter: {variable}")
 

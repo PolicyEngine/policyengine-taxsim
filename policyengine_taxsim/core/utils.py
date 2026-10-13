@@ -1,5 +1,6 @@
 import functools
 import numpy as np
+import pandas as pd
 import yaml
 from pathlib import Path
 
@@ -10,6 +11,66 @@ def load_variable_mappings():
     config_path = Path(__file__).parent.parent / "config" / "variable_mappings.yaml"
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
+
+
+# TAXSIM `nonprop` (other non-property income) is a signed column: TAXSIM
+# documents alimony, nonwage fellowships and itemizers' state income tax
+# refunds as positive examples, and says adjustments such as alimony paid,
+# Keogh/IRA contributions, the foreign income exclusion and NOLs "can be
+# entered here as negative income". taxsimtest treats the two signs
+# differently: positive nonprop raises federal AGI and every state's income
+# base, while negative nonprop lowers federal AGI and the state bases of
+# states that take federal adjustments, but not Pennsylvania's or New
+# Jersey's. PE-US's irs_gross_income counts only the positive part of each
+# income source, so a negative value in an income variable would be dropped.
+# Each sign therefore feeds its own PolicyEngine variable, holding that sign's
+# magnitude:
+#   - positive -> miscellaneous_income: gross income with no treatment of its
+#     own, outside the net-investment-income base, earned income and SECA;
+#   - negative -> alimony_expense: an above-the-line deduction with no cap
+#     (gated on divorce_year, whose PE-US default of 2010 predates the TCJA's
+#     2019 cutoff, so it reaches federal AGI).
+# TAXSIM column that feeds NONPROP_VARIABLES.
+NONPROP_SOURCE = "nonprop"
+
+# States where the positive part goes to alimony_income instead. Their PE-US
+# gross-income source lists name alimony_income but not miscellaneous_income,
+# so miscellaneous_income would go untaxed there while taxsimtest taxes
+# nonprop. alimony_income is not used elsewhere because PE-US gives alimony
+# treatment taxsimtest does not give nonprop: Georgia's retirement-income
+# exclusion (age 62+), and the Pennsylvania tax-forgiveness and Rhode Island
+# property-tax-relief income tests, which add alimony on top of income that
+# already holds it. Drop a state once PE-US adds miscellaneous_income to its
+# list (taxsim #1424).
+NONPROP_ALIMONY_STATES = frozenset({"AL", "AR", "MS"})
+
+# PolicyEngine variables fed by nonprop; see nonprop_parts.
+NONPROP_VARIABLES = ("miscellaneous_income", "alimony_income", "alimony_expense")
+
+
+def signed_part(value, sign):
+    """Magnitude of the ``sign`` (+1 or -1) part of ``value``; 0 otherwise
+    (including for a missing value: None, a blank string, NaN or pd.NA)."""
+    if isinstance(value, str):
+        value = value.strip()
+    if value is None or (np.ndim(value) == 0 and pd.isna(value)):
+        return 0.0
+    number = float(value or 0)
+    if number != number:  # NaN from a string such as "nan"
+        return 0.0
+    return max(sign * number, 0.0) + 0.0  # + 0.0 turns -0.0 into 0.0
+
+
+def nonprop_parts(value, state_code):
+    """Household amount of each NONPROP_VARIABLES entry for a TAXSIM
+    ``nonprop`` of ``value`` in the state with postal code ``state_code``."""
+    positive = signed_part(value, 1)
+    as_alimony = str(state_code).upper() in NONPROP_ALIMONY_STATES
+    return {
+        "miscellaneous_income": 0.0 if as_alimony else positive,
+        "alimony_income": positive if as_alimony else 0.0,
+        "alimony_expense": signed_part(value, -1),
+    }
 
 
 STATE_MAPPING = {
@@ -67,16 +128,85 @@ STATE_MAPPING = {
 }
 
 
+STATE_NUMBERS = {code: number for number, code in STATE_MAPPING.items()}
+
+# TAXSIM state 0 means no state tax; its full text output (idtl=5) prints
+# "State not specified" in place of a state.
+NO_STATE = 0
+NO_STATE_LABEL = "State not specified"
+# PolicyEngine always simulates a household in some state, so a state-0 record
+# is simulated in Texas, which levies no individual income tax. This is a
+# calculation proxy only: state-0 records are never reported or echoed as TX.
+NO_STATE_TAX_PROXY = 44
+
+
+def validate_state_number(state_number):
+    """Return a TAXSIM SOI state number (0-51) as an int.
+
+    A missing value (None, blank, NaN, pd.NA) is state 0, as in TAXSIM. Any
+    other value outside 0-51 raises ValueError, as TAXSIM stops at the first
+    invalid state code; -1 (TAXSIM's compute-every-state option) is not
+    supported.
+    """
+    if isinstance(state_number, str):
+        if not state_number.strip():
+            return NO_STATE
+    elif state_number is None or (np.ndim(state_number) == 0 and pd.isna(state_number)):
+        return NO_STATE
+    try:
+        number = float(state_number)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"TAXSIM state code must be a number, got {state_number!r}"
+        ) from None
+    if np.isnan(number):
+        return NO_STATE
+    if not number.is_integer():
+        raise ValueError(f"TAXSIM state code must be an integer, got {number!r}")
+    if number == -1:
+        raise ValueError("TAXSIM state -1 (compute every state) is not supported")
+    if not NO_STATE <= number <= max(STATE_MAPPING):
+        raise ValueError(f"{int(number)} is not a valid TAXSIM SOI state code (0-51)")
+    return int(number)
+
+
 def get_state_code(state_number):
-    """Convert state number to state code."""
-    # For invalid state codes (including 0), default to Texas (consistent with set_taxsim_defaults)
-    return STATE_MAPPING.get(state_number, "TX")
+    """Postal code of a TAXSIM SOI state number, or None for state 0.
+
+    For labels and reports: state 0 (no state tax) has no postal code and is
+    never attributed to a real state. Invalid numbers raise ValueError.
+    """
+    number = validate_state_number(state_number)
+    return None if number == NO_STATE else STATE_MAPPING[number]
+
+
+def get_state_label(state_number):
+    """Postal code of a TAXSIM SOI state number, or TAXSIM's wording for 0."""
+    return get_state_code(state_number) or NO_STATE_LABEL
+
+
+def get_calculation_state_code(state_number):
+    """Postal code of the state PolicyEngine simulates for a TAXSIM record.
+
+    State 0 (no state tax) uses NO_STATE_TAX_PROXY. Use only to build or read
+    a simulation, never to label output.
+    """
+    return STATE_MAPPING[validate_state_number(state_number) or NO_STATE_TAX_PROXY]
+
+
+def get_calculation_fips(state_number):
+    """FIPS code of the state PolicyEngine simulates for a TAXSIM record."""
+    return SOI_TO_FIPS_MAP[validate_state_number(state_number) or NO_STATE_TAX_PROXY]
 
 
 def get_state_number(state_code):
-    """Convert state code to state number."""
-    state_mapping_reverse = {v: k for k, v in STATE_MAPPING.items()}
-    return state_mapping_reverse.get(state_code, 0)  # Return 0 for invalid state codes
+    """TAXSIM SOI state number of a postal code; None (no state) is 0."""
+    if state_code is None:
+        return NO_STATE
+    try:
+        return STATE_NUMBERS[str(state_code).upper()]
+    except KeyError:
+        raise ValueError(f"Unknown state code {state_code!r}") from None
 
 
 def is_date(string):
@@ -284,3 +414,56 @@ SOI_TO_FIPS_MAP = {
     50: 55,  # Wisconsin
     51: 56,  # Wyoming
 }
+
+# Reverse mapping: FIPS → SOI (for statefip input support). Identical to
+# TAXSIM's ifip2irs table (staten.for) for every state and DC.
+FIPS_TO_SOI_MAP = {fips: soi for soi, fips in SOI_TO_FIPS_MAP.items()}
+
+
+def resolve_statefip(state, statefip):
+    """Return a record's SOI state after applying TAXSIM-35's statefip input.
+
+    TAXSIM takes the state as either ``state`` (SOI code) or ``statefip``
+    (FIPS code, 1 for Alabama to 56 for Wyoming) and stops with an error when
+    both are nonzero. A missing ``statefip`` is 0 and leaves ``state`` as
+    given. TAXSIM computes no state tax for FIPS codes that are not a state or
+    DC (3, 7, 14, 43, 52); these raise instead, as almost certain input errors.
+    """
+    if isinstance(statefip, str):
+        statefip = statefip.strip() or None
+    if statefip is None or (np.ndim(statefip) == 0 and pd.isna(statefip)):
+        return state
+    try:
+        fips = float(statefip)
+    except (TypeError, ValueError):
+        raise ValueError(f"statefip must be a number, got {statefip!r}") from None
+    if fips == 0:
+        return state
+    if fips not in FIPS_TO_SOI_MAP:
+        raise ValueError(
+            "statefip must be a valid US state FIPS code (1-56, including DC) "
+            f"or 0, got {statefip!r}"
+        )
+    try:
+        given_state = validate_state_number(state)
+    except ValueError:
+        given_state = None  # invalid (e.g. -1), but not "no state"
+    if given_state != NO_STATE:
+        raise ValueError(
+            f"state {state!r} and statefip {statefip!r} are both nonzero; "
+            "TAXSIM accepts only one of them"
+        )
+    return FIPS_TO_SOI_MAP[int(fips)]
+
+
+def apply_statefip(taxsim_vars):
+    """Single-record input with ``statefip`` folded into ``state``.
+
+    Returns a copy when ``statefip`` is present, so the caller's record is
+    left as given and can be passed through the single-household path again.
+    """
+    if "statefip" not in taxsim_vars:
+        return taxsim_vars
+    record = dict(taxsim_vars)
+    record["state"] = resolve_statefip(record.get("state"), record.pop("statefip"))
+    return record

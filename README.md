@@ -4,6 +4,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
 
 ## Table of Contents
 - [Overview](#overview)
+- [Future plans and maintenance](#future-plans-and-maintenance)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
   - [From Source](#from-source)
@@ -39,6 +40,18 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 - **Interactive dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
 - **Flexible output options**: Standard, full, and text description output formats matching TAXSIM specifications
 - **YAML test generation**: Generate PolicyEngine test cases for reproducibility and validation
+
+## Future plans and maintenance
+
+We will keep powering the TAXSIM emulator for as long as people need it. Its backend may move to [Axiom](https://axiom.org), our next-generation rules engine, which encodes rules from the law with tests. If it does, the emulator still runs through PolicyEngine's wrappers, and the surfaces below stay backwards compatible. Using PolicyEngine directly adds capabilities beyond the TAXSIM format: benefit programs, and tax calculations that use variables TAXSIM doesn't support.
+
+Pipelines build on these surfaces, and CI pins each one with a contract test (`tests/test_public_contract.py`, `tests/test_cli_entry_point.py`):
+
+- The `policyengine-taxsim` CLI: TAXSIM-format CSV in, TAXSIM-format CSV out
+- The Python import path: `from policyengine_taxsim.runners import PolicyEngineRunner`
+- `PolicyEngineRunner(df).run()`: accepts a TAXSIM-format `DataFrame` and returns a TAXSIM-format `DataFrame`
+
+policyengine-taxsim is MIT-licensed open source. Its PolicyEngine calculations come from policyengine-us, which is updated as federal and state tax law changes.
 
 ## Quick Start
 
@@ -257,8 +270,9 @@ The emulator accepts CSV files with the following variables:
 |-----------|--------------------------------|---------------------------------------------|
 | taxsimid  | Unique identifier              |                                             |
 | year      | Tax year                       |                                             |
-| state     | State code                     |                                             |
-| mstat     | Marital status                 | Only supports: 1 (single), 2 (joint)        |
+| state     | State code                     | TAXSIM SOI code: 1 (Alabama) to 51 (Wyoming); 0 for no state tax |
+| statefip  | State FIPS code                | Alternative to `state`: 1 (Alabama) to 56 (Wyoming), converted to the SOI code. Give `state` or `statefip`, not both |
+| mstat     | Marital status                 | 1 (single/head of household), 2 (joint), 6 (married filing separately) |
 | page      | Primary taxpayer age           |                                             |
 | sage      | Age of secondary taxpayer                     |                                             |
 | depx      | Number of dependents           |                                             |
@@ -289,9 +303,18 @@ The emulator accepts CSV files with the following variables:
 | Variable  | Description                    |
 |-----------|--------------------------------|
 | rentpaid  | Amount of rent paid            |
-| mortgage  | Deductible mortgage interest   |
+| mortgage  | Other itemized deductions not in `proptax`/`otheritem` (mortgage interest, charity, medical above the floor, etc.) |
+| otheritem | Other itemized deductions (other state/local taxes, medical preference share, miscellaneous) |
 | proptax   | Real Estate Taxes              |
 | childcare | Childcare expenses             |
+
+`mortgage` and `otheritem` are both summed into PolicyEngine's
+`deductible_mortgage_interest`. The `taxsimtest` binary deducts both in full on
+Schedule A (no AGI floor, outside the SALT cap) and adds neither back to AMT
+income, even though the TAXSIM documentation describes `otheritem` as an AMT
+preference. One known difference remains: in AR, DE, IA (2020–2022), KS, ME, MS,
+NC and WI (2023+), `taxsimtest` leaves `otheritem` (but not `mortgage`) out of
+the state itemized deduction, while the emulator treats the two alike.
 
 ### Output Types
 
@@ -313,7 +336,7 @@ The emulator produces all standard TAXSIM output variables:
 | taxsimid | Record identifier |
 | year | Tax year |
 | state | State code |
-| fiitax | Federal income tax liability |
+| fiitax | Federal income tax liability, including the net investment income tax; excludes the Additional Medicare Tax for PolicyEngine-computed rows (see below) |
 | siitax | State income tax liability |
 | fica | FICA taxes |
 
@@ -346,4 +369,64 @@ The emulator produces all standard TAXSIM output variables:
 | v40 | Total state credits |
 | qbid | Qualified business income deduction |
 | niit | Net investment income tax |
+| addmed | Additional Medicare Tax (Form 8959; idtl = 2 only) |
 | cares | COVID-related recovery rebate credit |
+
+### S-corp NIIT treatment
+
+`--scorp-treatment passive|active` selects how the **PolicyEngine emulator**
+classifies TAXSIM `scorp` income for net investment income tax (NIIT).
+The default is `passive`, matching TAXSIM's documented convention. Select
+`active` to retain the previous materially-participating-owner assumption.
+
+```sh
+policyengine-taxsim policyengine input.csv --scorp-treatment active
+policyengine-taxsim compare input.csv --scorp-treatment passive --assume-w2-wages
+policyengine-taxsim --scorp-treatment active < input.csv > output.csv
+```
+
+Python: `PolicyEngineRunner(df, scorp_treatment="active")` or
+`generate_household(record, scorp_treatment="active")` followed by
+`export_household`. API requests accept `"scorp_treatment": "active"` or
+`"passive"` on run, streaming and email endpoints; omitting it uses the default
+above.
+
+This classifies income already included in AGI; it does not add income again,
+change QBI eligibility, impose self-employment tax or implement section 469
+passive-loss limitations. Signed losses are passed through; other loss rules
+remain unchanged. The W-2 wage assumption is an independent QBI setting.
+Python 3.10's older PE-US receives a compatibility reform for the NIIT input;
+modern PE-US uses its existing passive-income input. On policyengine-us
+releases before 2.10.1 (every Python 3.10 install, and 2.x releases such as
+the dashboard's pinned 2.6.17), the same reform backports pe-us#9572's EITC
+investment-income test, so a passive or rental loss cannot offset interest and
+dividends (IRS Publication 596, Worksheet 1). YAML tests written with `--logs`
+record this compatibility system's results, so on those releases they can
+disagree with unmodified policyengine-us for NIIT and the EITC.
+
+The switch does **not** change the TAXSIM comparator or pre-2021 TAXSIM fallback.
+An active-mode comparison therefore deliberately compares different NIIT
+assumptions. TAXSIM option 31 is not enabled automatically: it also changes
+other business-income treatments.
+
+Sources: [TAXSIM input definition](https://taxsim.nber.org/taxsimtest/),
+[IRS QBI instructions](https://www.irs.gov/instructions/i8995), and
+[discussion #1018](https://github.com/PolicyEngine/policyengine-taxsim/issues/1018).
+
+### Additional Medicare Tax and fiitax
+
+For every record the emulator computes with PolicyEngine, `fiitax` includes
+the net investment income tax but not the Additional Medicare Tax. That tax is
+counted in `tfica` and `fica` and reported in `addmed`. This follows TAXSIM's
+author on [taxsim #416](https://github.com/PolicyEngine/policyengine-taxsim/issues/416)
+and [#1225](https://github.com/PolicyEngine/policyengine-taxsim/issues/1225).
+On #1225 (2026-09-24) he called its inclusion in `fiitax` "an error that was
+present in 2000-2023" and said he believed he had corrected it. The tax itself
+applies from 2013. NBER's taxsimtest documentation ("Output Results") still
+lists it in the `fiitax` definition.
+
+The bundled `taxsimtest` binary (build cd2026081819) predates that correction.
+For 2013-2023 its `fiitax` also includes the tax, so on any record that owes
+it, the binary's `fiitax` is higher than the emulator's by `addmed`. Rows that
+the default CLI takes from the binary (years before 2021; see Year-stitching
+above) carry that inclusion until the bundled binary is refreshed.

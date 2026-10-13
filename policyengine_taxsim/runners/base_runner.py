@@ -7,8 +7,10 @@ from pathlib import Path
 
 try:
     from ..core.io import write_output
+    from ..core.utils import NO_STATE, resolve_statefip
 except ImportError:
     from policyengine_taxsim.core.io import write_output
+    from policyengine_taxsim.core.utils import NO_STATE, resolve_statefip
 
 
 class BaseTaxRunner(ABC):
@@ -45,6 +47,28 @@ class BaseTaxRunner(ABC):
         if "taxsimid" not in self.input_df.columns:
             # Assign sequential IDs starting from 1
             self.input_df["taxsimid"] = range(1, len(self.input_df) + 1)
+
+        # Records may give their state as a FIPS code in statefip instead of
+        # an SOI code in state. Convert before either backend runs, so the
+        # TAXSIM runners (which pass only `state` to the binary) and
+        # PolicyEngine see the same SOI state, then drop statefip: runners
+        # built from this input_df (StitchedRunner, sample, filter_by_year)
+        # would otherwise see both columns nonzero.
+        if "statefip" in self.input_df.columns:
+            if "state" not in self.input_df.columns:
+                self.input_df["state"] = NO_STATE
+            states = []
+            for taxsimid, state, statefip in zip(
+                self.input_df["taxsimid"],
+                self.input_df["state"],
+                self.input_df["statefip"],
+            ):
+                try:
+                    states.append(resolve_statefip(state, statefip))
+                except ValueError as error:
+                    raise ValueError(f"Record {taxsimid}: {error}") from None
+            self.input_df["state"] = states
+            self.input_df = self.input_df.drop(columns="statefip")
 
     @abstractmethod
     def run(self, show_progress: bool = True) -> pd.DataFrame:
@@ -130,13 +154,20 @@ class BaseTaxRunner(ABC):
             required_columns: List of column names that must be present
 
         Returns:
-            Tuple of (missing_columns, extra_columns)
+            Tuple of (missing_columns, extra_columns), in the order of
+            required_columns and of the input columns respectively
         """
         input_cols = set(self.input_df.columns)
         required_cols = set(required_columns)
 
-        missing_columns = list(required_cols - input_cols)
-        extra_columns = list(input_cols - required_cols)
+        missing_columns = [
+            col for col in dict.fromkeys(required_columns) if col not in input_cols
+        ]
+        extra_columns = [
+            col
+            for col in dict.fromkeys(self.input_df.columns)
+            if col not in required_cols
+        ]
 
         return missing_columns, extra_columns
 

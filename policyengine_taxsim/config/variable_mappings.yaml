@@ -208,6 +208,15 @@ policyengine_to_taxsim:
     group_order: 3
     full_text_group: "Federal Tax Calculation"
     group_column: 1
+  addmed:
+    # Form 8959 Additional Medicare Tax on wages and self-employment
+    # earnings. taxsimtest's `addmed` column appears only in its idtl=2
+    # CSV (its idtl=5 report shows the amount as line 44). Counted in
+    # tfica/fica, not fiitax (taxsim #416, #1225).
+    variable: additional_medicare_tax
+    implemented: true
+    idtl:
+      - full: 2
   v18:
     variable: taxable_income
     implemented: true
@@ -594,7 +603,12 @@ policyengine_to_taxsim:
       # Form M1PR Homestead Credit Refund (homeowners). TAXSIM reports it in
       # v37 (and, as of 20260521, also nets it into siitax — see taxsim #968);
       # PE keeps siitax = Form M1 liability, so v37 is where it surfaces.
-      MN: mn_homestead_credit_refund
+      # From 2024 the renter's credit is a Form M1 refundable credit (M1REF
+      # line 4): it stays in siitax and is also shown here, where TAXSIM
+      # reports it (taxsim #1251, #1252).
+      MN:
+        - mn_homestead_credit_refund
+        - adapter:mn_renters_credit_component
       MT: mt_elderly_homeowner_or_renter_credit
       NJ: nj_property_tax_credit
       NM: nm_property_tax_rebate
@@ -678,7 +692,7 @@ policyengine_to_taxsim:
       MD: md_eitc
       ME: me_eitc
       MI: mi_eitc
-      MN: mn_wfc
+      MN: adapter:mn_working_family_credit_component
       MO: mo_wftc
       MT: mt_eitc
       NE: ne_eitc
@@ -704,8 +718,9 @@ policyengine_to_taxsim:
     group_column: 1
   sctc:
     # Value comes from pe-us taxsim_state_ctc (aggregates
-    # gov.states.household.state_ctcs). OK and MN require component splits
-    # handled via OUTPUT_ADAPTER_OVERRIDES in state_output_resolver.py.
+    # gov.states.household.state_ctcs). OK requires a component split and MN
+    # reports 0 (its combined credit is in v39), both via
+    # OUTPUT_ADAPTER_OVERRIDES in state_output_resolver.py.
     variable: taxsim_sctc
     implemented: true
     idtl:
@@ -853,7 +868,21 @@ taxsim_to_policyengine:
           - sprofinc
       - rental_income:
           - otherprop
+      # nonprop (other non-property income, +/-) is signed: positive amounts
+      # are income, negative amounts are adjustments. Each part feeds its own
+      # variable (see nonprop_parts in core/utils.py): positive ->
+      # miscellaneous_income (federal gross income, outside the NIIT base and
+      # earned income), or alimony_income in AL, AR and MS, whose state
+      # gross-income lists name alimony but not miscellaneous income;
+      # negative -> alimony_expense (federal ALD via alimony_expense_ald, and
+      # the state adjustment lists that take it). Like the other
+      # household-level columns it is split 50/50 between spouses for MFJ.
       - miscellaneous_income:
+          - nonprop
+      - alimony_income:
+          - nonprop
+      - alimony_expense:
+          - nonprop
       - w2_wages_from_qualified_business:
       - business_is_sstb:
       - business_is_qualified:
@@ -864,8 +893,22 @@ taxsim_to_policyengine:
           - stcg
       - social_security_retirement:
           - gssi
+      # TAXSIM `mortgage` (#24) and `otheritem` (#22) are aggregates of
+      # non-SALT itemized deductions (mortgage interest, charity, medical,
+      # other taxes, etc.). The taxsimtest binary treats the two identically
+      # on the federal return: both are deducted in full on Schedule A with
+      # no AGI floor, outside the SALT cap, and neither is added back to AMT
+      # income (v26) -- despite the documentation describing `otheritem` as
+      # an AMT preference. `deductible_mortgage_interest` is the PE input
+      # with exactly that treatment (it flows through `interest_deduction`,
+      # which is not in the AMT add-back list and has no floor or cap when
+      # supplied as an input), so both columns are summed into it. Charity
+      # (AGI caps, 2021 non-itemizer deduction) and medical/misc (AGI
+      # floors) would each impose limits TAXSIM does not. See
+      # tests/test_itemized_aggregates.py.
       - deductible_mortgage_interest:
           - mortgage
+          - otheritem
       - real_estate_taxes:
           - proptax
       - unemployment_compensation:
@@ -892,6 +935,7 @@ taxsim_input_definition:
       type:
         - single: 1
         - joint: 2
+        - separate: 6
   - page:
       name: "5. Age of primary taxpayer"
       pair: sage

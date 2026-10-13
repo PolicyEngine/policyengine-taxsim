@@ -139,8 +139,8 @@ import delimited using "output.raw", delimiter(",") clear`,
         id: 'python-pin',
         label: 'Pin policyengine-us version (optional)',
         language: 'cli',
-        code: `# For reproducible results, pin the underlying tax model version
-uv pip install policyengine-us==1.555.0`
+        code: `# For reproducible results, pin the underlying tax model version (Python 3.11 or later)
+uv pip install policyengine-us==2.25.2`
       },
       {
         id: 'python-cli-advanced',
@@ -175,14 +175,14 @@ devtools::install_github(
         id: 'r-version-pin',
         label: 'Pin version & check versions',
         language: 'r',
-        code: `# Pin policyengine-us to a specific version for reproducible results
-setup_policyengine(force = TRUE, policyengine_us_version = "1.555.0")
+        code: `# Pin policyengine-us to a specific version for reproducible results (needs Python 3.11 or later)
+setup_policyengine(force = TRUE, policyengine_us_version = "2.25.2")
 
 # Check installed package versions
 policyengine_versions()
-#> policyengine-taxsim: 2.8.0
-#> policyengine-us:     1.555.0
-#> policyengine-core:   3.30.2`
+#> policyengine-taxsim: 3.0.1
+#> policyengine-us:     2.25.2
+#> policyengine-core:   3.32.21`
       }
     ],
   };
@@ -339,6 +339,7 @@ policyengine_versions()
     'v44': { implemented: true, variable: 'multiple_variable' },
     'qbid': { implemented: true, variable: 'qualified_business_income_deduction' },
     'niit': { implemented: true, variable: 'net_investment_income_tax' },
+    'addmed': { implemented: true, variable: 'additional_medicare_tax' },
     'sctc': { implemented: true, variable: 'taxsim_sctc' },
     'cares': { implemented: true, variable: 'recovery_rebate_credit' },
     'actc': { implemented: true, variable: 'refundable_ctc' }, // Implemented as refundable CTC
@@ -367,7 +368,6 @@ policyengine_versions()
     'senergy': { implemented: false, variable: 'na_pe' },
     'sptcr': { implemented: false, variable: 'na_pe' },
     'samt': { implemented: false, variable: 'na_pe' },
-    'addmed': { implemented: false, variable: 'na_pe' },
     'cdate': { implemented: false, variable: 'na_pe' },
   };
 
@@ -460,12 +460,13 @@ policyengine_versions()
 
         {/* Section Tabs */}
         <section className="pb-0">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg max-w-2xl mx-auto mb-8">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg max-w-3xl mx-auto mb-8">
             {[
               { id: 'installation', label: 'Installation & Usage' },
               { id: 'options', label: 'All Runners & CLI' },
               { id: 'mappings', label: 'Variable Mappings' },
               { id: 'datasets', label: 'Sample Datasets' },
+              { id: 'maintenance', label: 'Future Plans' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -544,7 +545,7 @@ policyengine_versions()
               {renderCodeBlock({
                 id: 'version-pin',
                 label: 'Terminal',
-                code: '# Install a specific version of policyengine-taxsim\nuv tool install policyengine-taxsim==2.13.0\n\n# Pin the underlying tax model for reproducible results\nuv tool install policyengine-taxsim --with policyengine-us==1.555.0',
+                code: '# Install a specific version of policyengine-taxsim\nuv tool install policyengine-taxsim==3.0.1\n\n# Pin the underlying tax model for reproducible results (Python 3.11 or later)\nuv tool install --python 3.11 policyengine-taxsim==3.0.1 --with policyengine-us==2.25.2',
               })}
             </div>
 
@@ -1189,6 +1190,81 @@ python scripts/convert_h5_to_taxsim.py \\
                   The full Enhanced CPS has ~80,000 tax units but is too large to serve as a static file.
                 </li>
               </ul>
+            </div>
+          </section>
+        )}
+
+        {/* Future Plans & Maintenance */}
+        {activeSection === 'maintenance' && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h2 className="text-xl font-bold text-gray-900">Future plans</h2>
+              <p className="text-gray-600">
+                We will keep powering the TAXSIM emulator for as long as people need it. Its
+                backend may move to{' '}
+                <a href="https://axiom.org" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  Axiom
+                </a>
+                , our next-generation rules engine, which encodes rules from the law with tests.
+                If it does, the emulator still runs through PolicyEngine&apos;s wrappers, and the
+                surfaces below stay backwards compatible.
+              </p>
+              <p className="text-gray-600">
+                Using PolicyEngine directly adds capabilities beyond the TAXSIM format: benefit
+                programs, and tax calculations that use variables TAXSIM doesn&apos;t support.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Stable surfaces</h3>
+              <p className="text-gray-600">
+                Pipelines build on these surfaces, and CI pins each one with a contract test (
+                {['tests/test_public_contract.py', 'tests/test_cli_entry_point.py'].map((path, i) => (
+                  <React.Fragment key={path}>
+                    {i > 0 && ', '}
+                    <a
+                      href={`https://github.com/PolicyEngine/policyengine-taxsim/blob/main/${path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:underline"
+                    >
+                      <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">{path}</code>
+                    </a>
+                  </React.Fragment>
+                ))}
+                ):
+              </p>
+              <ul className="space-y-3">
+                <li className="flex gap-3">
+                  <IconCheck size={18} className="flex-shrink-0 mt-0.5 text-primary-600" />
+                  <span className="text-sm text-gray-600">
+                    The <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">policyengine-taxsim</code> CLI:
+                    TAXSIM-format CSV in, TAXSIM-format CSV out.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <IconCheck size={18} className="flex-shrink-0 mt-0.5 text-primary-600" />
+                  <span className="text-sm text-gray-600">
+                    The Python import path:{' '}
+                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">from policyengine_taxsim.runners import PolicyEngineRunner</code>.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <IconCheck size={18} className="flex-shrink-0 mt-0.5 text-primary-600" />
+                  <span className="text-sm text-gray-600">
+                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">PolicyEngineRunner(df).run()</code>:
+                    accepts a TAXSIM-format DataFrame and returns a TAXSIM-format DataFrame.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Maintenance</h3>
+              <p className="text-gray-600">
+                policyengine-taxsim is MIT-licensed open source. Its PolicyEngine calculations
+                come from policyengine-us, which is updated as federal and state tax law changes.
+              </p>
             </div>
           </section>
         )}

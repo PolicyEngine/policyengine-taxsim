@@ -320,12 +320,17 @@ class TaxsimRunner(BaseTaxRunner):
             output_df = pd.read_csv(output_file, skiprows=skip_rows)
 
             # The binary stamps its build date into the last header column
-            # (e.g. "cdate-2025Dec24"). Stash it so run() can report which
-            # build produced the results — a stale bundled binary looks
-            # exactly like an upstream behavior change otherwise (see #1089).
-            cdate_cols = [c for c in output_df.columns if c.startswith("cdate-")]
-            if cdate_cols:
-                self.binary_build_date = cdate_cols[0][len("cdate-") :]
+            # ("cdate-2025Dec24" through build 20260521, "cd2026081819" in
+            # later builds). Stash it so run() can report which build
+            # produced the results — a stale bundled binary looks exactly
+            # like an upstream behavior change otherwise (see #1089).
+            for col in output_df.columns:
+                if col.startswith("cdate-"):
+                    self.binary_build_date = col[len("cdate-") :]
+                    break
+                if re.fullmatch(r"cd\d{10}", col):
+                    self.binary_build_date = col
+                    break
 
             # Convert numeric columns
             for col in output_df.columns:
