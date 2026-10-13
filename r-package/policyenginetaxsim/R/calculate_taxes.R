@@ -13,6 +13,9 @@
 #'   uses the 'year' column from the data.
 #' @param show_progress Logical. If TRUE (default), shows progress messages
 #'   during calculation.
+#' @param provenance Optional path of a JSON file to write a record of the
+#'   run to, as `policyengine-taxsim --provenance` does. The results are
+#'   unchanged. See Details.
 #'
 #' @return A tibble with tax calculation results. Each row corresponds to a row
 #'   in `.data`, linked by `taxsimid`. Basic output includes:
@@ -64,6 +67,20 @@
 #'
 #' See the TAXSIM 35 documentation for the full list of supported variables.
 #'
+#' ## Recording versions
+#'
+#' Results depend on the policyengine-taxsim, policyengine-us and
+#' policyengine-core versions installed in the Python environment, which
+#' [policyengine_versions()] reports. PyPI does not keep every
+#' policyengine-us release, so record them when you run: with
+#' `provenance = "run.json"`, the function also writes a JSON file with those
+#' versions, the bundled TAXSIM binary's build, path and SHA-256 (this
+#' function computes every record with PolicyEngine, so the file's `engines`
+#' field shows 0 TAXSIM records), the options, the SHA-256 and row count of
+#' the input and the results (each hashed as the CSV pandas writes for it), the
+#' version of every installed Python package, and the policyenginetaxsim and R
+#' versions. The path is checked before the calculation starts.
+#'
 #' @examples
 #' \dontrun{
 #' # Basic example: Single filer with wage income
@@ -92,15 +109,20 @@
 #'
 #' results <- policyengine_calculate_taxes(couple_data,
 #'                                          return_all_information = TRUE)
+#'
+#' # Record the versions and inputs behind the results
+#' results <- policyengine_calculate_taxes(my_data, provenance = "run.json")
 #' }
 #'
-#' @seealso [setup_policyengine()] for initial setup.
+#' @seealso [setup_policyengine()] for initial setup,
+#'   [policyengine_versions()] to show the installed versions.
 #'
 #' @export
 policyengine_calculate_taxes <- function(.data,
                                           return_all_information = FALSE,
                                           year = NULL,
-                                          show_progress = TRUE) {
+                                          show_progress = TRUE,
+                                          provenance = NULL) {
 
   # Auto-setup on first use
   if (!check_policyengine_setup(quiet = TRUE)) {
@@ -110,6 +132,12 @@ policyengine_calculate_taxes <- function(.data,
 
   # Activate the virtual environment
   reticulate::use_virtualenv(.get_pe_envname(), required = TRUE)
+
+  # Check the provenance path and module before the calculation, not after
+  if (!is.null(provenance)) {
+    provenance <- .check_provenance_path(provenance)
+    prov <- .provenance_module()
+  }
 
   # Validate input
   if (!is.data.frame(.data)) {
@@ -144,12 +172,13 @@ policyengine_calculate_taxes <- function(.data,
   # Set idtl based on return_all_information
   input_df$idtl <- if (return_all_information) 2L else 0L
 
-  # Import Python modules
+  # Import Python modules. Without automatic conversion, the runner returns
+  # a pandas DataFrame, converted to R below.
   pd <- reticulate::import("pandas")
-  runners <- reticulate::import("policyengine_taxsim.runners")
+  runners <- reticulate::import("policyengine_taxsim.runners", convert = FALSE)
 
   # Convert R data frame to pandas DataFrame
-  py_df <- reticulate::r_to_py(input_df)
+  py_df <- reticulate::r_to_py(input_df, convert = FALSE)
 
   # Create runner and execute
   if (show_progress) {
@@ -161,6 +190,25 @@ policyengine_calculate_taxes <- function(.data,
 
   # Convert results back to R
   results_df <- reticulate::py_to_r(py_results)
+
+  if (!is.null(provenance)) {
+    .write_provenance(
+      prov,
+      provenance,
+      command = "policyenginetaxsim::policyengine_calculate_taxes",
+      options = list(
+        return_all_information = return_all_information,
+        year = if (is.null(year)) NULL else as.integer(year),
+        scorp_treatment = reticulate::py_to_r(runner$scorp_treatment)
+      ),
+      input = py_df,
+      output = py_results,
+      engines = list(policyengine = nrow(input_df), taxsim = 0L)
+    )
+    if (show_progress) {
+      message("Provenance saved to ", provenance)
+    }
+  }
 
   # Convert to tibble for nicer printing
   results <- tibble::as_tibble(results_df)

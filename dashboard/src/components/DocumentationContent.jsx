@@ -173,16 +173,22 @@ devtools::install_github(
       },
       {
         id: 'r-version-pin',
-        label: 'Pin version & check versions',
+        label: 'Pin, check & record versions',
         language: 'r',
         code: `# Pin policyengine-us to a specific version for reproducible results (needs Python 3.11 or later)
 setup_policyengine(force = TRUE, policyengine_us_version = "2.25.2")
 
-# Check installed package versions
+# Check installed versions and the bundled TAXSIM binary's build
 policyengine_versions()
 #> policyengine-taxsim: 3.0.1
 #> policyengine-us:     2.25.2
-#> policyengine-core:   3.32.21`
+#> policyengine-core:   3.32.21
+#> TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)
+#> Python:              3.11.15
+
+# Record them with a run (results unchanged)
+result <- policyengine_calculate_taxes(my_data, provenance = "run.json")
+comparison <- compare_with_taxsim(my_data, provenance = "compare.json")`
       }
     ],
   };
@@ -546,6 +552,14 @@ policyengine_versions()
                 id: 'version-pin',
                 label: 'Terminal',
                 code: '# Install a specific version of policyengine-taxsim\nuv tool install policyengine-taxsim==3.0.1\n\n# Pin the underlying tax model for reproducible results (Python 3.11 or later)\nuv tool install --python 3.11 policyengine-taxsim==3.0.1 --with policyengine-us==2.25.2',
+              })}
+              <p className="text-gray-500 mb-4 mt-4 text-[15px] leading-relaxed">
+                To see which versions you have, run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">policyengine-taxsim --version</code>. To record them with a run, add <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">--provenance run.json</code>: the output is unchanged, and the JSON file records the policyengine-taxsim, policyengine-us and policyengine-core versions, the build of the TAXSIM binary that computes years before 2021, the options, and SHA-256 hashes of the input and output. PyPI does not keep every policyengine-us release, so keep this file with your results.
+              </p>
+              {renderCodeBlock({
+                id: 'version-record',
+                label: 'Terminal',
+                code: '# Show installed versions and the bundled TAXSIM build\npolicyengine-taxsim --version\n\n# Record them with a run (output unchanged)\npolicyengine-taxsim --provenance run.json < input.csv > output.csv',
               })}
             </div>
 

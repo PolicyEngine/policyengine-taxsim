@@ -1979,7 +1979,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                                             ) or "was not found" in str(e):
                                                 if self.logs:
                                                     print(
-                                                        f"Variable {resolved} not implemented, setting to 0"
+                                                        f"Variable {resolved} not implemented, setting to 0",
+                                                        file=sys.stderr,
                                                     )
                                             else:
                                                 raise
@@ -2003,7 +2004,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                                         ) or "was not found" in str(e):
                                             if self.logs:
                                                 print(
-                                                    f"Variable {resolved} not implemented, setting to 0"
+                                                    f"Variable {resolved} not implemented, setting to 0",
+                                                    file=sys.stderr,
                                                 )
                                         else:
                                             raise
@@ -2028,7 +2030,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                     if "does not exist" in err_msg or "was not found" in err_msg:
                         if self.logs:
                             print(
-                                f"Variable {pe_var} not available for {taxsim_var}, setting to 0"
+                                f"Variable {pe_var} not available for {taxsim_var}, setting to 0",
+                                file=sys.stderr,
                             )
                         columns[taxsim_var] = np.zeros(n)
                     else:
@@ -2092,7 +2095,10 @@ class PolicyEngineRunner(BaseTaxRunner):
                             columns[mtr_var] = mtr_results[mtr_var]
                 except Exception as e:
                     if self.logs:
-                        print(f"Warning: marginal rate computation failed: {e}")
+                        print(
+                            f"Warning: marginal rate computation failed: {e}",
+                            file=sys.stderr,
+                        )
                     for mtr_var in mtr_vars:
                         if mtr_var in vars_to_compute:
                             columns[mtr_var] = np.zeros(n)
