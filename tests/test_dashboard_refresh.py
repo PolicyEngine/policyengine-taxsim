@@ -75,6 +75,51 @@ class SourceTests(unittest.TestCase):
                 writer.writerow({"taxsimid": i, "year": 2021, "state": state})
         return path
 
+    def test_precomputed_taxsim_takes_the_batch_rows(self):
+        import pandas as pd
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "taxsim_2023.csv.gz"
+            pd.DataFrame(
+                {
+                    "taxsimid": [1.0, 2.0, 3.0],
+                    "fiitax": [10, 20, 30],
+                    "siitax": [1, 2, 3],
+                    "srebate": [0, 0, 0],
+                }
+            ).to_csv(path, index=False, compression="gzip")
+            ts = refresh.precomputed_taxsim(path, pd.DataFrame({"taxsimid": [3, 1]}))
+            self.assertEqual(sorted(ts.taxsimid), [1.0, 3.0])
+            self.assertEqual(
+                ts.set_index("taxsimid").fiitax.to_dict(), {1.0: 10, 3.0: 30}
+            )
+            # A record the outputs do not cover stops the batch.
+            with self.assertRaises(ValueError):
+                refresh.precomputed_taxsim(path, pd.DataFrame({"taxsimid": [1, 4]}))
+
+    def test_taxsim_outputs_must_match_the_run(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "taxsim_2023.csv.gz"
+            path.write_bytes(gzip.compress(b"taxsimid\n1\n"))
+            identity = {
+                "source": "cps_households.csv",
+                "sourceSha256": "abc",
+                "year": 2023,
+                "limit": 0,
+            }
+            provenance = {**identity, "outputSha256": refresh.digest(path)}
+            path.with_name("taxsim_2023.json").write_text(json.dumps(provenance))
+            self.assertEqual(
+                refresh.taxsim_outputs_provenance(path, identity), provenance
+            )
+            for key, value in (("year", 2024), ("sourceSha256", "x"), ("limit", 100)):
+                with self.assertRaises(ValueError):
+                    refresh.taxsim_outputs_provenance(path, {**identity, key: value})
+            # Outputs changed after their provenance was written.
+            path.write_bytes(gzip.compress(b"taxsimid\n2\n"))
+            with self.assertRaises(ValueError):
+                refresh.taxsim_outputs_provenance(path, identity)
+
     def test_checked_in_source_has_every_state(self):
         self.assertEqual(refresh.check_source(refresh.SOURCE), refresh.EXPECTED_RECORDS)
 
