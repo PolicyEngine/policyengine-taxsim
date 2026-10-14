@@ -440,7 +440,7 @@ def write_taxsim_outputs(source, output_dir, args, identity):
     build is trusted (the hosted Linux runner) and the model runs elsewhere."""
     import pandas as pd
 
-    frames, builds, binary, crashes = [], set(), None, []
+    frames, builds, binary, crashes, flaky = [], set(), None, [], []
     rows = source_rows(source, args.year, args.limit)
     while batch := list(itertools.islice(rows, args.batch_size)):
         # The same CSV round trip as the refresh's batch input, so blank ages
@@ -453,22 +453,39 @@ def write_taxsim_outputs(source, output_dir, args, identity):
         data = pd.read_csv(buffer)
         try:
             ts, build, binary = taxsim_results(data)
-        except Exception:
-            # Keep going, so one run names every record TAXSIM stops on.
+        except Exception as error:
+            # Keep going, so one run names every record TAXSIM stops on. A batch
+            # that fails once and then passes is never used: it is listed.
             found = find_taxsim_crashes(data)
             crashes += found
-            print(f"TAXSIM stopped on {len(found)} record(s) in this batch", flush=True)
+            if not found:
+                flaky.append(
+                    {
+                        "taxsimids": [
+                            int(data.taxsimid.min()),
+                            int(data.taxsimid.max()),
+                        ],
+                        "records": len(data),
+                        "error": str(error).strip()[-400:],
+                    }
+                )
+            print(
+                f"TAXSIM stopped on this batch: {len(found)} record(s) fail alone"
+                + ("" if found else "; the batch passed on a second run"),
+                flush=True,
+            )
             continue
         frames.append(ts)
         builds.add(build)
         print(f"TAXSIM: {args.year} {sum(map(len, frames))} households", flush=True)
     output_dir.mkdir(parents=True, exist_ok=True)
-    if crashes:
+    if crashes or flaky:
         atomic_json(
             output_dir / f"taxsim_{args.year}_crashes.json",
             {
                 **identity,
                 "taxsimPlatform": platform.platform(),
+                "batchesThatFailedOnce": flaky,
                 "records": [
                     {
                         "input": {
@@ -483,7 +500,13 @@ def write_taxsim_outputs(source, output_dir, args, identity):
             },
         )
         raise SystemExit(
-            f"TAXSIM stopped on {len(crashes)} record(s); see taxsim_{args.year}_crashes.json"
+            f"TAXSIM stopped on {len(crashes)} record(s) and on {len(flaky)} batch(es) "
+            f"that passed when run again; see taxsim_{args.year}_crashes.json"
+        )
+    expected = min(args.limit, EXPECTED_RECORDS) if args.limit else EXPECTED_RECORDS
+    if sum(map(len, frames)) != expected:
+        raise ValueError(
+            f"Expected {expected} TAXSIM records, got {sum(map(len, frames))}"
         )
     if len(builds) != 1:
         raise ValueError(f"Batches report different TAXSIM builds: {builds}")

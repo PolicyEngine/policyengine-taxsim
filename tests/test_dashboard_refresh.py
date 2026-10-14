@@ -134,6 +134,32 @@ class SourceTests(unittest.TestCase):
         self.assertEqual([row["taxsimid"] for row, _ in crashes], [3, 7])
         self.assertIn("SIGFPE", crashes[0][1])
 
+    def test_a_batch_that_fails_once_is_never_dropped(self):
+        import pandas as pd
+
+        calls = []
+
+        def flaky_taxsim(data):
+            calls.append(len(data))
+            if len(calls) == 1:
+                raise RuntimeError("TAXSIM execution failed: SIGFPE")
+            return data.assign(fiitax=0, siitax=0, srebate=0), "build", Path(__file__)
+
+        rows = [dict(taxsimid=i, year=2023, state=14) for i in (1, 2)]
+        args = SimpleNamespace(year=2023, limit=2, batch_size=5000)
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder)
+            with (
+                patch.object(refresh, "taxsim_results", flaky_taxsim),
+                patch.object(refresh, "source_rows", lambda *_: iter(rows)),
+            ):
+                with self.assertRaises(SystemExit):
+                    refresh.write_taxsim_outputs(Path("x"), out, args, {})
+            report = json.loads((out / "taxsim_2023_crashes.json").read_text())
+            self.assertEqual(report["records"], [])
+            self.assertEqual(report["batchesThatFailedOnce"][0]["records"], 2)
+            self.assertFalse((out / "taxsim_2023.csv.gz").exists())
+
     def test_checked_in_source_has_every_state(self):
         self.assertEqual(refresh.check_source(refresh.SOURCE), refresh.EXPECTED_RECORDS)
 
