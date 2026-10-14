@@ -72,6 +72,11 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from taxsim_known_regressions import (
+    TAXSIM_1416,
+    check_known_mismatches,
+    on_october_build,
+)
 
 SINGLE = dict(mstat=1, page=40, sage=0, pwages=50_000, swages=0)
 MFJ = dict(mstat=2, page=40, sage=40, pwages=30_000, swages=20_000)
@@ -636,6 +641,21 @@ def test_georgia_senior_nonprop_is_not_retirement_income():
     )
 
 
+# taxsim #1416 in cd2026100817: 6000 and 6001 get $3,995 - 15.98% x income
+# (2716.60, 2077.40) instead of 2720.00 and 3995.00; 7005 loses its 2730.06.
+# The same build also lowers CA 2021 tax before credits (staxbc), so siitax, by
+# $0.72 at CA taxable income $45,197 and $40,197 and $1.27 at $55,197 (records
+# 25-27: 1349.59, 2084.83, 1049.59); the cause is not established.
+_OCTOBER_BUILD_VALUES = on_october_build(
+    {(6000, "v25"), (6001, "v25"), (7005, "v25"), (7005, "fiitax")}
+    | {(25, "siitax"), (26, "siitax"), (27, "siitax")}
+)
+_OCTOBER_BUILD_REASON = (
+    f"{TAXSIM_1416} It also lowers CA 2021 siitax by $0.72-$1.27 (cause not "
+    "established)."
+)
+
+
 def test_bundled_taxsimtest_still_produces_expected_values():
     rows, checks = [], []
     for rec in TAXSIM_RECORDS:
@@ -671,11 +691,13 @@ def test_bundled_taxsimtest_still_produces_expected_values():
     output = TaxsimRunner(pd.DataFrame(rows).fillna(0)).run(show_progress=False)
     output["taxsimid"] = output["taxsimid"].astype(float).astype(int)
     output = output.set_index("taxsimid")
-    for taxsimid, expected in checks:
-        for column, value in expected.items():
-            assert float(output.loc[taxsimid, column]) == pytest.approx(
-                value, abs=0.01
-            ), f"taxsimid {taxsimid} {column}"
+    mismatches = {
+        (taxsimid, column)
+        for taxsimid, expected in checks
+        for column, value in expected.items()
+        if float(output.loc[taxsimid, column]) != pytest.approx(value, abs=0.01)
+    }
+    check_known_mismatches(mismatches, _OCTOBER_BUILD_VALUES, _OCTOBER_BUILD_REASON)
 
 
 # ---------------------------------------------------------------------------
