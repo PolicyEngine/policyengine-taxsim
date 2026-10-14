@@ -1,0 +1,1 @@
+Add a TAXSIM-only mode to the dashboard refresh (`--taxsim-only`, and a `taxsim_only` workflow input that uploads `taxsim-outputs-<year>`), and `--taxsim-outputs` to run the model half elsewhere from those outputs.

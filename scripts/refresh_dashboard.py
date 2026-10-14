@@ -10,11 +10,13 @@ import csv
 import gzip
 import hashlib
 import importlib.metadata
+import io
 import itertools
 import json
 import math
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import sys
@@ -128,13 +130,12 @@ def match_flags(taxsim, pe):
     ]
 
 
-def worker(input_path, output_path, scorp_treatment="passive"):
-    sys.path.insert(0, str(ROOT))
-    import pandas as pd
-    from policyengine_taxsim.runners import PolicyEngineRunner, TaxsimRunner
-    from policyengine_taxsim.core.utils import get_state_code
+def taxsim_results(data):
+    """Run this platform's bundled TAXSIM on a batch.
 
-    data = pd.read_csv(input_path)
+    Returns the results, the build stamp and the executable's path."""
+    sys.path.insert(0, str(ROOT))
+    from policyengine_taxsim.runners import TaxsimRunner
 
     class LoggedTaxsimRunner(TaxsimRunner):
         def _execute_taxsim(self, input_file, output_file):
@@ -143,7 +144,23 @@ def worker(input_path, output_path, scorp_treatment="passive"):
                 print("TAXSIM stderr:", result.stderr, flush=True)
             return result
 
-    ts = LoggedTaxsimRunner(data).run(show_progress=False)
+    runner = LoggedTaxsimRunner(data)
+    ts = runner.run(show_progress=False)
+    check_taxsim_ids(ts, data)
+    return ts, getattr(runner, "binary_build_date", None), Path(runner.taxsim_path)
+
+
+def precomputed_taxsim(path, data):
+    """The batch's rows from TAXSIM outputs written by --taxsim-only."""
+    import pandas as pd
+
+    ts = pd.read_csv(path)
+    ts = ts[ts.taxsimid.isin(set(data.taxsimid))].reset_index(drop=True)
+    check_taxsim_ids(ts, data)
+    return ts
+
+
+def check_taxsim_ids(ts, data):
     expected_ids = set(data.taxsimid)
     if ts.taxsimid.duplicated().any() or set(ts.taxsimid) != expected_ids:
         missing = expected_ids - set(ts.taxsimid)
@@ -160,6 +177,21 @@ def worker(input_path, output_path, scorp_treatment="passive"):
             flush=True,
         )
         raise ValueError("TAXSIM lost or duplicated household IDs")
+
+
+def worker(input_path, output_path, scorp_treatment="passive", taxsim_outputs=None):
+    sys.path.insert(0, str(ROOT))
+    import pandas as pd
+    from policyengine_taxsim.runners import PolicyEngineRunner
+    from policyengine_taxsim.core.utils import get_state_code
+
+    data = pd.read_csv(input_path)
+    ts = (
+        precomputed_taxsim(taxsim_outputs, data)
+        if taxsim_outputs
+        else taxsim_results(data)[0]
+    )
+    expected_ids = set(data.taxsimid)
     pe_input = data.copy()
     # Request detailed PE output (including staxbc), without changing tax inputs.
     pe_input["idtl"] = 5
@@ -206,7 +238,12 @@ def worker(input_path, output_path, scorp_treatment="passive"):
 
 
 def run_bounded(
-    input_path, output_path, max_memory_gb, min_disk_gb, scorp_treatment="passive"
+    input_path,
+    output_path,
+    max_memory_gb,
+    min_disk_gb,
+    scorp_treatment="passive",
+    taxsim_outputs=None,
 ):
     import psutil
 
@@ -221,6 +258,8 @@ def run_bounded(
         "--scorp-treatment",
         scorp_treatment,
     ]
+    if taxsim_outputs:
+        cmd += ["--taxsim-outputs", str(taxsim_outputs)]
     child = subprocess.Popen(cmd, start_new_session=True)
     try:
         process = psutil.Process(child.pid)
@@ -358,6 +397,151 @@ def summarize(parts, output_dir, year, metadata, sample_ids):
     return counts[0]
 
 
+def source_rows(source, year, limit):
+    """The year's TAXSIM input rows; with a limit, an even sample of every state."""
+    with source.open(newline="") as stream:
+        rows = (dict(row, year=year) for row in csv.DictReader(stream))
+        if limit:
+            # Cover every state in the smoke test.
+            per_state = {}
+            quota = math.ceil(limit / len(STATES))
+            for row in rows:
+                bucket = per_state.setdefault(row["state"], [])
+                if len(bucket) < quota:
+                    bucket.append(row)
+            rows = iter(
+                [
+                    bucket[i]
+                    for i in range(quota)
+                    for bucket in per_state.values()
+                    if i < len(bucket)
+                ][:limit]
+            )
+        yield from rows
+
+
+def find_taxsim_crashes(data):
+    """The records of a batch on which TAXSIM stops (for example SIGFPE), by
+    halving the batch until each failing part is a single record."""
+    try:
+        taxsim_results(data)
+        return []
+    except Exception as error:
+        if len(data) == 1:
+            return [(data.iloc[0].to_dict(), str(error).strip()[-400:])]
+    half = len(data) // 2
+    return find_taxsim_crashes(data.iloc[:half]) + find_taxsim_crashes(data.iloc[half:])
+
+
+def write_taxsim_outputs(source, output_dir, args, identity):
+    """--taxsim-only: run only TAXSIM on the year's records, batch by batch as the
+    refresh does, and write taxsim_<year>.csv.gz with a provenance JSON. The
+    local refresh reads them with --taxsim-outputs, so TAXSIM runs where its
+    build is trusted (the hosted Linux runner) and the model runs elsewhere."""
+    import pandas as pd
+
+    frames, builds, binary, crashes, flaky = [], set(), None, [], []
+    rows = source_rows(source, args.year, args.limit)
+    while batch := list(itertools.islice(rows, args.batch_size)):
+        # The same CSV round trip as the refresh's batch input, so blank ages
+        # read as NaN exactly as the worker sees them.
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, INPUT_COLUMNS)
+        writer.writeheader()
+        writer.writerows(batch)
+        buffer.seek(0)
+        data = pd.read_csv(buffer)
+        try:
+            ts, build, binary = taxsim_results(data)
+        except Exception as error:
+            # Keep going, so one run names every record TAXSIM stops on. A batch
+            # that fails once and then passes is never used: it is listed.
+            found = find_taxsim_crashes(data)
+            crashes += found
+            if not found:
+                flaky.append(
+                    {
+                        "taxsimids": [
+                            int(data.taxsimid.min()),
+                            int(data.taxsimid.max()),
+                        ],
+                        "records": len(data),
+                        "error": str(error).strip()[-400:],
+                    }
+                )
+            print(
+                f"TAXSIM stopped on this batch: {len(found)} record(s) fail alone"
+                + ("" if found else "; the batch passed on a second run"),
+                flush=True,
+            )
+            continue
+        frames.append(ts)
+        builds.add(build)
+        print(f"TAXSIM: {args.year} {sum(map(len, frames))} households", flush=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if crashes or flaky:
+        atomic_json(
+            output_dir / f"taxsim_{args.year}_crashes.json",
+            {
+                **identity,
+                "taxsimPlatform": platform.platform(),
+                "batchesThatFailedOnce": flaky,
+                "records": [
+                    {
+                        "input": {
+                            k: v.item() if hasattr(v, "item") else v
+                            for k, v in row.items()
+                            if v == v
+                        },
+                        "error": error,
+                    }
+                    for row, error in crashes
+                ],
+            },
+        )
+        raise SystemExit(
+            f"TAXSIM stopped on {len(crashes)} record(s) and on {len(flaky)} batch(es) "
+            f"that passed when run again; see taxsim_{args.year}_crashes.json"
+        )
+    expected = min(args.limit, EXPECTED_RECORDS) if args.limit else EXPECTED_RECORDS
+    if sum(map(len, frames)) != expected:
+        raise ValueError(
+            f"Expected {expected} TAXSIM records, got {sum(map(len, frames))}"
+        )
+    if len(builds) != 1:
+        raise ValueError(f"Batches report different TAXSIM builds: {builds}")
+    table = output_dir / f"taxsim_{args.year}.csv.gz"
+    pd.concat(frames, ignore_index=True).to_csv(table, index=False, compression="gzip")
+    atomic_json(
+        table.with_name(f"taxsim_{args.year}.json"),
+        {
+            **identity,
+            "records": sum(map(len, frames)),
+            "taxsimBuild": builds.pop(),
+            "taxsimBinarySha256": digest(binary),
+            "taxsimPlatform": platform.platform(),
+            "outputSha256": digest(table),
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+
+def taxsim_outputs_provenance(path, identity):
+    """Check outputs from --taxsim-only against this run and return their provenance."""
+    provenance = json.loads(
+        path.with_name(path.name.replace(".csv.gz", ".json")).read_text()
+    )
+    for key in ("source", "sourceSha256", "year", "limit"):
+        if provenance.get(key) != identity[key]:
+            raise ValueError(
+                f"TAXSIM outputs {path.name} were made for {key}={provenance.get(key)!r}, "
+                f"not {identity[key]!r}"
+            )
+    if provenance.get("outputSha256") != digest(path):
+        raise ValueError(f"TAXSIM outputs {path.name} do not match their provenance")
+    return provenance
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", nargs=2)
@@ -378,6 +562,16 @@ def main():
     )
     parser.add_argument("--max-memory-gb", type=float, default=5)
     parser.add_argument("--min-disk-gb", type=float, default=4)
+    parser.add_argument(
+        "--taxsim-only",
+        action="store_true",
+        help="Run only TAXSIM and write taxsim_<year>.csv.gz for --taxsim-outputs",
+    )
+    parser.add_argument(
+        "--taxsim-outputs",
+        type=Path,
+        help="Use TAXSIM outputs from --taxsim-only instead of running TAXSIM",
+    )
     args = parser.parse_args()
     if args.scorp_treatment == "default":
         sys.path.insert(0, str(ROOT))
@@ -385,8 +579,14 @@ def main():
 
         args.scorp_treatment = validate_scorp_treatment(None)
     if args.worker:
-        worker(*args.worker, scorp_treatment=args.scorp_treatment)
+        worker(
+            *args.worker,
+            scorp_treatment=args.scorp_treatment,
+            taxsim_outputs=args.taxsim_outputs,
+        )
         return
+    if args.taxsim_only and args.taxsim_outputs:
+        parser.error("--taxsim-only and --taxsim-outputs exclude each other")
     if args.year is None or not 1 <= args.batch_size <= 10000 or args.limit < 0:
         parser.error("A year, batch size 1–10000, and nonnegative limit are required")
     work = args.work_dir
@@ -411,6 +611,14 @@ def main():
         "limit": args.limit,
         "scorpTreatment": args.scorp_treatment,
     }
+    if args.taxsim_only:
+        write_taxsim_outputs(source, work / "output", args, identity)
+        return
+    taxsim_provenance = None
+    if args.taxsim_outputs:
+        args.taxsim_outputs = args.taxsim_outputs.resolve()
+        taxsim_provenance = taxsim_outputs_provenance(args.taxsim_outputs, identity)
+        identity["taxsimOutputsSha256"] = taxsim_provenance["outputSha256"]
     manifest = work / "checkpoint.json"
     if manifest.exists() and json.loads(manifest.read_text()) != identity:
         raise RuntimeError(
@@ -424,58 +632,40 @@ def main():
     parts = []
     processed = 0
     peak = 0
-    with source.open(newline="") as stream:
-        rows = (dict(row, year=args.year) for row in csv.DictReader(stream))
-        if args.limit:
-            # Cover every state in the smoke test.
-            per_state = {}
-            quota = math.ceil(args.limit / len(STATES))
-            for row in rows:
-                bucket = per_state.setdefault(row["state"], [])
-                if len(bucket) < quota:
-                    bucket.append(row)
-            rows = iter(
-                [
-                    bucket[i]
-                    for i in range(quota)
-                    for bucket in per_state.values()
-                    if i < len(bucket)
-                ][: args.limit]
+    rows = source_rows(source, args.year, args.limit)
+    while batch := list(itertools.islice(rows, args.batch_size)):
+        part = work / f"part-{len(parts):04}.csv.gz"
+        check = part.with_suffix(".json")
+        if (
+            not part.exists()
+            or not check.exists()
+            or digest(part) != json.loads(check.read_text())["sha256"]
+        ):
+            input_path = work / "batch-input.csv"
+            with input_path.open("w", newline="") as f:
+                writer = csv.DictWriter(f, INPUT_COLUMNS)
+                writer.writeheader()
+                writer.writerows(batch)
+            temp = part.with_suffix(".tmp.gz")
+            usage = run_bounded(
+                input_path,
+                temp,
+                args.max_memory_gb,
+                args.min_disk_gb,
+                args.scorp_treatment,
+                args.taxsim_outputs,
             )
-        while batch := list(itertools.islice(rows, args.batch_size)):
-            part = work / f"part-{len(parts):04}.csv.gz"
-            check = part.with_suffix(".json")
-            if (
-                not part.exists()
-                or not check.exists()
-                or digest(part) != json.loads(check.read_text())["sha256"]
-            ):
-                input_path = work / "batch-input.csv"
-                with input_path.open("w", newline="") as f:
-                    writer = csv.DictWriter(f, INPUT_COLUMNS)
-                    writer.writeheader()
-                    writer.writerows(batch)
-                temp = part.with_suffix(".tmp.gz")
-                usage = run_bounded(
-                    input_path,
-                    temp,
-                    args.max_memory_gb,
-                    args.min_disk_gb,
-                    args.scorp_treatment,
-                )
-                temp.replace(part)
-                atomic_json(
-                    check, {"sha256": digest(part), "records": len(batch), **usage}
-                )
-                input_path.unlink()
-            usage = json.loads(check.read_text())
-            peak = max(peak, usage["peakRssMiB"])
-            processed += len(batch)
-            parts.append(part)
-            print(
-                f"Checkpoint: {args.year} {processed} households, peak worker {peak} MiB",
-                flush=True,
-            )
+            temp.replace(part)
+            atomic_json(check, {"sha256": digest(part), "records": len(batch), **usage})
+            input_path.unlink()
+        usage = json.loads(check.read_text())
+        peak = max(peak, usage["peakRssMiB"])
+        processed += len(batch)
+        parts.append(part)
+        print(
+            f"Checkpoint: {args.year} {processed} households, peak worker {peak} MiB",
+            flush=True,
+        )
     expected = min(args.limit, EXPECTED_RECORDS) if args.limit else EXPECTED_RECORDS
     if processed != expected:
         raise ValueError(f"Expected {expected} source households, got {processed}")
@@ -493,6 +683,13 @@ def main():
         if (ROOT / "resources/taxsimtest/taxsimtest-linux.exe").exists()
         else None,
     }
+    if taxsim_provenance:
+        # TAXSIM ran elsewhere: record its build, not this checkout's file.
+        metadata["taxsimBinarySha256"] = taxsim_provenance["taxsimBinarySha256"]
+        metadata["taxsimOutputs"] = {
+            k: taxsim_provenance[k]
+            for k in ("taxsimBuild", "taxsimPlatform", "outputSha256", "generatedAt")
+        }
     actual = summarize(parts, work / "output", args.year, metadata, sample_ids)
     if actual != expected:
         raise ValueError("Output record count mismatch")
