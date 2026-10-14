@@ -425,7 +425,8 @@ present in 2000-2023" and said he believed he had corrected it. The tax itself
 applies from 2013. NBER's taxsimtest documentation ("Output Results") still
 lists it in the `fiitax` definition.
 
-The bundled `taxsimtest` binary (build cd2026100817, October 2026) has that
-correction: its `fiitax` excludes the tax in every year. The build bundled
-before it (cd2026081819) still included it for 2013-2023, so its `fiitax` was
-higher than the emulator's by `addmed` on any record that owed the tax.
+The bundled macOS and Linux `taxsimtest` binaries (build cd2026100817, October
+2026) have that correction: their `fiitax` excludes the tax in every year. The
+bundled Windows binary (cd2026081318) and the earlier macOS/Linux build
+(cd2026081819) still include it for 2013-2023, so their `fiitax` is higher than
+the emulator's by `addmed` on any record that owes the tax.

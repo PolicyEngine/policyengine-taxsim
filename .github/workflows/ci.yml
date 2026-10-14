@@ -87,12 +87,6 @@ jobs:
       - name: Make TAXSIM executables executable (Unix)
         if: runner.os != 'Windows'
         run: chmod +x resources/taxsim35/taxsim35-*.exe
-      # Temporary (#1206): what each platform's bundled TAXSIM build returns for
-      # Illinois and Indiana state credits. Runs before the tests, so fail-fast
-      # cancellations still leave it in the log and step summary; never fails.
-      - name: Probe IL/IN state credits
-        continue-on-error: true
-        run: python scripts/probe_taxsim_il_in_credits.py
       - name: Run tests
         run: pytest tests/
 

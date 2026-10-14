@@ -13,9 +13,10 @@ Basis:
   (AddMed itself starts in 2013), said he believed he had corrected it,
   and restated the rule: "The .009 tax on excess earnings income is in
   fica and tfica".
-- The bundled taxsimtest (build cd2026100817, October 2026) keeps
-  AddMed out of fiitax in every year (2013-2024 checked: fiitax = v28)
-  and counts it in tfica.
+- The bundled macOS and Linux taxsimtest (build cd2026100817, October
+  2026) keeps AddMed out of fiitax in every year (2013-2024 checked:
+  fiitax = v28) and counts it in tfica. Windows keeps the August build
+  cd2026081318, which still adds it to 2013-2023 fiitax.
 
 The build bundled before it, cd2026081819, predated that correction:
 for 2013-2023 it added AddMed to fiitax as well as to tfica, and the
@@ -41,6 +42,7 @@ import pytest
 from policyengine_taxsim import export_household, generate_household
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from taxsim_known_regressions import BUNDLED_BUILD, OCTOBER_BUILD
 
 # Last tax year in which taxsimtest cd2026081819 adds AddMed to fiitax.
 LAST_BINARY_YEAR_WITH_ADDMED_IN_FIITAX = 2023
@@ -215,6 +217,15 @@ def test_taxsimtest_keeps_addmed_out_of_2024_plus_fiitax():
         )
 
 
+@pytest.mark.xfail(
+    BUNDLED_BUILD != OCTOBER_BUILD,
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        f"Bundled taxsimtest {BUNDLED_BUILD} predates the correction reported "
+        "on taxsim #1225 and still adds AddMed to 2013-2023 fiitax."
+    ),
+)
 def test_taxsimtest_keeps_addmed_out_of_2013_2023_fiitax():
     """The correction reported on taxsim #1225 is in the bundled build:
     2013-2023 fiitax excludes AddMed too (cd2026081819 still added it)."""

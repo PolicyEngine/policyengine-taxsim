@@ -1,1 +1,1 @@
-Update bundled NBER TAXSIM test binaries to the October 8, 2026 builds (cd2026100817) for macOS, Linux and Windows, recording download provenance and checksums.
+Update the bundled macOS and Linux NBER TAXSIM test binaries to the October 8, 2026 build (cd2026100817), keeping Windows at the August build because NBER's October Windows build differs from the other platforms; record download provenance and checksums.

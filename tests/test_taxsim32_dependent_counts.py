@@ -27,7 +27,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
-from taxsim_known_regressions import TAXSIM_1416
+from taxsim_known_regressions import BUNDLED_BUILD, OCTOBER_BUILD, TAXSIM_1416
 
 PA, CA, NY, TX = 39, 5, 33, 44
 
@@ -115,7 +115,10 @@ _TAXSIM_1416_IDS = {5, 6, 9}
         pytest.param(
             i,
             marks=pytest.mark.xfail(
-                strict=True, raises=AssertionError, reason=TAXSIM_1416
+                BUNDLED_BUILD == OCTOBER_BUILD,
+                strict=True,
+                raises=AssertionError,
+                reason=TAXSIM_1416,
             ),
         )
         if i in _TAXSIM_1416_IDS

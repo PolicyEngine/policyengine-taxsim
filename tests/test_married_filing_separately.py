@@ -70,7 +70,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
-from taxsim_known_regressions import check_known_mismatches
+from taxsim_known_regressions import check_known_mismatches, on_october_build
 from policyengine_us import Microsimulation
 
 # (case id, record inputs, taxsimtest mstat 6 output, taxsimtest mstat 1
@@ -288,7 +288,7 @@ def test_single_household_path_matches_taxsimtest(case):
 # taxsim #1416 in cd2026100817: the head-of-household EITC with children,
 # for example 2021 one child at $20,000 of wages: $3,618 - 15.98% x $20,000 =
 # $422 instead of $3,541.30.
-_TAXSIM_1416_VALUES = {
+_TAXSIM_1416_VALUES = on_october_build(
     (case_id, mstat, "v25")
     for case_id in (
         "mfs_child_head_of_household_2021",
@@ -296,7 +296,7 @@ _TAXSIM_1416_VALUES = {
         "mfs_children_head_of_household_2025",
     )
     for mstat in (1, MSTAT_MARRIED_SEPARATE)
-}
+)
 
 
 def test_bundled_taxsimtest_still_produces_expected_values():

@@ -38,7 +38,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
-from taxsim_known_regressions import TAXSIM_1416
+from taxsim_known_regressions import BUNDLED_BUILD, OCTOBER_BUILD, TAXSIM_1416
 
 _COLUMNS = [
     "taxsimid",
@@ -189,7 +189,7 @@ def test_single_household_path_md_state_income_tax_has_no_local_component():
 
 # taxsim #1416 in cd2026100817: record 7 gets v25 0.00 instead of 2267.83, so
 # its MD EIC (v39 1133.92) is lost and siitax is 1370.13, not 236.21.
-_TAXSIM_1416_IDS = [7]
+_TAXSIM_1416_IDS = [7] if BUNDLED_BUILD == OCTOBER_BUILD else []
 
 
 def test_bundled_taxsim_md_siitax_is_state_only():
