@@ -120,6 +120,20 @@ class SourceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 refresh.taxsim_outputs_provenance(path, identity)
 
+    def test_crash_search_names_each_failing_record(self):
+        import pandas as pd
+
+        def fake_taxsim(data):
+            if data.taxsimid.isin([3, 7]).any():
+                raise RuntimeError("TAXSIM execution failed: SIGFPE")
+            return data, "build", Path("taxsim")
+
+        data = pd.DataFrame({"taxsimid": range(1, 9), "state": 14})
+        with patch.object(refresh, "taxsim_results", fake_taxsim):
+            crashes = refresh.find_taxsim_crashes(data)
+        self.assertEqual([row["taxsimid"] for row, _ in crashes], [3, 7])
+        self.assertIn("SIGFPE", crashes[0][1])
+
     def test_checked_in_source_has_every_state(self):
         self.assertEqual(refresh.check_source(refresh.SOURCE), refresh.EXPECTED_RECORDS)
 

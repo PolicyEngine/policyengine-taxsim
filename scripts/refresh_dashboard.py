@@ -420,6 +420,19 @@ def source_rows(source, year, limit):
         yield from rows
 
 
+def find_taxsim_crashes(data):
+    """The records of a batch on which TAXSIM stops (for example SIGFPE), by
+    halving the batch until each failing part is a single record."""
+    try:
+        taxsim_results(data)
+        return []
+    except Exception as error:
+        if len(data) == 1:
+            return [(data.iloc[0].to_dict(), str(error).strip()[-400:])]
+    half = len(data) // 2
+    return find_taxsim_crashes(data.iloc[:half]) + find_taxsim_crashes(data.iloc[half:])
+
+
 def write_taxsim_outputs(source, output_dir, args, identity):
     """--taxsim-only: run only TAXSIM on the year's records, batch by batch as the
     refresh does, and write taxsim_<year>.csv.gz with a provenance JSON. The
@@ -427,7 +440,7 @@ def write_taxsim_outputs(source, output_dir, args, identity):
     build is trusted (the hosted Linux runner) and the model runs elsewhere."""
     import pandas as pd
 
-    frames, builds, binary = [], set(), None
+    frames, builds, binary, crashes = [], set(), None, []
     rows = source_rows(source, args.year, args.limit)
     while batch := list(itertools.islice(rows, args.batch_size)):
         # The same CSV round trip as the refresh's batch input, so blank ages
@@ -438,13 +451,42 @@ def write_taxsim_outputs(source, output_dir, args, identity):
         writer.writerows(batch)
         buffer.seek(0)
         data = pd.read_csv(buffer)
-        ts, build, binary = taxsim_results(data)
+        try:
+            ts, build, binary = taxsim_results(data)
+        except Exception:
+            # Keep going, so one run names every record TAXSIM stops on.
+            found = find_taxsim_crashes(data)
+            crashes += found
+            print(f"TAXSIM stopped on {len(found)} record(s) in this batch", flush=True)
+            continue
         frames.append(ts)
         builds.add(build)
         print(f"TAXSIM: {args.year} {sum(map(len, frames))} households", flush=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if crashes:
+        atomic_json(
+            output_dir / f"taxsim_{args.year}_crashes.json",
+            {
+                **identity,
+                "taxsimPlatform": platform.platform(),
+                "records": [
+                    {
+                        "input": {
+                            k: v.item() if hasattr(v, "item") else v
+                            for k, v in row.items()
+                            if v == v
+                        },
+                        "error": error,
+                    }
+                    for row, error in crashes
+                ],
+            },
+        )
+        raise SystemExit(
+            f"TAXSIM stopped on {len(crashes)} record(s); see taxsim_{args.year}_crashes.json"
+        )
     if len(builds) != 1:
         raise ValueError(f"Batches report different TAXSIM builds: {builds}")
-    output_dir.mkdir(parents=True, exist_ok=True)
     table = output_dir / f"taxsim_{args.year}.csv.gz"
     pd.concat(frames, ignore_index=True).to_csv(table, index=False, compression="gzip")
     atomic_json(

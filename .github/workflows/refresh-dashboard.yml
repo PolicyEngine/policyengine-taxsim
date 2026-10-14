@@ -64,6 +64,8 @@ jobs:
           YEAR: ${{ matrix.year }}
         run: python scripts/refresh_dashboard.py --year "$YEAR" --taxsim-only --batch-size 5000 --work-dir work --scorp-treatment "$SCORP_TREATMENT"
       - uses: actions/upload-artifact@v4
+        # Also on failure: taxsim_<year>_crashes.json names the records TAXSIM stopped on.
+        if: always()
         with:
           name: taxsim-outputs-${{ matrix.year }}
           path: |
