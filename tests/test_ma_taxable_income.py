@@ -10,16 +10,24 @@ Expected values are external:
   exemption = 53,600).
 - Row 6: Dan Feenberg's TaxAct 2024 Form 1 for taxsim #1382 row 6
   (http://taxsim.nber.org/out2psl/1382): line 19 "5.0% income after
-  exemptions" 1,381,200 and line 28 total tax 82,158.
+  exemptions" 1,381,200 and line 28 total tax 82,158. Its Schedule X line 6
+  excess business loss add-back is in policyengine-us 2.41.3 and later
+  (policyengine-us #9908); Python 3.10 installs an older 1.x release.
 """
+
+from importlib.metadata import version
 
 import pandas as pd
 import pytest
+from packaging.version import Version
 
 from policyengine_taxsim import export_household, generate_household
 from policyengine_taxsim.runners.policyengine_runner import PolicyEngineRunner
 
 MA = 22
+MA_EXCESS_BUSINESS_LOSS_ADD_BACK = Version(version("policyengine-us")) >= Version(
+    "2.41.3"
+)
 
 CASES = [
     # (input, expected v36, expected siitax)
@@ -81,6 +89,19 @@ CASES = [
 ]
 
 
+PARAMS = [
+    pytest.param(
+        *case,
+        marks=pytest.mark.skipif(
+            case[0].get("scorp", 0) < 0 and not MA_EXCESS_BUSINESS_LOSS_ADD_BACK,
+            reason="Needs the Massachusetts excess business loss add-back "
+            "(policyengine-us 2.41.3+)",
+        ),
+    )
+    for case in CASES
+]
+
+
 def _row(taxsim_input):
     return {**taxsim_input, "idtl": 2, "opt1": 30, "opt1v": 1}
 
@@ -94,14 +115,14 @@ def runner_output():
     return result.set_index(result.taxsimid.astype(int))
 
 
-@pytest.mark.parametrize(("taxsim_input", "v36", "siitax"), CASES)
+@pytest.mark.parametrize(("taxsim_input", "v36", "siitax"), PARAMS)
 def test_ma_v36_batch_path(runner_output, taxsim_input, v36, siitax):
     row = runner_output.loc[taxsim_input["taxsimid"]]
     assert float(row["v36"]) == pytest.approx(v36, abs=0.01)
     assert float(row["siitax"]) == pytest.approx(siitax, abs=0.01)
 
 
-@pytest.mark.parametrize(("taxsim_input", "v36", "siitax"), CASES)
+@pytest.mark.parametrize(("taxsim_input", "v36", "siitax"), PARAMS)
 def test_ma_v36_single_household_path(taxsim_input, v36, siitax):
     taxsim_input = _row(taxsim_input)
     situation = generate_household(dict(taxsim_input))
