@@ -1,3 +1,14 @@
+## [3.2.1] - 2026-10-19
+
+### Changed
+
+- Run the test matrix on Python 3.11 only, and allow the known Arkansas tax table difference in one nonprop test.
+
+### Fixed
+
+- PolicyEngineRunner returns records in input order (it returned them grouped by tax year), so the R package and the compare command match TAXSIM's record order.
+
+
 ## [3.2.0] - 2026-10-12
 
 ### Added
