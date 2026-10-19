@@ -6,9 +6,26 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to a pull request supersedes the run on its previous head, so
+# cancel that run instead of letting its six-OS test matrix (macOS jobs take
+# up to 85 minutes, and the org can run only 5 macOS jobs at once) finish on a
+# stale commit. Pushes to main get their own group per run and are never
+# cancelled, because they version and publish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # The versioning job below commits "Update package version" to main with an
+  # app token, which triggers this workflow again. That commit changes only
+  # the version, changelog and fragments, so skip the checks on it (as
+  # policyengine.py's push workflow does) instead of re-running the full
+  # six-OS matrix. versioning and publish need lint and test, so they skip too;
+  # on that commit they found no fragments and re-published nothing anyway.
   lint:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Install ruff
@@ -17,12 +34,20 @@ jobs:
         run: ruff format --check .
 
   scorp-validation:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"]
+        include:
+          - python-version: "3.10"
+          - python-version: "3.11"
+          # Dashboard refresh environment (policyengine-us 2.6.17): has the
+          # passive input but predates the EITC investment-income fix
+          # (pe-us#9572), so it gets the backport.
+          - python-version: "3.11"
+            dashboard-pin: true
     env:
       OPENBLAS_NUM_THREADS: '1'
       OMP_NUM_THREADS: '1'
@@ -32,15 +57,25 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e . pytest
-      - run: pytest tests/test_scorp_treatment.py -v
+      - if: ${{ !matrix.dashboard-pin }}
+        run: pip install -e . pytest hypothesis
+      - if: matrix.dashboard-pin
+        run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e . && pip install pytest hypothesis
+      - run: pytest tests/test_scorp_treatment.py tests/test_eitc_investment_income_baskets.py -v
 
   test:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ${{ matrix.os }}
+    # Slowest observed 2026-10-06..08: 85 minutes (macos-latest, Python 3.11).
+    # Fail a hung job instead of holding a runner for the 6-hour default.
+    timeout-minutes: 150
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11"]
+        # policyengine-us 2.x needs Python 3.11. On Python 3.10 pip falls
+        # back to policyengine-us 1.779.3 (1.780-1.783 are no longer on
+        # PyPI), which predates the nonprop routing these tests check.
+        python-version: ["3.11"]
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
@@ -59,7 +94,9 @@ jobs:
         run: pytest tests/
 
   dashboard-test:
+    if: github.event.head_commit.message != 'Update package version'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: dashboard
@@ -75,6 +112,7 @@ jobs:
   check-changelog:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -115,6 +153,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, test]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Generate GitHub App token
         id: app-token

@@ -1,9 +1,9 @@
 """Regression tests for 50/50 spouse income splitting in PolicyEngineRunner.
 
 Household-aggregate TAXSIM inputs (intrec, dividends, ltcg, stcg, pensions,
-gssi, scorp) have no per-spouse pair field. For MFJ, the runner allocates
-these evenly between spouses so that per-person state rules (e.g. DE age 60+
-exclusion, DE pension exclusion) apply to both spouses. See issues #665
+gssi, scorp, nonprop) have no per-spouse pair field. For MFJ, the runner
+allocates these evenly between spouses so that per-person state rules (e.g. DE
+age 60+ exclusion, DE pension exclusion) apply to both spouses. See issues #665
 and #838.
 
 Pension and Social Security income use an age-aware rule: split only when
@@ -56,6 +56,7 @@ def _base_mfj_record(taxsimid=1, **overrides):
         ("ltcg", "long_term_capital_gains", 60000),
         ("stcg", "short_term_capital_gains", 30000),
         ("scorp", "partnership_s_corp_income", 50000),
+        ("nonprop", "miscellaneous_income", 30000),
     ],
 )
 def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amount):
@@ -65,6 +66,26 @@ def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amoun
     # Two people (primary + spouse). Each should get half.
     assert len(values) == 2
     np.testing.assert_allclose(values, [amount / 2, amount / 2])
+
+
+def test_mfj_negative_nonprop_splits_as_alimony_expense():
+    """MFJ: negative `nonprop` (an adjustment such as alimony paid) becomes
+    alimony_expense, $amount/2 on each spouse, and no income. PE-US floors
+    each gross-income source at zero, so a negative miscellaneous_income would
+    be lost (taxsim #1424)."""
+    df = pd.DataFrame([_base_mfj_record(nonprop=-12000)])
+    np.testing.assert_allclose(_run_allocation(df, "alimony_expense"), [6000, 6000])
+    np.testing.assert_allclose(_run_allocation(df, "miscellaneous_income"), [0, 0])
+    np.testing.assert_allclose(_run_allocation(df, "alimony_income"), [0, 0])
+
+
+def test_mfj_positive_nonprop_is_alimony_income_in_alabama():
+    """AL, AR and MS: PE-US's state gross-income lists name alimony_income
+    but not miscellaneous_income, so positive `nonprop` goes to
+    alimony_income there (NONPROP_ALIMONY_STATES), still split 50/50."""
+    df = pd.DataFrame([_base_mfj_record(state=1, nonprop=30000)])
+    np.testing.assert_allclose(_run_allocation(df, "alimony_income"), [15000, 15000])
+    np.testing.assert_allclose(_run_allocation(df, "miscellaneous_income"), [0, 0])
 
 
 def test_scorp_maps_to_partnership_s_corp_income():
@@ -98,6 +119,7 @@ def test_scorp_maps_to_partnership_s_corp_income():
         ("intrec", "taxable_interest_income", 100000),
         ("pensions", "taxable_private_pension_income", 50000),
         ("gssi", "social_security_retirement", 40000),
+        ("nonprop", "miscellaneous_income", 30000),
     ],
 )
 def test_single_filer_household_income_stays_on_primary(taxsim_field, pe_var, amount):
