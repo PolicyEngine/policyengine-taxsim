@@ -1,3 +1,10 @@
+## [3.2.2] - 2026-10-20
+
+### Fixed
+
+- Report v29 as the combined FICA (as TAXSIM's v29 and fica), v19 as the ordinary-rate tax on all taxable income (TAXSIM's 'no special capital gains rates'), and Massachusetts v36 as Part A + Part B + Part C taxable income (it was always 0).
+
+
 ## [3.2.1] - 2026-10-19
 
 ### Changed
