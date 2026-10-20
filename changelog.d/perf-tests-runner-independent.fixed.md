@@ -1,0 +1,1 @@
+Stop the performance tests from failing on slow CI runners. The extract-phase test now counts the `calculate` calls made for 51 and 204 records, in standard and in full output, and requires the same number, instead of timing the phase against a 60-second limit. The wall-clock benchmarks marked `slow` are skipped unless a `-m` expression is given (`pytest -m slow` runs them).
