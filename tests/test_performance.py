@@ -92,8 +92,8 @@ class TestRunnerOutputCorrectness:
 
 
 class TestFederalOutputAdjustments:
-    # 2021 and 2023 are years where taxsimtest cd2026081819 still adds
-    # AddMed to fiitax; the emulator excludes it in every year
+    # 2021 and 2023 are years where taxsimtest cd2026081819 (and the bundled
+    # Windows cd2026081318) add AddMed to fiitax; the emulator excludes it in every year
     # (tests/test_addmed_excluded_from_fiitax.py).
     @pytest.mark.parametrize("year", [2021, 2023, 2024])
     def test_fiitax_uses_income_tax_only_excludes_additional_medicare_tax(self, year):
