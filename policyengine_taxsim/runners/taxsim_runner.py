@@ -2,11 +2,13 @@ import os
 import platform
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 import pandas as pd
 from .base_runner import BaseTaxRunner
 from ..core.utils import convert_taxsim32_dependents
+from ..core.provenance import parse_build_stamp
 
 
 class TaxsimRunner(BaseTaxRunner):
@@ -96,10 +98,17 @@ class TaxsimRunner(BaseTaxRunner):
 
     def __init__(self, input_df: pd.DataFrame, taxsim_path: str = None):
         super().__init__(input_df)
-        self.taxsim_path = taxsim_path or self._detect_taxsim_executable()
+        # An absolute path, so the shell runs "./taxsim35" from here rather
+        # than searching PATH for "taxsim35".
+        self.taxsim_path = (
+            Path(taxsim_path).absolute()
+            if taxsim_path
+            else self._detect_taxsim_executable()
+        )
         self._validate_executable()
 
-    def _detect_taxsim_executable(self) -> Path:
+    @staticmethod
+    def _detect_taxsim_executable() -> Path:
         """Detect correct TAXSIM executable based on OS"""
         import sys
 
@@ -156,8 +165,11 @@ class TaxsimRunner(BaseTaxRunner):
                 f"TAXSIM executable not found at: {self.taxsim_path}"
             )
 
-        # Make executable on Unix-like systems
-        if platform.system().lower() != "windows":
+        # Make executable on Unix-like systems (only when it isn't already: a
+        # binary the user doesn't own can't be chmodded)
+        if platform.system().lower() != "windows" and not os.access(
+            self.taxsim_path, os.X_OK
+        ):
             os.chmod(self.taxsim_path, 0o755)
 
     def _format_input_for_taxsim(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -325,11 +337,9 @@ class TaxsimRunner(BaseTaxRunner):
             # produced the results — a stale bundled binary looks exactly
             # like an upstream behavior change otherwise (see #1089).
             for col in output_df.columns:
-                if col.startswith("cdate-"):
-                    self.binary_build_date = col[len("cdate-") :]
-                    break
-                if re.fullmatch(r"cd\d{10}", col):
-                    self.binary_build_date = col
+                build = parse_build_stamp(col)
+                if build is not None:
+                    self.binary_build_date = build
                     break
 
             # Convert numeric columns
@@ -467,7 +477,9 @@ class TaxsimRunner(BaseTaxRunner):
             DataFrame with TAXSIM results
         """
         if show_progress:
-            print(f"Running TAXSIM on {len(self.input_df)} records")
+            # Progress goes to stderr: the stdin drop-in command writes the
+            # TAXSIM-format results to stdout.
+            print(f"Running TAXSIM on {len(self.input_df)} records", file=sys.stderr)
 
         # Create temporary files
         input_file = None
@@ -483,7 +495,11 @@ class TaxsimRunner(BaseTaxRunner):
 
             # Execute TAXSIM
             if show_progress:
-                print(f"Processing TAXSIM: {len(self.input_df)} records", end="\r")
+                print(
+                    f"Processing TAXSIM: {len(self.input_df)} records",
+                    end="\r",
+                    file=sys.stderr,
+                )
 
             self._execute_taxsim(input_file, output_file)
 
@@ -492,7 +508,10 @@ class TaxsimRunner(BaseTaxRunner):
 
             if show_progress:
                 build = getattr(self, "binary_build_date", "unknown")
-                print(f"\nTAXSIM completed successfully (binary build {build})")
+                print(
+                    f"\nTAXSIM completed successfully (binary build {build})",
+                    file=sys.stderr,
+                )
 
             return results_df
 
@@ -512,6 +531,12 @@ class TaxsimRunner(BaseTaxRunner):
 
         results_df.to_csv(output_path, index=False)
         print(f"TAXSIM results saved to: {output_path}")
+
+
+def default_taxsim_executable() -> Path:
+    """Path of the bundled TAXSIM binary a run uses on this OS (the first
+    search location when no copy is found)."""
+    return TaxsimRunner._detect_taxsim_executable()
 
 
 class TaxsimExecutionError(Exception):

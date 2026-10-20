@@ -37,6 +37,31 @@ describe('DocumentationContent', () => {
     expect(container.textContent).toContain('uv tool install policyengine-taxsim');
   });
 
+  it('version pinning explains --version and --provenance', async () => {
+    const { container } = await renderDoc();
+    expect(container.textContent).toContain('policyengine-taxsim --version');
+    expect(container.textContent).toContain(
+      'policyengine-taxsim --provenance run.json < input.csv > output.csv'
+    );
+    expect(container.textContent).toContain(
+      'PyPI does not keep every policyengine-us release'
+    );
+  });
+
+  it('R tab shows the TAXSIM build and the provenance argument', async () => {
+    const { container } = await renderDoc();
+    fireEvent.click(screen.getByRole('button', { name: 'R' }));
+    const text = container.textContent;
+    expect(text).toContain('policyengine_versions()');
+    expect(text).toContain('#> TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)');
+    expect(text).toContain(
+      'policyengine_calculate_taxes(my_data, provenance = "run.json")'
+    );
+    expect(text).toContain(
+      'compare_with_taxsim(my_data, provenance = "compare.json")'
+    );
+  });
+
   it('shows the section tabs', async () => {
     await renderDoc();
     [

@@ -51,11 +51,21 @@ class StitchedRunner(BaseTaxRunner):
 
             return TaxsimRunner(df)
 
+    def _pe_mask(self) -> pd.Series:
+        return self.input_df["year"].astype(int) >= self.pe_min_year
+
+    def engine_counts(self) -> dict:
+        """Number of records each engine computes in ``run()``."""
+        pe_records = int(self._pe_mask().sum())
+        return {
+            "policyengine": pe_records,
+            "taxsim": len(self.input_df) - pe_records,
+        }
+
     def run(self, show_progress: bool = True, on_progress=None) -> pd.DataFrame:
         import numpy as np
 
-        years = self.input_df["year"].astype(int)
-        pe_mask = years >= self.pe_min_year
+        pe_mask = self._pe_mask()
         taxsim_mask = ~pe_mask
 
         # Warn if PE-only kwargs are set but some rows go to TAXSIM
