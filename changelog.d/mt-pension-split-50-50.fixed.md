@@ -1,1 +1,1 @@
-Split Montana pensions 50/50 between spouses at every age, as for Kentucky: Montana's 2021-2023 partial pension exemption has no age requirement.
+Split Montana pensions 50/50 between spouses at every age, as TAXSIM does when it taxes a 2021-2023 Montana joint return in two columns.

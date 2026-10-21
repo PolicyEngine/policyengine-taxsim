@@ -237,12 +237,11 @@ def test_pension_splits_for_ky_mixed_age_independent_exclusion():
     np.testing.assert_allclose(values, [35707.46, 35707.46])
 
 
-def test_pension_splits_for_mt_mixed_age_independent_exemption():
-    """Pension, age-independent state: Montana's 2021-2023 partial pension,
-    annuity and IRA income exemption has no age requirement and is computed
-    "in Columns A and B separately for each spouse" (2021 Form 2), and TAXSIM's
-    mttax splits non-wage income 50/50. So a mixed-age MT couple (56/51, which
-    straddles the default 55 line) splits 50/50. state=27 is MT."""
+def test_pension_splits_for_mt_mixed_age_column_split():
+    """Pension, Montana: for 2021-2023 TAXSIM's mttax taxes a joint return in
+    two columns and splits non-wage income, pensions included, 50/50 between
+    them at every age. So a mixed-age MT couple (56/51, which straddles the
+    default 55 line) splits 50/50. state=27 is MT."""
     df = pd.DataFrame(
         [_base_mfj_record(year=2021, state=27, page=56, sage=51, pensions=20000)]
     )
