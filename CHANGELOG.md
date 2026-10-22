@@ -1,3 +1,10 @@
+## [3.2.3] - 2026-10-22
+
+### Fixed
+
+- Stop trusting the compromised eMudhra CA certificates: pin certifi 2026.10.19 in the dashboard refresh environment, and make the Modal API image upgrade ca-certificates and install certifi 2026.10.19 or later.
+
+
 ## [3.2.2] - 2026-10-20
 
 ### Fixed
