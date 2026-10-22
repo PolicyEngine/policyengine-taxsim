@@ -1,3 +1,10 @@
+## [3.2.4] - 2026-10-22
+
+### Fixed
+
+- Treat every person in a TAXSIM record as a non-student, so a spouse aged 17 or younger no longer gets IRC 21(d)(2) deemed earned income for the child and dependent care credit, which TAXSIM does not give.
+
+
 ## [3.2.3] - 2026-10-22
 
 ### Fixed
