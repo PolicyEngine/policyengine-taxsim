@@ -10,7 +10,7 @@ blosc2==4.13.1
     # via tables
 census==0.8.27
     # via spm-calculator
-certifi==2026.7.22
+certifi==2026.10.19
     # via
     #   httpcore
     #   httpx

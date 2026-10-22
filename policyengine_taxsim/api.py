@@ -14,13 +14,19 @@ Local (no Modal):
 import modal
 from typing import Literal
 
+# Naming ca-certificates makes apt upgrade the operating-system CA store,
+# which urllib uses, to the newest Debian package (20250419+deb13u1 on trixie,
+# 20250419~deb12u2 on bookworm). certifi is the CA list that requests, used by
+# resend, reads. Those packages and certifi 2026.10.19 no longer trust the
+# compromised eMudhra root "emSign ECC Root CA - G3".
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .apt_install("git")
+    .apt_install("git", "ca-certificates")
     .pip_install(
         "policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git@main",
         "fastapi[standard]",
         "resend",
+        "certifi>=2026.10.19",
     )
 )
 
