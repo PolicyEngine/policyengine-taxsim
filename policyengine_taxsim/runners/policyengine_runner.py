@@ -295,6 +295,17 @@ class TaxsimMicrosimDataset(Dataset):
         # the per-person cap — so KY must split 50/50 at every age rather than
         # route to the older spouse (taxsim #1026). Age 0 = always same-side.
         "KY": 0,
+        # Montana 2021-2023 taxes a joint return as two separate returns on
+        # one form (Columns A and B). TAXSIM's mttax gives each spouse their
+        # own wages and business income and splits all other income,
+        # pensions included, 50/50 between the columns at every age
+        # (27mt.for: agih = yh+un/2d0, agiw = yw+un/2d0), so MT splits
+        # pensions 50/50 at every age (census record 41313, ages 51/56).
+        # This does not depend on the partial pension exemption: PE-US does
+        # not model it, and mttax computes it for the household before the
+        # column split. From 2024 Montana taxes joint returns jointly, so
+        # the split no longer matters.
+        "MT": 0,
     }
     # TAXSIM source column for pension income (the per-state age applies here
     # only; gssi and any other age-gated field use the default).
