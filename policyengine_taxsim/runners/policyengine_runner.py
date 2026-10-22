@@ -1619,7 +1619,45 @@ class PolicyEngineRunner(BaseTaxRunner):
         state-0 records spread through every chunk costs about twice the
         simulation work.
         """
-        return self._run_once(show_progress, on_progress)
+        return self._order_columns(self._run_once(show_progress, on_progress))
+
+    def _canonical_output_columns(self) -> list:
+        """Every output column, in the one order the runner emits them.
+
+        A batch's output holds the columns its rows need, in this relative
+        order. It is the layout a batch already had when all its chunks
+        carried the same columns: the three identifiers, then the implemented
+        columns in the order of the ``policyengine_to_taxsim`` mapping, then
+        the marginal rates, which are computed after everything else.
+        """
+        identifiers = ["taxsimid", "year", "state"]
+        mapped = []
+        marginal_rates = []
+        for taxsim_var, mapping in self.mappings["policyengine_to_taxsim"].items():
+            if taxsim_var in identifiers or not mapping.get("implemented", False):
+                continue
+            if mapping.get("variable", "") == "marginal_rate_computed":
+                marginal_rates.append(taxsim_var)
+            else:
+                mapped.append(taxsim_var)
+        return identifiers + mapped + marginal_rates
+
+    def _order_columns(self, results_df: pd.DataFrame) -> pd.DataFrame:
+        """Put the output columns in canonical order.
+
+        Each chunk carries only the columns its rows' idtl levels ask for,
+        and drops any column that is empty for all its rows; pd.concat keeps
+        columns in order of first appearance. Left alone, the order depended
+        on which chunk first carried a column: a 2021 idtl=0 record followed
+        by a 2022 idtl=2 record put frate in column 8, and the reverse put it
+        in column 40 (taxsim #1426). Which columns appear still depends on
+        what the batch asks for; their relative order no longer does.
+        """
+        canonical = self._canonical_output_columns()
+        present = set(results_df.columns)
+        known = [column for column in canonical if column in present]
+        other = [column for column in results_df.columns if column not in canonical]
+        return results_df[known + other]
 
     def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
         """
