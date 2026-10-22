@@ -280,6 +280,12 @@ The emulator accepts CSV files with the following variables:
 | age2      | Second dependent's age         |                                             |
 | ageN      | Nth dependent's age            | Taxsim only allows up to 8 dependents       |
 
+TAXSIM input has no student status, so the emulator treats every person as a
+non-student (`is_full_time_student` is false). A dependent aged 19 to 23 is
+therefore not a qualifying child through the student age test, and a spouse
+aged 17 or younger gets no IRC 21(d)(2) deemed earned income for the child
+and dependent care credit.
+
 ### Income
 
 | Variable  | Description                                                  |

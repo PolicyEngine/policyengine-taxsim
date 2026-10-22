@@ -1249,9 +1249,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
     ):
         """Build a Microsimulation from the chunk dataset and apply all
-        emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
-        imputed-transfer zeroing, MD local tax zeroing, ME rent utilities, NY
-        separate payments).
+        emulator overrides (student status, SALT, QBID W-2 wages, rental QBID
+        gate, MN CRP, imputed-transfer zeroing, MD local tax zeroing, ME rent
+        utilities, NY separate payments).
 
         ``zero_salt`` zeroes the federal deduction for state and local income
         or sales tax for every record in the chunk: state-0 records and
@@ -1262,6 +1262,20 @@ class PolicyEngineRunner(BaseTaxRunner):
         sim = Microsimulation(
             dataset=dataset, tax_benefit_system=scorp_tax_benefit_system()
         )
+        # Student status: TAXSIM input has none, and the emulator does not
+        # default anyone to being a student (taxsim #532). PE-US imputes
+        # is_in_k12_school for ages 5 to 17, which made a spouse that age a
+        # full-time student and gave them the IRC 21(d)(2) deemed earned
+        # income for the CDCC, which TAXSIM-35 does not give. Pinned before
+        # any calculate so no cached value depends on the imputation.
+        n_persons = sim.get_variable_population("is_full_time_student").count
+        for year in sorted(set(chunk_df["year"].astype(int))):
+            _pin_input(
+                sim,
+                variable_name="is_full_time_student",
+                value=np.zeros(n_persons, dtype=bool),
+                period=str(year),
+            )
         for year in sorted(set(chunk_df["year"].astype(int))):
             period = str(year)
             income = sim.calculate("partnership_s_corp_income", period=period)
