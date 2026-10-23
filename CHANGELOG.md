@@ -1,3 +1,10 @@
+## [3.2.5] - 2026-10-23
+
+### Fixed
+
+- Split Montana pensions 50/50 between spouses at every age, as TAXSIM does when it taxes a 2021-2023 Montana joint return in two columns.
+
+
 ## [3.2.4] - 2026-10-22
 
 ### Fixed
