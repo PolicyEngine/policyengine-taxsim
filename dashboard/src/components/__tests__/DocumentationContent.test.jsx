@@ -37,6 +37,17 @@ describe('DocumentationContent', () => {
     expect(container.textContent).toContain('uv tool install policyengine-taxsim');
   });
 
+  it('version pinning explains --version and --provenance', async () => {
+    const { container } = await renderDoc();
+    expect(container.textContent).toContain('policyengine-taxsim --version');
+    expect(container.textContent).toContain(
+      'policyengine-taxsim --provenance run.json < input.csv > output.csv'
+    );
+    expect(container.textContent).toContain(
+      'PyPI does not keep every policyengine-us release'
+    );
+  });
+
   it('shows the section tabs', async () => {
     await renderDoc();
     [
