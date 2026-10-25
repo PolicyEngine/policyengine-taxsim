@@ -4,6 +4,7 @@ A comprehensive TAXSIM emulator using the PolicyEngine US federal and state tax 
 
 ## Table of Contents
 - [Overview](#overview)
+- [Documentation](#documentation)
 - [Future plans and maintenance](#future-plans-and-maintenance)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
@@ -40,6 +41,14 @@ This project provides a high-fidelity emulator for TAXSIM-35, leveraging PolicyE
 - **Interactive dashboard**: React-based dashboard for exploring results across years, states, and household characteristics
 - **Flexible output options**: Standard, full, and text description output formats matching TAXSIM specifications
 - **YAML test generation**: Generate PolicyEngine test cases for reproducibility and validation
+
+## Documentation
+
+- [Input guide](docs/input-guide.md): every input column with its valid values, how blanks and unexpected values are treated, and a worked example that takes a survey file to taxes in Python, Stata and R.
+- [Design](docs/design.md): which engine computes each year, how inputs map to PolicyEngine variables, how outputs are assembled, versions and pinning, and known differences from TAXSIM.
+- [Security and deployment notes](docs/security-and-deployment.md): what uses the network and what doesn't, the full dependency list, the bundled TAXSIM executables, Python versions, and installing without internet access.
+
+The reference tables in these guides are generated from the code, and `tests/test_docs_reference.py` fails when they fall out of date.
 
 ## Future plans and maintenance
 
@@ -262,7 +271,7 @@ The dashboard provides an intuitive interface for researchers and analysts to ex
 
 ## Input Variables
 
-The emulator accepts CSV files with the following variables:
+The [input guide](docs/input-guide.md) is the complete reference, generated from the code. In brief, the emulator accepts CSV files with the following variables:
 
 ### Demographics
 
