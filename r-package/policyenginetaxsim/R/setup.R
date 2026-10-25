@@ -217,18 +217,42 @@ check_policyengine_setup <- function(quiet = FALSE, envname = "policyengine-taxs
 
 #' Show installed PolicyEngine package versions
 #'
-#' Reports the versions of policyengine-taxsim and policyengine-us installed
-#' in the Python virtual environment. Useful for debugging and ensuring
-#' reproducibility.
+#' Reports the policyengine-taxsim, policyengine-us and policyengine-core
+#' versions installed in the Python virtual environment, the build of the
+#' bundled TAXSIM binary that [compare_with_taxsim()] runs, and the Python
+#' version: the report `policyengine-taxsim --version` prints. Useful for
+#' debugging and ensuring reproducibility. To record these with a run, pass
+#' `provenance` to [policyengine_calculate_taxes()] or
+#' [compare_with_taxsim()].
 #'
 #' @param envname Name of the virtual environment. Default is
 #'   "policyengine-taxsim".
 #'
-#' @return A named list with version strings, returned invisibly.
+#' @return A named list of version strings, returned invisibly:
+#'   \describe{
+#'     \item{policyengine_taxsim, policyengine_us, policyengine_core}{Package
+#'       versions, or "unknown" when a package is not installed.}
+#'     \item{taxsim_binary}{File name of the bundled TAXSIM binary for this
+#'       operating system.}
+#'     \item{taxsim_binary_build}{Build stamp embedded in that binary, such as
+#'       "cd2026081819".}
+#'     \item{taxsim_binary_path, taxsim_binary_sha256}{Its full path and
+#'       SHA-256.}
+#'     \item{python_version, platform}{The Python version and platform.}
+#'   }
+#'   The fields after the first three are NA when unavailable, including
+#'   with a policyengine-taxsim installed before they were reported.
 #'
 #' @examples
 #' \dontrun{
 #' policyengine_versions()
+#' #> policyengine-taxsim: 3.0.1
+#' #> policyengine-us:     2.25.2
+#' #> policyengine-core:   3.32.21
+#' #> TAXSIM binary:       cd2026081819 (taxsimtest-osx.exe)
+#' #> Python:              3.11.15
+#'
+#' policyengine_versions()$taxsim_binary_build
 #' }
 #'
 #' @export
@@ -240,28 +264,17 @@ policyengine_versions <- function(envname = "policyengine-taxsim") {
 
   reticulate::use_virtualenv(envname, required = TRUE)
 
-  taxsim_ver <- tryCatch({
-    pkg <- reticulate::import("importlib.metadata")
-    pkg$version("policyengine-taxsim")
-  }, error = function(e) "unknown")
+  prov <- .provenance_module(required = FALSE)
+  if (is.null(prov)) {
+    legacy <- .legacy_versions()
+    versions <- legacy$versions
+    report <- legacy$report
+  } else {
+    collected <- prov$collect_versions()
+    versions <- .versions_list(reticulate::py_to_r(collected))
+    report <- reticulate::py_to_r(prov$format_version_report(collected))
+  }
 
-  us_ver <- tryCatch({
-    pkg <- reticulate::import("importlib.metadata")
-    pkg$version("policyengine-us")
-  }, error = function(e) "unknown")
-
-  core_ver <- tryCatch({
-    pkg <- reticulate::import("importlib.metadata")
-    pkg$version("policyengine-core")
-  }, error = function(e) "unknown")
-
-  message("policyengine-taxsim: ", taxsim_ver)
-  message("policyengine-us:     ", us_ver)
-  message("policyengine-core:   ", core_ver)
-
-  invisible(list(
-    policyengine_taxsim = taxsim_ver,
-    policyengine_us = us_ver,
-    policyengine_core = core_ver
-  ))
+  message(report)
+  invisible(versions)
 }
