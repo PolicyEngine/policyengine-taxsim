@@ -314,8 +314,12 @@ class TaxsimRunner(BaseTaxRunner):
             # the October 8 build (cd2026100817) a "d1 <value>" line before
             # Minnesota 2024-2025 records. Skip only those exact non-CSV
             # diagnostics, not malformed records.
+            # Probe only: the October 24 build (cd2026102417) also prints
+            # "ptded <a> <b>" (Iowa 2021-2022) and "d0"/"d1" lines with several
+            # numbers (New York 2021).
             debug_line = re.compile(
-                r"^\s*d(?:1\s+-?\d+(?:\.\d+)?|3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$"
+                r"^\s*(?:d(?:1\s+-?\d+(?:\.\d+)?|3\s+-?\d+|4\s+-?\d+\s+-?\d+)"
+                r"|ptded\s+-?\d+\s+-?\d+|d[01](?:\s+-?\d+(?:\.\d+)?)+)\s*$"
             )
             with open(output_file) as stream:
                 skip_rows = [
