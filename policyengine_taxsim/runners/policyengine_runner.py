@@ -21,6 +21,10 @@ from policyengine_taxsim.core.utils import (
     validate_state_number,
     NO_STATE,
 )
+from policyengine_taxsim.core.output_dtypes import (
+    identifiers_as_integers,
+    round_float64,
+)
 from policyengine_taxsim.core.state_output_resolver import (
     NY_SEPARATE_PAYMENT_VARIABLES,
     ONE_TIME_REBATE_VARIABLES,
@@ -1630,7 +1634,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         state-0 records spread through every chunk costs about twice the
         simulation work.
         """
-        return self._run_once(show_progress, on_progress)
+        return identifiers_as_integers(self._run_once(show_progress, on_progress))
 
     def _is_year_restricted_variable(self, variable_name: str, year: int) -> bool:
         """
@@ -1799,8 +1803,8 @@ class PolicyEngineRunner(BaseTaxRunner):
         del sim.branches[self._MTR_BRANCH]
 
         return {
-            "frate": np.round(frate, 4),
-            "srate": np.round(srate, 4),
+            "frate": round_float64(frate, 4),
+            "srate": round_float64(srate, 4),
         }
 
     def _extract_vectorized_results(
@@ -1917,7 +1921,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     rebate_free_tax = self._calc_tax_unit(
                         rebate_free_sim, "state_income_tax", year_str
                     )
-                    columns[taxsim_var] = np.round(rebate_free_tax - actual_tax, 2)
+                    columns[taxsim_var] = round_float64(rebate_free_tax - actual_tax, 2)
                     continue
 
                 try:
@@ -1934,11 +1938,11 @@ class PolicyEngineRunner(BaseTaxRunner):
                             adapter_result = self._apply_de_staxbc_elected_path(
                                 adapter_result, state_codes, sim, year_str
                             )
-                        columns[taxsim_var] = np.round(adapter_result, 2)
+                        columns[taxsim_var] = round_float64(adapter_result, 2)
                         continue
 
                     if has_state_variable_mapping(mapping):
-                        columns[taxsim_var] = np.round(
+                        columns[taxsim_var] = round_float64(
                             calculate_state_mapped_output(
                                 mapping,
                                 state_codes,
@@ -1973,7 +1977,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                         if unified_var and not variables_list:
                             # Single unified state variable — one call
                             arr = self._calc_tax_unit(sim, pe_var, year_str)
-                            columns[taxsim_var] = np.round(arr, 2)
+                            columns[taxsim_var] = round_float64(arr, 2)
 
                         elif unified_vars_list:
                             # Multi-variable sum with unified state vars
@@ -1981,7 +1985,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                             for var in variables_list:
                                 arr = self._calc_tax_unit(sim, var, year_str)
                                 var_sum += arr
-                            columns[taxsim_var] = np.round(var_sum, 2)
+                            columns[taxsim_var] = round_float64(var_sum, 2)
 
                         else:
                             # Fallback: per-state iteration for vars without
@@ -2042,7 +2046,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                                         else:
                                             raise
 
-                            columns[taxsim_var] = np.round(result_array, 2)
+                            columns[taxsim_var] = round_float64(result_array, 2)
 
                     elif variables_list:
                         # Multi-variable sum (non-state)
@@ -2050,12 +2054,12 @@ class PolicyEngineRunner(BaseTaxRunner):
                         for var in variables_list:
                             arr = self._calc_tax_unit(sim, var, year_str)
                             var_sum += arr
-                        columns[taxsim_var] = np.round(var_sum, 2)
+                        columns[taxsim_var] = round_float64(var_sum, 2)
 
                     else:
                         # Single non-state variable
                         arr = self._calc_tax_unit(sim, pe_var, year_str)
-                        columns[taxsim_var] = np.round(arr, 2)
+                        columns[taxsim_var] = round_float64(arr, 2)
 
                 except Exception as e:
                     err_msg = str(e)
@@ -2085,7 +2089,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     rebate_free_total += self._calc_tax_unit(
                         rebate_free_sim, var, year_str
                     )
-                columns["v40"] = np.round(rebate_free_total, 2)
+                columns["v40"] = round_float64(rebate_free_total, 2)
 
             # fiitax = income_tax, which includes NIIT (through
             # income_tax_before_refundable_credits) but not the
@@ -2098,7 +2102,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             # well; that is not copied
             # (tests/test_addmed_excluded_from_fiitax.py).
             if "fiitax" not in columns:
-                columns["fiitax"] = np.round(
+                columns["fiitax"] = round_float64(
                     self._calc_tax_unit(sim, "income_tax", year_str), 2
                 )
 
@@ -2113,7 +2117,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     limiting_tax = self._calc_tax_unit(
                         sim, "ctc_limiting_tax_liability", year_str
                     )
-                    columns["v22"] = np.round(np.minimum(ctc_arr, limiting_tax), 2)
+                    columns["v22"] = round_float64(np.minimum(ctc_arr, limiting_tax), 2)
 
             # Compute marginal rates if any idtl level requests them
             mtr_vars = ("frate", "srate")  # ordered: stable output columns
