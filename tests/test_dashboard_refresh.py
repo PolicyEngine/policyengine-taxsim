@@ -134,9 +134,7 @@ class SourceTests(unittest.TestCase):
         self.assertEqual([row["taxsimid"] for row, _ in crashes], [3, 7])
         self.assertIn("SIGFPE", crashes[0][1])
 
-    def test_a_batch_that_fails_once_is_never_dropped(self):
-        import pandas as pd
-
+    def test_a_batch_that_fails_once_is_used_when_two_reruns_agree(self):
         calls = []
 
         def flaky_taxsim(data):
@@ -153,11 +151,40 @@ class SourceTests(unittest.TestCase):
                 patch.object(refresh, "taxsim_results", flaky_taxsim),
                 patch.object(refresh, "source_rows", lambda *_: iter(rows)),
             ):
+                refresh.write_taxsim_outputs(Path("x"), out, args, {})
+            self.assertEqual(calls, [2, 2, 2])
+            self.assertTrue((out / "taxsim_2023.csv.gz").exists())
+            self.assertFalse((out / "taxsim_2023_crashes.json").exists())
+            provenance = json.loads((out / "taxsim_2023.json").read_text())
+            self.assertEqual(provenance["records"], 2)
+            [entry] = provenance["batchesUsedAfterRerun"]
+            self.assertEqual(entry["taxsimids"], [1, 2])
+            self.assertEqual(entry["passingReruns"], 2)
+            self.assertIn("SIGFPE", entry["error"])
+
+    def test_a_batch_whose_reruns_disagree_is_never_used(self):
+        calls = []
+
+        def unstable_taxsim(data):
+            calls.append(len(data))
+            if len(calls) == 1:
+                raise RuntimeError("TAXSIM execution failed: SIGFPE")
+            return data.assign(fiitax=len(calls)), "build", Path(__file__)
+
+        rows = [dict(taxsimid=i, year=2023, state=14) for i in (1, 2)]
+        args = SimpleNamespace(year=2023, limit=2, batch_size=5000)
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder)
+            with (
+                patch.object(refresh, "taxsim_results", unstable_taxsim),
+                patch.object(refresh, "source_rows", lambda *_: iter(rows)),
+            ):
                 with self.assertRaises(SystemExit):
                     refresh.write_taxsim_outputs(Path("x"), out, args, {})
             report = json.loads((out / "taxsim_2023_crashes.json").read_text())
             self.assertEqual(report["records"], [])
-            self.assertEqual(report["batchesThatFailedOnce"][0]["records"], 2)
+            [entry] = report["batchesThatFailedOnce"]
+            self.assertEqual((entry["records"], entry["passingReruns"]), (2, 4))
             self.assertFalse((out / "taxsim_2023.csv.gz").exists())
 
     def test_checked_in_source_has_every_state(self):

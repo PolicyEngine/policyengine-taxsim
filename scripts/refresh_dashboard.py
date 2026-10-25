@@ -433,6 +433,24 @@ def find_taxsim_crashes(data):
     return find_taxsim_crashes(data.iloc[:half]) + find_taxsim_crashes(data.iloc[half:])
 
 
+def agreed_taxsim_results(data, runs=4):
+    """Run a batch that failed once up to `runs` more times. Return the results
+    of the first two passing runs that give identical outputs, the number of
+    passing runs and the number of failed reruns; the results are None when no
+    two passing runs agree."""
+    passes, failures = [], 0
+    for _ in range(runs):
+        try:
+            result = taxsim_results(data)
+        except Exception:
+            failures += 1
+            continue
+        if any(earlier[0].equals(result[0]) for earlier in passes):
+            return result, len(passes) + 1, failures
+        passes.append(result)
+    return None, len(passes), failures
+
+
 def write_taxsim_outputs(source, output_dir, args, identity):
     """--taxsim-only: run only TAXSIM on the year's records, batch by batch as the
     refresh does, and write taxsim_<year>.csv.gz with a provenance JSON. The
@@ -440,7 +458,7 @@ def write_taxsim_outputs(source, output_dir, args, identity):
     build is trusted (the hosted Linux runner) and the model runs elsewhere."""
     import pandas as pd
 
-    frames, builds, binary, crashes, flaky = [], set(), None, [], []
+    frames, builds, binary, crashes, flaky, retried = [], set(), None, [], [], []
     rows = source_rows(source, args.year, args.limit)
     while batch := list(itertools.islice(rows, args.batch_size)):
         # The same CSV round trip as the refresh's batch input, so blank ages
@@ -454,27 +472,36 @@ def write_taxsim_outputs(source, output_dir, args, identity):
         try:
             ts, build, binary = taxsim_results(data)
         except Exception as error:
-            # Keep going, so one run names every record TAXSIM stops on. A batch
-            # that fails once and then passes is never used: it is listed.
-            found = find_taxsim_crashes(data)
-            crashes += found
-            if not found:
-                flaky.append(
-                    {
-                        "taxsimids": [
-                            int(data.taxsimid.min()),
-                            int(data.taxsimid.max()),
-                        ],
-                        "records": len(data),
-                        "error": str(error).strip()[-400:],
-                    }
+            # TAXSIM's failures are not repeatable: a batch that fails once is
+            # used only when two later runs pass with identical outputs, and it
+            # is listed in the provenance. Otherwise keep going, so one run
+            # names every record TAXSIM stops on.
+            agreed, passes, failures = agreed_taxsim_results(data)
+            entry = {
+                "taxsimids": [int(data.taxsimid.min()), int(data.taxsimid.max())],
+                "records": len(data),
+                "error": str(error).strip()[-400:],
+                "passingReruns": passes,
+                "failedReruns": failures,
+            }
+            if agreed is None:
+                found = find_taxsim_crashes(data)
+                crashes += found
+                if not found:
+                    flaky.append(entry)
+                print(
+                    f"TAXSIM stopped on this batch: {len(found)} record(s) fail alone"
+                    + ("" if found else "; no two passing reruns agreed"),
+                    flush=True,
                 )
+                continue
+            ts, build, binary = agreed
+            retried.append(entry)
             print(
-                f"TAXSIM stopped on this batch: {len(found)} record(s) fail alone"
-                + ("" if found else "; the batch passed on a second run"),
+                f"TAXSIM stopped on this batch once; {passes} rerun(s) passed, "
+                "two with identical outputs, so the batch is used",
                 flush=True,
             )
-            continue
         frames.append(ts)
         builds.add(build)
         print(f"TAXSIM: {args.year} {sum(map(len, frames))} households", flush=True)
@@ -486,6 +513,7 @@ def write_taxsim_outputs(source, output_dir, args, identity):
                 **identity,
                 "taxsimPlatform": platform.platform(),
                 "batchesThatFailedOnce": flaky,
+                "batchesUsedAfterRerun": retried,
                 "records": [
                     {
                         "input": {
@@ -501,7 +529,7 @@ def write_taxsim_outputs(source, output_dir, args, identity):
         )
         raise SystemExit(
             f"TAXSIM stopped on {len(crashes)} record(s) and on {len(flaky)} batch(es) "
-            f"that passed when run again; see taxsim_{args.year}_crashes.json"
+            f"with no two agreeing reruns; see taxsim_{args.year}_crashes.json"
         )
     expected = min(args.limit, EXPECTED_RECORDS) if args.limit else EXPECTED_RECORDS
     if sum(map(len, frames)) != expected:
@@ -520,6 +548,7 @@ def write_taxsim_outputs(source, output_dir, args, identity):
             "taxsimBuild": builds.pop(),
             "taxsimBinarySha256": digest(binary),
             "taxsimPlatform": platform.platform(),
+            "batchesUsedAfterRerun": retried,
             "outputSha256": digest(table),
             "generatedAt": datetime.now(timezone.utc).isoformat(),
         },
