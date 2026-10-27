@@ -1,21 +1,32 @@
-# Probe only (scratch branch, not for merging): run the Iowa rows of taxsim
-# #1358/#1108/#1111 through the October 24 Linux TAXSIM build eight times.
+# Probe only (scratch branch, not for merging): run all 15,000 census records
+# through the October 27 Linux TAXSIM build (cd2026102718) three times, and
+# upload the outputs.
 name: Refresh dashboard data
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  ia-probe:
+  census-probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run the Iowa rows eight times
+      - name: Run the census batches three times
         run: |
           chmod +x resources/taxsimtest/taxsimtest-linux.exe
           strings resources/taxsimtest/taxsimtest-linux.exe | grep -oE 'cd20[0-9]{8}' | head -1
-          for i in 1 2 3 4 5 6 7 8; do
-            echo "== run $i"
-            ./resources/taxsimtest/taxsimtest-linux.exe < probe/ia_1358.csv
-            ./resources/taxsimtest/taxsimtest-linux.exe < probe/ia_1111.csv
+          for run in 1 2 3; do
+            mkdir -p out/run$run
+            for f in probe/census/*.csv; do
+              ./resources/taxsimtest/taxsimtest-linux.exe < "$f" > "out/run$run/$(basename "$f" .csv).taxsim.csv"
+            done
           done
+          for f in out/run1/*.csv; do
+            b=$(basename "$f")
+            cmp -s "$f" "out/run2/$b" && cmp -s "$f" "out/run3/$b" || echo "UNSTABLE $b"
+          done
+          ls out/run1 | wc -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: census-linux-cd2026102718
+          path: out/run1
