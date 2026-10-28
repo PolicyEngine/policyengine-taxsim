@@ -56,6 +56,13 @@ TAXSIM_1482 = (
     "builds."
 )
 
+TAXSIM_1483 = (
+    "taxsim #1483: bundled build cd2026102718 leaves the child care credit "
+    "out of Schedule 8812 Credit Limit Worksheet A when it computes the "
+    "2024-2025 additional child tax credit, so actc is lower and fiitax "
+    "higher by the child care credit (v24)."
+)
+
 
 def check_known_mismatches(mismatches, known, reason):
     """Fail on a mismatch outside `known`; xfail while `known` ones remain."""
