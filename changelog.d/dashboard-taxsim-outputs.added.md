@@ -1,0 +1,1 @@
+Add a TAXSIM-only mode to the dashboard refresh (`--taxsim-only`, and a `taxsim_only` workflow input that uploads `taxsim-outputs-<year>`), and `--taxsim-outputs` to run the model half elsewhere from those outputs. A batch that TAXSIM stops on once is used only when two reruns give identical outputs, and it is listed in the provenance.
