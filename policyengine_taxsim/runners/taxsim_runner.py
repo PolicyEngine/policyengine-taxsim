@@ -310,12 +310,15 @@ class TaxsimRunner(BaseTaxRunner):
         """Parse TAXSIM output file into DataFrame"""
         try:
             # First, try to read as CSV (for idtl values like 2)
-            # The August 2026 binary prints d3/d4 debug counters to stdout, and
+            # The August 2026 binary prints d3/d4 debug counters to stdout,
             # the October 8 build (cd2026100817) a "d1 <value>" line before
-            # Minnesota 2024-2025 records. Skip only those exact non-CSV
-            # diagnostics, not malformed records.
+            # Minnesota 2024-2025 records, and the October 27 build
+            # (cd2026102718) a "d1 <integer> <integer>" line before Colorado
+            # 2021 records. Skip only those exact non-CSV diagnostics, not
+            # malformed records.
             debug_line = re.compile(
-                r"^\s*d(?:1\s+-?\d+(?:\.\d+)?|3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$"
+                r"^\s*d(?:1\s+-?\d+(?:\.\d+)?(?:\s+-?\d+)?|3\s+-?\d+"
+                r"|4\s+-?\d+\s+-?\d+)\s*$"
             )
             with open(output_file) as stream:
                 skip_rows = [

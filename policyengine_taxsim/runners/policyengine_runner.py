@@ -2092,10 +2092,11 @@ class PolicyEngineRunner(BaseTaxRunner):
             # Additional Medicare Tax. AddMed is a FICA/SECA tax
             # (IRC § 3101(b)(2) / § 1401(b)(2)) and TAXSIM puts it in
             # fica and tfica, not fiitax (taxsim #416, #1225), so it is
-            # reported in tfica, fica and `addmed` in every year. The
-            # bundled macOS/Linux taxsimtest cd2026100817 has the
-            # correction reported on #1225; the Windows cd2026081318 still
-            # adds it to 2013-2023 fiitax, which is not copied
+            # reported in tfica, fica and `addmed` in every year. taxsimtest
+            # builds from cd2026100817 (the bundled macOS/Linux
+            # cd2026102718 among them) have the correction reported on
+            # #1225; the Windows cd2026081318 still adds it to 2013-2023
+            # fiitax, which is not copied
             # (tests/test_addmed_excluded_from_fiitax.py).
             if "fiitax" not in columns:
                 columns["fiitax"] = np.round(

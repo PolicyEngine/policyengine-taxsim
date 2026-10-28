@@ -70,7 +70,6 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
-from taxsim_known_regressions import check_known_mismatches, on_october_build
 from policyengine_us import Microsimulation
 
 # (case id, record inputs, taxsimtest mstat 6 output, taxsimtest mstat 1
@@ -285,20 +284,6 @@ def test_single_household_path_matches_taxsimtest(case):
         )
 
 
-# taxsim #1416 in cd2026100817: the head-of-household EITC with children,
-# for example 2021 one child at $20,000 of wages: $3,618 - 15.98% x $20,000 =
-# $422 instead of $3,541.30.
-_TAXSIM_1416_VALUES = on_october_build(
-    (case_id, mstat, "v25")
-    for case_id in (
-        "mfs_child_head_of_household_2021",
-        "mfs_child_head_of_household_2023",
-        "mfs_children_head_of_household_2025",
-    )
-    for mstat in (1, MSTAT_MARRIED_SEPARATE)
-)
-
-
 def test_bundled_taxsimtest_still_produces_expected_values():
     """Guard the hard-coded expectations: the bundled binary must still
     produce them, for mstat 6 and for the mstat 1 control."""
@@ -310,18 +295,14 @@ def test_bundled_taxsimtest_still_produces_expected_values():
     output = TaxsimRunner(df).run(show_progress=False)
     output["taxsimid"] = output["taxsimid"].astype(float).astype(int)
     output = output.set_index("taxsimid")
-    mismatches = set()
     for i, (case_id, _, expected, taxsim_mstat1) in enumerate(TAXSIM_CASES):
         for column in expected:
-            for taxsimid, mstat, value in (
-                (2 * i + 2, MSTAT_MARRIED_SEPARATE, expected[column]),
-                (2 * i + 1, 1, taxsim_mstat1[column]),
-            ):
-                if float(output.loc[taxsimid, column]) != pytest.approx(
-                    value, abs=0.01
-                ):
-                    mismatches.add((case_id, mstat, column))
-    check_known_mismatches(mismatches, _TAXSIM_1416_VALUES)
+            assert float(output.loc[2 * i + 2, column]) == pytest.approx(
+                expected[column], abs=0.01
+            ), f"{case_id} mstat 6 {column}"
+            assert float(output.loc[2 * i + 1, column]) == pytest.approx(
+                taxsim_mstat1[column], abs=0.01
+            ), f"{case_id} mstat 1 {column}"
 
 
 def test_mfs_marginal_rate_uses_separate_brackets(batch_results):

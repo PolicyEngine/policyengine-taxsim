@@ -13,8 +13,12 @@ import pytest
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 
 # macOS and Linux bundle this build; Windows keeps cd2026081318
-# (resources/taxsimtest/README.md), which has neither regression.
-OCTOBER_BUILD = "cd2026100817"
+# (resources/taxsimtest/README.md), which has none of the regressions below.
+CURRENT_BUILD = "cd2026102718"
+
+# The first build with the correction reported on taxsim #1225: AddMed is
+# out of fiitax in 2013-2023 too.
+ADDMED_CORRECTION_BUILD = "cd2026100817"
 
 
 def _bundled_build():
@@ -27,20 +31,33 @@ def _bundled_build():
 BUNDLED_BUILD = _bundled_build()
 
 
-def on_october_build(values):
-    """`values` where this platform bundles the October build, else nothing."""
-    return set(values) if BUNDLED_BUILD == OCTOBER_BUILD else set()
+def bundled_build_is_at_least(build):
+    """Whether the bundled build is `build` or a later one. Stamps are
+    cdYYYYMMDDHH, so they sort by date."""
+    return BUNDLED_BUILD.startswith("cd") and BUNDLED_BUILD >= build
 
 
-TAXSIM_1416 = (
-    "taxsim #1416: bundled build cd2026100817 starts the EITC phase-out at $0 "
-    "for some filers (EITC = maximum credit - phase-out rate x income, when "
-    "that is below the phase-in amount), so v25, fiitax and state credits "
-    "built on the federal EITC differ from earlier builds."
+def on_current_build(values):
+    """`values` where this platform bundles CURRENT_BUILD, else nothing."""
+    return set(values) if BUNDLED_BUILD == CURRENT_BUILD else set()
+
+
+TAXSIM_1461 = (
+    "taxsim #1461: bundled build cd2026102718 multiplies New York's 2024 "
+    "Empire State child credit by 33% a second time below the income limit "
+    "(sctc 108.90 = 0.33 x 330 for one child aged 13-16), so siitax is higher "
+    "than by Form IT-213."
+)
+
+TAXSIM_1482 = (
+    "taxsim #1482: bundled build cd2026102718 counts nonprop twice in federal "
+    "AGI (v10) in every year before 2024, and in the state AGI that starts "
+    "from it, so v10, fiitax and the taxes built on them differ from earlier "
+    "builds."
 )
 
 
-def check_known_mismatches(mismatches, known, reason=TAXSIM_1416):
+def check_known_mismatches(mismatches, known, reason):
     """Fail on a mismatch outside `known`; xfail while `known` ones remain."""
     unexpected = sorted(set(mismatches) - set(known))
     assert not unexpected, f"Differences from the pinned values: {unexpected}"
