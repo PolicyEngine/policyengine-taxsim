@@ -4,17 +4,19 @@ policyengine-core links a simulation, its populations and their holders in
 reference cycles: ``Simulation.link_to_entities_instances`` sets each
 ``population.simulation``, and every ``Holder`` keeps its ``population`` and
 ``simulation``. Dropping the runner's last reference therefore leaves a
-finished simulation, and every array it cached, alive until Python's cyclic
-garbage collector runs. Each pass builds a main simulation, a rebate twin
-(for srebate) and a marginal-rate branch, and a chunk that mixes state-0 and
-other records runs two passes. Before the runner collected between passes
-and chunks, a pass's simulations stayed alive while the next pass or chunk
-built its own, so a 15,000-row input (a 10,000-row chunk, then a 5,000-row
-one) peaked well above a 10,000-row input.
+finished simulation, and every array it cached, for Python's cyclic garbage
+collector. policyengine-us's pinned-policy cache (New York's credits in
+2018-2024, Alabama's federal tax deduction in 2021) also kept one alive,
+through the ``simulation`` attribute of a cached policy clone. Each pass
+builds a main simulation, a marginal-rate branch and, for srebate, a rebate
+twin, and a chunk that mixes state-0 and other records runs two passes.
+Before the runner freed them between passes and chunks, a pass's
+simulations stayed alive while the next pass or chunk built its own, which
+raised a worker's peak memory.
 
 These tests turn automatic collection off, so they fail every time the
-runner stops collecting, not only when no automatic collection happens to
-run in between.
+runner stops freeing simulations, not only when no automatic collection
+happens to run in between.
 """
 
 import gc
@@ -38,12 +40,12 @@ def automatic_gc_off():
             gc.enable()
 
 
-def _records(states):
+def _records(states, year=2025):
     n = len(states)
     return pd.DataFrame(
         {
             "taxsimid": range(1, n + 1),
-            "year": [2025] * n,
+            "year": [year] * n,
             "state": states,
             "mstat": [1 + (i % 2) for i in range(n)],
             "page": [40] * n,
@@ -90,13 +92,29 @@ def _run_tracking_liveness(monkeypatch, records, chunk_size):
     return output, built, alive_at_pass_start
 
 
-def test_no_simulation_outlives_its_pass(monkeypatch, automatic_gc_off):
-    # Chunk 1 mixes a state-0 record with a California one, so it runs two
-    # passes; chunk 2 holds one Texas record and runs one.
-    records = _records([0, 5, 44])
+@pytest.mark.parametrize(
+    "year, states, chunk_size",
+    [
+        # Chunk 1 mixes a state-0 record with a California one, so it runs
+        # two passes; chunk 2 holds one Texas record and runs one.
+        (2025, [0, 5, 44], 2),
+        # New York and Alabama in 2021 fill policyengine-us's pinned-policy
+        # cache (NY's pre-TCJA child credit and pre-ARPA EITC, Alabama's
+        # 2020-IRC federal tax deduction), and its entries named the pass
+        # that filled them as their simulation.
+        (2021, [33, 1, 5], 1),
+        # New York in consecutive chunks rebuilds the cache entry each pass.
+        (2024, [33, 33, 5], 1),
+    ],
+    ids=["mixed-chunk-2025", "pinned-policies-2021", "ny-every-chunk-2024"],
+)
+def test_no_simulation_outlives_its_pass(
+    monkeypatch, automatic_gc_off, year, states, chunk_size
+):
+    records = _records(states, year)
 
     output, built, alive_at_pass_start = _run_tracking_liveness(
-        monkeypatch, records, chunk_size=2
+        monkeypatch, records, chunk_size=chunk_size
     )
 
     assert len(alive_at_pass_start) == 3
@@ -113,16 +131,17 @@ def test_no_simulation_outlives_its_pass(monkeypatch, automatic_gc_off):
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(
-    states=st.lists(st.sampled_from([0, 5, 44]), min_size=2, max_size=4),
+    year=st.sampled_from([2021, 2024, 2025]),
+    states=st.lists(st.sampled_from([0, 5, 33, 44]), min_size=2, max_size=4),
     chunk_size=st.integers(min_value=1, max_value=3),
 )
 def test_chunking_frees_simulations_and_keeps_outputs(
-    monkeypatch, automatic_gc_off, states, chunk_size
+    monkeypatch, automatic_gc_off, year, states, chunk_size
 ):
-    """For any chunk size and state mix: no simulation from an earlier pass
-    is alive when a pass starts or after the run, rows come back in input
-    order, and the output equals a single-chunk run's."""
-    records = _records(states)
+    """For any year, state mix and chunk size: no simulation from an earlier
+    pass is alive when a pass starts or after the run, rows come back in
+    input order, and the output equals a single-chunk run's."""
+    records = _records(states, year)
 
     with monkeypatch.context() as patch:
         output, built, alive_at_pass_start = _run_tracking_liveness(

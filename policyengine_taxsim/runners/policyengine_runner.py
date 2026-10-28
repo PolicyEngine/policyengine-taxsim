@@ -38,6 +38,11 @@ from policyengine_taxsim.core.input_mapper import (
 )
 
 from policyengine_us import Microsimulation
+
+try:
+    from policyengine_us.tools import pinned_tbs as _pinned_tbs
+except ImportError:  # policyengine-us releases without the pinned-policy cache
+    _pinned_tbs = None
 from ..core.scorp import validate_scorp_treatment
 from ..core.scorp_reform import scorp_tax_benefit_system
 from policyengine_core.data import Dataset
@@ -1121,6 +1126,26 @@ class TaxsimMicrosimDataset(Dataset):
                 pass
 
 
+def _free_finished_simulations():
+    """Free the simulations of passes the runner has finished.
+
+    policyengine-core links a simulation, its populations and their holders
+    in reference cycles, so dropping the runner's last reference leaves them
+    for Python's cyclic garbage collector. policyengine-us also caches pinned
+    policies (``policyengine_us.tools.pinned_tbs``, for New York's credits in
+    2018-2024 and Alabama's federal tax deduction in 2021) as clones of a
+    simulation's policy, and a clone keeps that simulation as its
+    ``simulation`` attribute. Neither package reads that attribute, but
+    through it the cache kept a finished pass's simulations alive into the
+    next pass. Clearing it leaves the cached pinned parameters in place.
+    """
+    for entry in getattr(_pinned_tbs, "_PINNED_TBS_CACHE", {}).values():
+        for policy in entry if isinstance(entry, tuple) else (entry,):
+            if getattr(policy, "simulation", None) is not None:
+                policy.simulation = None
+    gc.collect()
+
+
 class PolicyEngineRunner(BaseTaxRunner):
     """
     High-performance PolicyEngine runner using Microsimulation.
@@ -1217,14 +1242,12 @@ class PolicyEngineRunner(BaseTaxRunner):
         whether any record supplied a dependent age switched TAXSIM-32
         dependent-count conversion off for the whole chunk).
 
-        A finished simulation outlives the runner's last reference to it.
-        policyengine-core links each simulation, its populations and their
-        holders in reference cycles, and only Python's cyclic garbage
-        collector frees those. Without an explicit collection, a pass's main
-        simulation, rebate twin and marginal-rate branch, with every array
-        they cached, stayed alive while the next pass or chunk built its
-        own. So the runner collects after the first pass of a mixed chunk
-        and after every chunk (``_run_once``).
+        A finished simulation outlives the runner's last reference to it
+        (see ``_free_finished_simulations``). Without an explicit release, a
+        pass's main simulation, marginal-rate branch and (for srebate)
+        rebate twin, with every array they cached, stayed alive while the
+        next pass or chunk built its own. So the runner frees them after the
+        first pass of a mixed chunk and after every chunk (``_run_once``).
 
         Returns:
             DataFrame with TAXSIM-formatted output variables
@@ -1239,7 +1262,7 @@ class PolicyEngineRunner(BaseTaxRunner):
             results = self._simulate(dataset, chunk_df, zero_salt=False)
             if no_state.any():
                 # Free the first pass's simulations before the second builds.
-                gc.collect()
+                _free_finished_simulations()
                 no_salt = self._simulate(dataset, chunk_df, zero_salt=True)
                 no_salt = no_salt.reindex(columns=results.columns)
                 for column in results.columns:
@@ -1603,7 +1626,7 @@ class PolicyEngineRunner(BaseTaxRunner):
                     frames.append(self._run_chunk(chunk_df))
                     # Free this chunk's simulations before the next chunk
                     # builds its own (see _run_chunk).
-                    gc.collect()
+                    _free_finished_simulations()
                     frame_positions.append(positions)
                     chunks_done += 1
                     rows_done += len(chunk_df)
