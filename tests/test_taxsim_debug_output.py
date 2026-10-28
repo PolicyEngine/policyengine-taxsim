@@ -32,6 +32,22 @@ def test_october_build_d1_lines_are_removed(tmp_path):
     assert result.siitax.tolist() == [20, 40]
 
 
+def test_october_27_build_d1_pairs_are_removed(tmp_path):
+    """cd2026102718 prints " d1 <integer> <integer>" before Colorado 2021
+    records."""
+    output = tmp_path / "taxsim.csv"
+    output.write_text(
+        "taxsimid,fiitax,siitax\n"
+        " d1           0           0\n"
+        "1,100,20\n"
+        " d1       14231       14231\n"
+        "2,200,40\n"
+    )
+    result = TaxsimRunner.__new__(TaxsimRunner)._parse_taxsim_output(str(output))
+    assert result.taxsimid.tolist() == [1, 2]
+    assert result.siitax.tolist() == [20, 40]
+
+
 def test_modern_build_stamp_is_reported(tmp_path):
     """Builds since August 2026 stamp "cd2026081819" instead of "cdate-..."."""
     output = tmp_path / "taxsim.csv"

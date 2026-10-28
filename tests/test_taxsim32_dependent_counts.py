@@ -27,7 +27,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
-from taxsim_known_regressions import BUNDLED_BUILD, OCTOBER_BUILD, TAXSIM_1416
+from taxsim_known_regressions import BUNDLED_BUILD, CURRENT_BUILD, TAXSIM_1461
 
 PA, CA, NY, TX = 39, 5, 33, 44
 
@@ -104,9 +104,10 @@ def emulator():
     return _by_id(PolicyEngineRunner(_frame(), logs=False).run(show_progress=False))
 
 
-# taxsim #1416 in cd2026100817: only v25 changes on these records, and fiitax
-# moves by the same amount (record 5: v25 2822.07 in cd2026081819, 0.00 now).
-_TAXSIM_1416_IDS = {5, 6, 9}
+# taxsim #1461 in cd2026102718: record 9's Empire State child credit is
+# sctc 108.90 (0.33 x 330) instead of 330, so its siitax is -791.50, not the
+# emulator's -1012.60; fiitax and the federal credits match.
+_TAXSIM_1461_IDS = {9}
 
 
 @pytest.mark.parametrize(
@@ -115,13 +116,13 @@ _TAXSIM_1416_IDS = {5, 6, 9}
         pytest.param(
             i,
             marks=pytest.mark.xfail(
-                BUNDLED_BUILD == OCTOBER_BUILD,
+                BUNDLED_BUILD == CURRENT_BUILD,
                 strict=True,
                 raises=AssertionError,
-                reason=TAXSIM_1416,
+                reason=TAXSIM_1461,
             ),
         )
-        if i in _TAXSIM_1416_IDS
+        if i in _TAXSIM_1461_IDS
         else i
         for i in _IDS
     ],

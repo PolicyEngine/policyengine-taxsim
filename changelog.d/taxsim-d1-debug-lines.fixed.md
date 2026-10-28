@@ -1,1 +1,1 @@
-Accept the October 8 TAXSIM build's "d1 <value>" debug lines (printed before Minnesota 2024-2025 records) when parsing TAXSIM output.
+Accept the "d1" debug lines of the October 2026 TAXSIM builds (one value before Minnesota 2024-2025 records in cd2026100817, two integers before Colorado 2021 records in cd2026102718) when parsing TAXSIM output.

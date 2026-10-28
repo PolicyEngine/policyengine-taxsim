@@ -24,11 +24,12 @@ that already holds it (pa_forgiveness_counts_nonprop_once_2023). Rhode
 Island's property-tax relief for elderly renters has the same double count;
 it is not pinned because PE's credit already differs from taxsimtest's there.
 
-Every expected tax value below is taxsimtest output: the bundled
-resources/taxsimtest/taxsimtest-osx.exe (build cd2026081819; the bundled
-Linux binary is the same build and the Windows one is cd2026081318), idtl=2,
-run on the record shown. test_bundled_taxsimtest_still_produces_expected_values
-re-runs each platform's binary on every one of them. Single filers are age 40 with $50,000 of pwages. MFJ
+Every expected tax value below is taxsimtest output: the macOS build
+cd2026081819 (the Linux binary is the same build; the Windows one is
+cd2026081318), idtl=2, run on the record shown.
+test_bundled_taxsimtest_still_produces_expected_values re-runs each
+platform's bundled binary on every one of them, and lists the values that a
+later bundled build changes (tests/taxsim_known_regressions.py). Single filers are age 40 with $50,000 of pwages. MFJ
 filers are both age 40 with pwages $30,000 and swages $20,000. No
 dependents. TAXSIM behaviors these pin, observed on that binary for every
 jurisdiction in 2021-2025:
@@ -73,9 +74,9 @@ from policyengine_taxsim.runners.policyengine_runner import (
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 from taxsim_known_regressions import (
-    TAXSIM_1416,
+    TAXSIM_1482,
     check_known_mismatches,
-    on_october_build,
+    on_current_build,
 )
 
 SINGLE = dict(mstat=1, page=40, sage=0, pwages=50_000, swages=0)
@@ -654,18 +655,28 @@ def test_georgia_senior_nonprop_is_not_retirement_income():
     )
 
 
-# taxsim #1416 in cd2026100817: 6000 and 6001 get $3,995 - 15.98% x income
-# (2716.60, 2077.40) instead of 2720.00 and 3995.00; 7005 loses its 2730.06.
-# The same build also lowers CA 2021 tax before credits (staxbc), so siitax, by
-# $0.72 at CA taxable income $45,197 and $40,197 and $1.27 at $55,197 (records
-# 25-27: 1349.59, 2084.83, 1049.59); the cause is not established.
-_OCTOBER_BUILD_VALUES = on_october_build(
-    {(6000, "v25"), (6001, "v25"), (7005, "v25"), (7005, "fiitax")}
-    | {(25, "siitax"), (26, "siitax"), (27, "siitax")}
+# taxsim #1482 in cd2026102718: every pre-2024 record with nonzero nonprop gets
+# twice the nonprop in v10 (26: 70,000 instead of 60,000; 27: 40,000 instead
+# of 45,000), and fiitax and v18 follow. siitax follows in CA, ID, AL and VA;
+# PA and NJ build their bases from their own lists, TX has no income tax, 7002
+# keeps v18 0 below zero AGI, and 7008 keeps PA tax forgiveness. The EITC
+# records 6000-6002 compare only v25, which stays in the phase-in. As
+# cd2026100817 did, the build also lowers CA 2021 siitax by $0.72 at CA
+# taxable income $45,197 (record 25: 1349.59); the cause is not established.
+_CURRENT_BUILD_VALUES = on_current_build(
+    {(i, c) for i in (26, 27, 95, 96, 614, 615) for c in ("v10", "fiitax", "siitax")}
+    | {
+        (i, c)
+        for i in (794, 795, 797, 798, 842, 843, 872, 873)
+        for c in ("v10", "fiitax")
+    }
+    | {(5001, "siitax"), (5002, "siitax")}
+    | {(i, c) for i in (7001, 7003, 7004) for c in ("v10", "v18", "fiitax")}
+    | {(7000, "v10"), (7000, "v18"), (7000, "v28"), (7002, "v10"), (7008, "v10")}
+    | {(25, "siitax")}
 )
-_OCTOBER_BUILD_REASON = (
-    f"{TAXSIM_1416} It also lowers CA 2021 siitax by $0.72-$1.27 (cause not "
-    "established)."
+_CURRENT_BUILD_REASON = (
+    f"{TAXSIM_1482} It also lowers CA 2021 siitax by $0.72 (cause not established)."
 )
 
 
@@ -710,7 +721,7 @@ def test_bundled_taxsimtest_still_produces_expected_values():
         for column, value in expected.items()
         if float(output.loc[taxsimid, column]) != pytest.approx(value, abs=0.01)
     }
-    check_known_mismatches(mismatches, _OCTOBER_BUILD_VALUES, _OCTOBER_BUILD_REASON)
+    check_known_mismatches(mismatches, _CURRENT_BUILD_VALUES, _CURRENT_BUILD_REASON)
 
 
 # ---------------------------------------------------------------------------
