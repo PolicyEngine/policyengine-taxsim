@@ -8,6 +8,7 @@ Tests verify that:
 4. 500 records completes within a reasonable time budget
 """
 
+import sys
 import time
 import types
 import pytest
@@ -18,6 +19,12 @@ from policyengine_taxsim.runners.policyengine_runner import (
     PolicyEngineRunner,
     TaxsimMicrosimDataset,
 )
+
+# GitHub's macOS runners ran this suite 4-5x slower than Ubuntu in October 2026
+# (86-104 minutes against about 20), and the wall-clock limits below failed
+# there by 7-9%. A return to row-by-row code costs far more than 2x, so a 2x
+# allowance on macOS keeps these checks meaningful.
+TIME_LIMIT_FACTOR = 2.0 if sys.platform == "darwin" else 1.0
 
 
 def _make_synthetic_records(n: int, seed: int = 42) -> pd.DataFrame:
@@ -225,9 +232,10 @@ class TestExtractResultsStructure:
         result = runner.run(show_progress=False)
 
         assert len(result) == 200
-        assert extract_time["t"] < 60.0, (
+        limit = 60.0 * TIME_LIMIT_FACTOR
+        assert extract_time["t"] < limit, (
             f"Extract phase took {extract_time['t']:.1f}s for 200 records, "
-            f"expected < 60s"
+            f"expected < {limit:.0f}s"
         )
 
 
@@ -246,7 +254,10 @@ class TestBenchmark:
         elapsed = time.time() - start
 
         assert len(result) == 500
-        assert elapsed < 120, f"500 records took {elapsed:.1f}s, expected < 120s"
+        limit = 120 * TIME_LIMIT_FACTOR
+        assert elapsed < limit, (
+            f"500 records took {elapsed:.1f}s, expected < {limit:.0f}s"
+        )
         print(f"\nBenchmark: 500 records in {elapsed:.1f}s")
 
     def test_benchmark_cps_like(self):
@@ -308,7 +319,10 @@ class TestBenchmark:
         )
         print(f"  Total: {elapsed:.1f}s")
         # 2x ceiling accounts for the three-pass --disable-salt code path.
-        assert elapsed < 240, f"CPS-like benchmark took {elapsed:.1f}s, expected < 240s"
+        limit = 240 * TIME_LIMIT_FACTOR
+        assert elapsed < limit, (
+            f"CPS-like benchmark took {elapsed:.1f}s, expected < {limit:.0f}s"
+        )
 
 
 class TestStateVariableEfficiency:

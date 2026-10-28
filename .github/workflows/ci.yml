@@ -72,7 +72,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11"]
+        # policyengine-us 2.x needs Python 3.11. On Python 3.10 pip falls
+        # back to policyengine-us 1.779.3 (1.780-1.783 are no longer on
+        # PyPI), which predates the nonprop routing these tests check.
+        python-version: ["3.11"]
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}

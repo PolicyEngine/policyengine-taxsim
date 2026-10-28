@@ -237,6 +237,45 @@ def test_pension_splits_for_ky_mixed_age_independent_exclusion():
     np.testing.assert_allclose(values, [35707.46, 35707.46])
 
 
+def test_pension_splits_for_mt_mixed_age_column_split():
+    """Pension, Montana: for 2021-2023 TAXSIM's mttax taxes a joint return in
+    two columns and splits non-wage income, pensions included, 50/50 between
+    them at every age. So a mixed-age MT couple (56/51, which straddles the
+    default 55 line) splits 50/50. state=27 is MT."""
+    df = pd.DataFrame(
+        [_base_mfj_record(year=2021, state=27, page=56, sage=51, pensions=20000)]
+    )
+    values = _run_allocation(df, "taxable_private_pension_income", year=2021)
+    np.testing.assert_allclose(values, [10000.0, 10000.0])
+
+
+def test_mt_2021_mixed_age_pension_matches_taxsim():
+    """With the 50/50 split, a 2021 MT 56/51 couple gives the same state tax as
+    TAXSIM-35 (siitax 1,489.02 in both the October 8 and October 19, 2026
+    executables, idtl=2, opt1=30). Routing the pension to the 56-year-old gave
+    1,779.51."""
+    df = pd.DataFrame(
+        [
+            _base_mfj_record(
+                year=2021,
+                state=27,
+                page=56,
+                sage=51,
+                pwages=40000,
+                swages=30000,
+                pensions=20000,
+                opt1=30,
+                opt1v=1,
+            )
+        ]
+    )
+    result = PolicyEngineRunner(df, logs=False, disable_salt=False).run(
+        show_progress=False
+    )
+    assert float(result["siitax"].iloc[0]) == pytest.approx(1489.02, abs=1.0)
+    assert float(result["fiitax"].iloc[0]) == pytest.approx(4590.00, abs=1.0)
+
+
 def test_gssi_ignores_per_state_pension_age_for_ga_straddle():
     """gssi: the per-state pension age (GA 62) applies to the pension field
     only, NOT to Social Security. A GA 65/61 couple straddles GA's 62

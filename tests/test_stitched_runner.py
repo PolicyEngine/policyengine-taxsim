@@ -139,6 +139,23 @@ class TestOutputOrdering:
 
         assert result["taxsimid"].tolist() == [3, 1, 4, 2]
 
+    @patch("policyengine_taxsim.runners.taxsim_runner.TaxsimRunner")
+    @patch("policyengine_taxsim.runners.stitched_runner.PolicyEngineRunner")
+    def test_pe_rows_out_of_year_order(self, MockPE, MockTaxsim):
+        """PolicyEngineRunner returns its rows in input order, which here is
+        not year order."""
+        df = _make_input([(1, 2025), (2, 2019), (3, 2022), (4, 2023)])
+        MockPE.return_value.run.return_value = _make_result(
+            [(1, 2025), (3, 2022), (4, 2023)]
+        )
+        MockTaxsim.return_value.run.return_value = _make_result([(2, 2019)])
+
+        runner = StitchedRunner(df)
+        result = runner.run(show_progress=False)
+
+        assert result["taxsimid"].tolist() == [1, 2, 3, 4]
+        assert result["year"].tolist() == [2025, 2019, 2022, 2023]
+
 
 # ---------------------------------------------------------------------------
 # Configurable cutoff
@@ -210,7 +227,7 @@ class TestEdgeCases:
     def test_duplicate_taxsimids_preserved(self, MockPE, MockTaxsim):
         """Panel/multi-state inputs reusing the same taxsimid round-trip."""
         df = _make_input([(1, 2023), (1, 2024), (1, 2024)])
-        # PE returns rows in year-sorted order (stable within year).
+        # PE returns rows in input order.
         MockPE.return_value.run.return_value = _make_result(
             [(1, 2023), (1, 2024), (1, 2024)]
         )
