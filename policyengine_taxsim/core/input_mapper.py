@@ -330,6 +330,16 @@ def form_household_situation(year, state, taxsim_vars):
             "medical_expense_health_insurance_premiums"
         ] = {str(year): 0}
 
+    # TAXSIM input has no student status, and the emulator does not default
+    # anyone to being a student (taxsim #532). PE-US imputes is_in_k12_school
+    # for ages 5 to 17, which made a spouse that age a full-time student with
+    # the IRC 21(d)(2) deemed earned income for the CDCC, which TAXSIM-35 does
+    # not give. Mirrors the Microsimulation path in PolicyEngineRunner.
+    for person_name in household_situation["people"]:
+        household_situation["people"][person_name]["is_full_time_student"] = {
+            str(year): False
+        }
+
     # Explicitly set SNAP to 0 for all SPM units to prevent PolicyEngine from imputing SNAP benefits
     # TAXSIM does not model SNAP, so we need to ensure it's not automatically calculated
     for spm_unit_name in household_situation["spm_units"]:

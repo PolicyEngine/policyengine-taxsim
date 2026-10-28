@@ -295,6 +295,17 @@ class TaxsimMicrosimDataset(Dataset):
         # the per-person cap — so KY must split 50/50 at every age rather than
         # route to the older spouse (taxsim #1026). Age 0 = always same-side.
         "KY": 0,
+        # Montana 2021-2023 taxes a joint return as two separate returns on
+        # one form (Columns A and B). TAXSIM's mttax gives each spouse their
+        # own wages and business income and splits all other income,
+        # pensions included, 50/50 between the columns at every age
+        # (27mt.for: agih = yh+un/2d0, agiw = yw+un/2d0), so MT splits
+        # pensions 50/50 at every age (census record 41313, ages 51/56).
+        # This does not depend on the partial pension exemption: PE-US does
+        # not model it, and mttax computes it for the household before the
+        # column split. From 2024 Montana taxes joint returns jointly, so
+        # the split no longer matters.
+        "MT": 0,
     }
     # TAXSIM source column for pension income (the per-state age applies here
     # only; gssi and any other age-gated field use the default).
@@ -1249,9 +1260,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
     ):
         """Build a Microsimulation from the chunk dataset and apply all
-        emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
-        imputed-transfer zeroing, MD local tax zeroing, ME rent utilities, NY
-        separate payments).
+        emulator overrides (student status, SALT, QBID W-2 wages, rental QBID
+        gate, MN CRP, imputed-transfer zeroing, MD local tax zeroing, ME rent
+        utilities, NY separate payments).
 
         ``zero_salt`` zeroes the federal deduction for state and local income
         or sales tax for every record in the chunk: state-0 records and
@@ -1262,6 +1273,20 @@ class PolicyEngineRunner(BaseTaxRunner):
         sim = Microsimulation(
             dataset=dataset, tax_benefit_system=scorp_tax_benefit_system()
         )
+        # Student status: TAXSIM input has none, and the emulator does not
+        # default anyone to being a student (taxsim #532). PE-US imputes
+        # is_in_k12_school for ages 5 to 17, which made a spouse that age a
+        # full-time student and gave them the IRC 21(d)(2) deemed earned
+        # income for the CDCC, which TAXSIM-35 does not give. Pinned before
+        # any calculate so no cached value depends on the imputation.
+        n_persons = sim.get_variable_population("is_full_time_student").count
+        for year in sorted(set(chunk_df["year"].astype(int))):
+            _pin_input(
+                sim,
+                variable_name="is_full_time_student",
+                value=np.zeros(n_persons, dtype=bool),
+                period=str(year),
+            )
         for year in sorted(set(chunk_df["year"].astype(int))):
             period = str(year)
             income = sim.calculate("partnership_s_corp_income", period=period)
@@ -1537,8 +1562,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Ensure years are integers to handle decimal values like 2021.0
         self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
 
+        # Chunks hold one year each, so rows are simulated year by year. Keep
+        # each chunk's input positions to return the rows in input order, as
+        # TAXSIM does (taxsimid can repeat, so positions rather than ids).
         frames = []
+        frame_positions = []
         years = sorted(self.input_df["year"].unique())
+        year_values = self.input_df["year"].to_numpy()
         total_chunks = sum(
             (len(self.input_df[self.input_df["year"] == y]) + self.CHUNK_SIZE - 1)
             // self.CHUNK_SIZE
@@ -1554,10 +1584,12 @@ class PolicyEngineRunner(BaseTaxRunner):
             disable=not show_progress,
         ) as pbar:
             for year in years:
-                year_df = self.input_df[self.input_df["year"] == year].copy()
-                for start in range(0, len(year_df), self.CHUNK_SIZE):
-                    chunk_df = year_df.iloc[start : start + self.CHUNK_SIZE].copy()
+                year_positions = np.flatnonzero(year_values == year)
+                for start in range(0, len(year_positions), self.CHUNK_SIZE):
+                    positions = year_positions[start : start + self.CHUNK_SIZE]
+                    chunk_df = self.input_df.iloc[positions].copy()
                     frames.append(self._run_chunk(chunk_df))
+                    frame_positions.append(positions)
                     chunks_done += 1
                     rows_done += len(chunk_df)
                     pbar.update(1)
@@ -1565,6 +1597,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                         on_progress(chunks_done, total_chunks, rows_done, total_rows)
 
         results_df = pd.concat(frames, ignore_index=True)
+        order = np.argsort(np.concatenate(frame_positions), kind="mergesort")
+        results_df = results_df.iloc[order].reset_index(drop=True)
         if show_progress:
             print("PolicyEngine Microsimulation completed", file=sys.stderr)
         return results_df

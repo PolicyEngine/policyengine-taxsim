@@ -3,21 +3,23 @@
 These are NBER's `taxsimtest` binaries, bundled per platform and used by
 `TaxsimRunner` (and CI) instead of downloading at run time.
 
-## Pinned builds (verified October 13, 2026)
+## Pinned builds (verified October 28, 2026)
 
 | Platform | Build stamp | NBER download |
 | --- | --- | --- |
-| macOS | `cd2026100817` | https://taxsim.nber.org/out2psl/osx |
-| Linux | `cd2026100817` | https://taxsim.nber.org/out2psl/linux |
+| macOS | `cd2026102718` | https://taxsim.nber.org/out2psl/osx |
+| Linux | `cd2026102718` | https://taxsim.nber.org/out2psl/linux |
 | Windows | `cd2026081318` | https://taxsim.nber.org/taxsimtest/taxsimtest.exe |
 
 `manifest.json` records the source URLs, build stamps, download date, sizes,
-and SHA-256 checksums. Windows stays at the August build: NBER's October 8
-Windows build (`cd2026100817`) returns different values from the macOS and
-Linux builds of the same stamp (for example an Indiana 2024 `v39` of 63.20
-where they return 0.00), so its stamp is not a promise of parity. Tests that
-pin bundled-binary output key their known differences on the build
-(`tests/taxsim_known_regressions.py`).
+and SHA-256 checksums. The macOS and Linux `cd2026102718` builds give the
+same output on all 15,000 records of the PolicyEngine CPS comparison sample,
+and each gives the same output on repeated runs. Windows stays at the August
+build: NBER's October 8 Windows build (`cd2026100817`) returned different
+values from the macOS and Linux builds of the same stamp (for example an
+Indiana 2024 `v39` of 63.20 where they returned 0.00), so a Windows stamp is
+not a promise of parity. Tests that pin bundled-binary output key their
+known differences on the build (`tests/taxsim_known_regressions.py`).
 
 In July 2026, stale Linux/Windows binaries caused the opt(30) regression in
 #1089. Compare all platforms when updating, and record upstream differences.

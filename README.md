@@ -280,6 +280,12 @@ The emulator accepts CSV files with the following variables:
 | age2      | Second dependent's age         |                                             |
 | ageN      | Nth dependent's age            | Taxsim only allows up to 8 dependents       |
 
+TAXSIM input has no student status, so the emulator treats every person as a
+non-student (`is_full_time_student` is false). A dependent aged 19 to 23 is
+therefore not a qualifying child through the student age test, and a spouse
+aged 17 or younger gets no IRC 21(d)(2) deemed earned income for the child
+and dependent care credit.
+
 ### Income
 
 | Variable  | Description                                                  |
@@ -425,8 +431,8 @@ present in 2000-2023" and said he believed he had corrected it. The tax itself
 applies from 2013. NBER's taxsimtest documentation ("Output Results") still
 lists it in the `fiitax` definition.
 
-The bundled macOS and Linux `taxsimtest` binaries (build cd2026100817, October
+The bundled macOS and Linux `taxsimtest` binaries (build cd2026102718, October
 2026) have that correction: their `fiitax` excludes the tax in every year. The
-bundled Windows binary (cd2026081318) and the earlier macOS/Linux build
+bundled Windows binary (cd2026081318) and the August macOS/Linux build
 (cd2026081819) still include it for 2013-2023, so their `fiitax` is higher than
 the emulator's by `addmed` on any record that owes the tax.
