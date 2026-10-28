@@ -1,0 +1,1 @@
+PolicyEngineRunner now runs a full garbage collection after the first pass of a mixed state-0 chunk and after every chunk, so a finished pass's simulations no longer stay alive while the next pass or chunk builds its own.

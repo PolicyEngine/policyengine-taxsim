@@ -1,3 +1,4 @@
+import gc
 import sys
 
 import pandas as pd
@@ -1216,6 +1217,15 @@ class PolicyEngineRunner(BaseTaxRunner):
         whether any record supplied a dependent age switched TAXSIM-32
         dependent-count conversion off for the whole chunk).
 
+        A finished simulation outlives the runner's last reference to it.
+        policyengine-core links each simulation, its populations and their
+        holders in reference cycles, and only Python's cyclic garbage
+        collector frees those. Without an explicit collection, a pass's main
+        simulation, rebate twin and marginal-rate branch, with every array
+        they cached, stayed alive while the next pass or chunk built its
+        own. So the runner collects after the first pass of a mixed chunk
+        and after every chunk (``_run_once``).
+
         Returns:
             DataFrame with TAXSIM-formatted output variables
         """
@@ -1228,6 +1238,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                 return self._simulate(dataset, chunk_df, zero_salt=True)
             results = self._simulate(dataset, chunk_df, zero_salt=False)
             if no_state.any():
+                # Free the first pass's simulations before the second builds.
+                gc.collect()
                 no_salt = self._simulate(dataset, chunk_df, zero_salt=True)
                 no_salt = no_salt.reindex(columns=results.columns)
                 for column in results.columns:
@@ -1589,6 +1601,9 @@ class PolicyEngineRunner(BaseTaxRunner):
                     positions = year_positions[start : start + self.CHUNK_SIZE]
                     chunk_df = self.input_df.iloc[positions].copy()
                     frames.append(self._run_chunk(chunk_df))
+                    # Free this chunk's simulations before the next chunk
+                    # builds its own (see _run_chunk).
+                    gc.collect()
                     frame_positions.append(positions)
                     chunks_done += 1
                     rows_done += len(chunk_df)
