@@ -59,8 +59,8 @@ def _chunk_size_option(fn):
         default=None,
         help=(
             "Records per PolicyEngine simulation (default "
-            f"{PolicyEngineRunner.CHUNK_SIZE:,}). Smaller chunks use less "
-            "memory and more CPU time per record."
+            f"{PolicyEngineRunner.CHUNK_SIZE:,}). Smaller chunks typically "
+            "use less memory and more CPU time per record."
         ),
     )(fn)
 
@@ -72,6 +72,15 @@ def _resolve_scorp_treatment(value):
         or (ctx.parent.params.get("scorp_treatment") if ctx.parent else None)
         or validate_scorp_treatment(None)
     )
+
+
+def _resolve_chunk_size(value):
+    # A subcommand's own --chunk-size wins; otherwise it takes the one given
+    # before the subcommand (`policyengine-taxsim --chunk-size N policyengine`).
+    ctx = click.get_current_context()
+    if value is None and ctx.parent:
+        return ctx.parent.params.get("chunk_size")
+    return value
 
 
 def _generate_yaml_files(
@@ -302,7 +311,7 @@ def policyengine(
             disable_salt=disable_salt,
             assume_w2_wages=assume_w2_wages,
             scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
-            chunk_size=chunk_size,
+            chunk_size=_resolve_chunk_size(chunk_size),
         )
         results_df = runner.run(show_progress=True)
 
@@ -470,7 +479,7 @@ def compare(
             disable_salt=disable_salt,
             assume_w2_wages=assume_w2_wages,
             scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
-            chunk_size=chunk_size,
+            chunk_size=_resolve_chunk_size(chunk_size),
         )
         pe_results = pe_runner.run()
 

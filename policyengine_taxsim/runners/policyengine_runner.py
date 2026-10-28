@@ -1157,6 +1157,17 @@ class PolicyEngineRunner(BaseTaxRunner):
                 )
             self.CHUNK_SIZE = int(chunk_size)
 
+    def _derive(self, input_df: pd.DataFrame) -> "PolicyEngineRunner":
+        return self.__class__(
+            input_df,
+            logs=self.logs,
+            disable_salt=self.disable_salt,
+            assume_w2_wages=self.assume_w2_wages,
+            scorp_treatment=self.scorp_treatment,
+            # Only a per-runner chunk size; otherwise the class default.
+            chunk_size=self.__dict__.get("CHUNK_SIZE"),
+        )
+
     def _validate_input(self):
         """Reject invalid state codes before any simulation.
 

@@ -14,7 +14,7 @@ import pytest
 from click.testing import CliRunner
 
 from policyengine_taxsim.cli import cli
-from policyengine_taxsim.runners import PolicyEngineRunner
+from policyengine_taxsim.runners import PolicyEngineRunner, StitchedRunner
 
 CSV = (
     "taxsimid,year,state,mstat,page,sage,pwages,idtl\n"
@@ -98,3 +98,95 @@ def test_cli_rejects_a_nonpositive_chunk_size(chunk_sizes, tmp_path):
     assert result.exit_code == 2
     assert "--chunk-size" in result.output
     assert chunk_sizes == []
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--chunk-size", "2", "policyengine", "{source}", "--output", "{output}"],
+        # The subcommand's own value wins over the one before it.
+        [
+            "--chunk-size",
+            "1",
+            "policyengine",
+            "{source}",
+            "--output",
+            "{output}",
+            "--chunk-size",
+            "2",
+        ],
+    ],
+    ids=["before-subcommand", "subcommand-overrides"],
+)
+def test_policyengine_command_takes_chunk_size_before_it(chunk_sizes, tmp_path, args):
+    source = tmp_path / "input.csv"
+    source.write_text(CSV)
+    output = tmp_path / "output.csv"
+
+    result = CliRunner().invoke(
+        cli, [a.format(source=source, output=output) for a in args]
+    )
+
+    assert result.exit_code == 0, f"{result.output}\n{result.exception}"
+    assert chunk_sizes == [2, 1]
+
+
+@pytest.mark.parametrize(
+    "args, expected",
+    [
+        (["compare", "{source}", "--chunk-size", "2"], 2),
+        (["--chunk-size", "2", "compare", "{source}"], 2),
+        (["--chunk-size", "1", "compare", "{source}", "--chunk-size", "2"], 2),
+        (["compare", "{source}"], PolicyEngineRunner.CHUNK_SIZE),
+    ],
+    ids=["after", "before", "subcommand-overrides", "default"],
+)
+def test_compare_command_takes_chunk_size(monkeypatch, tmp_path, args, expected):
+    """compare hands the chunk size to its PolicyEngine runner. The run is
+    stopped there, before TAXSIM, which these tests don't need."""
+    source = tmp_path / "input.csv"
+    source.write_text(CSV)
+    seen = []
+
+    def stop(self, *args, **kwargs):
+        seen.append(self.CHUNK_SIZE)
+        raise RuntimeError("stopped before simulating")
+
+    monkeypatch.setattr(PolicyEngineRunner, "run", stop)
+    CliRunner().invoke(cli, [a.format(source=source) for a in args])
+
+    assert seen == [expected]
+
+
+@pytest.mark.parametrize(
+    "derive",
+    [
+        lambda runner: runner.sample(2),
+        lambda runner: runner.sample(10),  # n >= records: returns all records
+        lambda runner: runner.filter_by_year(2025),
+        lambda runner: runner.filter_by_state(44),
+    ],
+    ids=["sample", "sample-all", "filter_by_year", "filter_by_state"],
+)
+def test_derived_runners_keep_the_settings(derive):
+    runner = PolicyEngineRunner(
+        _records(), chunk_size=1, disable_salt=True, scorp_treatment="active"
+    )
+
+    derived = derive(runner)
+
+    assert derived.CHUNK_SIZE == 1
+    assert derived.disable_salt is True
+    assert derived.scorp_treatment == "active"
+    # Without a per-runner chunk size, a derived runner follows the class
+    # default.
+    assert "CHUNK_SIZE" not in vars(derive(PolicyEngineRunner(_records())))
+
+
+def test_derived_stitched_runner_keeps_the_chunk_size():
+    runner = StitchedRunner(_records(), chunk_size=1, disable_salt=True)
+
+    derived = runner.filter_by_year(2025)
+
+    assert derived._pe_kwargs["chunk_size"] == 1
+    assert derived._pe_kwargs["disable_salt"] is True
