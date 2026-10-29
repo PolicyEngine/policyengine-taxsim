@@ -2,8 +2,9 @@
 simulation.
 
 PolicyEngineRunner simulates records in chunks of ``CHUNK_SIZE`` (10,000).
-Python callers could change it only by setting the class attribute, which
-changes it for every runner in the process, and the CLI had no way to set it.
+Python callers could set it per runner only through an undocumented,
+unvalidated ``runner.CHUNK_SIZE = N``, which ``sample()`` and ``filter_by_*()``
+dropped, and the CLI had no way to set it.
 The option lets a caller trade a worker's peak memory against CPU time.
 """
 

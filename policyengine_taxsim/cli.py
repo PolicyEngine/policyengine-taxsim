@@ -59,8 +59,8 @@ def _chunk_size_option(fn):
         default=None,
         help=(
             "Records per PolicyEngine simulation (default "
-            f"{PolicyEngineRunner.CHUNK_SIZE:,}). Smaller chunks use less "
-            "memory; very small ones cost more CPU time per record."
+            f"{PolicyEngineRunner.CHUNK_SIZE:,}). Smaller chunks typically "
+            "use less memory and more CPU time per record."
         ),
     )(fn)
 
