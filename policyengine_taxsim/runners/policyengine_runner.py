@@ -1135,10 +1135,11 @@ def _free_finished_simulations():
     a finished simulation alive through its ``simulation`` attribute, which
     policyengine-core sets to the simulation built on it:
 
-    - policyengine-us caches pinned policies (``policyengine_us.tools.pinned_tbs``,
-      for New York's child credit in 2018-2024 and from 2028, New York's EITC
-      in 2021 and Alabama's federal tax deduction in 2021) as clones of a
-      simulation's policy, and a clone keeps that attribute.
+    - policyengine-us caches pinned policies as clones of a simulation's
+      policy (``policyengine_us.tools.pinned_tbs``; in 2.75.0, for New York's
+      child credit in 2018-2024 and from 2028, New York's EITC in 2021 and
+      Alabama's federal tax deduction in 2021), and a clone keeps that
+      attribute.
     - With policyengine-us 1.x (Python 3.10), every simulation the runner
       builds from a dataset uses the one policy that
       ``scorp_tax_benefit_system()`` caches, so that policy kept the latest
@@ -1641,10 +1642,13 @@ class PolicyEngineRunner(BaseTaxRunner):
                 for start in range(0, len(year_positions), self.CHUNK_SIZE):
                     positions = year_positions[start : start + self.CHUNK_SIZE]
                     chunk_df = self.input_df.iloc[positions].copy()
-                    frames.append(self._run_chunk(chunk_df))
-                    # Free this chunk's simulations before the next chunk
-                    # builds its own (see _run_chunk).
-                    _free_finished_simulations()
+                    try:
+                        frames.append(self._run_chunk(chunk_df))
+                    finally:
+                        # Free this chunk's simulations before the next
+                        # chunk, or a later run, builds its own (see
+                        # _run_chunk), even when the chunk failed.
+                        _free_finished_simulations()
                     frame_positions.append(positions)
                     chunks_done += 1
                     rows_done += len(chunk_df)
