@@ -384,9 +384,10 @@ The emulator produces all standard TAXSIM output variables:
 
 The PolicyEngine emulator simulates records in chunks of 10,000. A worker's
 peak memory grows with its chunk size, and smaller chunks typically cost more
-CPU time per record, since part of each chunk's cost is fixed. A chunk that
-mixes state-0 records with others is simulated twice, so memory and CPU time
-also depend on the input's mix of records. `--chunk-size` sets the chunk size
+CPU time per record, since part of each chunk's cost is fixed. Unless
+`--disable-salt` is set, a chunk that mixes state-0 records with others is
+simulated twice, so memory and CPU time also depend on the input's mix of
+records. `--chunk-size` sets the chunk size
 on the command line, before or after the subcommand, and `chunk_size` sets it
 in Python:
 
