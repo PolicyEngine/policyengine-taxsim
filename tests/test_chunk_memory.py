@@ -5,18 +5,23 @@ reference cycles: ``Simulation.link_to_entities_instances`` sets each
 ``population.simulation``, and every ``Holder`` keeps its ``population`` and
 ``simulation``. Dropping the runner's last reference therefore leaves a
 finished simulation, and every array it cached, for Python's cyclic garbage
-collector. policyengine-us's pinned-policy cache (New York's credits in
-2018-2024, Alabama's federal tax deduction in 2021) also kept one alive,
-through the ``simulation`` attribute of a cached policy clone. Each pass
-builds a main simulation, a marginal-rate branch and, for srebate, a rebate
-twin, and a chunk that mixes state-0 and other records runs two passes.
-Before the runner freed them between passes and chunks, a pass's
-simulations stayed alive while the next pass or chunk built its own, which
-raised a worker's peak memory.
+collector. Two long-lived policies also kept one alive through their
+``simulation`` attribute: policyengine-us's cached pinned policies (New
+York's child credit in 2018-2024 and from 2028, its EITC in 2021, Alabama's
+federal tax deduction in 2021), and, with policyengine-us 1.x, the shared
+policy from ``scorp_tax_benefit_system()``. Each pass builds a main
+simulation, a marginal-rate branch and, for srebate, a rebate twin, and a
+chunk that mixes state-0 and other records runs two passes. Before the
+runner freed them between passes and chunks, a pass's simulations stayed
+alive while the next pass or chunk built its own, which raised a worker's
+peak memory.
 
 These tests turn automatic collection off, so they fail every time the
 runner stops freeing simulations, not only when no automatic collection
-happens to run in between.
+happens to run in between. In policyengine-us 2.x every simulation that
+uses a pinned policy builds its own copy of the whole tax-benefit system
+(about 0.6 GB), so the cases each fill one pin, and each test starts and
+ends with an empty pinned-policy cache.
 """
 
 import gc
@@ -28,9 +33,20 @@ from hypothesis import given, settings, strategies as st, HealthCheck
 
 from policyengine_taxsim.runners import PolicyEngineRunner
 
+try:
+    from policyengine_us.tools import pinned_tbs
+except ImportError:
+    pinned_tbs = None
+
+
+def _empty_pinned_policy_cache():
+    getattr(pinned_tbs, "_PINNED_TBS_CACHE", {}).clear()
+    gc.collect()
+
 
 @pytest.fixture
 def automatic_gc_off():
+    _empty_pinned_policy_cache()
     enabled = gc.isenabled()
     gc.disable()
     try:
@@ -38,6 +54,7 @@ def automatic_gc_off():
     finally:
         if enabled:
             gc.enable()
+        _empty_pinned_policy_cache()
 
 
 def _records(states, year=2025):
@@ -98,15 +115,14 @@ def _run_tracking_liveness(monkeypatch, records, chunk_size):
         # Chunk 1 mixes a state-0 record with a California one, so it runs
         # two passes; chunk 2 holds one Texas record and runs one.
         (2025, [0, 5, 44], 2),
-        # New York and Alabama in 2021 fill policyengine-us's pinned-policy
-        # cache (NY's pre-TCJA child credit and pre-ARPA EITC, Alabama's
-        # 2020-IRC federal tax deduction), and its entries named the pass
-        # that filled them as their simulation.
-        (2021, [33, 1, 5], 1),
-        # New York in consecutive chunks rebuilds the cache entry each pass.
-        (2024, [33, 33, 5], 1),
+        # Alabama in 2021 fills policyengine-us's pinned-policy cache with
+        # its 2020-IRC federal tax deduction, and New York in 2024 with the
+        # pre-TCJA child credit. Each entry named a simulation of the pass
+        # that filled it, which the next two passes don't replace.
+        (2021, [1, 5, 5], 1),
+        (2024, [33, 5, 5], 1),
     ],
-    ids=["mixed-chunk-2025", "pinned-policies-2021", "ny-every-chunk-2024"],
+    ids=["mixed-chunk-2025", "alabama-pin-2021", "new-york-pin-2024"],
 )
 def test_no_simulation_outlives_its_pass(
     monkeypatch, automatic_gc_off, year, states, chunk_size
@@ -131,7 +147,7 @@ def test_no_simulation_outlives_its_pass(
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(
-    year=st.sampled_from([2021, 2024, 2025]),
+    year=st.sampled_from([2024, 2025]),
     states=st.lists(st.sampled_from([0, 5, 33, 44]), min_size=2, max_size=4),
     chunk_size=st.integers(min_value=1, max_value=3),
 )

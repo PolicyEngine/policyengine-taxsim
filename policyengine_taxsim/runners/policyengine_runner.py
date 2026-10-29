@@ -1131,18 +1131,36 @@ def _free_finished_simulations():
 
     policyengine-core links a simulation, its populations and their holders
     in reference cycles, so dropping the runner's last reference leaves them
-    for Python's cyclic garbage collector. policyengine-us also caches pinned
-    policies (``policyengine_us.tools.pinned_tbs``, for New York's credits in
-    2018-2024 and Alabama's federal tax deduction in 2021) as clones of a
-    simulation's policy, and a clone keeps that simulation as its
-    ``simulation`` attribute. Neither package reads that attribute, but
-    through it the cache kept a finished pass's simulations alive into the
-    next pass. Clearing it leaves the cached pinned parameters in place.
+    for Python's cyclic garbage collector. A long-lived policy can also keep
+    a finished simulation alive through its ``simulation`` attribute, which
+    policyengine-core sets to the simulation built on it:
+
+    - policyengine-us caches pinned policies (``policyengine_us.tools.pinned_tbs``,
+      for New York's child credit in 2018-2024 and from 2028, New York's EITC
+      in 2021 and Alabama's federal tax deduction in 2021) as clones of a
+      simulation's policy, and a clone keeps that attribute.
+    - With policyengine-us 1.x (Python 3.10), every simulation the runner
+      builds from a dataset uses the one policy that
+      ``scorp_tax_benefit_system()`` caches, so that policy kept the latest
+      of them.
+
+    Clearing the attribute releases them and leaves the cached policies and
+    their parameters in place. policyengine-core only writes it, and
+    policyengine-us reads it once, for a traced simulation, to check whether
+    the policy belongs to that simulation; the runner never traces, and a
+    cleared attribute fails that check as a finished simulation's would.
+    The release only saves memory, so it skips a policy that refuses the
+    assignment.
     """
-    for entry in getattr(_pinned_tbs, "_PINNED_TBS_CACHE", {}).values():
-        for policy in entry if isinstance(entry, tuple) else (entry,):
-            if getattr(policy, "simulation", None) is not None:
+    policies = [scorp_tax_benefit_system()]
+    for entry in list(getattr(_pinned_tbs, "_PINNED_TBS_CACHE", {}).values()):
+        policies.extend(entry if isinstance(entry, tuple) else (entry,))
+    for policy in policies:
+        if getattr(policy, "simulation", None) is not None:
+            try:
                 policy.simulation = None
+            except (AttributeError, TypeError):
+                pass
     gc.collect()
 
 
