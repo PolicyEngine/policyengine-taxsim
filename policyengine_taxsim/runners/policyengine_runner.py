@@ -1,3 +1,4 @@
+import contextlib
 import gc
 import sys
 
@@ -1151,9 +1152,12 @@ def _free_finished_simulations():
     the policy belongs to that simulation; the runner never traces, and a
     cleared attribute fails that check as a finished simulation's would.
     The release only saves memory, so it skips a policy that refuses the
-    assignment.
+    assignment, and it doesn't build the shared policy when no simulation
+    has used it yet (a chunk can fail before building one).
     """
-    policies = [scorp_tax_benefit_system()]
+    cache_info = getattr(scorp_tax_benefit_system, "cache_info", None)
+    unbuilt = cache_info is not None and not cache_info().currsize
+    policies = [] if unbuilt else [scorp_tax_benefit_system()]
     for entry in list(getattr(_pinned_tbs, "_PINNED_TBS_CACHE", {}).values()):
         policies.extend(entry if isinstance(entry, tuple) else (entry,))
     for policy in policies:
@@ -1644,11 +1648,17 @@ class PolicyEngineRunner(BaseTaxRunner):
                     chunk_df = self.input_df.iloc[positions].copy()
                     try:
                         frames.append(self._run_chunk(chunk_df))
-                    finally:
-                        # Free this chunk's simulations before the next
-                        # chunk, or a later run, builds its own (see
-                        # _run_chunk), even when the chunk failed.
-                        _free_finished_simulations()
+                    except BaseException:
+                        # Release a failed chunk's simulations too, so a
+                        # long-lived process (the local or Modal API) can
+                        # collect them once it drops the error. The release
+                        # must not replace the chunk's error.
+                        with contextlib.suppress(Exception):
+                            _free_finished_simulations()
+                        raise
+                    # Free this chunk's simulations before the next chunk
+                    # builds its own (see _run_chunk).
+                    _free_finished_simulations()
                     frame_positions.append(positions)
                     chunks_done += 1
                     rows_done += len(chunk_df)

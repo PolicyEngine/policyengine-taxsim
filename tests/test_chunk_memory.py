@@ -24,16 +24,17 @@ uses a pinned policy builds its own copy of the whole tax-benefit system
 ends with an empty pinned-policy cache.
 """
 
+import functools
 import gc
 import weakref
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
-from hypothesis import given, settings, strategies as st, HealthCheck
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
-from policyengine_taxsim.runners import PolicyEngineRunner
-from policyengine_taxsim.runners import policyengine_runner
+from policyengine_taxsim.runners import PolicyEngineRunner, policyengine_runner
 
 try:
     from policyengine_us.tools import pinned_tbs
@@ -158,7 +159,13 @@ def test_chunking_frees_simulations_and_keeps_outputs(
 ):
     """For each drawn year, state mix and chunk size: no simulation from an
     earlier pass is alive when a pass starts or after the run, rows come back
-    in input order, and the output equals a single-chunk run's."""
+    in input order, and the output equals a single-chunk run's.
+
+    A New York record in 2024 makes each simulation of its pass build a
+    pinned copy of the whole tax-benefit system (about 0.6 GB), so a draw
+    with several of them could take this one process past a CI runner's
+    memory. ``new-york-pin-2024`` above covers that path."""
+    assume(not (year == 2024 and 33 in states))
     records = _records(states, year)
 
     with monkeypatch.context() as patch:
@@ -250,9 +257,32 @@ def test_release_without_a_pinned_policy_cache(monkeypatch):
     assert shared.simulation is None
 
 
+def test_release_leaves_an_unbuilt_shared_policy_unbuilt(monkeypatch):
+    """The release builds no shared policy just to clear it, and clears one
+    that a simulation has built."""
+    builds = []
+
+    @functools.lru_cache(maxsize=1)
+    def shared_policy():
+        builds.append(1)
+        return _Policy()
+
+    monkeypatch.setattr(policyengine_runner, "scorp_tax_benefit_system", shared_policy)
+    monkeypatch.setattr(policyengine_runner, "_pinned_tbs", None)
+
+    policyengine_runner._free_finished_simulations()
+    assert builds == []
+
+    shared = shared_policy()
+    policyengine_runner._free_finished_simulations()
+    assert builds == [1]
+    assert shared.simulation is None
+
+
 def test_failed_chunk_still_releases(monkeypatch):
-    """A chunk that raises still frees its simulations, so a long-lived
-    process (the local or Modal API) doesn't keep them into its next run."""
+    """A chunk that raises still runs the release, so a long-lived process
+    (the local or Modal API) can collect the failed pass's simulations once
+    it drops the error, instead of keeping them into its next run."""
     releases = []
 
     def fail(self, chunk_df):
@@ -266,3 +296,22 @@ def test_failed_chunk_still_releases(monkeypatch):
     with pytest.raises(RuntimeError, match="chunk failed"):
         PolicyEngineRunner(_records([5])).run(show_progress=False)
     assert releases == [1]
+
+
+def test_release_cannot_replace_a_chunk_error(monkeypatch):
+    """If the release itself fails after a chunk raises, the caller still
+    gets the chunk's error (the API maps a ValueError to a 400)."""
+
+    def fail(self, chunk_df):
+        raise ValueError("bad input")
+
+    def broken_release():
+        raise MemoryError
+
+    monkeypatch.setattr(PolicyEngineRunner, "_run_chunk", fail)
+    monkeypatch.setattr(
+        policyengine_runner, "_free_finished_simulations", broken_release
+    )
+
+    with pytest.raises(ValueError, match="bad input"):
+        PolicyEngineRunner(_records([5])).run(show_progress=False)
