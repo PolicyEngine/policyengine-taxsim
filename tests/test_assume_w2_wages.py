@@ -6,6 +6,10 @@ the W-2 wage cap in the QBID calculation never binds, aligning PE's
 Section 199A implementation with TAXSIM's simplified approach for S-Corp income.
 """
 
+import importlib
+from io import StringIO
+from unittest.mock import patch
+
 import pytest
 import numpy as np
 import pandas as pd
@@ -247,3 +251,58 @@ class TestAssumeW2WagesCLI:
         assert not np.allclose(
             df_default["fiitax"].values, df_w2["fiitax"].values, atol=1.0
         ), "Expected different fiitax with --assume-w2-wages for high-income S-Corp"
+
+
+@pytest.mark.parametrize(
+    "args, target, expected",
+    [
+        ([], "StitchedRunner", False),
+        (["--assume-w2-wages"], "StitchedRunner", True),
+        (["policyengine", "{path}", "--assume-w2-wages"], "StitchedRunner", True),
+        (["--assume-w2-wages", "policyengine", "{path}"], "StitchedRunner", True),
+        (["compare", "{path}", "--assume-w2-wages"], "PolicyEngineRunner", True),
+        (["--assume-w2-wages", "compare", "{path}"], "PolicyEngineRunner", True),
+    ],
+)
+def test_cli_forwards_flag(args, target, expected, tmp_path):
+    """Every PolicyEngine entry point, including the stdin drop-in command,
+    passes the flag to the runner; the default stays off."""
+    path = tmp_path / "input.csv"
+    csv = _make_scorp_records().to_csv(index=False)
+    path.write_text(csv)
+    module = importlib.import_module("policyengine_taxsim.cli")
+    args = [str(path) if a == "{path}" else a for a in args]
+    # Stop before model work; verify the flag reaches the actual runner.
+    with patch.object(module, target, side_effect=RuntimeError("stop")) as runner:
+        CliRunner().invoke(cli, args, input=csv)
+    assert runner.call_args.kwargs["assume_w2_wages"] is expected
+
+
+def test_stdin_command_flag_gives_full_qbid_for_pbusinc():
+    """
+    Single filer, 2024, $400,000 of pbusinc. TAXSIM documents pbusinc as QBI
+    "assuming sufficient wages paid or capital to be eligible for the full
+    deduction".
+
+    Hand computation:
+    - SECA base 400,000 x 0.9235 = 369,400; SECA = 168,600 x 12.4%
+      + 369,400 x 2.9% = 31,619.00; deductible half 15,809.50.
+    - AGI 384,190.50; less the 14,600 standard deduction = 369,590.50.
+    - QBI 400,000 - 15,809.50 = 384,190.50.
+    - QBID = min(20% x 384,190.50, 20% x 369,590.50) = 73,918.10.
+    Taxable income is above the 2024 phase-in range ($241,950), so with no
+    W-2 wages the section 199A(b)(2)(B) limit is zero and QBID is zero.
+    """
+    csv = "taxsimid,year,state,mstat,page,depx,pbusinc,idtl\n1,2024,0,1,40,0,400000,2\n"
+
+    def run(args):
+        result = CliRunner().invoke(cli, args, input=csv)
+        assert result.exit_code == 0, f"CLI failed: {result.exception}"
+        return pd.read_csv(StringIO(result.stdout)).iloc[0]
+
+    default = run([])
+    assumed = run(["--assume-w2-wages"])
+
+    assert default["qbid"] == pytest.approx(0, abs=1)
+    assert assumed["qbid"] == pytest.approx(73_918.10, abs=1)
+    assert assumed["fiitax"] < default["fiitax"]
