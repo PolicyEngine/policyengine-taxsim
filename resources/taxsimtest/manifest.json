@@ -1,0 +1,27 @@
+{
+  "taxsimtest-osx.exe": {
+    "url": "https://taxsim.nber.org/out2psl/osx",
+    "build": "cd2026102718",
+    "sha256": "a369f6221cd45da270d9e922b336787bcc8ca8477f2a8e54a9917922cf9f3f54",
+    "size_bytes": 2120872,
+    "downloaded_on": "2026-10-27",
+    "last_modified": "Tue, 27 Oct 2026 23:01:21 GMT"
+  },
+  "taxsimtest-linux.exe": {
+    "url": "https://taxsim.nber.org/out2psl/linux",
+    "build": "cd2026102718",
+    "sha256": "87f6e6566fe4703548ebda4b78b2de8fe0fc3a80ac9cc0735551f810ea6253cc",
+    "size_bytes": 2201832,
+    "downloaded_on": "2026-10-27",
+    "last_modified": "Tue, 27 Oct 2026 23:01:24 GMT"
+  },
+  "taxsimtest-windows.exe": {
+    "url": "https://taxsim.nber.org/taxsimtest/taxsimtest.exe",
+    "build": "cd2026081318",
+    "sha256": "a8207e7cf207ee9ce066eedc51cc5dd531c956de0a8b567fca1933ca0fa0e9c3",
+    "size_bytes": 3035784,
+    "downloaded_on": "2026-08-24 (#1150)",
+    "last_modified": null,
+    "note": "Kept at the August build. NBER's later Windows builds have not matched the macOS and Linux builds: the October 8 Windows build (cd2026100817) gave an Indiana 2024 v39 of 63.20 where they return 0.00, and fiitax gaps in the itemized and dependent-count tests. On 2026-10-28 taxsimtest/taxsimtest.exe was still the October 22 upload, older than cd2026102718."
+  }
+}

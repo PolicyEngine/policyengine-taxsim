@@ -24,11 +24,12 @@ that already holds it (pa_forgiveness_counts_nonprop_once_2023). Rhode
 Island's property-tax relief for elderly renters has the same double count;
 it is not pinned because PE's credit already differs from taxsimtest's there.
 
-Every expected tax value below is taxsimtest output: the bundled
-resources/taxsimtest/taxsimtest-osx.exe (build cd2026081819; the bundled
-Linux binary is the same build and the Windows one is cd2026081318), idtl=2,
-run on the record shown. test_bundled_taxsimtest_still_produces_expected_values
-re-runs each platform's binary on every one of them. Single filers are age 40 with $50,000 of pwages. MFJ
+Every expected tax value below is taxsimtest output: the macOS build
+cd2026081819 (the Linux binary is the same build; the Windows one is
+cd2026081318), idtl=2, run on the record shown.
+test_bundled_taxsimtest_still_produces_expected_values re-runs each
+platform's bundled binary on every one of them, and lists the values that a
+later bundled build changes (tests/taxsim_known_regressions.py). Single filers are age 40 with $50,000 of pwages. MFJ
 filers are both age 40 with pwages $30,000 and swages $20,000. No
 dependents. TAXSIM behaviors these pin, observed on that binary for every
 jurisdiction in 2021-2025:
@@ -72,6 +73,11 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from taxsim_known_regressions import (
+    TAXSIM_1482,
+    check_known_mismatches,
+    on_current_build,
+)
 
 SINGLE = dict(mstat=1, page=40, sage=0, pwages=50_000, swages=0)
 MFJ = dict(mstat=2, page=40, sage=40, pwages=30_000, swages=20_000)
@@ -649,6 +655,31 @@ def test_georgia_senior_nonprop_is_not_retirement_income():
     )
 
 
+# taxsim #1482 in cd2026102718: every pre-2024 record with nonzero nonprop gets
+# twice the nonprop in v10 (26: 70,000 instead of 60,000; 27: 40,000 instead
+# of 45,000), and fiitax and v18 follow. siitax follows in CA, ID, AL and VA;
+# PA and NJ build their bases from their own lists, TX has no income tax, 7002
+# keeps v18 0 below zero AGI, and 7008 keeps PA tax forgiveness. The EITC
+# records 6000-6002 compare only v25, which stays in the phase-in. As
+# cd2026100817 did, the build also lowers CA 2021 siitax by $0.72 at CA
+# taxable income $45,197 (record 25: 1349.59); the cause is not established.
+_CURRENT_BUILD_VALUES = on_current_build(
+    {(i, c) for i in (26, 27, 95, 96, 614, 615) for c in ("v10", "fiitax", "siitax")}
+    | {
+        (i, c)
+        for i in (794, 795, 797, 798, 842, 843, 872, 873)
+        for c in ("v10", "fiitax")
+    }
+    | {(5001, "siitax"), (5002, "siitax")}
+    | {(i, c) for i in (7001, 7003, 7004) for c in ("v10", "v18", "fiitax")}
+    | {(7000, "v10"), (7000, "v18"), (7000, "v28"), (7002, "v10"), (7008, "v10")}
+    | {(25, "siitax")}
+)
+_CURRENT_BUILD_REASON = (
+    f"{TAXSIM_1482} It also lowers CA 2021 siitax by $0.72 (cause not established)."
+)
+
+
 def test_bundled_taxsimtest_still_produces_expected_values():
     rows, checks = [], []
     for rec in TAXSIM_RECORDS:
@@ -684,11 +715,13 @@ def test_bundled_taxsimtest_still_produces_expected_values():
     output = TaxsimRunner(pd.DataFrame(rows).fillna(0)).run(show_progress=False)
     output["taxsimid"] = output["taxsimid"].astype(float).astype(int)
     output = output.set_index("taxsimid")
-    for taxsimid, expected in checks:
-        for column, value in expected.items():
-            assert float(output.loc[taxsimid, column]) == pytest.approx(
-                value, abs=0.01
-            ), f"taxsimid {taxsimid} {column}"
+    mismatches = {
+        (taxsimid, column)
+        for taxsimid, expected in checks
+        for column, value in expected.items()
+        if float(output.loc[taxsimid, column]) != pytest.approx(value, abs=0.01)
+    }
+    check_known_mismatches(mismatches, _CURRENT_BUILD_VALUES, _CURRENT_BUILD_REASON)
 
 
 # ---------------------------------------------------------------------------
