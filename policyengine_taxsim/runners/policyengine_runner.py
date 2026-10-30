@@ -1,3 +1,5 @@
+import contextlib
+import gc
 import sys
 
 import pandas as pd
@@ -37,6 +39,11 @@ from policyengine_taxsim.core.input_mapper import (
 )
 
 from policyengine_us import Microsimulation
+
+try:
+    from policyengine_us.tools import pinned_tbs as _pinned_tbs
+except ImportError:  # policyengine-us releases without the pinned-policy cache
+    _pinned_tbs = None
 from ..core.scorp import validate_scorp_treatment
 from ..core.scorp_reform import scorp_tax_benefit_system
 from policyengine_core.data import Dataset
@@ -1120,6 +1127,62 @@ class TaxsimMicrosimDataset(Dataset):
                 pass
 
 
+def _release_finished_simulations():
+    """Clear the references that long-lived policies keep to the simulations
+    of passes the runner has finished.
+
+    policyengine-core links a simulation, its populations and their holders
+    in reference cycles, so dropping the runner's last reference leaves them
+    for Python's cyclic garbage collector. A long-lived policy can also keep
+    a finished simulation alive through its ``simulation`` attribute, which
+    policyengine-core sets to the simulation built on it, and then no
+    collection frees it:
+
+    - policyengine-us caches pinned policies as clones of a simulation's
+      policy (``policyengine_us.tools.pinned_tbs``; in 2.75.0, for New York's
+      child credit in 2018-2024 and from 2028, New York's EITC in 2021 and
+      Alabama's federal tax deduction in 2021), and a clone keeps that
+      attribute.
+    - With policyengine-us 1.x (Python 3.10), every simulation the runner
+      builds from a dataset uses the one policy that
+      ``scorp_tax_benefit_system()`` caches, so that policy kept the latest
+      of them.
+
+    Clearing the attribute releases them and leaves the cached policies and
+    their parameters in place. policyengine-core only writes it, and
+    policyengine-us reads it once, for a traced simulation, to check whether
+    the policy belongs to that simulation; the runner never traces, and a
+    cleared attribute fails that check as a finished simulation's would.
+    The release only saves memory, so it skips a policy that refuses the
+    assignment, and it doesn't build the shared policy when no simulation
+    has used it yet (a chunk can fail before building one).
+    """
+    cache_info = getattr(scorp_tax_benefit_system, "cache_info", None)
+    unbuilt = cache_info is not None and not cache_info().currsize
+    policies = [] if unbuilt else [scorp_tax_benefit_system()]
+    for entry in list(getattr(_pinned_tbs, "_PINNED_TBS_CACHE", {}).values()):
+        policies.extend(entry if isinstance(entry, tuple) else (entry,))
+    for policy in policies:
+        if getattr(policy, "simulation", None) is not None:
+            try:
+                policy.simulation = None
+            except (AttributeError, TypeError):
+                pass
+
+
+def _free_finished_simulations():
+    """Release the finished simulations and collect them now.
+
+    The runner calls this only before it builds more simulations. A full
+    collection walks every object the collector tracks, about 3 million once
+    policyengine-us has loaded, so it took about 0.5 s on an Apple M5 Max
+    even with little garbage, while a one-record run took about 0.64 s
+    without one.
+    """
+    _release_finished_simulations()
+    gc.collect()
+
+
 class PolicyEngineRunner(BaseTaxRunner):
     """
     High-performance PolicyEngine runner using Microsimulation.
@@ -1216,6 +1279,16 @@ class PolicyEngineRunner(BaseTaxRunner):
         whether any record supplied a dependent age switched TAXSIM-32
         dependent-count conversion off for the whole chunk).
 
+        A finished simulation outlives the runner's last reference to it
+        (see ``_release_finished_simulations``). Without an explicit release,
+        a pass's main simulation, marginal-rate branch and (for srebate)
+        rebate twin, with every array they cached, stayed alive while the
+        next pass or chunk built its own. So the runner frees them after the
+        first pass of a mixed chunk and after every chunk but the last
+        (``_run_once``). After the last chunk the run builds nothing more, so
+        it only releases them; a long-lived process holds them until its next
+        automatic collection, as before.
+
         Returns:
             DataFrame with TAXSIM-formatted output variables
         """
@@ -1228,6 +1301,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                 return self._simulate(dataset, chunk_df, zero_salt=True)
             results = self._simulate(dataset, chunk_df, zero_salt=False)
             if no_state.any():
+                # Free the first pass's simulations before the second builds.
+                _free_finished_simulations()
                 no_salt = self._simulate(dataset, chunk_df, zero_salt=True)
                 no_salt = no_salt.reindex(columns=results.columns)
                 for column in results.columns:
@@ -1588,9 +1663,24 @@ class PolicyEngineRunner(BaseTaxRunner):
                 for start in range(0, len(year_positions), self.CHUNK_SIZE):
                     positions = year_positions[start : start + self.CHUNK_SIZE]
                     chunk_df = self.input_df.iloc[positions].copy()
-                    frames.append(self._run_chunk(chunk_df))
+                    try:
+                        frames.append(self._run_chunk(chunk_df))
+                    except BaseException:
+                        # Release a failed chunk's simulations too, so a
+                        # long-lived process (the local or Modal API) can
+                        # collect them once it drops the error. The release
+                        # must not replace the chunk's error.
+                        with contextlib.suppress(Exception):
+                            _release_finished_simulations()
+                        raise
                     frame_positions.append(positions)
                     chunks_done += 1
+                    if chunks_done < total_chunks:
+                        # Free this chunk's simulations before the next
+                        # chunk builds its own (see _run_chunk).
+                        _free_finished_simulations()
+                    else:
+                        _release_finished_simulations()
                     rows_done += len(chunk_df)
                     pbar.update(1)
                     if on_progress:
