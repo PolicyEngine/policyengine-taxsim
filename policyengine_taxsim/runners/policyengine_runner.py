@@ -1199,6 +1199,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         disable_salt: bool = False,
         assume_w2_wages: bool = False,
         scorp_treatment: str = None,
+        chunk_size: int = None,
     ):
         super().__init__(input_df)
         self.logs = logs
@@ -1206,6 +1207,29 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.assume_w2_wages = assume_w2_wages
         self.scorp_treatment = validate_scorp_treatment(scorp_treatment)
         self.mappings = load_variable_mappings()
+        if chunk_size is not None:
+            # Records per simulation for this runner only; the class
+            # attribute stays the default for every other runner.
+            if (
+                isinstance(chunk_size, bool)
+                or not isinstance(chunk_size, (int, np.integer))
+                or chunk_size < 1
+            ):
+                raise ValueError(
+                    f"chunk_size must be a positive integer, got {chunk_size!r}"
+                )
+            self.CHUNK_SIZE = int(chunk_size)
+
+    def _derive(self, input_df: pd.DataFrame) -> "PolicyEngineRunner":
+        return self.__class__(
+            input_df,
+            logs=self.logs,
+            disable_salt=self.disable_salt,
+            assume_w2_wages=self.assume_w2_wages,
+            scorp_treatment=self.scorp_treatment,
+            # Only a per-runner chunk size; otherwise the class default.
+            chunk_size=self.__dict__.get("CHUNK_SIZE"),
+        )
 
     def _validate_input(self):
         """Reject invalid state codes before any simulation.
