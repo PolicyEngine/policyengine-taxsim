@@ -1175,7 +1175,7 @@ def _free_finished_simulations():
 
     The runner calls this only before it builds more simulations. A full
     collection walks every object the collector tracks, about 3 million once
-    policyengine-us has loaded, so it took about 0.55 s on an Apple M5 Max
+    policyengine-us has loaded, so it took about 0.5 s on an Apple M5 Max
     even with little garbage, while a one-record run took about 0.64 s
     without one.
     """
@@ -1285,8 +1285,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         rebate twin, with every array they cached, stayed alive while the
         next pass or chunk built its own. So the runner frees them after the
         first pass of a mixed chunk and after every chunk but the last
-        (``_run_once``). After the last chunk nothing else gets built, so it
-        only releases them, and the automatic collector reclaims them.
+        (``_run_once``). After the last chunk the run builds nothing more, so
+        it only releases them; a long-lived process holds them until its next
+        automatic collection, as before.
 
         Returns:
             DataFrame with TAXSIM-formatted output variables

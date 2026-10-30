@@ -166,9 +166,10 @@ def test_chunking_frees_simulations_and_keeps_outputs(
     single-chunk run's.
 
     A New York record in 2024 makes each simulation of its pass build a
-    pinned copy of the whole tax-benefit system (about 0.6 GB), so a draw
-    with several of them could take this one process past a CI runner's
-    memory. ``new-york-pin-2024`` above covers that path."""
+    pinned copy of the whole tax-benefit system (about 0.6 GB), and before
+    this test skipped those draws, one whole-file run on policyengine-us
+    2.6.17 passed this host's 4 GB test cap in it. ``new-york-pin-2024``
+    above checks liveness on that path."""
     assume(not (year == 2024 and 33 in states))
     records = _records(states, year)
 
@@ -184,6 +185,9 @@ def test_chunking_frees_simulations_and_keeps_outputs(
     with monkeypatch.context() as patch:
         patch.setattr(PolicyEngineRunner, "CHUNK_SIZE", len(states))
         single_chunk = PolicyEngineRunner(records).run(show_progress=False)
+    # The runner leaves its last chunk to the automatic collector, which the
+    # fixture keeps off, so collect before the next example builds its own.
+    gc.collect()
     pd.testing.assert_frame_equal(output, single_chunk)
 
 
@@ -339,9 +343,9 @@ def test_collects_only_before_more_simulations(
 ):
     """The runner collects after every chunk but the last and only releases
     after the last. A full collection walks the roughly 3 million objects of
-    a loaded policyengine-us, which took about 0.55 s on an Apple M5 Max,
-    against about 0.64 s for a whole one-record run, and nothing gets built
-    after the last chunk."""
+    a loaded policyengine-us, which took about 0.5 s on an Apple M5 Max,
+    against about 0.64 s for a whole one-record run, and the run builds
+    nothing after the last chunk."""
     calls = []
     records = _records([5, 5, 5])
     records["year"] = years
