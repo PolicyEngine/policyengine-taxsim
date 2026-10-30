@@ -1127,14 +1127,16 @@ class TaxsimMicrosimDataset(Dataset):
                 pass
 
 
-def _free_finished_simulations():
-    """Free the simulations of passes the runner has finished.
+def _release_finished_simulations():
+    """Clear the references that long-lived policies keep to the simulations
+    of passes the runner has finished.
 
     policyengine-core links a simulation, its populations and their holders
     in reference cycles, so dropping the runner's last reference leaves them
     for Python's cyclic garbage collector. A long-lived policy can also keep
     a finished simulation alive through its ``simulation`` attribute, which
-    policyengine-core sets to the simulation built on it:
+    policyengine-core sets to the simulation built on it, and then no
+    collection frees it:
 
     - policyengine-us caches pinned policies as clones of a simulation's
       policy (``policyengine_us.tools.pinned_tbs``; in 2.75.0, for New York's
@@ -1166,6 +1168,18 @@ def _free_finished_simulations():
                 policy.simulation = None
             except (AttributeError, TypeError):
                 pass
+
+
+def _free_finished_simulations():
+    """Release the finished simulations and collect them now.
+
+    The runner calls this only before it builds more simulations. A full
+    collection walks every object the collector tracks, about 3 million once
+    policyengine-us has loaded, so it took about 0.55 s on an Apple M5 Max
+    even with little garbage, while a one-record run took about 0.64 s
+    without one.
+    """
+    _release_finished_simulations()
     gc.collect()
 
 
@@ -1266,11 +1280,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         dependent-count conversion off for the whole chunk).
 
         A finished simulation outlives the runner's last reference to it
-        (see ``_free_finished_simulations``). Without an explicit release, a
-        pass's main simulation, marginal-rate branch and (for srebate)
+        (see ``_release_finished_simulations``). Without an explicit release,
+        a pass's main simulation, marginal-rate branch and (for srebate)
         rebate twin, with every array they cached, stayed alive while the
         next pass or chunk built its own. So the runner frees them after the
-        first pass of a mixed chunk and after every chunk (``_run_once``).
+        first pass of a mixed chunk and after every chunk but the last
+        (``_run_once``). After the last chunk nothing else gets built, so it
+        only releases them, and the automatic collector reclaims them.
 
         Returns:
             DataFrame with TAXSIM-formatted output variables
@@ -1654,13 +1670,16 @@ class PolicyEngineRunner(BaseTaxRunner):
                         # collect them once it drops the error. The release
                         # must not replace the chunk's error.
                         with contextlib.suppress(Exception):
-                            _free_finished_simulations()
+                            _release_finished_simulations()
                         raise
-                    # Free this chunk's simulations before the next chunk
-                    # builds its own (see _run_chunk).
-                    _free_finished_simulations()
                     frame_positions.append(positions)
                     chunks_done += 1
+                    if chunks_done < total_chunks:
+                        # Free this chunk's simulations before the next
+                        # chunk builds its own (see _run_chunk).
+                        _free_finished_simulations()
+                    else:
+                        _release_finished_simulations()
                     rows_done += len(chunk_df)
                     pbar.update(1)
                     if on_progress:

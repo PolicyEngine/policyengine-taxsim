@@ -18,7 +18,9 @@ peak memory.
 
 These tests turn automatic collection off, so they fail every time the
 runner stops freeing simulations, not only when no automatic collection
-happens to run in between. In policyengine-us 2.x every simulation that
+happens to run in between. After the last chunk the runner only releases its
+simulations, since nothing follows, so the tests run one collection before
+checking that none outlives the run. In policyengine-us 2.x every simulation that
 uses a pinned policy builds its own copy of the whole tax-benefit system
 (about 0.6 GB), so the cases each fill one pin, and each test starts and
 ends with an empty pinned-policy cache.
@@ -140,6 +142,7 @@ def test_no_simulation_outlives_its_pass(
     # A main simulation and a marginal-rate branch, at least, in every pass.
     assert len(built) >= 2 * len(alive_at_pass_start)
     assert alive_at_pass_start == [0, 0, 0]
+    gc.collect()
     assert all(ref() is None for ref in built)
     assert output["taxsimid"].astype(int).tolist() == [1, 2, 3]
 
@@ -158,8 +161,9 @@ def test_chunking_frees_simulations_and_keeps_outputs(
     monkeypatch, automatic_gc_off, year, states, chunk_size
 ):
     """For each drawn year, state mix and chunk size: no simulation from an
-    earlier pass is alive when a pass starts or after the run, rows come back
-    in input order, and the output equals a single-chunk run's.
+    earlier pass is alive when a pass starts, none survives a collection after
+    the run, rows come back in input order, and the output equals a
+    single-chunk run's.
 
     A New York record in 2024 makes each simulation of its pass build a
     pinned copy of the whole tax-benefit system (about 0.6 GB), so a draw
@@ -173,6 +177,7 @@ def test_chunking_frees_simulations_and_keeps_outputs(
             patch, records, chunk_size
         )
     assert set(alive_at_pass_start) == {0}
+    gc.collect()
     assert all(ref() is None for ref in built)
     assert output["taxsimid"].astype(int).tolist() == list(range(1, len(states) + 1))
 
@@ -238,7 +243,7 @@ def test_release_clears_every_long_lived_policy(monkeypatch):
         policyengine_runner, "_pinned_tbs", SimpleNamespace(_PINNED_TBS_CACHE=cache)
     )
 
-    policyengine_runner._free_finished_simulations()
+    policyengine_runner._release_finished_simulations()
 
     assert shared.simulation is None
     assert two_tuple_clone.simulation is None
@@ -252,7 +257,7 @@ def test_release_without_a_pinned_policy_cache(monkeypatch):
     monkeypatch.setattr(policyengine_runner, "scorp_tax_benefit_system", lambda: shared)
     monkeypatch.setattr(policyengine_runner, "_pinned_tbs", None)
 
-    policyengine_runner._free_finished_simulations()
+    policyengine_runner._release_finished_simulations()
 
     assert shared.simulation is None
 
@@ -270,11 +275,11 @@ def test_release_leaves_an_unbuilt_shared_policy_unbuilt(monkeypatch):
     monkeypatch.setattr(policyengine_runner, "scorp_tax_benefit_system", shared_policy)
     monkeypatch.setattr(policyengine_runner, "_pinned_tbs", None)
 
-    policyengine_runner._free_finished_simulations()
+    policyengine_runner._release_finished_simulations()
     assert builds == []
 
     shared = shared_policy()
-    policyengine_runner._free_finished_simulations()
+    policyengine_runner._release_finished_simulations()
     assert builds == [1]
     assert shared.simulation is None
 
@@ -290,7 +295,9 @@ def test_failed_chunk_still_releases(monkeypatch):
 
     monkeypatch.setattr(PolicyEngineRunner, "_run_chunk", fail)
     monkeypatch.setattr(
-        policyengine_runner, "_free_finished_simulations", lambda: releases.append(1)
+        policyengine_runner,
+        "_release_finished_simulations",
+        lambda: releases.append(1),
     )
 
     with pytest.raises(RuntimeError, match="chunk failed"):
@@ -310,8 +317,53 @@ def test_release_cannot_replace_a_chunk_error(monkeypatch):
 
     monkeypatch.setattr(PolicyEngineRunner, "_run_chunk", fail)
     monkeypatch.setattr(
-        policyengine_runner, "_free_finished_simulations", broken_release
+        policyengine_runner, "_release_finished_simulations", broken_release
     )
 
     with pytest.raises(ValueError, match="bad input"):
         PolicyEngineRunner(_records([5])).run(show_progress=False)
+
+
+@pytest.mark.parametrize(
+    "years, chunk_size, expected",
+    [
+        # Chunks hold one year each: 2024's record, then 2025's two.
+        ([2025, 2025, 2024], 1, ["collect", "collect", "release"]),
+        ([2025, 2025, 2024], 10_000, ["collect", "release"]),
+        ([2025, 2025, 2025], 10_000, ["release"]),
+    ],
+    ids=["three-chunks", "two-years", "one-chunk"],
+)
+def test_collects_only_before_more_simulations(
+    monkeypatch, years, chunk_size, expected
+):
+    """The runner collects after every chunk but the last and only releases
+    after the last. A full collection walks the roughly 3 million objects of
+    a loaded policyengine-us, which took about 0.55 s on an Apple M5 Max,
+    against about 0.64 s for a whole one-record run, and nothing gets built
+    after the last chunk."""
+    calls = []
+    records = _records([5, 5, 5])
+    records["year"] = years
+
+    monkeypatch.setattr(PolicyEngineRunner, "CHUNK_SIZE", chunk_size)
+    monkeypatch.setattr(
+        PolicyEngineRunner,
+        "_run_chunk",
+        lambda self, chunk_df: chunk_df[["taxsimid"]].reset_index(drop=True),
+    )
+    monkeypatch.setattr(
+        policyengine_runner,
+        "_free_finished_simulations",
+        lambda: calls.append("collect"),
+    )
+    monkeypatch.setattr(
+        policyengine_runner,
+        "_release_finished_simulations",
+        lambda: calls.append("release"),
+    )
+
+    output = PolicyEngineRunner(records).run(show_progress=False)
+
+    assert calls == expected
+    assert output["taxsimid"].tolist() == [1, 2, 3]
