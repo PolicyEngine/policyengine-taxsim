@@ -15,7 +15,11 @@ import pytest
 from click.testing import CliRunner
 
 from policyengine_taxsim.cli import cli
-from policyengine_taxsim.runners import PolicyEngineRunner, StitchedRunner
+from policyengine_taxsim.runners import (
+    PolicyEngineRunner,
+    StitchedRunner,
+    policyengine_runner,
+)
 
 CSV = (
     "taxsimid,year,state,mstat,page,sage,pwages,idtl\n"
@@ -53,6 +57,43 @@ def test_chunk_size_argument_sets_records_per_chunk(chunk_sizes):
     assert chunk_sizes == [2, 1, 3]
     # Chunking changes neither the results nor their order.
     pd.testing.assert_frame_equal(chunked, whole)
+
+
+@pytest.mark.parametrize(
+    "chunk_size, expected",
+    [
+        (1, ["collect", "collect", "release"]),
+        (2, ["collect", "release"]),
+        (3, ["release"]),
+    ],
+)
+def test_chunk_size_argument_sets_when_the_runner_collects(
+    monkeypatch, chunk_size, expected
+):
+    """The runner collects garbage after every chunk but the last, so it
+    counts chunks at the runner's own chunk size, the size it cuts them at."""
+    calls = []
+    monkeypatch.setattr(
+        PolicyEngineRunner,
+        "_run_chunk",
+        lambda self, chunk_df: chunk_df[["taxsimid"]].reset_index(drop=True),
+    )
+    monkeypatch.setattr(
+        policyengine_runner,
+        "_free_finished_simulations",
+        lambda: calls.append("collect"),
+    )
+    monkeypatch.setattr(
+        policyengine_runner,
+        "_release_finished_simulations",
+        lambda: calls.append("release"),
+    )
+
+    runner = PolicyEngineRunner(_records(), chunk_size=chunk_size)
+    output = runner.run(show_progress=False)
+
+    assert calls == expected
+    assert output["taxsimid"].tolist() == [1, 2, 3]
 
 
 def test_chunk_size_argument_leaves_the_class_default():
