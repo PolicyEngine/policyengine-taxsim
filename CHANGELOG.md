@@ -1,3 +1,10 @@
+## [3.3.0] - 2026-10-30
+
+### Added
+
+- `--chunk-size` on the CLI (stdin mode, `policyengine` and `compare`) and `chunk_size` on `PolicyEngineRunner` set the records per PolicyEngine simulation.
+
+
 ## [3.2.6] - 2026-10-30
 
 ### Fixed
