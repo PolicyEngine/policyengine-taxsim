@@ -8,23 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Native runs
+      - name: Native runs per variant
         run: |
           chmod +x resources/taxsimtest/taxsimtest-linux.exe
-          for f in ty2025 ny2025; do
+          for f in ny2025 ny2025opt30 ny2024 ny2023 ny2022 ca2025; do
             fail=0
-            for i in $(seq 1 1000); do
-              ./resources/taxsimtest/taxsimtest-linux.exe < probe/fpe/$f.csv > /tmp/o.txt 2> /tmp/e.txt || { fail=$((fail+1)); [ $fail -le 2 ] && head -14 /tmp/e.txt; }
-              md5sum < /tmp/o.txt >> /tmp/native-$f.md5
+            for i in $(seq 1 500); do
+              ./resources/taxsimtest/taxsimtest-linux.exe < probe/fpe/$f.csv > /tmp/o.txt 2> /tmp/e.txt || { fail=$((fail+1)); [ $fail -le 1 ] && command grep -E "in [a-z0-9_]+_|taxsim.f" /tmp/e.txt | head -6; }
             done
-            echo "NATIVE $f failures: $fail of 1000"; sort /tmp/native-$f.md5 | uniq -c
+            echo "RESULT $f failures: $fail of 500"
           done
-      - name: Docker runs
-        run: |
-          for f in ty2025 ny2025; do
-            fail=0
-            for i in $(seq 1 100); do
-              bash resources/taxsimtest/taxsim-docker-wrapper.sh < probe/fpe/$f.csv > /tmp/o.txt 2> /tmp/e.txt || { fail=$((fail+1)); [ $fail -le 2 ] && head -14 /tmp/e.txt; }
-            done
-            echo "DOCKER $f failures: $fail of 100"
-          done
+          ./resources/taxsimtest/taxsimtest-linux.exe < probe/fpe/ny2025.csv || true
