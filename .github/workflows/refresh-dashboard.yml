@@ -17,7 +17,7 @@ jobs:
           head -1 $f > /tmp/h.csv
           tail -n +2 $f | while IFS= read -r line; do
             { cat /tmp/h.csv; echo "$line"; } > /tmp/one.csv
-            ./resources/taxsimtest/taxsimtest-windows.exe < /tmp/one.csv > /tmp/o.txt 2> /tmp/e.txt; rc=$?
-            [ $rc -ne 0 ] && { echo "FAIL rc=$rc $line"; head -c 600 /tmp/e.txt; echo; }
+            rc=0; ./resources/taxsimtest/taxsimtest-windows.exe < /tmp/one.csv > /tmp/o.txt 2> /tmp/e.txt || rc=$?
+            if [ $rc -ne 0 ]; then echo "FAIL rc=$rc $line"; head -c 600 /tmp/e.txt; echo; fi
           done
           echo DONE
