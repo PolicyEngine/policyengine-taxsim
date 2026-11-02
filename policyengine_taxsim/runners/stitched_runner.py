@@ -40,6 +40,14 @@ class StitchedRunner(BaseTaxRunner):
         self.use_remote_taxsim = use_remote_taxsim
         self._pe_kwargs = kwargs
 
+    def _derive(self, input_df):
+        return self.__class__(
+            input_df,
+            pe_min_year=self.pe_min_year,
+            use_remote_taxsim=self.use_remote_taxsim,
+            **self._pe_kwargs,
+        )
+
     def _make_taxsim_runner(self, df):
         """Create the appropriate TAXSIM runner (local or remote)."""
         if self.use_remote_taxsim:

@@ -101,10 +101,15 @@ class BaseTaxRunner(ABC):
             print(
                 f"Warning: Sample size ({n}) >= data size ({len(self.input_df)}). Returning original data."
             )
-            return self.__class__(self.input_df)
+            return self._derive(self.input_df)
 
         sampled_df = self.input_df.sample(n=n, random_state=random_state)
-        return self.__class__(sampled_df)
+        return self._derive(sampled_df)
+
+    def _derive(self, input_df: pd.DataFrame) -> "BaseTaxRunner":
+        """Build a runner of this class, with this runner's settings, for
+        other records (sample, filter_by_year and filter_by_state)."""
+        return self.__class__(input_df)
 
     def save_input(self, output_path: Union[str, Path]):
         """
@@ -239,7 +244,7 @@ class BaseTaxRunner(ABC):
         if len(filtered_df) == 0:
             raise ValueError(f"No records found for year {year}")
 
-        return self.__class__(filtered_df)
+        return self._derive(filtered_df)
 
     def filter_by_state(self, state: int) -> "BaseTaxRunner":
         """
@@ -259,7 +264,7 @@ class BaseTaxRunner(ABC):
         if len(filtered_df) == 0:
             raise ValueError(f"No records found for state {state}")
 
-        return self.__class__(filtered_df)
+        return self._derive(filtered_df)
 
     def __len__(self):
         """Return number of records"""

@@ -16,6 +16,10 @@ on:
         description: Optional failed run to restore checkpoints from (same code and settings)
         type: string
         default: ''
+      taxsim_only:
+        description: Only run TAXSIM (bundled Linux build) and upload taxsim-outputs-<year> for a local model run (--taxsim-outputs)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,7 +39,44 @@ env:
   SCORP_TREATMENT: ${{ inputs.scorp_treatment || 'default' }}
 
 jobs:
+  # TAXSIM outputs for the dashboard's 111,347 records, once per TAXSIM build.
+  # The model half of the refresh can then run off GitHub with
+  # scripts/refresh_dashboard.py --taxsim-outputs, using no runner time.
+  taxsim-outputs:
+    if: ${{ inputs.taxsim_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [2021, 2022, 2023, 2024, 2025]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install locked refresh environment
+        run: |
+          pip install -r scripts/dashboard-refresh-requirements.txt
+          pip install --no-deps -e .
+      - name: Run TAXSIM on one year
+        env:
+          YEAR: ${{ matrix.year }}
+        run: python scripts/refresh_dashboard.py --year "$YEAR" --taxsim-only --batch-size 5000 --work-dir work --scorp-treatment "$SCORP_TREATMENT"
+      - uses: actions/upload-artifact@v4
+        # Also on failure: taxsim_<year>_crashes.json names the records TAXSIM stopped on.
+        if: always()
+        with:
+          name: taxsim-outputs-${{ matrix.year }}
+          path: |
+            work/output/taxsim_*.csv.gz
+            work/output/taxsim_*.json
+          compression-level: 0
+          retention-days: 90
+          overwrite: true
+
   smoke:
+    if: ${{ !inputs.taxsim_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

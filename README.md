@@ -117,6 +117,7 @@ policyengine-taxsim policyengine your_input_file.csv
 | `--logs` | Generate PolicyEngine YAML Tests Logs |
 | `--disable-salt` | Set State and Local Sales or Income Taxes used for the SALT deduction to 0 |
 | `--sample N` | Sample N records from input for testing |
+| `--chunk-size N` | Records per PolicyEngine simulation (default 10,000); see [Chunk size and memory](#chunk-size-and-memory) |
 
 **Example:**
 ```bash
@@ -159,6 +160,7 @@ policyengine-taxsim compare your_input_file.csv
 | `--sample N` | Sample N records for comparison |
 | `--disable-salt` | Disable SALT deduction in PolicyEngine |
 | `--logs` | Generate PolicyEngine YAML test logs |
+| `--chunk-size N` | Records per PolicyEngine simulation (default 10,000) |
 
 The comparison uses a $15 tolerance for both federal and state tax comparisons, which accounts for reasonable rounding differences.
 
@@ -377,6 +379,29 @@ The emulator produces all standard TAXSIM output variables:
 | niit | Net investment income tax |
 | addmed | Additional Medicare Tax (Form 8959; idtl = 2 only) |
 | cares | COVID-related recovery rebate credit |
+
+### Chunk size and memory
+
+The PolicyEngine emulator simulates records in chunks of 10,000. A worker's
+peak memory grows with its chunk size, and smaller chunks typically cost more
+CPU time per record. Unless you pass `--disable-salt`, the emulator simulates
+a chunk that mixes state-0 records with others twice, so CPU time also depends
+on the input's mix of records. `--chunk-size` sets the chunk size on the
+command line, before or after the subcommand, and `chunk_size` sets it in
+Python:
+
+```sh
+policyengine-taxsim policyengine input.csv --chunk-size 5000
+policyengine-taxsim --chunk-size 5000 < input.csv > output.csv
+```
+
+Python: `PolicyEngineRunner(df, chunk_size=5000)`. The runners that
+`sample()`, `filter_by_year()` and `filter_by_state()` build from it keep its
+chunk size and other settings.
+
+For very large inputs, split the records into batches and run each batch in
+its own process. A runner keeps a copy of its whole input and every chunk's
+output until it finishes.
 
 ### S-corp NIIT treatment
 
