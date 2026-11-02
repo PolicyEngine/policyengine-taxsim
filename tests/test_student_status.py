@@ -49,6 +49,11 @@ from policyengine_taxsim.runners.policyengine_runner import (
     PolicyEngineRunner,
     TaxsimMicrosimDataset,
 )
+from taxsim_known_regressions import (
+    TAXSIM_1483,
+    check_known_mismatches,
+    on_current_build,
+)
 
 TAXSIMTEST_OSX = (
     Path(__file__).resolve().parent.parent
@@ -122,6 +127,11 @@ def test_single_household_path_matches_taxsimtest(taxsimid):
     assert out["fiitax"] == pytest.approx(fiitax, abs=0.01)
 
 
+# taxsim #1483 in cd2026102718: row 2 (2024, child care credit 400) gets actc
+# 528.00 instead of 928.00, so its fiitax is -672.98, not -1072.98.
+_TAXSIM_1483_VALUES = on_current_build({(2, "fiitax")})
+
+
 @pytest.mark.skipif(
     platform.system() != "Darwin",
     reason="Expected values were taken from taxsimtest-osx.exe (cd2026081819).",
@@ -142,9 +152,13 @@ def test_expectations_match_taxsimtest():
     taxsim = pd.read_csv(io.StringIO(completed.stdout))
     taxsim["taxsimid"] = taxsim["taxsimid"].astype(int)
     taxsim = taxsim.set_index("taxsimid")
-    for taxsimid, (v24, fiitax) in TAXSIMTEST_EXPECTED.items():
-        assert taxsim.loc[taxsimid, "v24"] == pytest.approx(v24, abs=0.01)
-        assert taxsim.loc[taxsimid, "fiitax"] == pytest.approx(fiitax, abs=0.01)
+    mismatches = {
+        (taxsimid, column)
+        for taxsimid, expected in TAXSIMTEST_EXPECTED.items()
+        for column, value in zip(("v24", "fiitax"), expected)
+        if taxsim.loc[taxsimid, column] != pytest.approx(value, abs=0.01)
+    }
+    check_known_mismatches(mismatches, _TAXSIM_1483_VALUES, TAXSIM_1483)
 
 
 def test_no_person_is_a_student_in_either_path():

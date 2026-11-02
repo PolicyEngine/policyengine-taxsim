@@ -3,16 +3,16 @@
 These are NBER's `taxsimtest` binaries, bundled per platform and used by
 `TaxsimRunner` (and CI) instead of downloading at run time.
 
-## Pinned builds (verified October 28, 2026)
+## Pinned builds (verified November 2, 2026)
 
 | Platform | Build stamp | NBER download |
 | --- | --- | --- |
-| macOS | `cd2026102718` | https://taxsim.nber.org/out2psl/osx |
-| Linux | `cd2026102718` | https://taxsim.nber.org/out2psl/linux |
+| macOS | `cd2026110117` | https://taxsim.nber.org/out2psl/osx |
+| Linux | `cd2026110117` | https://taxsim.nber.org/out2psl/linux |
 | Windows | `cd2026081318` | https://taxsim.nber.org/taxsimtest/taxsimtest.exe |
 
 `manifest.json` records the source URLs, build stamps, download date, sizes,
-and SHA-256 checksums. The macOS and Linux `cd2026102718` builds give the
+and SHA-256 checksums. The macOS and Linux `cd2026110117` builds give the
 same output on all 15,000 records of the PolicyEngine CPS comparison sample,
 and each gives the same output on repeated runs. Windows stays at the August
 build: NBER's October 8 Windows build (`cd2026100817`) returned different

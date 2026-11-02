@@ -61,7 +61,7 @@ jobs:
         run: pip install -e . pytest hypothesis
       - if: matrix.dashboard-pin
         run: pip install -r scripts/dashboard-refresh-requirements.txt && pip install --no-deps -e . && pip install pytest hypothesis
-      - run: pytest tests/test_scorp_treatment.py tests/test_eitc_investment_income_baskets.py -v
+      - run: pytest tests/test_scorp_treatment.py tests/test_eitc_investment_income_baskets.py tests/test_chunk_memory.py -v
 
   test:
     if: github.event.head_commit.message != 'Update package version'

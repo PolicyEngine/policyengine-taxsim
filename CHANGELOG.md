@@ -1,3 +1,17 @@
+## [3.3.0] - 2026-10-30
+
+### Added
+
+- `--chunk-size` on the CLI (stdin mode, `policyengine` and `compare`) and `chunk_size` on `PolicyEngineRunner` set the records per PolicyEngine simulation.
+
+
+## [3.2.6] - 2026-10-30
+
+### Fixed
+
+- PolicyEngineRunner now frees each pass's simulations before the next pass or chunk builds its own. After every pass and chunk, including a failed one, it clears the reference that policyengine-us's cached pinned policies (and, with policyengine-us 1.x, the shared policy that `scorp_tax_benefit_system()` caches) keep to the finished simulation. When another pass or chunk follows, it then runs a full garbage collection; after the last it leaves the released simulations to Python's automatic collector, so a single-pass run takes no longer than before.
+
+
 ## [3.2.5] - 2026-10-23
 
 ### Fixed
