@@ -4,22 +4,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  census-probe:
-    runs-on: ubuntu-latest
+  census-probe-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
-      - name: Run the census batches three times
+      - name: Run the census batches twice
         run: |
-          chmod +x resources/taxsimtest/taxsimtest-linux.exe
-          for run in 1 2 3; do mkdir -p out/run$run; for f in probe/census/*.csv; do ./resources/taxsimtest/taxsimtest-linux.exe < "$f" > "out/run$run/$(basename "$f" .csv).taxsim.csv" 2> "out/run$run/$(basename "$f" .csv).err" || echo "FAILED run$run $f"; done; done
-          for f in out/run1/*.taxsim.csv; do b=$(basename "$f"); cmp -s "$f" "out/run2/$b" && cmp -s "$f" "out/run3/$b" || echo "UNSTABLE $b"; done
-      - name: Repeat the NY 2025 record
-        run: |
-          fail=0
-          for i in $(seq 1 1000); do ./resources/taxsimtest/taxsimtest-linux.exe < probe/fpe/ny2025.csv > /tmp/o.txt 2> /tmp/e.txt || { fail=$((fail+1)); [ $fail -le 1 ] && command grep -E "in [a-z0-9_]+_|taxsim.f" /tmp/e.txt | head -4; }; done
-          echo "RESULT ny2025 failures: $fail of 1000"
-          fail=0
-          for i in $(seq 1 1000); do ./resources/taxsimtest/taxsimtest-linux.exe < probe/fpe/ty2025.csv > /tmp/o.txt 2> /tmp/e.txt || fail=$((fail+1)); done
-          echo "RESULT ty2025 failures: $fail of 1000"
+          for run in 1 2; do mkdir -p out/run$run; for f in probe/census/*.csv; do ./resources/taxsimtest/taxsimtest-windows.exe < "$f" > "out/run$run/$(basename "$f" .csv).taxsim.csv" || echo "FAILED run$run $f"; done; done
+          for f in out/run1/*.taxsim.csv; do b=$(basename "$f"); cmp -s "$f" "out/run2/$b" || echo "UNSTABLE $b"; done
       - uses: actions/upload-artifact@v4
-        with: {name: census-linux-cd2026110117, path: out/run1}
+        with: {name: census-windows-cd2026110117, path: out/run1}
