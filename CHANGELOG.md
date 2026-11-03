@@ -1,3 +1,15 @@
+## [3.3.1] - 2026-11-03
+
+### Changed
+
+- Publish the November 2 dashboard comparison: TAXSIM cd2026110117 and policyengine-us 2.90.5 for 2021-2025.
+- Update the bundled macOS and Linux NBER TAXSIM test binaries to the November 1, 2026 build (cd2026110117), keeping Windows at the August build because NBER's later Windows builds have not matched the other platforms; record download provenance and checksums.
+
+### Fixed
+
+- Accept the "d1" debug lines of the October 2026 TAXSIM builds (one value before Minnesota 2024-2025 records in cd2026100817, two integers before Colorado 2021 records in cd2026102718) when parsing TAXSIM output.
+
+
 ## [3.3.0] - 2026-10-30
 
 ### Added
