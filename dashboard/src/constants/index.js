@@ -43,12 +43,12 @@ export const TOLERANCE_MODES = {
 
 // Full-eCPS comparison data (111,347 records/year) is too large to load in
 // the browser, so the dashboard shows a sample + precomputed summary and
-// links to the complete per-year CSVs hosted as a GitHub Release asset.
+// links to the complete per-year CSVs (gzip-compressed) hosted as a GitHub Release asset.
 export const FULL_DATA_RELEASE_BASE =
-  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-run-35953332152';
+  'https://github.com/PolicyEngine/policyengine-taxsim/releases/download/full-ecps-comparison-20261102';
 
 export const fullDataUrl = (year) =>
-  `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv`;
+  `${FULL_DATA_RELEASE_BASE}/comparison_results_${year}.csv.gz`;
 
 // Input variables for household comparison
 export const INPUT_VARIABLES = [
