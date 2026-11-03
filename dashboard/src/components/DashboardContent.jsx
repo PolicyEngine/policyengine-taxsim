@@ -153,7 +153,7 @@ export default function DashboardContent() {
             <a
               href={fullDataUrl(selectedYear)}
               className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary-600 text-white font-semibold text-[13px] hover:bg-primary-700 transition"
-              title={`Download the complete ${selectedYear} comparison (all 111,347 records) — ~110MB`}
+              title={`Download the complete ${selectedYear} comparison (all 111,347 records), a gzip-compressed CSV of ~18MB`}
             >
               <IconDatabaseExport size={15} className="mr-1.5" />
               Full {selectedYear} data
