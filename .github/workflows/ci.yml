@@ -215,6 +215,13 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [versioning]
     runs-on: ubuntu-latest
+    # PyPI trusted publishing: uploads accepted only from this workflow in the
+    # pypi environment (limited to main). No stored token. The job-level if
+    # above keeps it off pull_request runs, which the environment would reject.
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -235,6 +242,4 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
-          password: ${{ secrets.PYPI }}
           skip-existing: true
