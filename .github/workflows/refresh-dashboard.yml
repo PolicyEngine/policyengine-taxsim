@@ -15,6 +15,6 @@ jobs:
           for X in probe/aug-linux.exe probe/nov1-linux.exe resources/taxsimtest/taxsimtest-linux.exe; do
             echo "=== $X $(strings $X | grep -o 'cd20[0-9]\{8\}' | head -1)"
             $X < probe/rows2020.csv > /tmp/o.txt 2> /tmp/e.txt; echo "rc=$?"
-            grep -E "at /homes|in [a-z]+tax" /tmp/e.txt | head -4
+            head -c 700 /tmp/e.txt; echo
           done
           echo PROBE_DONE
