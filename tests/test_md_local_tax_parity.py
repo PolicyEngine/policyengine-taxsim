@@ -28,6 +28,8 @@ import io
 import numpy as np
 import pandas as pd
 import pytest
+
+from taxsim_known_regressions import TAXSIM_1481, check_known_mismatches, on_current_build
 from click.testing import CliRunner
 from policyengine_us import Simulation
 
@@ -223,6 +225,11 @@ def test_bundled_taxsim_md_siitax_is_state_only():
             "block back on; if the latter, revisit the MD zeroing in "
             f"PolicyEngineRunner._build_configured_sim.\n{table}"
         )
+    # taxsim #1481: the bundled build zeroes record 1's 2021 siitax.
+    mismatches = set(siitax.index[~np.isclose(siitax, expected, rtol=0, atol=0.02)])
+    known = on_current_build({1})
+    if known and mismatches:
+        check_known_mismatches(mismatches, known, TAXSIM_1481)
     pytest.fail(
         f"Bundled TAXSIM build {build} MD siitax differs from the pinned "
         f"state-only values, and not by the county block.\n{table}"
