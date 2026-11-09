@@ -55,14 +55,24 @@ requires_docker = pytest.mark.skipif(
 )
 
 
+# taxsim #1496: the Linux build stops with SIGFPE in nytax22_ in about a
+# quarter of the runs of the New York 2025 record in TY2025, so a run that
+# stops with SIGFPE is repeated (natively -8, through Docker exit 136).
+_SIGFPE_ATTEMPTS = 10
+
+
+def _run_until_no_sigfpe(args, stdin: bytes, sigfpe_codes, **kwargs):
+    for _ in range(_SIGFPE_ATTEMPTS):
+        result = subprocess.run(args, input=stdin, capture_output=True, **kwargs)
+        if result.returncode not in sigfpe_codes:
+            break
+    return result
+
+
 def _run_wrapper(stdin: bytes, cwd) -> bytes:
     # Generous timeout: the first run builds the image (apt-get install).
-    result = subprocess.run(
-        ["bash", str(WRAPPER)],
-        input=stdin,
-        capture_output=True,
-        cwd=cwd,
-        timeout=900,
+    result = _run_until_no_sigfpe(
+        ["bash", str(WRAPPER)], stdin, {136}, cwd=cwd, timeout=900
     )
     assert result.returncode == 0, (
         f"wrapper exited {result.returncode}\nstderr:\n{result.stderr.decode()}"
@@ -107,10 +117,10 @@ def test_wrapper_runs_va21_opt30_probe(tmp_path):
 def test_wrapper_matches_native_linux_run(tmp_path):
     """On Linux the same binary runs natively, so the containerized output
     must be byte-identical."""
-    native = subprocess.run(
+    native = _run_until_no_sigfpe(
         [str(TAXSIMTEST_DIR / "taxsimtest-linux.exe")],
-        input=TY2025.encode(),
-        capture_output=True,
+        TY2025.encode(),
+        {-8},
         timeout=120,
     )
     assert native.returncode == 0, native.stderr.decode()
