@@ -29,7 +29,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from taxsim_known_regressions import TAXSIM_1481, check_known_mismatches, on_current_build
+from taxsim_known_regressions import (
+    TAXSIM_1481,
+    check_known_mismatches,
+    on_current_build,
+)
 from click.testing import CliRunner
 from policyengine_us import Simulation
 
