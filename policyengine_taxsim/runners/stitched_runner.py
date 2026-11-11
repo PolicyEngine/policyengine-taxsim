@@ -40,6 +40,14 @@ class StitchedRunner(BaseTaxRunner):
         self.use_remote_taxsim = use_remote_taxsim
         self._pe_kwargs = kwargs
 
+    def _derive(self, input_df):
+        return self.__class__(
+            input_df,
+            pe_min_year=self.pe_min_year,
+            use_remote_taxsim=self.use_remote_taxsim,
+            **self._pe_kwargs,
+        )
+
     def _make_taxsim_runner(self, df):
         """Create the appropriate TAXSIM runner (local or remote)."""
         if self.use_remote_taxsim:
@@ -93,12 +101,8 @@ class StitchedRunner(BaseTaxRunner):
             frames.append(
                 pe_runner.run(show_progress=show_progress, on_progress=on_progress)
             )
-            # PolicyEngineRunner emits rows sorted by year ascending
-            # (stable within a year), so the original positions follow the
-            # same stable sort key.
-            frame_positions.append(
-                pe_subset.sort_values("year", kind="mergesort").index.to_numpy()
-            )
+            # PolicyEngineRunner returns rows in the order of its input.
+            frame_positions.append(pe_subset.index.to_numpy())
 
         if not taxsim_subset.empty:
             taxsim_runner = self._make_taxsim_runner(taxsim_subset)

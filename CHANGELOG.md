@@ -1,3 +1,85 @@
+## [3.3.1] - 2026-11-03
+
+### Changed
+
+- Publish the November 2 dashboard comparison: TAXSIM cd2026110117 and policyengine-us 2.90.5 for 2021-2025.
+- Update the bundled macOS and Linux NBER TAXSIM test binaries to the November 1, 2026 build (cd2026110117), keeping Windows at the August build because NBER's later Windows builds have not matched the other platforms; record download provenance and checksums.
+
+### Fixed
+
+- Accept the "d1" debug lines of the October 2026 TAXSIM builds (one value before Minnesota 2024-2025 records in cd2026100817, two integers before Colorado 2021 records in cd2026102718) when parsing TAXSIM output.
+
+
+## [3.3.0] - 2026-10-30
+
+### Added
+
+- `--chunk-size` on the CLI (stdin mode, `policyengine` and `compare`) and `chunk_size` on `PolicyEngineRunner` set the records per PolicyEngine simulation.
+
+
+## [3.2.6] - 2026-10-30
+
+### Fixed
+
+- PolicyEngineRunner now frees each pass's simulations before the next pass or chunk builds its own. After every pass and chunk, including a failed one, it clears the reference that policyengine-us's cached pinned policies (and, with policyengine-us 1.x, the shared policy that `scorp_tax_benefit_system()` caches) keep to the finished simulation. When another pass or chunk follows, it then runs a full garbage collection; after the last it leaves the released simulations to Python's automatic collector, so a single-pass run takes no longer than before.
+
+
+## [3.2.5] - 2026-10-23
+
+### Fixed
+
+- Split Montana pensions 50/50 between spouses at every age, as TAXSIM does when it taxes a 2021-2023 Montana joint return in two columns.
+
+
+## [3.2.4] - 2026-10-22
+
+### Fixed
+
+- Treat every person in a TAXSIM record as a non-student, so a spouse aged 17 or younger no longer gets IRC 21(d)(2) deemed earned income for the child and dependent care credit, which TAXSIM does not give.
+
+
+## [3.2.3] - 2026-10-22
+
+### Fixed
+
+- Stop trusting the compromised eMudhra CA certificates: pin certifi 2026.10.19 in the dashboard refresh environment, and make the Modal API image upgrade ca-certificates and install certifi 2026.10.19 or later.
+
+
+## [3.2.2] - 2026-10-20
+
+### Fixed
+
+- Report v29 as the combined FICA (as TAXSIM's v29 and fica), v19 as the ordinary-rate tax on all taxable income (TAXSIM's 'no special capital gains rates'), and Massachusetts v36 as Part A + Part B + Part C taxable income (it was always 0).
+
+
+## [3.2.1] - 2026-10-19
+
+### Changed
+
+- Run the test matrix on Python 3.11 only, and allow the known Arkansas tax table difference in one nonprop test.
+
+### Fixed
+
+- PolicyEngineRunner returns records in input order (it returned them grouped by tax year), so the R package and the compare command match TAXSIM's record order.
+
+
+## [3.2.0] - 2026-10-12
+
+### Added
+
+- Route TAXSIM `nonprop` (other non-property income, +/-) into PolicyEngine: positive amounts become miscellaneous income (alimony received in AL, AR and MS, whose PolicyEngine-US income lists omit miscellaneous income) and negative amounts alimony paid (an above-the-line adjustment), split 50/50 between spouses for joint filers, in both the batch and single-household paths. Previously a nonzero `nonprop` was ignored. (#1424)
+
+### Changed
+
+- Remove the stale `uv.lock` and git-ignore it. No workflow, script or documented install step read it, and it pinned policyengine-us 1.550.2, below the `>=1.711.0` minimum in `pyproject.toml`.
+
+### Fixed
+
+- Stop set iteration order from leaking into user-visible output: the API's non-numeric-column error names the first bad column in input order, `validate_required_columns` returns columns in declared and input order, and `compare`'s consolidated CSV lists records in taxsimid order.
+- Backport the EITC investment-income fix from policyengine-us 2.10.1 (pe-us#9572) to older releases, so S-corp income defaults to passive on every supported policyengine-us.
+- Compare `tfica` and `v10` in the single-household end-to-end test. A missing comma had joined the two names into `"tficav10"`, a column that does not exist, so neither was checked.
+
+
 ## [3.1.1] - 2026-10-09
 
 ### Changed

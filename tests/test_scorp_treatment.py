@@ -103,29 +103,14 @@ def test_single_household_and_spouse_allocation(mode, results):
     )
 
 
-@pytest.mark.parametrize(
-    "pe_version,expected", [((2, 10, 1), "passive"), ((2, 10, 0), "active")]
-)
-def test_default_depends_on_policyengine_us_version(pe_version, expected, monkeypatch):
-    # Before policyengine-us 2.10.1 (pe-us#9572), a passive loss could offset
-    # interest and dividends in the EITC investment-income test.
-    monkeypatch.setattr(scorp, "_pe_version", lambda: pe_version)
-    if expected == "active":
-        with pytest.warns(UserWarning, match="treated as active"):
-            assert scorp.validate_scorp_treatment(None) == "active"
-        with pytest.warns(UserWarning, match="pe-us#9572"):
-            assert scorp.validate_scorp_treatment("passive") == "passive"
-    else:
-        assert scorp.validate_scorp_treatment(None) == "passive"
-    assert scorp.validate_scorp_treatment("active") == "active"
-
-
 def test_default_and_validation():
-    default = scorp.validate_scorp_treatment(None)
-    assert generate_household(record())["people"]["you"][
-        "passive_partnership_s_corp_income"
-    ]["2025"] == (300000 if default == "passive" else 0)
-    assert PolicyEngineRunner(pd.DataFrame([record()])).scorp_treatment == default
+    assert (
+        generate_household(record())["people"]["you"][
+            "passive_partnership_s_corp_income"
+        ]["2025"]
+        == 300000
+    )
+    assert PolicyEngineRunner(pd.DataFrame([record()])).scorp_treatment == "passive"
     with pytest.raises(ValueError, match="scorp_treatment"):
         generate_household(record(), scorp_treatment="typo")
     with pytest.raises(ValueError, match="scorp_treatment"):
@@ -134,8 +119,7 @@ def test_default_and_validation():
 
 def test_compatibility_reform_does_not_double_count():
     assert scorp_tax_benefit_system() is scorp_tax_benefit_system()
-    # Explicit: on policyengine-us < 2.10.1 the default is active.
-    situation = generate_household(record(), scorp_treatment="passive")
+    situation = generate_household(record())
     sim = Simulation(situation=situation, tax_benefit_system=scorp_tax_benefit_system())
     assert sim.calculate("adjusted_gross_income", "2025")[0] == pytest.approx(300000)
     assert sim.calculate("net_investment_income", "2025")[0] == pytest.approx(300000)

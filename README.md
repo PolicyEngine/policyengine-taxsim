@@ -117,6 +117,7 @@ policyengine-taxsim policyengine your_input_file.csv
 | `--logs` | Generate PolicyEngine YAML Tests Logs |
 | `--disable-salt` | Set State and Local Sales or Income Taxes used for the SALT deduction to 0 |
 | `--sample N` | Sample N records from input for testing |
+| `--chunk-size N` | Records per PolicyEngine simulation (default 10,000); see [Chunk size and memory](#chunk-size-and-memory) |
 
 **Example:**
 ```bash
@@ -159,6 +160,7 @@ policyengine-taxsim compare your_input_file.csv
 | `--sample N` | Sample N records for comparison |
 | `--disable-salt` | Disable SALT deduction in PolicyEngine |
 | `--logs` | Generate PolicyEngine YAML test logs |
+| `--chunk-size N` | Records per PolicyEngine simulation (default 10,000) |
 
 The comparison uses a $15 tolerance for both federal and state tax comparisons, which accounts for reasonable rounding differences.
 
@@ -280,6 +282,12 @@ The emulator accepts CSV files with the following variables:
 | age2      | Second dependent's age         |                                             |
 | ageN      | Nth dependent's age            | Taxsim only allows up to 8 dependents       |
 
+TAXSIM input has no student status, so the emulator treats every person as a
+non-student (`is_full_time_student` is false). A dependent aged 19 to 23 is
+therefore not a qualifying child through the student age test, and a spouse
+aged 17 or younger gets no IRC 21(d)(2) deemed earned income for the child
+and dependent care credit.
+
 ### Income
 
 | Variable  | Description                                                  |
@@ -372,16 +380,35 @@ The emulator produces all standard TAXSIM output variables:
 | addmed | Additional Medicare Tax (Form 8959; idtl = 2 only) |
 | cares | COVID-related recovery rebate credit |
 
+### Chunk size and memory
+
+The PolicyEngine emulator simulates records in chunks of 10,000. A worker's
+peak memory grows with its chunk size, and smaller chunks typically cost more
+CPU time per record. Unless you pass `--disable-salt`, the emulator simulates
+a chunk that mixes state-0 records with others twice, so CPU time also depends
+on the input's mix of records. `--chunk-size` sets the chunk size on the
+command line, before or after the subcommand, and `chunk_size` sets it in
+Python:
+
+```sh
+policyengine-taxsim policyengine input.csv --chunk-size 5000
+policyengine-taxsim --chunk-size 5000 < input.csv > output.csv
+```
+
+Python: `PolicyEngineRunner(df, chunk_size=5000)`. The runners that
+`sample()`, `filter_by_year()` and `filter_by_state()` build from it keep its
+chunk size and other settings.
+
+For very large inputs, split the records into batches and run each batch in
+its own process. A runner keeps a copy of its whole input and every chunk's
+output until it finishes.
+
 ### S-corp NIIT treatment
 
 `--scorp-treatment passive|active` selects how the **PolicyEngine emulator**
 classifies TAXSIM `scorp` income for net investment income tax (NIIT).
-The default is `passive`, matching TAXSIM's documented convention, when
-policyengine-us 2.10.1 or later is installed. Older releases (including every
-Python 3.10 install, which resolves policyengine-us 1.x) default to `active`
-with a warning: before 2.10.1 a passive loss could offset interest and
-dividends in the EITC investment-income test (pe-us#9572). Select `active` to
-retain the previous materially-participating-owner assumption.
+The default is `passive`, matching TAXSIM's documented convention. Select
+`active` to retain the previous materially-participating-owner assumption.
 
 ```sh
 policyengine-taxsim policyengine input.csv --scorp-treatment active
@@ -400,7 +427,13 @@ change QBI eligibility, impose self-employment tax or implement section 469
 passive-loss limitations. Signed losses are passed through; other loss rules
 remain unchanged. The W-2 wage assumption is an independent QBI setting.
 Python 3.10's older PE-US receives a compatibility reform for the NIIT input;
-modern PE-US uses its existing passive-income input.
+modern PE-US uses its existing passive-income input. On policyengine-us
+releases before 2.10.1 (every Python 3.10 install, and 2.x releases such as
+the dashboard's pinned 2.6.17), the same reform backports pe-us#9572's EITC
+investment-income test, so a passive or rental loss cannot offset interest and
+dividends (IRS Publication 596, Worksheet 1). YAML tests written with `--logs`
+record this compatibility system's results, so on those releases they can
+disagree with unmodified policyengine-us for NIIT and the EITC.
 
 The switch does **not** change the TAXSIM comparator or pre-2021 TAXSIM fallback.
 An active-mode comparison therefore deliberately compares different NIIT
@@ -423,8 +456,8 @@ present in 2000-2023" and said he believed he had corrected it. The tax itself
 applies from 2013. NBER's taxsimtest documentation ("Output Results") still
 lists it in the `fiitax` definition.
 
-The bundled `taxsimtest` binary (build cd2026081819) predates that correction.
-For 2013-2023 its `fiitax` also includes the tax, so on any record that owes
-it, the binary's `fiitax` is higher than the emulator's by `addmed`. Rows that
-the default CLI takes from the binary (years before 2021; see Year-stitching
-above) carry that inclusion until the bundled binary is refreshed.
+The bundled macOS and Linux `taxsimtest` binaries (build cd2026110117, October
+2026) have that correction: their `fiitax` excludes the tax in every year. The
+bundled Windows binary (cd2026081318) and the August macOS/Linux build
+(cd2026081819) still include it for 2013-2023, so their `fiitax` is higher than
+the emulator's by `addmed` on any record that owes the tax.

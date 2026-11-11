@@ -1,3 +1,5 @@
+import contextlib
+import gc
 import sys
 
 import pandas as pd
@@ -11,8 +13,11 @@ from .base_runner import BaseTaxRunner
 # Import core functions needed for microsimulation
 from policyengine_taxsim.core.utils import (
     load_variable_mappings,
+    NONPROP_SOURCE,
+    NONPROP_VARIABLES,
     get_calculation_fips,
     get_calculation_state_code,
+    nonprop_parts,
     to_roundedup_number,
     convert_taxsim32_dependents,
     validate_state_number,
@@ -34,6 +39,11 @@ from policyengine_taxsim.core.input_mapper import (
 )
 
 from policyengine_us import Microsimulation
+
+try:
+    from policyengine_us.tools import pinned_tbs as _pinned_tbs
+except ImportError:  # policyengine-us releases without the pinned-policy cache
+    _pinned_tbs = None
 from ..core.scorp import validate_scorp_treatment
 from ..core.scorp_reform import scorp_tax_benefit_system
 from policyengine_core.data import Dataset
@@ -292,6 +302,17 @@ class TaxsimMicrosimDataset(Dataset):
         # the per-person cap — so KY must split 50/50 at every age rather than
         # route to the older spouse (taxsim #1026). Age 0 = always same-side.
         "KY": 0,
+        # Montana 2021-2023 taxes a joint return as two separate returns on
+        # one form (Columns A and B). TAXSIM's mttax gives each spouse their
+        # own wages and business income and splits all other income,
+        # pensions included, 50/50 between the columns at every age
+        # (27mt.for: agih = yh+un/2d0, agiw = yw+un/2d0), so MT splits
+        # pensions 50/50 at every age (census record 41313, ages 51/56).
+        # This does not depend on the partial pension exemption: PE-US does
+        # not model it, and mttax computes it for the household before the
+        # column split. From 2024 Montana taxes joint returns jointly, so
+        # the split no longer matters.
+        "MT": 0,
     }
     # TAXSIM source column for pension income (the per-state age applies here
     # only; gssi and any other age-gated field use the default).
@@ -313,24 +334,44 @@ class TaxsimMicrosimDataset(Dataset):
         )
 
     @staticmethod
-    def _make_primary_split(source_field):
-        """Return a callable yielding the primary share of a household input."""
+    def _make_primary_split(source_field, amount=None):
+        """Return a callable yielding the primary share of a household input.
+
+        ``amount`` (row -> float), when given, supplies the household amount
+        in place of the ``source_field`` column."""
 
         def accessor(row):
-            value = float(row.get(source_field, 0))
+            value = amount(row) if amount else float(row.get(source_field, 0))
             return value / 2 if int(row.get("mstat", 1)) == 2 else value
 
         return accessor
 
     @staticmethod
-    def _make_spouse_split(source_field):
-        """Return a callable yielding the spouse share of a household input."""
+    def _make_spouse_split(source_field, amount=None):
+        """Return a callable yielding the spouse share of a household input.
+
+        ``amount`` (row -> float), when given, supplies the household amount
+        in place of the ``source_field`` column."""
 
         def accessor(row):
-            value = float(row.get(source_field, 0))
+            value = amount(row) if amount else float(row.get(source_field, 0))
             return value / 2 if int(row.get("mstat", 1)) == 2 else 0.0
 
         return accessor
+
+    @staticmethod
+    def _make_nonprop_amount(pe_var):
+        """Return a callable yielding the household amount of ``pe_var``, one
+        of the variables TAXSIM nonprop feeds (see ``nonprop_parts``)."""
+
+        def amount(row):
+            try:
+                state = get_calculation_state_code(row.get("state"))
+            except ValueError:
+                state = None
+            return nonprop_parts(row.get(NONPROP_SOURCE, 0), state)[pe_var]
+
+        return amount
 
     @staticmethod
     def _make_sum(*source_fields):
@@ -449,6 +490,20 @@ class TaxsimMicrosimDataset(Dataset):
                         variable_mapping[pe_var] = {
                             "primary": self._make_sum("psemp", "pbusinc"),
                             "spouse": self._make_sum("ssemp", "sbusinc"),
+                            "dependent": 0.0,
+                            "default": 0.0,
+                        }
+                        continue
+
+                    if pe_var in NONPROP_VARIABLES:
+                        # One part of signed TAXSIM nonprop (income when
+                        # positive, an adjustment when negative), allocated
+                        # evenly between spouses for MFJ like the other
+                        # household aggregates.
+                        amount = self._make_nonprop_amount(pe_var)
+                        variable_mapping[pe_var] = {
+                            "primary": self._make_primary_split(NONPROP_SOURCE, amount),
+                            "spouse": self._make_spouse_split(NONPROP_SOURCE, amount),
                             "dependent": 0.0,
                             "default": 0.0,
                         }
@@ -675,9 +730,21 @@ class TaxsimMicrosimDataset(Dataset):
             "person_weight": np.ones(total_people),
         }
 
+        # nonprop is rarely supplied. Its accessors run row by row, so when
+        # no record carries it the variables it feeds are written as zeros
+        # directly.
+        has_nonprop = (
+            NONPROP_SOURCE in year_data.columns
+            and (year_data[NONPROP_SOURCE].fillna(0) != 0).any()
+        )
+
         # Process each variable
         for pe_var, mapping in filtered_mapping.items():
             values = np.zeros(total_people, dtype=float)
+
+            if pe_var in NONPROP_VARIABLES and not has_nonprop:
+                result[pe_var] = values
+                continue
 
             if pe_var == "age":
                 # Primary ages
@@ -1060,6 +1127,62 @@ class TaxsimMicrosimDataset(Dataset):
                 pass
 
 
+def _release_finished_simulations():
+    """Clear the references that long-lived policies keep to the simulations
+    of passes the runner has finished.
+
+    policyengine-core links a simulation, its populations and their holders
+    in reference cycles, so dropping the runner's last reference leaves them
+    for Python's cyclic garbage collector. A long-lived policy can also keep
+    a finished simulation alive through its ``simulation`` attribute, which
+    policyengine-core sets to the simulation built on it, and then no
+    collection frees it:
+
+    - policyengine-us caches pinned policies as clones of a simulation's
+      policy (``policyengine_us.tools.pinned_tbs``; in 2.75.0, for New York's
+      child credit in 2018-2024 and from 2028, New York's EITC in 2021 and
+      Alabama's federal tax deduction in 2021), and a clone keeps that
+      attribute.
+    - With policyengine-us 1.x (Python 3.10), every simulation the runner
+      builds from a dataset uses the one policy that
+      ``scorp_tax_benefit_system()`` caches, so that policy kept the latest
+      of them.
+
+    Clearing the attribute releases them and leaves the cached policies and
+    their parameters in place. policyengine-core only writes it, and
+    policyengine-us reads it once, for a traced simulation, to check whether
+    the policy belongs to that simulation; the runner never traces, and a
+    cleared attribute fails that check as a finished simulation's would.
+    The release only saves memory, so it skips a policy that refuses the
+    assignment, and it doesn't build the shared policy when no simulation
+    has used it yet (a chunk can fail before building one).
+    """
+    cache_info = getattr(scorp_tax_benefit_system, "cache_info", None)
+    unbuilt = cache_info is not None and not cache_info().currsize
+    policies = [] if unbuilt else [scorp_tax_benefit_system()]
+    for entry in list(getattr(_pinned_tbs, "_PINNED_TBS_CACHE", {}).values()):
+        policies.extend(entry if isinstance(entry, tuple) else (entry,))
+    for policy in policies:
+        if getattr(policy, "simulation", None) is not None:
+            try:
+                policy.simulation = None
+            except (AttributeError, TypeError):
+                pass
+
+
+def _free_finished_simulations():
+    """Release the finished simulations and collect them now.
+
+    The runner calls this only before it builds more simulations. A full
+    collection walks every object the collector tracks, about 3 million once
+    policyengine-us has loaded, so it took about 0.5 s on an Apple M5 Max
+    even with little garbage, while a one-record run took about 0.64 s
+    without one.
+    """
+    _release_finished_simulations()
+    gc.collect()
+
+
 class PolicyEngineRunner(BaseTaxRunner):
     """
     High-performance PolicyEngine runner using Microsimulation.
@@ -1076,6 +1199,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         disable_salt: bool = False,
         assume_w2_wages: bool = False,
         scorp_treatment: str = None,
+        chunk_size: int = None,
     ):
         super().__init__(input_df)
         self.logs = logs
@@ -1083,6 +1207,29 @@ class PolicyEngineRunner(BaseTaxRunner):
         self.assume_w2_wages = assume_w2_wages
         self.scorp_treatment = validate_scorp_treatment(scorp_treatment)
         self.mappings = load_variable_mappings()
+        if chunk_size is not None:
+            # Records per simulation for this runner only; the class
+            # attribute stays the default for every other runner.
+            if (
+                isinstance(chunk_size, bool)
+                or not isinstance(chunk_size, (int, np.integer))
+                or chunk_size < 1
+            ):
+                raise ValueError(
+                    f"chunk_size must be a positive integer, got {chunk_size!r}"
+                )
+            self.CHUNK_SIZE = int(chunk_size)
+
+    def _derive(self, input_df: pd.DataFrame) -> "PolicyEngineRunner":
+        return self.__class__(
+            input_df,
+            logs=self.logs,
+            disable_salt=self.disable_salt,
+            assume_w2_wages=self.assume_w2_wages,
+            scorp_treatment=self.scorp_treatment,
+            # Only a per-runner chunk size; otherwise the class default.
+            chunk_size=self.__dict__.get("CHUNK_SIZE"),
+        )
 
     def _validate_input(self):
         """Reject invalid state codes before any simulation.
@@ -1156,6 +1303,16 @@ class PolicyEngineRunner(BaseTaxRunner):
         whether any record supplied a dependent age switched TAXSIM-32
         dependent-count conversion off for the whole chunk).
 
+        A finished simulation outlives the runner's last reference to it
+        (see ``_release_finished_simulations``). Without an explicit release,
+        a pass's main simulation, marginal-rate branch and (for srebate)
+        rebate twin, with every array they cached, stayed alive while the
+        next pass or chunk built its own. So the runner frees them after the
+        first pass of a mixed chunk and after every chunk but the last
+        (``_run_once``). After the last chunk the run builds nothing more, so
+        it only releases them; a long-lived process holds them until its next
+        automatic collection, as before.
+
         Returns:
             DataFrame with TAXSIM-formatted output variables
         """
@@ -1168,6 +1325,8 @@ class PolicyEngineRunner(BaseTaxRunner):
                 return self._simulate(dataset, chunk_df, zero_salt=True)
             results = self._simulate(dataset, chunk_df, zero_salt=False)
             if no_state.any():
+                # Free the first pass's simulations before the second builds.
+                _free_finished_simulations()
                 no_salt = self._simulate(dataset, chunk_df, zero_salt=True)
                 no_salt = no_salt.reindex(columns=results.columns)
                 for column in results.columns:
@@ -1200,9 +1359,9 @@ class PolicyEngineRunner(BaseTaxRunner):
         self, dataset, chunk_df: pd.DataFrame, zero_salt: bool = False
     ):
         """Build a Microsimulation from the chunk dataset and apply all
-        emulator overrides (SALT, QBID W-2 wages, rental QBID gate, MN CRP,
-        imputed-transfer zeroing, MD local tax zeroing, ME rent utilities, NY
-        separate payments).
+        emulator overrides (student status, SALT, QBID W-2 wages, rental QBID
+        gate, MN CRP, imputed-transfer zeroing, MD local tax zeroing, ME rent
+        utilities, NY separate payments).
 
         ``zero_salt`` zeroes the federal deduction for state and local income
         or sales tax for every record in the chunk: state-0 records and
@@ -1213,6 +1372,20 @@ class PolicyEngineRunner(BaseTaxRunner):
         sim = Microsimulation(
             dataset=dataset, tax_benefit_system=scorp_tax_benefit_system()
         )
+        # Student status: TAXSIM input has none, and the emulator does not
+        # default anyone to being a student (taxsim #532). PE-US imputes
+        # is_in_k12_school for ages 5 to 17, which made a spouse that age a
+        # full-time student and gave them the IRC 21(d)(2) deemed earned
+        # income for the CDCC, which TAXSIM-35 does not give. Pinned before
+        # any calculate so no cached value depends on the imputation.
+        n_persons = sim.get_variable_population("is_full_time_student").count
+        for year in sorted(set(chunk_df["year"].astype(int))):
+            _pin_input(
+                sim,
+                variable_name="is_full_time_student",
+                value=np.zeros(n_persons, dtype=bool),
+                period=str(year),
+            )
         for year in sorted(set(chunk_df["year"].astype(int))):
             period = str(year)
             income = sim.calculate("partnership_s_corp_income", period=period)
@@ -1488,8 +1661,13 @@ class PolicyEngineRunner(BaseTaxRunner):
         # Ensure years are integers to handle decimal values like 2021.0
         self.input_df["year"] = self.input_df["year"].apply(lambda x: int(float(x)))
 
+        # Chunks hold one year each, so rows are simulated year by year. Keep
+        # each chunk's input positions to return the rows in input order, as
+        # TAXSIM does (taxsimid can repeat, so positions rather than ids).
         frames = []
+        frame_positions = []
         years = sorted(self.input_df["year"].unique())
+        year_values = self.input_df["year"].to_numpy()
         total_chunks = sum(
             (len(self.input_df[self.input_df["year"] == y]) + self.CHUNK_SIZE - 1)
             // self.CHUNK_SIZE
@@ -1505,17 +1683,36 @@ class PolicyEngineRunner(BaseTaxRunner):
             disable=not show_progress,
         ) as pbar:
             for year in years:
-                year_df = self.input_df[self.input_df["year"] == year].copy()
-                for start in range(0, len(year_df), self.CHUNK_SIZE):
-                    chunk_df = year_df.iloc[start : start + self.CHUNK_SIZE].copy()
-                    frames.append(self._run_chunk(chunk_df))
+                year_positions = np.flatnonzero(year_values == year)
+                for start in range(0, len(year_positions), self.CHUNK_SIZE):
+                    positions = year_positions[start : start + self.CHUNK_SIZE]
+                    chunk_df = self.input_df.iloc[positions].copy()
+                    try:
+                        frames.append(self._run_chunk(chunk_df))
+                    except BaseException:
+                        # Release a failed chunk's simulations too, so a
+                        # long-lived process (the local or Modal API) can
+                        # collect them once it drops the error. The release
+                        # must not replace the chunk's error.
+                        with contextlib.suppress(Exception):
+                            _release_finished_simulations()
+                        raise
+                    frame_positions.append(positions)
                     chunks_done += 1
+                    if chunks_done < total_chunks:
+                        # Free this chunk's simulations before the next
+                        # chunk builds its own (see _run_chunk).
+                        _free_finished_simulations()
+                    else:
+                        _release_finished_simulations()
                     rows_done += len(chunk_df)
                     pbar.update(1)
                     if on_progress:
                         on_progress(chunks_done, total_chunks, rows_done, total_rows)
 
         results_df = pd.concat(frames, ignore_index=True)
+        order = np.argsort(np.concatenate(frame_positions), kind="mergesort")
+        results_df = results_df.iloc[order].reset_index(drop=True)
         if show_progress:
             print("PolicyEngine Microsimulation completed", file=sys.stderr)
         return results_df
@@ -2009,10 +2206,11 @@ class PolicyEngineRunner(BaseTaxRunner):
             # Additional Medicare Tax. AddMed is a FICA/SECA tax
             # (IRC § 3101(b)(2) / § 1401(b)(2)) and TAXSIM puts it in
             # fica and tfica, not fiitax (taxsim #416, #1225), so it is
-            # reported in tfica, fica and `addmed` in every year. The
-            # bundled taxsimtest cd2026081819 predates the correction
-            # reported on #1225 and still adds it to 2013-2023 fiitax as
-            # well; that is not copied
+            # reported in tfica, fica and `addmed` in every year. taxsimtest
+            # builds from cd2026100817 (the bundled macOS/Linux
+            # cd2026110117 among them) have the correction reported on
+            # #1225; the Windows cd2026081318 still adds it to 2013-2023
+            # fiitax, which is not copied
             # (tests/test_addmed_excluded_from_fiitax.py).
             if "fiitax" not in columns:
                 columns["fiitax"] = np.round(

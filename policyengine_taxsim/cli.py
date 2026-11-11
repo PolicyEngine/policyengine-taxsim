@@ -46,9 +46,21 @@ def _scorp_option(fn):
         type=click.Choice(["passive", "active"]),
         default=None,
         help=(
-            "S-corp NIIT classification in PolicyEngine (default: passive with "
-            "policyengine-us 2.10.1+, otherwise active). Does not change TAXSIM "
-            "or QBI eligibility."
+            "S-corp NIIT classification in PolicyEngine (default: passive). "
+            "Does not change TAXSIM or QBI eligibility."
+        ),
+    )(fn)
+
+
+def _chunk_size_option(fn):
+    return click.option(
+        "--chunk-size",
+        type=click.IntRange(min=1),
+        default=None,
+        help=(
+            "Records per PolicyEngine simulation (default "
+            f"{PolicyEngineRunner.CHUNK_SIZE:,}). Smaller chunks typically "
+            "use less memory and more CPU time per record."
         ),
     )(fn)
 
@@ -60,6 +72,15 @@ def _resolve_scorp_treatment(value):
         or (ctx.parent.params.get("scorp_treatment") if ctx.parent else None)
         or validate_scorp_treatment(None)
     )
+
+
+def _resolve_chunk_size(value):
+    # A subcommand's own --chunk-size wins; otherwise it takes the one given
+    # before the subcommand (`policyengine-taxsim --chunk-size N policyengine`).
+    ctx = click.get_current_context()
+    if value is None and ctx.parent:
+        return ctx.parent.params.get("chunk_size")
+    return value
 
 
 def _generate_yaml_files(
@@ -169,8 +190,9 @@ def _emit_results(input_df, results_df, out_stream):
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
+@_chunk_size_option
 @click.pass_context
-def cli(ctx, logs, disable_salt, sample, scorp_treatment):
+def cli(ctx, logs, disable_salt, sample, scorp_treatment, chunk_size):
     """PolicyEngine-TAXSIM: drop-in replacement for TAXSIM-35.
 
     Reads CSV from stdin and writes results to stdout, just like taxsim35:
@@ -209,7 +231,11 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
         # Use StitchedRunner: routes to PE (2021+) or TAXSIM (pre-2021)
         scorp_treatment = _resolve_scorp_treatment(scorp_treatment)
         runner = StitchedRunner(
-            df, logs=logs, disable_salt=disable_salt, scorp_treatment=scorp_treatment
+            df,
+            logs=logs,
+            disable_salt=disable_salt,
+            scorp_treatment=scorp_treatment,
+            chunk_size=chunk_size,
         )
         results_df = runner.run(show_progress=True)
 
@@ -252,8 +278,16 @@ def cli(ctx, logs, disable_salt, sample, scorp_treatment):
 )
 @click.option("--sample", type=int, help="Sample N records from input")
 @_scorp_option
+@_chunk_size_option
 def policyengine(
-    input_file, output, logs, disable_salt, assume_w2_wages, sample, scorp_treatment
+    input_file,
+    output,
+    logs,
+    disable_salt,
+    assume_w2_wages,
+    sample,
+    scorp_treatment,
+    chunk_size,
 ):
     """
     Process TAXSIM input file and generate PolicyEngine-compatible output.
@@ -277,6 +311,7 @@ def policyengine(
             disable_salt=disable_salt,
             assume_w2_wages=assume_w2_wages,
             scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
+            chunk_size=_resolve_chunk_size(chunk_size),
         )
         results_df = runner.run(show_progress=True)
 
@@ -393,6 +428,7 @@ def taxsim(input_file, output, sample, taxsim_path):
     ),
 )
 @_scorp_option
+@_chunk_size_option
 def compare(
     input_file,
     sample,
@@ -405,6 +441,7 @@ def compare(
     net_of_rebates,
     taxsim_opt30,
     scorp_treatment,
+    chunk_size,
 ):
     """Compare PolicyEngine and TAXSIM results"""
     try:
@@ -442,6 +479,7 @@ def compare(
             disable_salt=disable_salt,
             assume_w2_wages=assume_w2_wages,
             scorp_treatment=_resolve_scorp_treatment(scorp_treatment),
+            chunk_size=_resolve_chunk_size(chunk_size),
         )
         pe_results = pe_runner.run()
 
