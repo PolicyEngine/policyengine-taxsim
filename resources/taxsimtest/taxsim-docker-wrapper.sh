@@ -52,7 +52,13 @@ image="policyengine-taxsim-linux:$tag"
 if ! docker image inspect "$image" >/dev/null 2>&1; then
   echo "taxsim-docker-wrapper: building $image (first run only)" >&2
   # Build from stdin: the image needs no files from this directory.
-  docker build --platform "$platform" -t "$image" - <"$dockerfile" >&2
+  # If the build fails (e.g. apt-get cannot resolve archive.ubuntu.com through
+  # the Docker bridge network, as on GitHub's Ubuntu runners), try once more
+  # on the host network, which uses the host's own DNS.
+  if ! docker build --platform "$platform" -t "$image" - <"$dockerfile" >&2; then
+    echo "taxsim-docker-wrapper: build failed; retrying with --network host" >&2
+    docker build --network host --platform "$platform" -t "$image" - <"$dockerfile" >&2
+  fi
 fi
 
 # Run a copy of the binary: a bind mount keeps the host file's mode, and the
