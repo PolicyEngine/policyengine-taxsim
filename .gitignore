@@ -107,6 +107,12 @@ ipython_config.py
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
 #poetry.lock
 
+# uv
+#   uv.lock is not committed: no workflow, script or documented install step reads it.
+#   It records this package's version, which the release job bumps, so a committed lock
+#   fails `uv lock --check` after each release unless that job also re-locks.
+uv.lock
+
 # pdm
 #   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
 #pdm.lock

@@ -232,11 +232,10 @@ def test_microsim_state_zero_itemized_deductions_match_taxsim(microsim):
 
 
 def test_microsim_keeps_input_order(microsim):
-    """The runner groups output by year; within a year, state-0 and Texas
-    records stay interleaved in input order."""
-    expected = TAXSIM.sort_values("year", kind="stable")
-    assert microsim["taxsimid"].tolist() == expected["taxsimid"].tolist()
-    assert microsim["state"].tolist() == expected["state"].tolist()
+    """The runner returns records in input order, as TAXSIM does, with
+    state-0 and Texas records still interleaved."""
+    assert microsim["taxsimid"].tolist() == TAXSIM["taxsimid"].tolist()
+    assert microsim["state"].tolist() == TAXSIM["state"].tolist()
 
 
 def _valid_state_rows(records, other_state):

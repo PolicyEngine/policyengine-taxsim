@@ -1,9 +1,9 @@
 """Regression tests for 50/50 spouse income splitting in PolicyEngineRunner.
 
 Household-aggregate TAXSIM inputs (intrec, dividends, ltcg, stcg, pensions,
-gssi, scorp) have no per-spouse pair field. For MFJ, the runner allocates
-these evenly between spouses so that per-person state rules (e.g. DE age 60+
-exclusion, DE pension exclusion) apply to both spouses. See issues #665
+gssi, scorp, nonprop) have no per-spouse pair field. For MFJ, the runner
+allocates these evenly between spouses so that per-person state rules (e.g. DE
+age 60+ exclusion, DE pension exclusion) apply to both spouses. See issues #665
 and #838.
 
 Pension and Social Security income use an age-aware rule: split only when
@@ -56,6 +56,7 @@ def _base_mfj_record(taxsimid=1, **overrides):
         ("ltcg", "long_term_capital_gains", 60000),
         ("stcg", "short_term_capital_gains", 30000),
         ("scorp", "partnership_s_corp_income", 50000),
+        ("nonprop", "miscellaneous_income", 30000),
     ],
 )
 def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amount):
@@ -65,6 +66,26 @@ def test_mfj_household_income_splits_between_spouses(taxsim_field, pe_var, amoun
     # Two people (primary + spouse). Each should get half.
     assert len(values) == 2
     np.testing.assert_allclose(values, [amount / 2, amount / 2])
+
+
+def test_mfj_negative_nonprop_splits_as_alimony_expense():
+    """MFJ: negative `nonprop` (an adjustment such as alimony paid) becomes
+    alimony_expense, $amount/2 on each spouse, and no income. PE-US floors
+    each gross-income source at zero, so a negative miscellaneous_income would
+    be lost (taxsim #1424)."""
+    df = pd.DataFrame([_base_mfj_record(nonprop=-12000)])
+    np.testing.assert_allclose(_run_allocation(df, "alimony_expense"), [6000, 6000])
+    np.testing.assert_allclose(_run_allocation(df, "miscellaneous_income"), [0, 0])
+    np.testing.assert_allclose(_run_allocation(df, "alimony_income"), [0, 0])
+
+
+def test_mfj_positive_nonprop_is_alimony_income_in_alabama():
+    """AL, AR and MS: PE-US's state gross-income lists name alimony_income
+    but not miscellaneous_income, so positive `nonprop` goes to
+    alimony_income there (NONPROP_ALIMONY_STATES), still split 50/50."""
+    df = pd.DataFrame([_base_mfj_record(state=1, nonprop=30000)])
+    np.testing.assert_allclose(_run_allocation(df, "alimony_income"), [15000, 15000])
+    np.testing.assert_allclose(_run_allocation(df, "miscellaneous_income"), [0, 0])
 
 
 def test_scorp_maps_to_partnership_s_corp_income():
@@ -98,6 +119,7 @@ def test_scorp_maps_to_partnership_s_corp_income():
         ("intrec", "taxable_interest_income", 100000),
         ("pensions", "taxable_private_pension_income", 50000),
         ("gssi", "social_security_retirement", 40000),
+        ("nonprop", "miscellaneous_income", 30000),
     ],
 )
 def test_single_filer_household_income_stays_on_primary(taxsim_field, pe_var, amount):
@@ -213,6 +235,45 @@ def test_pension_splits_for_ky_mixed_age_independent_exclusion():
     df = pd.DataFrame([_base_mfj_record(state=18, page=59, sage=37, pensions=71414.92)])
     values = _run_allocation(df, "taxable_private_pension_income")
     np.testing.assert_allclose(values, [35707.46, 35707.46])
+
+
+def test_pension_splits_for_mt_mixed_age_column_split():
+    """Pension, Montana: for 2021-2023 TAXSIM's mttax taxes a joint return in
+    two columns and splits non-wage income, pensions included, 50/50 between
+    them at every age. So a mixed-age MT couple (56/51, which straddles the
+    default 55 line) splits 50/50. state=27 is MT."""
+    df = pd.DataFrame(
+        [_base_mfj_record(year=2021, state=27, page=56, sage=51, pensions=20000)]
+    )
+    values = _run_allocation(df, "taxable_private_pension_income", year=2021)
+    np.testing.assert_allclose(values, [10000.0, 10000.0])
+
+
+def test_mt_2021_mixed_age_pension_matches_taxsim():
+    """With the 50/50 split, a 2021 MT 56/51 couple gives the same state tax as
+    TAXSIM-35 (siitax 1,489.02 in both the October 8 and October 19, 2026
+    executables, idtl=2, opt1=30). Routing the pension to the 56-year-old gave
+    1,779.51."""
+    df = pd.DataFrame(
+        [
+            _base_mfj_record(
+                year=2021,
+                state=27,
+                page=56,
+                sage=51,
+                pwages=40000,
+                swages=30000,
+                pensions=20000,
+                opt1=30,
+                opt1v=1,
+            )
+        ]
+    )
+    result = PolicyEngineRunner(df, logs=False, disable_salt=False).run(
+        show_progress=False
+    )
+    assert float(result["siitax"].iloc[0]) == pytest.approx(1489.02, abs=1.0)
+    assert float(result["fiitax"].iloc[0]) == pytest.approx(4590.00, abs=1.0)
 
 
 def test_gssi_ignores_per_state_pension_age_for_ga_straddle():
