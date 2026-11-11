@@ -107,7 +107,12 @@ def test_import_single_household(sample_taxsim_input):
                 "reduced_price_school_meals": {"2021": 0},
             }
         },
-        "tax_units": {"your tax unit": {"members": ["you"]}},
+        "tax_units": {
+            "your tax unit": {
+                "members": ["you"],
+                "takes_up_aca_if_eligible": {"2021": False},
+            }
+        },
     }
 
     result = generate_household(sample_taxsim_input)
@@ -148,6 +153,7 @@ def test_import_single_household_without_state(sample_taxsim_input_without_state
         "tax_units": {
             "your tax unit": {
                 "members": ["you"],
+                "takes_up_aca_if_eligible": {"2021": False},
                 "state_and_local_sales_or_income_tax": {"2021": 0},
             }
         },
@@ -191,6 +197,7 @@ def test_import_single_household_with_state_eq_0(sample_taxsim_input_with_state_
         "tax_units": {
             "your tax unit": {
                 "members": ["you"],
+                "takes_up_aca_if_eligible": {"2021": False},
                 "state_and_local_sales_or_income_tax": {"2021": 0},
             }
         },
@@ -335,6 +342,7 @@ def test_joint_household(sample_taxsim_input_for_joint):
                     "your first dependent",
                     "your second dependent",
                 ],
+                "takes_up_aca_if_eligible": {"2023": False},
                 "state_and_local_sales_or_income_tax": {"2023": 0},
             }
         },
@@ -450,6 +458,7 @@ def test_household_with_dependent(sample_taxsim_input_for_household_with_depende
                     "your first dependent",
                     "your second dependent",
                 ],
+                "takes_up_aca_if_eligible": {"2023": False},
                 "pa_use_tax": {"2023": 0},
             }
         },
@@ -536,6 +545,7 @@ def test_household_with_dependent_single_parent(
         "tax_units": {
             "your tax unit": {
                 "members": ["you", "your first dependent", "your second dependent"],
+                "takes_up_aca_if_eligible": {"2023": False},
                 "pa_use_tax": {"2023": 0},
             }
         },

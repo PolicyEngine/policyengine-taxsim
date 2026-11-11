@@ -1361,7 +1361,7 @@ class PolicyEngineRunner(BaseTaxRunner):
         """Build a Microsimulation from the chunk dataset and apply all
         emulator overrides (student status, SALT, QBID W-2 wages, rental QBID
         gate, MN CRP, imputed-transfer zeroing, MD local tax zeroing, NY separate
-        payments).
+        payments, ACA take-up).
 
         ``zero_salt`` zeroes the federal deduction for state and local income
         or sales tax for every record in the chunk: state-0 records and
@@ -1484,6 +1484,24 @@ class PolicyEngineRunner(BaseTaxRunner):
                                 else year
                             ),
                         )
+
+        # TAXSIM has no health coverage input, so no record buys marketplace
+        # coverage. PE-US's ACA take-up defaults to True and assigns a premium
+        # tax credit to every eligible tax unit; Oregon's federal tax liability
+        # subtraction nets it out (PE-US #10093). Turn take-up off for every
+        # record. Mirrors input_mapper.add_additional_units.
+        var = "takes_up_aca_if_eligible"
+        if var in sim.tax_benefit_system.variables:
+            n_units = sim.get_variable_population(var).count
+            for year in sorted(set(chunk_df["year"].unique())):
+                _pin_input(
+                    sim,
+                    variable_name=var,
+                    value=np.zeros(n_units, dtype=bool),
+                    period=str(
+                        int(year) if isinstance(year, (float, np.floating)) else year
+                    ),
+                )
 
         # PE imputes means-tested transfers (SSI, SNAP, TANF, WIC, and
         # state SSI supplements) from the microsimulation's low-income
