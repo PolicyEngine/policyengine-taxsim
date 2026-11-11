@@ -198,10 +198,10 @@
     },
     {
       "taxsim": "nonprop",
-      "policyengine": "na_pe",
+      "policyengine": "miscellaneous_income / alimony_income / alimony_expense",
       "description": "Other Non-Property",
-      "implemented": false,
-      "githubLink": null
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/income/person/misc/miscellaneous_income.py"
     },
     {
       "taxsim": "transfers",
@@ -212,10 +212,10 @@
     },
     {
       "taxsim": "otheritem",
-      "policyengine": "na_pe",
+      "policyengine": "deductible_mortgage_interest",
       "description": "Other Itemized Deds",
-      "implemented": false,
-      "githubLink": null
+      "implemented": true,
+      "githubLink": "https://github.com/PolicyEngine/policyengine-us/blob/master/policyengine_us/variables/household/expense/person/deductible_mortgage_interest.py"
     }
   ],
   "incomeSplittingRules": {
@@ -226,7 +226,10 @@
       "partnership_s_corp_income",
       "taxable_private_pension_income",
       "short_term_capital_gains",
-      "social_security_retirement"
+      "social_security_retirement",
+      "miscellaneous_income",
+      "alimony_income",
+      "alimony_expense"
     ],
     "incomeTypesNotSplit": [
       "employment_income (uses separate pwages/swages fields)",
@@ -281,5 +284,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-09-24T11:44:50.158Z"
+  "lastUpdated": "2026-10-10T23:55:17.708Z"
 }

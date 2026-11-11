@@ -40,6 +40,7 @@ function generatePolicyEngineGitHubLink(variableName) {
     'unemployment_compensation': 'gov/states/unemployment_compensation.py',
     'partnership_s_corp_income': 'household/income/person/self_employment/partnership_s_corp_income.py',
     'qualified_business_income': 'gov/irs/income/taxable_income/deductions/qualified_business_income_deduction/qualified_business_income.py',
+    'miscellaneous_income': 'household/income/person/misc/miscellaneous_income.py',
     
     // Expense/Deduction variables
     'rent': 'household/expense/housing/rent.py',
@@ -78,29 +79,25 @@ function extractTaxsimToPolicyEngineMappings(config) {
         const name = definition.name || taxsimVar;
         const description = name.replace(/^\d+\.\s*/, ''); // Remove numbering
         
-        // Find corresponding PolicyEngine variable from additional_income_units
-        let policyengineVar = 'Not mapped';
-        let implemented = false;
-        
-        // Check additional_income_units
-        additionalIncomeUnits.forEach(incomeUnit => {
-          Object.entries(incomeUnit).forEach(([peVar, taxsimVars]) => {
-            if (Array.isArray(taxsimVars) && taxsimVars.includes(taxsimVar)) {
-              policyengineVar = peVar;
-              implemented = true;
+        // Find corresponding PolicyEngine variables from additional_income_units
+        // and additional_tax_units. A TAXSIM input can feed more than one
+        // (signed nonprop: miscellaneous_income or alimony_income when
+        // positive, alimony_expense when negative); list them all, in mapping
+        // order.
+        const peVars = [];
+        [...additionalIncomeUnits, ...additionalTaxUnits].forEach(unit => {
+          Object.entries(unit).forEach(([peVar, taxsimVars]) => {
+            if (
+              Array.isArray(taxsimVars) &&
+              taxsimVars.includes(taxsimVar) &&
+              !peVars.includes(peVar)
+            ) {
+              peVars.push(peVar);
             }
           });
         });
-        
-        // Check additional_tax_units
-        additionalTaxUnits.forEach(taxUnit => {
-          Object.entries(taxUnit).forEach(([peVar, taxsimVars]) => {
-            if (Array.isArray(taxsimVars) && taxsimVars.includes(taxsimVar)) {
-              policyengineVar = peVar;
-              implemented = true;
-            }
-          });
-        });
+        let policyengineVar = peVars.length ? peVars.join(' / ') : 'Not mapped';
+        let implemented = peVars.length > 0;
 
         // Handle special cases and paired variables
         if (taxsimVar === 'taxsimid') {
@@ -142,7 +139,7 @@ function extractTaxsimToPolicyEngineMappings(config) {
         // Generate GitHub link for PolicyEngine variable
         let githubLink = null;
         if (implemented && policyengineVar !== 'na_pe' && policyengineVar !== 'Not mapped') {
-          githubLink = generatePolicyEngineGitHubLink(policyengineVar);
+          githubLink = generatePolicyEngineGitHubLink(policyengineVar.split(' / ')[0]);
         }
 
         mappings.push({
@@ -251,7 +248,10 @@ function extractIncomeSplittingRules() {
     'partnership_s_corp_income',
     'taxable_private_pension_income',
     'short_term_capital_gains',
-    'social_security_retirement'
+    'social_security_retirement',
+    'miscellaneous_income',
+    'alimony_income',
+    'alimony_expense'
   ];
 
   const incomeTypesNotSplit = [

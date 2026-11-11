@@ -160,6 +160,7 @@ OVERRIDE_RECORDS = (
     "7,2024,33,1,35,0,1,25000,0,0,0,0,0,0,2\n"
 )
 EXPECTED_OVERRIDES = {
+    "is_full_time_student",
     "state_and_local_sales_or_income_tax",
     "w2_wages_from_qualified_business",
     "rental_income_would_be_qualified",

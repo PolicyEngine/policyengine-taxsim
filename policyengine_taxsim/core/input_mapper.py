@@ -6,6 +6,9 @@ from .utils import (
     convert_taxsim32_dependents,
     NO_STATE,
     validate_state_number,
+    NONPROP_SOURCE,
+    NONPROP_VARIABLES,
+    nonprop_parts,
 )
 from .state_output_resolver import NY_SEPARATE_PAYMENT_VARIABLES
 import copy
@@ -129,6 +132,19 @@ def add_additional_units(state, year, situation, taxsim_vars):
                     people_unit["your partner"][field] = {
                         str(year): taxsim_vars.get("sprofinc", 0)
                     }
+
+            elif field in NONPROP_VARIABLES:
+                # One part of signed TAXSIM nonprop (income when positive,
+                # an adjustment when negative), split evenly between spouses
+                # for MFJ like the other household aggregates.
+                if NONPROP_SOURCE not in taxsim_vars:
+                    continue
+                amount = nonprop_parts(taxsim_vars[NONPROP_SOURCE], state)[field]
+                if is_married_filing_jointly and "your partner" in people_unit:
+                    people_unit["you"][field] = {str(year): amount / 2}
+                    people_unit["your partner"][field] = {str(year): amount / 2}
+                else:
+                    people_unit["you"][field] = {str(year): amount}
 
             elif field == "unemployment_compensation":
                 if "pui" in taxsim_vars:
@@ -313,6 +329,16 @@ def form_household_situation(year, state, taxsim_vars):
         household_situation["people"][person_name][
             "medical_expense_health_insurance_premiums"
         ] = {str(year): 0}
+
+    # TAXSIM input has no student status, and the emulator does not default
+    # anyone to being a student (taxsim #532). PE-US imputes is_in_k12_school
+    # for ages 5 to 17, which made a spouse that age a full-time student with
+    # the IRC 21(d)(2) deemed earned income for the CDCC, which TAXSIM-35 does
+    # not give. Mirrors the Microsimulation path in PolicyEngineRunner.
+    for person_name in household_situation["people"]:
+        household_situation["people"][person_name]["is_full_time_student"] = {
+            str(year): False
+        }
 
     # Explicitly set SNAP to 0 for all SPM units to prevent PolicyEngine from imputing SNAP benefits
     # TAXSIM does not model SNAP, so we need to ensure it's not automatically calculated

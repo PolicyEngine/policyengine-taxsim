@@ -365,7 +365,7 @@ def main():
         "--scorp-treatment",
         choices=["default", "passive", "active"],
         default="default",
-        help="default: passive with policyengine-us 2.10.1+, otherwise active",
+        help="default: passive",
     )
     parser.add_argument("--year", type=int, choices=range(2021, 2026))
     parser.add_argument("--work-dir", type=Path, default=Path("refresh-work"))

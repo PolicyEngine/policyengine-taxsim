@@ -1,0 +1,27 @@
+{
+  "taxsimtest-osx.exe": {
+    "url": "https://taxsim.nber.org/out2psl/osx",
+    "build": "cd2026110117",
+    "sha256": "21d36bac648d4403eb2f4a5c39dc5f6fca5f281b86af52cf418f22e958f1ceb2",
+    "size_bytes": 2125000,
+    "downloaded_on": "2026-11-02",
+    "last_modified": "Sun, 01 Nov 2026 22:49:45 GMT"
+  },
+  "taxsimtest-linux.exe": {
+    "url": "https://taxsim.nber.org/out2psl/linux",
+    "build": "cd2026110117",
+    "sha256": "beb897fd1a478a7ed04df635d6d4516a25cca1d865a81f68d9ae7023c103c515",
+    "size_bytes": 2202264,
+    "downloaded_on": "2026-11-02",
+    "last_modified": "Sun, 01 Nov 2026 22:49:49 GMT"
+  },
+  "taxsimtest-windows.exe": {
+    "url": "https://taxsim.nber.org/taxsimtest/taxsimtest.exe",
+    "build": "cd2026081318",
+    "sha256": "a8207e7cf207ee9ce066eedc51cc5dd531c956de0a8b567fca1933ca0fa0e9c3",
+    "size_bytes": 3035784,
+    "downloaded_on": "2026-08-24 (#1150)",
+    "last_modified": null,
+    "note": "Kept at the August build. NBER's later Windows builds have not matched the macOS and Linux builds: the October 8 Windows build (cd2026100817) gave an Indiana 2024 v39 of 63.20 where they return 0.00, and the November 1 Windows build (cd2026110117) stops with a Fortran bounds error on 2022 Missouri records (taxsim #1500)."
+  }
+}

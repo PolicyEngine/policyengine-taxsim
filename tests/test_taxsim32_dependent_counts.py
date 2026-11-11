@@ -27,6 +27,7 @@ from policyengine_taxsim.runners.policyengine_runner import (
     TaxsimMicrosimDataset,
 )
 from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
+from taxsim_known_regressions import BUNDLED_BUILD, CURRENT_BUILD, TAXSIM_1461
 
 PA, CA, NY, TX = 39, 5, 33, 44
 
@@ -103,7 +104,29 @@ def emulator():
     return _by_id(PolicyEngineRunner(_frame(), logs=False).run(show_progress=False))
 
 
-@pytest.mark.parametrize("taxsimid", _IDS)
+# taxsim #1461 in cd2026102718: record 9's Empire State child credit is
+# sctc 108.90 (0.33 x 330) instead of 330, so its siitax is -791.50, not the
+# emulator's -1012.60; fiitax and the federal credits match.
+_TAXSIM_1461_IDS = {9}
+
+
+@pytest.mark.parametrize(
+    "taxsimid",
+    [
+        pytest.param(
+            i,
+            marks=pytest.mark.xfail(
+                BUNDLED_BUILD == CURRENT_BUILD,
+                strict=True,
+                raises=AssertionError,
+                reason=TAXSIM_1461,
+            ),
+        )
+        if i in _TAXSIM_1461_IDS
+        else i
+        for i in _IDS
+    ],
+)
 def test_emulator_matches_binary_on_dependent_counts(taxsim, emulator, taxsimid):
     for col in _OUTPUTS:
         assert emulator.loc[taxsimid, col] == pytest.approx(

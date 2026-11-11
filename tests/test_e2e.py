@@ -234,7 +234,8 @@ class E2ETest(unittest.TestCase):
         # Compare
         standard_output_cols = ["year", "fiitax", "siitax"]
         full_output_cols = standard_output_cols + [
-            "tficav10",  # state_agi
+            "tfica",
+            "v10",  # state_agi
             "v13",
             "v18",
             "v19",
