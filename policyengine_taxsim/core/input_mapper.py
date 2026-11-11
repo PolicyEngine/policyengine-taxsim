@@ -53,6 +53,12 @@ def add_additional_units(state, year, situation, taxsim_vars):
     if state.lower() == "md":
         tax_unit["md_local_income_tax_before_refundable_credits"] = {str(year): 0}
 
+    # TAXSIM has no health coverage input, so no record buys marketplace
+    # coverage: turn off PE's ACA take-up, which otherwise assigns a premium
+    # tax credit to every eligible unit (it reaches Oregon's federal tax
+    # liability subtraction). Mirrors PolicyEngineRunner._build_configured_sim.
+    tax_unit["takes_up_aca_if_eligible"] = {str(year): False}
+
     # Get marital status to determine if income should be split
     mstat = taxsim_vars.get("mstat", 1)
     is_married_filing_jointly = mstat == 2
