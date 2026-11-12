@@ -14,7 +14,7 @@ from policyengine_taxsim.runners.taxsim_runner import TaxsimRunner
 
 # macOS and Linux bundle this build; Windows keeps cd2026081318
 # (resources/taxsimtest/README.md), which has none of the regressions below.
-CURRENT_BUILD = "cd2026110117"
+CURRENT_BUILD = "cd2026110817"
 
 # The first build with the correction reported on taxsim #1225: AddMed is
 # out of fiitax in 2013-2023 too.
@@ -42,22 +42,21 @@ def on_current_build(values):
     return set(values) if BUNDLED_BUILD == CURRENT_BUILD else set()
 
 
-TAXSIM_1461 = (
-    "taxsim #1461: bundled build cd2026110117 multiplies New York's 2024 "
-    "Empire State child credit by 33% a second time below the income limit "
-    "(sctc 108.90 = 0.33 x 330 for one child aged 13-16), so siitax is higher "
-    "than by Form IT-213."
+TAXSIM_1481 = (
+    "taxsim #1481: bundled build cd2026110817 gives 2021 Maryland single "
+    "filers with no earned income credit a credit equal to their whole tax "
+    "(v40 = staxbc), so siitax is 0."
 )
 
 TAXSIM_1482 = (
-    "taxsim #1482: bundled build cd2026110117 counts nonprop twice in federal "
+    "taxsim #1482: bundled build cd2026110817 counts nonprop twice in federal "
     "AGI (v10) in every year before 2024, and in the state AGI that starts "
     "from it, so v10, fiitax and the taxes built on them differ from earlier "
     "builds."
 )
 
 TAXSIM_1483 = (
-    "taxsim #1483: bundled build cd2026110117 leaves the child care credit "
+    "taxsim #1483: bundled build cd2026110817 leaves the child care credit "
     "out of Schedule 8812 Credit Limit Worksheet A when it computes the "
     "2024-2025 additional child tax credit, so actc is lower and fiitax "
     "higher by the child care credit (v24)."
