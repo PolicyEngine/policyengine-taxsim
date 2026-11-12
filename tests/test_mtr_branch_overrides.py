@@ -170,6 +170,7 @@ EXPECTED_OVERRIDES = {
     "ny_additional_ctc",
     "ny_inflation_refund_credit",
     "ny_supplemental_eitc",
+    "takes_up_aca_if_eligible",
     "ssi",
     "snap",
     "tanf",

@@ -63,3 +63,21 @@ def test_invalid_records_are_not_silently_dropped(tmp_path):
     result = TaxsimRunner.__new__(TaxsimRunner)._parse_taxsim_output(str(output))
     assert len(result) == 2
     assert pd.isna(result.taxsimid.iloc[1])
+
+
+def test_november_8_build_d1_d2_pairs_are_removed(tmp_path):
+    """cd2026110817 prints " d1 <value> <value>" and " d2 <value> <value>"
+    before Georgia 2024 records."""
+    output = tmp_path / "taxsim.csv"
+    output.write_text(
+        "taxsimid,fiitax,siitax\n"
+        " d1   580203.31250000000        0.0000000000000000     \n"
+        " d2   0.0000000000000000        0.0000000000000000     \n"
+        "1,100,20\n"
+        " d1   3826.2631835937500        3826.2631835937500     \n"
+        " d2   2080.0534241938767        2080.0534241938767     \n"
+        "2,200,40\n"
+    )
+    result = TaxsimRunner.__new__(TaxsimRunner)._parse_taxsim_output(str(output))
+    assert result.taxsimid.tolist() == [1, 2]
+    assert result.siitax.tolist() == [20, 40]

@@ -318,13 +318,14 @@ class TaxsimRunner(BaseTaxRunner):
             # First, try to read as CSV (for idtl values like 2)
             # The August 2026 binary prints d3/d4 debug counters to stdout,
             # the October 8 build (cd2026100817) a "d1 <value>" line before
-            # Minnesota 2024-2025 records, and the October 27 build
+            # Minnesota 2024-2025 records, the October 27 build
             # (cd2026102718) a "d1 <integer> <integer>" line before Colorado
-            # 2021 records. Skip only those exact non-CSV diagnostics, not
-            # malformed records.
+            # 2021 records, and the November 8 build (cd2026110817) "d1" and
+            # "d2" lines with two decimal values before Georgia 2024 records.
+            # Skip only those exact non-CSV diagnostics, not malformed records.
             debug_line = re.compile(
-                r"^\s*d(?:1\s+-?\d+(?:\.\d+)?(?:\s+-?\d+)?|3\s+-?\d+"
-                r"|4\s+-?\d+\s+-?\d+)\s*$"
+                r"^\s*d(?:[12]\s+-?\d+(?:\.\d+)?(?:\s+-?\d+(?:\.\d+)?)?"
+                r"|3\s+-?\d+|4\s+-?\d+\s+-?\d+)\s*$"
             )
             with open(output_file) as stream:
                 skip_rows = [
