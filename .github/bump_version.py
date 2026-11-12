@@ -57,6 +57,26 @@ def update_file(path: Path, old_version: str, new_version: str):
         print(f"  Updated {path}")
 
 
+# The line in the R package that names the policyengine-taxsim release
+# setup_policyengine() installs by default.
+R_PIN_PATTERN = re.compile(r'^(\.PE_TAXSIM_VERSION <- ")[^"]*(")$', re.MULTILINE)
+
+
+def update_r_pin(path: Path, new_version: str):
+    """Point the R package's default policyengine-taxsim release at new_version."""
+    text = path.read_text()
+    updated, count = R_PIN_PATTERN.subn(rf"\g<1>{new_version}\g<2>", text)
+    if count != 1:
+        print(
+            f"Expected one .PE_TAXSIM_VERSION line in {path}, found {count}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if updated != text:
+        path.write_text(updated)
+        print(f"  Updated {path}")
+
+
 def main():
     root = Path(__file__).resolve().parent.parent
     pyproject = root / "pyproject.toml"
@@ -72,6 +92,9 @@ def main():
     init_file = root / "policyengine_taxsim" / "__init__.py"
     if init_file.exists():
         update_file(init_file, current, new)
+    r_setup_file = root / "r-package" / "policyenginetaxsim" / "R" / "setup.R"
+    if r_setup_file.exists():
+        update_r_pin(r_setup_file, new)
 
 
 if __name__ == "__main__":
