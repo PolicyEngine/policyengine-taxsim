@@ -42,6 +42,7 @@ ONE_TIME_REBATE_VARIABLES = (
     "il_property_tax_rebate",
     "in_automatic_refund_rebate",
     "ma_taxpayer_refund_rebate",
+    "me_affordability_payment",
     "me_relief_rebate",
     "mt_income_tax_rebate",
     "nm_2021_income_rebate",
