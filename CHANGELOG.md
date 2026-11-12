@@ -1,3 +1,15 @@
+## [3.3.2] - 2026-11-12
+
+### Changed
+
+- Update the bundled macOS and Linux TAXSIM test binaries to the November 8, 2026 build (cd2026110817), and skip its Georgia 2024 d1/d2 debug lines.
+
+### Fixed
+
+- Retry the taxsimtest Docker image build on the host network when the default build fails.
+- Turn off PolicyEngine's ACA take-up for TAXSIM records, which have no health coverage input, so no imputed premium tax credit reaches Oregon's federal tax liability subtraction.
+
+
 ## [3.3.1] - 2026-11-03
 
 ### Changed

@@ -3,18 +3,22 @@
 These are NBER's `taxsimtest` binaries, bundled per platform and used by
 `TaxsimRunner` (and CI) instead of downloading at run time.
 
-## Pinned builds (verified November 2, 2026)
+## Pinned builds (verified November 9, 2026)
 
 | Platform | Build stamp | NBER download |
 | --- | --- | --- |
-| macOS | `cd2026110117` | https://taxsim.nber.org/out2psl/osx |
-| Linux | `cd2026110117` | https://taxsim.nber.org/out2psl/linux |
+| macOS | `cd2026110817` | https://taxsim.nber.org/out2psl/osx |
+| Linux | `cd2026110817` | https://taxsim.nber.org/out2psl/linux |
 | Windows | `cd2026081318` | https://taxsim.nber.org/taxsimtest/taxsimtest.exe |
 
 `manifest.json` records the source URLs, build stamps, download date, sizes,
-and SHA-256 checksums. The macOS and Linux `cd2026110117` builds give the
-same output on all 15,000 records of the PolicyEngine CPS comparison sample,
-and each gives the same output on repeated runs. Windows stays at the August
+and SHA-256 checksums. The Linux `cd2026110817` build gives the same output
+in three runs of all 15,000 records of the PolicyEngine CPS comparison sample.
+The macOS build gives the same output in two runs and matches Linux on every
+record except five Colorado 2021 records, where macOS under Rosetta on one
+test Mac differs from run to run (Linux gives the correct result every time).
+This build prints `d1`/`d2` debug lines before Georgia 2024 records;
+`TaxsimRunner` skips them. Windows stays at the August
 build: NBER's October 8 Windows build (`cd2026100817`) returned different
 values from the macOS and Linux builds of the same stamp (for example an
 Indiana 2024 `v39` of 63.20 where they returned 0.00), so a Windows stamp is

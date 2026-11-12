@@ -15,7 +15,7 @@ Basis:
   fica and tfica".
 - taxsimtest builds from cd2026100817 (October 2026) keep AddMed out of
   fiitax in every year (2013-2024 checked: fiitax = v28) and count it in
-  tfica; the bundled macOS and Linux cd2026110117 does the same (2015,
+  tfica; the bundled macOS and Linux cd2026110817 does the same (2015,
   2022 and 2024 checked). Windows keeps the August build cd2026081318,
   which still adds it to 2013-2023 fiitax.
 

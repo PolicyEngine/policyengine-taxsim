@@ -1,19 +1,19 @@
 {
   "taxsimtest-osx.exe": {
     "url": "https://taxsim.nber.org/out2psl/osx",
-    "build": "cd2026110117",
-    "sha256": "21d36bac648d4403eb2f4a5c39dc5f6fca5f281b86af52cf418f22e958f1ceb2",
-    "size_bytes": 2125000,
-    "downloaded_on": "2026-11-02",
-    "last_modified": "Sun, 01 Nov 2026 22:49:45 GMT"
+    "build": "cd2026110817",
+    "sha256": "772b980c2ff9f872b8cff9c12e8bfb4e920ea636c50a8c782da29ff496fda713",
+    "size_bytes": 2133312,
+    "downloaded_on": "2026-11-08",
+    "last_modified": "Sun, 08 Nov 2026 22:53:09 GMT"
   },
   "taxsimtest-linux.exe": {
     "url": "https://taxsim.nber.org/out2psl/linux",
-    "build": "cd2026110117",
-    "sha256": "beb897fd1a478a7ed04df635d6d4516a25cca1d865a81f68d9ae7023c103c515",
-    "size_bytes": 2202264,
-    "downloaded_on": "2026-11-02",
-    "last_modified": "Sun, 01 Nov 2026 22:49:49 GMT"
+    "build": "cd2026110817",
+    "sha256": "3f3322be969f787c47790bdf481e2528c6315496ea1a1564ae5dbbf1c9efe5b4",
+    "size_bytes": 2217760,
+    "downloaded_on": "2026-11-08",
+    "last_modified": "Sun, 08 Nov 2026 22:53:12 GMT"
   },
   "taxsimtest-windows.exe": {
     "url": "https://taxsim.nber.org/taxsimtest/taxsimtest.exe",
