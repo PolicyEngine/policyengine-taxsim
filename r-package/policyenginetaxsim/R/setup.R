@@ -7,7 +7,7 @@
 # The release step (.github/bump_version.py) rewrites this line together with
 # the version in pyproject.toml, and tests/test_r_package.py fails when
 # the two differ. Do not edit it by hand.
-.PE_TAXSIM_VERSION <- "3.3.1"
+.PE_TAXSIM_VERSION <- "3.3.2"
 
 #' Set up PolicyEngine Python environment
 #'
