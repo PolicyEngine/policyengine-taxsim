@@ -69,7 +69,7 @@
 #' # Basic example: Single filer with wage income
 #' my_data <- data.frame(
 #'   year = 2023,
-#'   state = 6,        # California
+#'   state = 5,        # California
 #'   mstat = 1,        # Single
 #'   pwages = 50000    # $50,000 wages
 #' )
@@ -80,7 +80,7 @@
 #' # Married couple with multiple income sources
 #' couple_data <- data.frame(
 #'   year = 2023,
-#'   state = 36,       # New York
+#'   state = 33,       # New York
 #'   mstat = 2,        # Married filing jointly
 #'   pwages = 75000,   # Primary earner wages
 #'   swages = 50000,   # Spouse wages
