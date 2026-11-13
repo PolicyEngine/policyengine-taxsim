@@ -8,22 +8,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run each 2020 row alone, 3 times, on two builds
+      - name: Repeat the Virginia rows and the Georgia rows
         run: |
           set +e
-          chmod +x probe/*.exe resources/taxsimtest/taxsimtest-linux.exe
+          X=resources/taxsimtest/taxsimtest-linux.exe
+          chmod +x $X
           f=probe/rows2020.csv
           head -1 $f > /tmp/h.csv
-          for X in probe/nov8-linux.exe resources/taxsimtest/taxsimtest-linux.exe; do
-            echo "=== $X $(strings $X | grep -o 'cd20[0-9]\{8\}' | head -1)"
-            $X < $f > /dev/null 2>&1; echo "whole file rc=$?"
-            tail -n +2 $f | while IFS= read -r line; do
-              n=0; fn=""
-              for r in 1 2 3; do
-                { cat /tmp/h.csv; echo "$line"; } | $X > /dev/null 2> /tmp/e.txt
-                if [ $? -ne 0 ]; then n=$((n+1)); fn=$(grep -o '[a-z0-9]*_ *$\|in [a-z0-9_]*' /tmp/e.txt | sed -n 1p); fl=$(grep -o 'taxsim.f:[0-9]*' /tmp/e.txt | head -1); fi
-              done
-              [ $n -gt 0 ] && echo "FAIL $n/3 $fn $fl | $line"
+          for id in 13 124 184; do
+            line=$(grep "^$id,2020," $f)
+            n=0
+            for r in $(seq 1 50); do
+              { cat /tmp/h.csv; echo "$line"; } | $X > /tmp/o.txt 2> /tmp/e.txt || { n=$((n+1)); cp /tmp/e.txt /tmp/bt_$id.txt; }
             done
+            echo "ROW $id fails $n/50"
+            [ -f /tmp/bt_$id.txt ] && grep -E '^#|at /' /tmp/bt_$id.txt | head -12
+            { cat /tmp/h.csv; echo "$line"; } > /tmp/one.csv
+            for r in $(seq 1 10); do $X < /tmp/one.csv 2>/dev/null | grep -E '^[0-9]' | cut -d, -f1-4; done | sort | uniq -c
           done
+          { cat /tmp/h.csv; grep -E '^[0-9]+,2020,11,' $f; } > /tmp/ga.csv
+          echo "GA rows $(($(wc -l < /tmp/ga.csv)-1))"
+          n=0; for r in $(seq 1 20); do $X < /tmp/ga.csv > /dev/null 2> /tmp/e.txt || { n=$((n+1)); cp /tmp/e.txt /tmp/bt_ga.txt; }; done
+          echo "GA file fails $n/20"; [ -f /tmp/bt_ga.txt ] && grep -E '^#|at /' /tmp/bt_ga.txt | head -8
+          n=0; for r in $(seq 1 10); do $X < $f > /dev/null 2> /tmp/e.txt || { n=$((n+1)); cp /tmp/e.txt /tmp/bt_all.txt; }; done
+          echo "whole file fails $n/10"; [ -f /tmp/bt_all.txt ] && grep -E '^#|at /' /tmp/bt_all.txt | head -8
           echo PROBE_DONE
