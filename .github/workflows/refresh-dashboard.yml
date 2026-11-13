@@ -15,21 +15,13 @@ jobs:
           chmod +x $X
           f=probe/rows2020.csv
           head -1 $f > /tmp/h.csv
-          for id in 13 124 184; do
-            line=$(grep "^$id,2020," $f)
-            n=0
-            for r in $(seq 1 50); do
-              { cat /tmp/h.csv; echo "$line"; } | $X > /tmp/o.txt 2> /tmp/e.txt || { n=$((n+1)); cp /tmp/e.txt /tmp/bt_$id.txt; }
-            done
-            echo "ROW $id fails $n/50"
-            [ -f /tmp/bt_$id.txt ] && grep -E '^#|at /' /tmp/bt_$id.txt | head -12
-            { cat /tmp/h.csv; echo "$line"; } > /tmp/one.csv
-            for r in $(seq 1 10); do $X < /tmp/one.csv 2>/dev/null | grep -E '^[0-9]' | cut -d, -f1-4; done | sort | uniq -c
+          N=$(($(wc -l < $f) - 1)); k=0
+          for j in $(seq 1 $N); do head -$((j+1)) $f | $X > /dev/null 2>&1 || { k=$j; break; }; done
+          echo "first failing prefix $k"
+          crow=$(sed -n "$((k+1))p" $f); echo "CRASH ROW $crow"
+          for i in $(seq 1 $((k-1))); do
+            prow=$(sed -n "$((i+1))p" $f)
+            n=0; for r in 1 2 3 4 5; do { cat /tmp/h.csv; echo "$prow"; echo "$crow"; } | $X > /dev/null 2>&1 || n=$((n+1)); done
+            [ $n -gt 0 ] && echo "PAIR $n/5 | $prow"
           done
-          { cat /tmp/h.csv; grep -E '^[0-9]+,2020,11,' $f; } > /tmp/ga.csv
-          echo "GA rows $(($(wc -l < /tmp/ga.csv)-1))"
-          n=0; for r in $(seq 1 20); do $X < /tmp/ga.csv > /dev/null 2> /tmp/e.txt || { n=$((n+1)); cp /tmp/e.txt /tmp/bt_ga.txt; }; done
-          echo "GA file fails $n/20"; [ -f /tmp/bt_ga.txt ] && grep -E '^#|at /' /tmp/bt_ga.txt | head -8
-          n=0; for r in $(seq 1 10); do $X < $f > /dev/null 2> /tmp/e.txt || { n=$((n+1)); cp /tmp/e.txt /tmp/bt_all.txt; }; done
-          echo "whole file fails $n/10"; [ -f /tmp/bt_all.txt ] && grep -E '^#|at /' /tmp/bt_all.txt | head -8
           echo PROBE_DONE
