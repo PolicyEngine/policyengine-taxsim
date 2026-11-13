@@ -23,9 +23,19 @@ jobs:
           done
           echo CENSUS_DONE
           mkdir -p out1/dan1112
-          for f in probe/dan1112/*.csv; do $X < $f > out1/dan1112/$(basename $f); done
+          set +e
+          for f in probe/dan1112/*.csv; do
+            $X < $f > out1/dan1112/$(basename $f) 2> /tmp/e.txt; echo "$f rc=$?"; head -c 300 /tmp/e.txt
+            if [ -s /tmp/e.txt ]; then
+              head -1 $f > /tmp/h.csv
+              tail -n +2 $f | while IFS= read -r line; do
+                { cat /tmp/h.csv; echo "$line"; } | $X > /dev/null 2>&1 || echo "FAIL $line"
+              done
+            fi
+          done
           echo PROBES_DONE
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: census-linux-cd2026111218
           path: out1
