@@ -1,0 +1,1 @@
+Replace the Modal API image's pip 25.2, whose bundled certifi still trusts the compromised eMudhra root "emSign ECC Root CA - G3", with a hash-pinned pip 26.2.2 after the CA-store upgrade and before any package install.

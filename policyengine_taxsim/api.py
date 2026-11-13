@@ -19,9 +19,21 @@ from typing import Literal
 # 20250419~deb12u2 on bookworm). certifi is the CA list that requests, used by
 # resend, reads. Those packages and certifi 2026.10.19 no longer trust the
 # compromised eMudhra root "emSign ECC Root CA - G3".
+# Modal's cached debian_slim base for Python 3.11 carries pip 25.2, whose
+# bundled certifi (2025.07.14) still contains that root; --cert or PIP_CERT
+# only add to that trust. pip also reads the operating-system store, so after
+# the apt step the image replaces pip with 26.2.2, whose bundled certifi
+# (2026.10.19) drops the root, before it installs any other package.
+# --require-hashes accepts only the wheel with the sha256 PyPI publishes.
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git", "ca-certificates")
+    .run_commands(
+        "printf '%s\\n' 'pip==26.2.2 --hash=sha256:fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70'"
+        " > /tmp/pip-bootstrap.txt"
+        " && python -m pip install --require-hashes --no-deps -r /tmp/pip-bootstrap.txt"
+        " && rm /tmp/pip-bootstrap.txt"
+    )
     .pip_install(
         "policyengine-taxsim @ git+https://github.com/PolicyEngine/policyengine-taxsim.git@main",
         "fastapi[standard]",
