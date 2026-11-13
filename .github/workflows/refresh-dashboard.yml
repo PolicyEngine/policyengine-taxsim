@@ -33,6 +33,10 @@ jobs:
               done
             fi
           done
+          for f in probe/dan1112/in.csv probe/dan1112/in_posted.csv; do
+            n=$(($(wc -l < $f) - 1))
+            for k in $(seq 1 $n); do head -$((k+1)) $f | $X > /dev/null 2>&1; echo "$f first $k rows rc=$?"; done
+          done
           echo PROBES_DONE
       - uses: actions/upload-artifact@v4
         if: always()
