@@ -13,15 +13,21 @@ jobs:
           set +e
           X=resources/taxsimtest/taxsimtest-linux.exe
           chmod +x $X
-          f=probe/rows2020.csv
-          head -1 $f > /tmp/h.csv
-          N=$(($(wc -l < $f) - 1)); k=0
-          for j in $(seq 1 $N); do head -$((j+1)) $f | $X > /dev/null 2>&1 || { k=$j; break; }; done
-          echo "first failing prefix $k"
-          crow=$(sed -n "$((k+1))p" $f); echo "CRASH ROW $crow"
-          for i in $(seq 1 $((k-1))); do
-            prow=$(sed -n "$((i+1))p" $f)
-            n=0; for r in 1 2 3 4 5; do { cat /tmp/h.csv; echo "$prow"; echo "$crow"; } | $X > /dev/null 2>&1 || n=$((n+1)); done
-            [ $n -gt 0 ] && echo "PAIR $n/5 | $prow"
+          chmod +x probe/*.exe
+          P=probe/pair2020.csv
+          for B in probe/aug-linux.exe probe/nov1-linux.exe probe/nov8-linux.exe $X; do
+            n=0; for r in $(seq 1 10); do $B < $P > /dev/null 2>&1 || n=$((n+1)); done
+            echo "BUILD $(strings $B | grep -o 'cd20[0-9]\{8\}' | head -1) pair fails $n/10"
           done
+          for Y in 2021 2022 2023 2024 2025; do
+            sed "s/,2020,/,$Y,/" $P > /tmp/y.csv
+            n=0; for r in $(seq 1 10); do $X < /tmp/y.csv > /dev/null 2>&1 || n=$((n+1)); done
+            echo "YEAR $Y pair fails $n/10"
+          done
+          { head -1 $P; sed -n 3p $P; } > /tmp/va.csv; { head -1 $P; sed -n 2p $P; } > /tmp/ga.csv
+          n=0; for r in $(seq 1 10); do $X < /tmp/va.csv > /dev/null 2>&1 || n=$((n+1)); done; echo "VA alone fails $n/10"
+          n=0; for r in $(seq 1 10); do $X < /tmp/ga.csv > /dev/null 2>&1 || n=$((n+1)); done; echo "GA alone fails $n/10"
+          { head -1 $P; sed -n 3p $P; sed -n 2p $P; } > /tmp/rev.csv
+          n=0; for r in $(seq 1 10); do $X < /tmp/rev.csv > /dev/null 2>&1 || n=$((n+1)); done; echo "VA then GA fails $n/10"
+          $X < $P 2>&1 | grep -E '^#|at /' | head -10
           echo PROBE_DONE
