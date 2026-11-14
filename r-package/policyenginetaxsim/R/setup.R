@@ -1,7 +1,8 @@
 # Python version constraint matching policyengine-us requirements.
-# policyengine-us requires Python >=3.10,<3.14 (as of Feb 2026).
+# policyengine-taxsim requires Python >=3.11, and policyengine-us required
+# Python <3.14 as of Feb 2026.
 # Without this, setup_policyengine() fails on machines with only Python 3.14+.
-.PE_PYTHON_VERSION <- ">=3.10,<3.14"
+.PE_PYTHON_VERSION <- ">=3.11,<3.14"
 
 #' Set up PolicyEngine Python environment
 #'
@@ -42,7 +43,7 @@ setup_policyengine <- function(envname = "policyengine-taxsim", force = FALSE,
   }
 
   # Step 1: Ensure a compatible Python is available
-  # policyengine-us requires Python >=3.10,<3.14
+  # policyengine-taxsim requires Python >=3.11; see .PE_PYTHON_VERSION
   message("Checking for compatible Python installation (requires ", .PE_PYTHON_VERSION, ")...")
 
   # Check if a compatible Python exists among available starters
