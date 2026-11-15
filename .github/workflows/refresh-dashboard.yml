@@ -8,26 +8,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repeat the Virginia rows and the Georgia rows
+      - name: Run the census 3 times and the issue probes
         run: |
           set +e
-          X=resources/taxsimtest/taxsimtest-linux.exe
+          X=./resources/taxsimtest/taxsimtest-linux.exe
           chmod +x $X
-          chmod +x probe/*.exe
-          P=probe/pair2020.csv
-          for B in probe/aug-linux.exe probe/nov1-linux.exe probe/nov8-linux.exe $X; do
-            n=0; for r in $(seq 1 10); do $B < $P > /dev/null 2>&1 || n=$((n+1)); done
-            echo "BUILD $(strings $B | grep -o 'cd20[0-9]\{8\}' | head -1) pair fails $n/10"
+          strings $X | grep -o 'cd20[0-9]\{8\}' | head -1
+          for r in 1 2 3; do
+            mkdir -p out$r
+            for f in probe/census/*.csv; do $X < $f > out$r/$(basename $f) 2>/dev/null || echo "CRASH run $r $f"; done
           done
-          for Y in 2021 2022 2023 2024 2025; do
-            sed "s/,2020,/,$Y,/" $P > /tmp/y.csv
-            n=0; for r in $(seq 1 10); do $X < /tmp/y.csv > /dev/null 2>&1 || n=$((n+1)); done
-            echo "YEAR $Y pair fails $n/10"
+          for f in out1/*.csv; do
+            b=$(basename $f)
+            cmp -s $f out2/$b && cmp -s $f out3/$b || echo "UNSTABLE $b"
           done
-          { head -1 $P; sed -n 3p $P; } > /tmp/va.csv; { head -1 $P; sed -n 2p $P; } > /tmp/ga.csv
-          n=0; for r in $(seq 1 10); do $X < /tmp/va.csv > /dev/null 2>&1 || n=$((n+1)); done; echo "VA alone fails $n/10"
-          n=0; for r in $(seq 1 10); do $X < /tmp/ga.csv > /dev/null 2>&1 || n=$((n+1)); done; echo "GA alone fails $n/10"
-          { head -1 $P; sed -n 3p $P; sed -n 2p $P; } > /tmp/rev.csv
-          n=0; for r in $(seq 1 10); do $X < /tmp/rev.csv > /dev/null 2>&1 || n=$((n+1)); done; echo "VA then GA fails $n/10"
-          $X < $P 2>&1 | grep -E '^#|at /' | head -10
-          echo PROBE_DONE
+          echo CENSUS_DONE
+          mkdir -p out1/dan1112
+          for f in probe/dan1112/*.csv; do
+            n=0; for r in 1 2 3 4 5; do $X < $f > out1/dan1112/$(basename $f) 2>/dev/null || n=$((n+1)); done
+            echo "PROBE $f fails $n/5"
+          done
+          echo PROBES_DONE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: census-linux-cd2026111417
+          path: out1
