@@ -41,7 +41,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - python-version: "3.10"
           - python-version: "3.11"
           # Dashboard refresh environment (policyengine-us 2.6.17): has the
           # passive input but predates the EITC investment-income fix
