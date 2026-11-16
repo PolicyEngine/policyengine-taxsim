@@ -148,7 +148,7 @@ OVERRIDE_RECORDS = (
     "1,2024,21,1,40,0,0,80000,20000,4000,0,0,0,0,2\n"
     # MN renter: mn_renters_credit_qualifying_crp.
     "2,2024,24,1,40,0,0,30000,0,0,0,12000,0,0,2\n"
-    # ME elderly renter: utilities_included_in_rent.
+    # ME elderly renter: no override; rent excludes utilities (#1474).
     "3,2024,20,1,70,0,0,20000,0,0,0,12000,0,0,2\n"
     # CA otherprop: rental_income_would_be_qualified.
     "4,2024,5,1,40,0,0,60000,0,0,20000,0,0,0,2\n"
@@ -166,7 +166,6 @@ EXPECTED_OVERRIDES = {
     "rental_income_would_be_qualified",
     "mn_renters_credit_qualifying_crp",
     "md_local_income_tax_before_refundable_credits",
-    "utilities_included_in_rent",
     "ny_additional_ctc",
     "ny_inflation_refund_credit",
     "ny_supplemental_eitc",

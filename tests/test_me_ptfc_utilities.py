@@ -1,7 +1,7 @@
-"""Maine property tax fairness credit: rentpaid is treated as gross rent that
-includes heat/utilities, so the emulator flags utilities_included_in_rent for
-Maine records with rent. This is scoped to Maine because the same variable also
-feeds Michigan's home heating credit. See taxsim issue #1126.
+"""Maine property tax fairness credit: TAXSIM's rentpaid does not include
+heat or utilities (taxsim #1474, which replaces the #1126 convention), so the
+emulator leaves utilities_included_in_rent at PolicyEngine's default (False)
+and Schedule PTFC/STFC line 5b is "No" for every state, Maine included.
 """
 
 import numpy as np
@@ -27,10 +27,10 @@ def _record(state, rentpaid):
     }
 
 
-def test_maine_rent_sets_utilities_included_in_rent():
+def test_maine_rent_does_not_set_flag():
     situation = form_household_situation(2022, "ME", _record(20, 17139.244))
     tax_unit = situation["tax_units"]["your tax unit"]
-    assert tax_unit["utilities_included_in_rent"] == {"2022": True}
+    assert "utilities_included_in_rent" not in tax_unit
 
 
 def test_maine_without_rent_does_not_set_flag():
@@ -40,17 +40,14 @@ def test_maine_without_rent_does_not_set_flag():
 
 
 def test_michigan_rent_does_not_set_flag():
-    # utilities_included_in_rent also feeds Michigan's home heating credit, so
-    # the Maine flag must not leak to other states.
     situation = form_household_situation(2022, "MI", _record(24, 17139.244))
     tax_unit = situation["tax_units"]["your tax unit"]
     assert "utilities_included_in_rent" not in tax_unit
 
 
 # The production PolicyEngineRunner (batch/CLI path) builds its own
-# Microsimulation dataset and never calls add_additional_units, so the Maine
-# flag has to be set there too. These regressions confirm the flag reaches the
-# batch path for Maine renters and does not leak to Michigan (taxsim #1128).
+# Microsimulation dataset, so check that path too: rent never includes
+# utilities there either (taxsim #1474).
 def _batch_utilities_flag(state, rentpaid):
     df = pd.DataFrame([_record(state, rentpaid)])
     runner = PolicyEngineRunner(df, logs=False)
@@ -64,8 +61,8 @@ def _batch_utilities_flag(state, rentpaid):
         dataset.cleanup()
 
 
-def test_batch_path_sets_utilities_flag_for_maine_renter():
-    assert _batch_utilities_flag(20, 17139.244) is True  # SOI code 20 = Maine
+def test_batch_path_does_not_set_flag_for_maine_renter():
+    assert _batch_utilities_flag(20, 17139.244) is False  # SOI code 20 = Maine
 
 
 def test_batch_path_does_not_set_flag_for_maine_without_rent():
@@ -74,3 +71,25 @@ def test_batch_path_does_not_set_flag_for_maine_without_rent():
 
 def test_batch_path_does_not_set_flag_for_michigan():
     assert _batch_utilities_flag(23, 17139.244) is False  # SOI code 23 = Michigan
+
+
+def test_maine_2024_credit_matches_taxact_return():
+    # taxsim #1474: TaxAct answers Schedule PTFC/STFC line 5b "No" (rent does
+    # not include heat or utilities) and allows a $503 credit (whole dollars).
+    df = pd.DataFrame(
+        [
+            {
+                "taxsimid": 2,
+                "year": 2024,
+                "state": 20,
+                "mstat": 1,
+                "page": 68,
+                "pwages": 55523.809,
+                "intrec": 743.35437,
+                "rentpaid": 18363.477,
+                "idtl": 2,
+            }
+        ]
+    )
+    result = PolicyEngineRunner(df, logs=False).run(show_progress=False)
+    assert 503 <= float(result["v37"].iloc[0]) < 504
