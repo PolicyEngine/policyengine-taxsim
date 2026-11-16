@@ -1,3 +1,10 @@
+## [3.3.3] - 2026-11-16
+
+### Changed
+
+- Require Python 3.11 or later.
+
+
 ## [3.3.2] - 2026-11-12
 
 ### Changed
